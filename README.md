@@ -69,7 +69,7 @@ Fiat money data providers include traditional finance data providers, for exampl
 
 ### Kline and Candlestick
 For Kline and Candlestick please refer to [here](https://medium.com/cryptocurrencies-ups-and-down/master-k-line-charts-and-its-patterns-are-essential-for-financial-success-9d9b0f49b68d).   
-<img src="./candlestick.png" width="600">
+<img src="./diagrams/candlestick.png" width="600">
 
 ### Symbol
 The symbol in this component usually represents a currency pair, for example:
@@ -170,7 +170,7 @@ export interface PriceBySymbol {
 ```
 
 ### Timing and Workflows
-<img src="./AutonityOracleOverview.png" width="1000">
+<img src="diagrams/AutonityOracleOverview.png" width="1000">
 
 #### Trade data synchronization
 The trade data synchronization have two modes, the push mode and pull mode. For those data provider who provide websocket based protocol, they can push those trades to the subscriber, while for those who only provide https protocol to query the latest trades, a pull mode is used.   
@@ -186,10 +186,10 @@ For the timing being, the TVWAP_PERIOD is 3 minutes, that means only those trade
 
 ### TVWAP Aggregation Algorithms
 #### TWAP
-<img src="./TWAP.png" width="600">    
+<img src="diagrams/TWAP.png" width="600">    
 
 #### VWAP
-<img src="./VWAP.png" width="600">
+<img src="diagrams/VWAP.png" width="600">
 
 Here is an example in typescript:
 ```typescript
@@ -238,6 +238,16 @@ export function vwap(array: { price: BigNumber; volume: BigNumber }[]): BigNumbe
     return sum.dividedBy(totalVolume) || num(0)
 }
 ```
+### A more decentralized thinking
+To decouple those adapters from oracle component, it is possible to run those adapter independently by unifying the interface between oracle server and adapter.    
+<img src="./diagrams/OpenAdapterMarket.png" width="1000">
+
+#### An on-chain adapter hub contract
+An on-chain adapter hub contract is used to manage those adapter's digital twins where it contains the service discovery information, the operator account, the state of the adapter, and staking information...    
+Oracle service can query those on-chain digital twins of available adapters, and subscribe trade events via the service discovery information. Those adapters just need to push trades to the describers.
+
+#### The trade events signature
+The trade events pushed by adapters were signed the by corresponding private key of the operator account registered, so it is easy to apply incentives over the service provider.
 
 * [SRS][1]
 * [SDD][2]
