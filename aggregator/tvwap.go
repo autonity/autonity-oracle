@@ -7,7 +7,6 @@ import (
 
 const TVWAP_PERIOD = 3 * 60 * 1000 // 3 minutes
 
-// TVWAP todo: implement the time and volume weighted average price aggregation algorithm.
 type TVWAP struct {
 	config *types.AggregatorConfig
 }
@@ -18,6 +17,13 @@ func (tv *TVWAP) Initialize(config *types.AggregatorConfig) error {
 	return nil
 }
 
-func (tv *TVWAP) Aggregate(trs types.Trades) decimal.Decimal {
-	return decimal.Decimal{}
+func (tv *TVWAP) Aggregate(trs types.Trades) (decimal.Decimal, error) {
+	if len(trs) == 0 {
+		return decimal.Decimal{}, types.ErrWrongParameters
+	}
+	if len(trs) == 1 {
+		return trs[0].Price, nil
+	}
+	// todo: weight the time period that a trade holds.
+	return decimal.Decimal{}, nil
 }

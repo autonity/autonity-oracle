@@ -1,18 +1,27 @@
 package types
 
-import "github.com/shopspring/decimal"
+import (
+	"errors"
+	"github.com/shopspring/decimal"
+	"math/big"
+)
+
+var (
+	ErrWrongParameters = errors.New("wrong parameters")
+)
 
 type Aggregator interface {
 	Initialize(config *AggregatorConfig) error
-	Aggregate(trs Trades) decimal.Decimal
+	Aggregate(trs Trades) (decimal.Decimal, error)
 }
 
 type TradePool interface {
 	Initialize(config *TradePoolConfig) error
-	PushTrade(symbol string, tr *Trade) error
-	PushTrades(symbol string, trs Trades) error
-	GetTrades(symbol string) (Trades, error)
-	GetSymbols() ([]string, error)
+	PushTrades(provider string, symbol string, trs Trades) error
+	TradeEventReceiver() chan *TradesEvent
+	ConsumeTrades(symbol string) (Trades, error)
+	GetSymbols() []string
+	TradeUpdated(symbol string) bool
 }
 
 type Adapter interface {
@@ -27,12 +36,18 @@ type Adapter interface {
 }
 
 type Trade struct {
-	timestamp uint64
-	price     decimal.Decimal
-	volume    uint64
+	Timestamp uint64
+	Price     decimal.Decimal
+	Volume    *big.Int
 }
 
 type Trades []*Trade
+
+type TradesEvent struct {
+	Provider string
+	Symbol   string
+	Trs      Trades
+}
 
 type TradesBySymbol map[string]Trades
 
