@@ -17,7 +17,7 @@ type Aggregator interface {
 
 type TradePool interface {
 	Initialize(config *TradePoolConfig) error
-	PushTrades(provider string, symbol string, trs Trades) error
+	PushTrades(provider string, symbol string, trs Trades, isAccumulatedVolume bool) error
 	TradeEventReceiver() chan *TradesEvent
 	ConsumeTrades(symbol string) (Trades, error)
 	GetSymbols() []string
@@ -36,7 +36,7 @@ type Adapter interface {
 }
 
 type Trade struct {
-	Timestamp uint64
+	Timestamp int64
 	Price     decimal.Decimal
 	Volume    *big.Int
 }
