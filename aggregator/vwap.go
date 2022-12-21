@@ -3,7 +3,6 @@ package aggregator
 import (
 	"autonity-oralce/types"
 	"github.com/shopspring/decimal"
-	"math/big"
 )
 
 type VWAP struct {
@@ -26,13 +25,13 @@ func (vw *VWAP) Aggregate(trs types.Trades) (decimal.Decimal, error) {
 	}
 
 	var priceVols []decimal.Decimal
-	totalVols := new(big.Int)
+	totalVols := decimal.Decimal{}
 	for _, trd := range trs {
-		totalVols.Add(totalVols, trd.Volume)
-		pv := trd.Price.Mul(decimal.NewFromInt(trd.Volume.Int64()))
+		totalVols = totalVols.Add(trd.Volume)
+		pv := trd.Price.Mul(trd.Volume)
 		priceVols = append(priceVols, pv)
 	}
 
 	sum := decimal.Sum(priceVols[0], priceVols[1:]...)
-	return sum.Div(decimal.NewFromInt(totalVols.Int64())), nil
+	return sum.Div(totalVols), nil
 }

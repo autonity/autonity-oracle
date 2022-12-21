@@ -3,7 +3,6 @@ package types
 import (
 	"errors"
 	"github.com/shopspring/decimal"
-	"math/big"
 )
 
 var (
@@ -17,7 +16,7 @@ type Aggregator interface {
 
 type TradePool interface {
 	Initialize(config *TradePoolConfig) error
-	PushTrades(provider string, symbol string, trs Trades, isAccumulatedVolume bool) error
+	PushTrades(provider string, symbol string, trs Trades, isAccumulatedVolume bool)
 	TradeEventReceiver() chan *TradesEvent
 	ConsumeTrades(symbol string) (Trades, error)
 	GetSymbols() []string
@@ -38,7 +37,7 @@ type Adapter interface {
 type Trade struct {
 	Timestamp int64
 	Price     decimal.Decimal
-	Volume    *big.Int
+	Volume    decimal.Decimal
 }
 
 type Trades []*Trade
@@ -54,6 +53,10 @@ type TradesBySymbol map[string]Trades
 type PriceBySymbol map[string]decimal.Decimal
 
 type AdapterConfig struct {
+	symbols  []string // support symbols
+	interval int64    // update interval
+	timeout  int      // api call timeout
+	apiKey   string   // optional, api key.
 }
 
 type TradePoolConfig struct {

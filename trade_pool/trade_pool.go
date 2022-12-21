@@ -30,9 +30,9 @@ func (t *TradesByProvider) TradeUpdated(symbol string) bool {
 	return false
 }
 
-func (t *TradesByProvider) AddTrades(symbol string, trs types.Trades, isAccumulatedVolume bool) error {
+func (t *TradesByProvider) AddTrades(symbol string, trs types.Trades, isAccumulatedVolume bool) {
 	if len(symbol) == 0 || len(trs) == 0 {
-		return types.ErrWrongParameters
+		return
 	}
 	t.lock.Lock()
 	defer t.lock.Unlock()
@@ -53,7 +53,7 @@ func (t *TradesByProvider) AddTrades(symbol string, trs types.Trades, isAccumula
 				if isAccumulatedVolume {
 					trade.Volume = tr.Volume
 				} else {
-					trade.Volume.Add(trade.Volume, tr.Volume)
+					trade.Volume = trade.Volume.Add(tr.Volume)
 				}
 				break
 			}
@@ -65,7 +65,7 @@ func (t *TradesByProvider) AddTrades(symbol string, trs types.Trades, isAccumula
 			t.tradeUpdated[symbol] = true
 		}
 	}
-	return nil
+	return
 }
 
 func (t *TradesByProvider) ConsumeTrades(symbol string) (types.Trades, error) {
@@ -119,13 +119,13 @@ func (tp *TradesPool) Initialize(config *types.TradePoolConfig) error {
 	return nil
 }
 
-func (tp *TradesPool) PushTrades(provider string, symbol string, trs types.Trades, isAccumulatedVolume bool) error {
+func (tp *TradesPool) PushTrades(provider string, symbol string, trs types.Trades, isAccumulatedVolume bool) {
 	if len(symbol) == 0 || len(trs) == 0 {
-		return types.ErrWrongParameters
+		return
 	}
 
 	p := tp.GetTradesPoolByProvider(provider)
-	return p.AddTrades(symbol, trs, isAccumulatedVolume)
+	p.AddTrades(symbol, trs, isAccumulatedVolume)
 }
 
 // ConsumeTrades get recently trades by symbol for aggregation
