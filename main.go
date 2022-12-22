@@ -14,7 +14,7 @@ func main() {
 
 	// create oracle service.
 	oracle := NewOracleService(&config)
-	oracle.Start()
+	go oracle.Start()
 
 	// create http endpoint for data service.
 	router := gin.Default()
