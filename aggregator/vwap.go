@@ -9,6 +9,10 @@ type VWAP struct {
 	config *types.AggregatorConfig
 }
 
+func NewVWAP() *VWAP {
+	return &VWAP{}
+}
+
 func (vw *VWAP) Initialize(config *types.AggregatorConfig) error {
 	// todo check config.
 	vw.config = config

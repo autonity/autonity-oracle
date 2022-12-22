@@ -64,3 +64,8 @@ type TradePoolConfig struct {
 
 type AggregatorConfig struct {
 }
+
+type OracleServiceConfig struct {
+	AggInterval int
+	Symbols     []string
+}
