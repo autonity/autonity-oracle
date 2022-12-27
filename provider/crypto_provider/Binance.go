@@ -35,7 +35,8 @@ func (ba *BinanceAdapter) Initialize(pricePool types.PricePool) {
 	ba.pricePool = pricePool
 }
 
-func (ba *BinanceAdapter) FetchPrices(symbol []string) {
+func (ba *BinanceAdapter) FetchPrices(symbol []string) error {
 	//todo: just fetch prices from provider.
 	// push prices to price pool
+	return nil
 }

@@ -6,6 +6,7 @@ import (
 	"autonity-oralce/provider/crypto_provider"
 	"autonity-oralce/types"
 	"github.com/shopspring/decimal"
+	"golang.org/x/sync/errgroup"
 	"sync"
 	"time"
 )
@@ -85,9 +86,15 @@ func (os *OracleService) UpdatePrice(symbol string, price types.Price) {
 }
 
 func (os *OracleService) UpdatePrices() {
-	// todo: launch multiple go routine fetch price for all symbols from all adaptors.
+	wg := &errgroup.Group{}
 	for _, ad := range os.adapters {
-		ad.FetchPrices(os.symbols)
+		wg.Go(func() error {
+			return ad.FetchPrices(os.symbols)
+		})
+	}
+	err := wg.Wait()
+	if err != nil {
+		// todo: logging..
 	}
 
 	now := time.Now().UnixMilli()

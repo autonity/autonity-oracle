@@ -20,7 +20,7 @@ type PricePool interface {
 type Adapter interface {
 	Name() string
 	Version() string
-	FetchPrices(symbols []string)
+	FetchPrices(symbols []string) error
 	Alive() bool
 }
 
