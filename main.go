@@ -4,7 +4,6 @@ import (
 	"autonity-oralce/types"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"net/http"
 )
 
 func main() {
@@ -22,22 +21,27 @@ func main() {
 	// create http endpoint for data service.
 	router := gin.Default()
 
-	router.GET("/version", func(c *gin.Context) {
-		version := oracle.Version()
-		c.JSON(http.StatusOK, version)
+	router.POST("/", func(c *gin.Context) {
+		c.JSON()
 	})
 
-	router.GET("/prices", func(c *gin.Context) {
-		prices := oracle.GetPrices()
-		c.JSON(http.StatusOK, prices)
-	})
+	/*
+		router.GET("/version", func(c *gin.Context) {
+			version := oracle.Version()
+			c.JSON(http.StatusOK, version)
+		})
 
-	router.POST("/update_symbol", func(c *gin.Context) {
-		//todo: get symbols from body.
-		var symbols []string
-		oracle.UpdateSymbols(symbols)
-		c.JSON(http.StatusOK, symbols)
-	})
+		router.GET("/prices", func(c *gin.Context) {
+			prices := oracle.GetPrices()
+			c.JSON(http.StatusOK, prices)
+		})
+
+		router.POST("/update_symbol", func(c *gin.Context) {
+			//todo: get symbols from body.
+			var symbols []string
+			oracle.UpdateSymbols(symbols)
+			c.JSON(http.StatusOK, symbols)
+		})*/
 
 	router.Run(fmt.Sprintf(":%d", config.HttpPort))
 }
