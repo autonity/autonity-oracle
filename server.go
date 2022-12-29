@@ -15,7 +15,6 @@ var PERIOD = 3 * 60 * 1000
 
 type OracleService struct {
 	version string
-	config  *types.OracleServiceConfig
 
 	lock sync.RWMutex
 	// aggregated prices
@@ -30,11 +29,10 @@ type OracleService struct {
 	adapters          []types.Adapter
 }
 
-func NewOracleService(config *types.OracleServiceConfig) *OracleService {
+func NewOracleService(symbols []string) *OracleService {
 	os := &OracleService{
 		version:           "v0.0.1",
-		config:            config,
-		symbols:           config.Symbols,
+		symbols:           symbols,
 		prices:            make(types.PriceBySymbol),
 		doneCh:            make(chan struct{}),
 		ticker:            time.NewTicker(10 * time.Second),
@@ -42,16 +40,12 @@ func NewOracleService(config *types.OracleServiceConfig) *OracleService {
 		priceProviderPool: price_pool.NewPriceProviderPool(),
 	}
 
-	for _, provider := range config.Providers {
-		if provider == "Binance" {
-			pool := os.priceProviderPool.AddPriceProvider(provider)
-			adapter := crypto_provider.NewBinanceAdapter()
-			os.adapters = append(os.adapters, adapter)
-			adapter.Initialize(pool)
-		} else {
-			continue
-		}
-	}
+	// todo: create adapters for autonity cryptos
+	pool := os.priceProviderPool.AddPriceProvider("Binance")
+	adapter := crypto_provider.NewBinanceAdapter()
+	os.adapters = append(os.adapters, adapter)
+	adapter.Initialize(pool)
+
 	return os
 }
 

@@ -1,6 +1,7 @@
 package autonity_oralce
 
 import (
+	"autonity-oralce/config"
 	"autonity-oralce/types"
 	"bytes"
 	"context"
@@ -11,19 +12,17 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 )
 
 func main() {
-	// todo: resolve configs from system environment variables.
-	var config types.OracleServiceConfig
-	// set default configs
-	config.HttpPort = 8080
-	config.Symbols = append(config.Symbols, "BNBBTC", "BTCUSDT")
-
+	conf := config.MakeConfig()
+	log.Printf("Start to run autonity oracle service at port: %d\n, with symbols: %s\n",
+		conf.HttpPort, strings.Join(conf.Symbols, ","))
 	// create oracle service.
-	oracle := NewOracleService(&config)
+	oracle := NewOracleService(conf.Symbols)
 	go oracle.Start()
 	defer oracle.Stop()
 
@@ -88,7 +87,7 @@ func main() {
 	})
 
 	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", config.HttpPort),
+		Addr:    fmt.Sprintf(":%d", conf.HttpPort),
 		Handler: router,
 	}
 
@@ -105,7 +104,7 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	// kill (no param) default send syscall.SIGTERM
 	// kill -2 is syscall.SIGINT
-	// kill -9 is syscall.SIGKILL but can't be caught, so don't need add it
+	// kill -9 is syscall.SIGKILL but can't be caught, so don't need to add it
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("Shutting down server...")

@@ -29,9 +29,8 @@ type Price struct {
 type PriceBySymbol map[string]Price
 
 type OracleServiceConfig struct {
-	Providers []string
-	Symbols   []string
-	HttpPort  int
+	Symbols  []string
+	HttpPort int
 }
 
 type JsonRpcMessage struct {
