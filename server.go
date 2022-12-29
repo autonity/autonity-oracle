@@ -114,7 +114,10 @@ func (os *OracleService) UpdatePrices() {
 		}
 
 		if len(prices) > 1 {
-			p := os.aggregator.Aggregate(prices)
+			p, err := os.aggregator.Aggregate(prices)
+			if err != nil {
+				continue
+			}
 			price.Price = p
 		}
 

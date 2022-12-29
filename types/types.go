@@ -6,7 +6,7 @@ import (
 )
 
 type Aggregator interface {
-	Aggregate(prices []decimal.Decimal) decimal.Decimal
+	Aggregate(prices []decimal.Decimal) (decimal.Decimal, error)
 }
 
 type PricePool interface {

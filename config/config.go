@@ -45,6 +45,9 @@ func resolveSymbols() []string {
 	symbs := strings.Split(symbols, ",")
 	for _, s := range symbs {
 		symbol := strings.TrimSpace(s)
+		if len(symbol) == 0 {
+			continue
+		}
 		result = append(result, symbol)
 	}
 	return result
