@@ -1,4 +1,4 @@
-package autonity_oralce
+package oracle_server
 
 import (
 	"autonity-oralce/types"
@@ -7,10 +7,10 @@ import (
 	"testing"
 )
 
-func TestOracleService(t *testing.T) {
+func TestOracleServer(t *testing.T) {
 	var symbols = []string{"NTNETH", "NTNBTC", "NTNUSDC"}
 	t.Run("oracle service getters", func(t *testing.T) {
-		os := NewOracleService(symbols)
+		os := NewOracleServer(symbols)
 		version := os.Version()
 		require.Equal(t, Version, version)
 		actualSymbols := os.Symbols()
@@ -21,7 +21,7 @@ func TestOracleService(t *testing.T) {
 
 	t.Run("oracle service setters", func(t *testing.T) {
 		newSymbols := []string{"NTNRMB", "NTNUSD", "NTNGBP"}
-		os := NewOracleService(symbols)
+		os := NewOracleServer(symbols)
 		os.UpdateSymbols(newSymbols)
 		require.Equal(t, newSymbols, os.Symbols())
 

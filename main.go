@@ -2,14 +2,10 @@ package autonity_oralce
 
 import (
 	"autonity-oralce/config"
-	"autonity-oralce/types"
-	"bytes"
+	"autonity-oralce/http_server"
+	"autonity-oralce/oracle_server"
 	"context"
-	"encoding/json"
-	"fmt"
-	"github.com/gin-gonic/gin"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -24,81 +20,13 @@ func main() {
 		conf.HttpPort, strings.Join(conf.Symbols, ","))
 
 	// create oracle service and start the ticker job.
-	oracle := NewOracleService(conf.Symbols)
+	oracle := oracle_server.NewOracleServer(conf.Symbols)
 	go oracle.Start()
 	defer oracle.Stop()
 
-	// create http api handlers.
-	router := gin.Default()
-	router.POST("/", func(c *gin.Context) {
-		var reqMsg types.JsonRpcMessage
-		if err := json.NewDecoder(c.Request.Body).Decode(&reqMsg); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		}
-
-		switch reqMsg.Method {
-		case "get_version":
-			type Version struct {
-				Version string
-			}
-
-			enc, err := json.Marshal(Version{Version: oracle.Version()})
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-				return
-			}
-
-			c.JSON(http.StatusOK, types.JsonRpcMessage{ID: reqMsg.ID, Result: enc})
-			return
-		case "get_prices":
-			type PriceAndSymbol struct {
-				Prices  types.PriceBySymbol
-				Symbols []string
-			}
-			enc, err := json.Marshal(PriceAndSymbol{
-				Prices:  oracle.GetPrices(),
-				Symbols: oracle.Symbols(),
-			})
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-				return
-			}
-			c.JSON(http.StatusOK, types.JsonRpcMessage{ID: reqMsg.ID, Result: enc})
-			return
-		case "update_symbols":
-			dec := json.NewDecoder(bytes.NewReader(reqMsg.Params))
-			var symbols []string
-			if len(symbols) == 0 {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid symbols"})
-				return
-			}
-			err := dec.Decode(&symbols)
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-				return
-			}
-			oracle.UpdateSymbols(symbols)
-			c.JSON(http.StatusOK, types.JsonRpcMessage{
-				ID: reqMsg.ID, Result: reqMsg.Params,
-			})
-			return
-		default:
-			c.JSON(http.StatusBadRequest, gin.H{"error": "unknown method"})
-		}
-	})
-
-	// create the http server with api handlers' registry and start the http server on the binding port.
-	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", conf.HttpPort),
-		Handler: router,
-	}
-	// Initializing the server in a goroutine so that
-	// it won't block the graceful shutdown handling below
-	go func() {
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("listen: %s\n", err)
-		}
-	}()
+	// create http service.
+	srv := http_server.NewHttpServer(oracle, conf.HttpPort)
+	srv.StartHttpServer()
 
 	// Wait for interrupt signal to gracefully shut down the server with
 	// a timeout of 5 seconds.

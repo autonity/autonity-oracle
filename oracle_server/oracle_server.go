@@ -1,4 +1,4 @@
-package autonity_oralce
+package oracle_server
 
 import (
 	"autonity-oralce/aggregator"
@@ -18,7 +18,7 @@ var (
 	UpdateInterval = 10 * time.Second // 10s, the data fetching interval for the oracle server's ticker job.
 )
 
-type OracleService struct {
+type OracleServer struct {
 	version string
 
 	lock sync.RWMutex
@@ -34,8 +34,8 @@ type OracleService struct {
 	adapters          []types.Adapter               // the adaptors which adapts with different data providers.
 }
 
-func NewOracleService(symbols []string) *OracleService {
-	os := &OracleService{
+func NewOracleServer(symbols []string) *OracleServer {
+	os := &OracleServer{
 		version:           Version,
 		symbols:           symbols,
 		prices:            make(types.PriceBySymbol),
@@ -54,31 +54,31 @@ func NewOracleService(symbols []string) *OracleService {
 	return os
 }
 
-func (os *OracleService) Version() string {
+func (os *OracleServer) Version() string {
 	return os.version
 }
 
-func (os *OracleService) UpdateSymbols(symbols []string) {
+func (os *OracleServer) UpdateSymbols(symbols []string) {
 	os.symbols = symbols
 }
 
-func (os *OracleService) Symbols() []string {
+func (os *OracleServer) Symbols() []string {
 	return os.symbols
 }
 
-func (os *OracleService) GetPrices() types.PriceBySymbol {
+func (os *OracleServer) GetPrices() types.PriceBySymbol {
 	os.lock.RLock()
 	defer os.lock.RUnlock()
 	return os.prices
 }
 
-func (os *OracleService) UpdatePrice(price types.Price) {
+func (os *OracleServer) UpdatePrice(price types.Price) {
 	os.lock.Lock()
 	defer os.lock.Unlock()
 	os.prices[price.Symbol] = price
 }
 
-func (os *OracleService) UpdatePrices() {
+func (os *OracleServer) UpdatePrices() {
 	wg := &errgroup.Group{}
 	for _, ad := range os.adapters {
 		wg.Go(func() error {
@@ -127,11 +127,11 @@ func (os *OracleService) UpdatePrices() {
 	}
 }
 
-func (os *OracleService) Stop() {
+func (os *OracleServer) Stop() {
 	os.doneCh <- struct{}{}
 }
 
-func (os *OracleService) Start() {
+func (os *OracleServer) Start() {
 	// start the ticker job to fetch prices for all the symbols from all adapters on every 10s.
 	for {
 		select {
