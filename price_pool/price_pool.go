@@ -2,6 +2,7 @@ package price_pool
 
 import (
 	"autonity-oralce/types"
+	"fmt"
 	"sync"
 )
 
@@ -26,10 +27,14 @@ func (t *PriceProvider) AddPrices(prices []types.Price) {
 	}
 }
 
-func (t *PriceProvider) GetPrice(symbol string) types.Price {
+func (t *PriceProvider) GetPrice(symbol string) (types.Price, error) {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
-	return t.priceBySymbol[symbol]
+	p, ok := t.priceBySymbol[symbol]
+	if !ok {
+		return types.Price{}, fmt.Errorf("symbol not find")
+	}
+	return p, nil
 }
 
 func (t *PriceProvider) GetPrices() types.PriceBySymbol {

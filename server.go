@@ -96,7 +96,10 @@ func (os *OracleService) UpdatePrices() {
 	for _, s := range os.symbols {
 		var prices []decimal.Decimal
 		for _, ad := range os.adapters {
-			p := os.priceProviderPool.GetPriceProvider(ad.Name()).GetPrice(s)
+			p, err := os.priceProviderPool.GetPriceProvider(ad.Name()).GetPrice(s)
+			if err != nil {
+				continue
+			}
 			// only those price collected within 3 minutes are valid.
 			if now-p.Timestamp < int64(PERIOD) && now >= p.Timestamp {
 				prices = append(prices, p.Price)
