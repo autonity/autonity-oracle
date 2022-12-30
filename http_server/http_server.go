@@ -44,53 +44,41 @@ func (hs *HttpServer) createRouter() *gin.Engine {
 	router.POST("/", func(c *gin.Context) {
 		var reqMsg types.JsonRpcMessage
 		if err := json.NewDecoder(c.Request.Body).Decode(&reqMsg); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			c.JSON(http.StatusBadRequest, types.JsonRpcMessage{Error: err.Error()})
 		}
 
 		switch reqMsg.Method {
 		case "get_version":
-			rsp, err := hs.getVersion(&reqMsg)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-				return
-			}
-			c.JSON(http.StatusOK, rsp)
+			rsp, code := hs.getVersion(&reqMsg)
+			c.JSON(code, rsp)
 		case "get_prices":
-			rsp, err := hs.getPrices(&reqMsg)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-				return
-			}
-			c.JSON(http.StatusOK, rsp)
+			rsp, code := hs.getPrices(&reqMsg)
+			c.JSON(code, rsp)
 		case "update_symbols":
-			rsp, err := hs.updateSymbols(&reqMsg)
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-				return
-			}
-			c.JSON(http.StatusOK, rsp)
+			rsp, code := hs.updateSymbols(&reqMsg)
+			c.JSON(code, rsp)
 		default:
-			c.JSON(http.StatusBadRequest, gin.H{"error": "unknown method"})
+			c.JSON(http.StatusBadRequest, types.JsonRpcMessage{Error: "unknown method"})
 		}
 	})
 	return router
 }
 
 // handler functions
-func (hs *HttpServer) getVersion(reqMsg *types.JsonRpcMessage) (types.JsonRpcMessage, error) {
+func (hs *HttpServer) getVersion(reqMsg *types.JsonRpcMessage) (types.JsonRpcMessage, int) {
 	type Version struct {
 		Version string
 	}
 
 	enc, err := json.Marshal(Version{Version: hs.oracle.Version()})
 	if err != nil {
-		return types.JsonRpcMessage{}, err
+		return types.JsonRpcMessage{Error: err.Error()}, http.StatusInternalServerError
 	}
 
-	return types.JsonRpcMessage{ID: reqMsg.ID, Result: enc}, nil
+	return types.JsonRpcMessage{ID: reqMsg.ID, Result: enc}, http.StatusOK
 }
 
-func (hs *HttpServer) getPrices(reqMsg *types.JsonRpcMessage) (types.JsonRpcMessage, error) {
+func (hs *HttpServer) getPrices(reqMsg *types.JsonRpcMessage) (types.JsonRpcMessage, int) {
 	type PriceAndSymbol struct {
 		Prices  types.PriceBySymbol
 		Symbols []string
@@ -100,21 +88,21 @@ func (hs *HttpServer) getPrices(reqMsg *types.JsonRpcMessage) (types.JsonRpcMess
 		Symbols: hs.oracle.Symbols(),
 	})
 	if err != nil {
-		return types.JsonRpcMessage{}, err
+		return types.JsonRpcMessage{Error: err.Error()}, http.StatusInternalServerError
 	}
-	return types.JsonRpcMessage{ID: reqMsg.ID, Result: enc}, nil
+	return types.JsonRpcMessage{ID: reqMsg.ID, Result: enc}, http.StatusOK
 }
 
-func (hs *HttpServer) updateSymbols(reqMsg *types.JsonRpcMessage) (types.JsonRpcMessage, error) {
+func (hs *HttpServer) updateSymbols(reqMsg *types.JsonRpcMessage) (types.JsonRpcMessage, int) {
 	dec := json.NewDecoder(bytes.NewReader(reqMsg.Params))
 	var symbols []string
 	err := dec.Decode(&symbols)
 	if err != nil {
-		return types.JsonRpcMessage{}, err
+		return types.JsonRpcMessage{Error: err.Error()}, http.StatusBadRequest
 	}
 	if len(symbols) == 0 {
-		return types.JsonRpcMessage{}, err
+		return types.JsonRpcMessage{Error: "setting with empty symbols"}, http.StatusBadRequest
 	}
 	hs.oracle.UpdateSymbols(symbols)
-	return types.JsonRpcMessage{ID: reqMsg.ID, Result: reqMsg.Params}, nil
+	return types.JsonRpcMessage{ID: reqMsg.ID, Result: reqMsg.Params}, http.StatusOK
 }
