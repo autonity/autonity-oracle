@@ -18,17 +18,18 @@ import (
 )
 
 func main() {
+	// create config from system environment variables.
 	conf := config.MakeConfig()
 	log.Printf("Start to run autonity oracle service at port: %d\n, with symbols: %s\n",
 		conf.HttpPort, strings.Join(conf.Symbols, ","))
-	// create oracle service.
+
+	// create oracle service and start the ticker job.
 	oracle := NewOracleService(conf.Symbols)
 	go oracle.Start()
 	defer oracle.Stop()
 
-	// create http endpoint for data service.
+	// create http api handlers.
 	router := gin.Default()
-
 	router.POST("/", func(c *gin.Context) {
 		var reqMsg types.JsonRpcMessage
 		if err := json.NewDecoder(c.Request.Body).Decode(&reqMsg); err != nil {
@@ -86,11 +87,11 @@ func main() {
 		}
 	})
 
+	// create the http server with api handlers' registry and start the http server on the binding port.
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", conf.HttpPort),
 		Handler: router,
 	}
-
 	// Initializing the server in a goroutine so that
 	// it won't block the graceful shutdown handling below
 	go func() {

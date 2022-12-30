@@ -3,6 +3,7 @@ package crypto_provider
 import (
 	"autonity-oralce/types"
 	"errors"
+	"log"
 )
 
 var ErrInvalidResponse = errors.New("invalid http response")
@@ -36,6 +37,7 @@ func (ba *BinanceAdapter) Initialize(pricePool types.PricePool) {
 }
 
 func (ba *BinanceAdapter) FetchPrices(symbols []string) error {
+	log.Printf("fetching data prices from provider: %s\n", ba.Name())
 	// todo: fetch prices by symbols from provider and push those prices into price pool
 	return nil
 }
