@@ -58,7 +58,7 @@ func (hs *HttpServer) createRouter() *gin.Engine {
 			rsp, code := hs.updateSymbols(&reqMsg)
 			c.JSON(code, rsp)
 		default:
-			c.JSON(http.StatusBadRequest, types.JsonRpcMessage{Error: "unknown method"})
+			c.JSON(http.StatusBadRequest, types.JsonRpcMessage{ID: reqMsg.ID, Error: "unknown method"})
 		}
 	})
 	return router
