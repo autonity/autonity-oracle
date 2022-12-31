@@ -2,11 +2,13 @@ package crypto_provider
 
 import (
 	"autonity-oralce/types"
-	"errors"
+	"github.com/shopspring/decimal"
 	"log"
+	"time"
 )
 
-var ErrInvalidResponse = errors.New("invalid http response")
+// Since the data provider of Autonity cryptos is not being clarified, for the time being we assume that Binance might
+// be the provider, and in the FetchPrices interface, we simulate data points for the symbols we want to have.
 
 type BinanceAdapter struct {
 	pricePool types.PricePool
@@ -36,8 +38,21 @@ func (ba *BinanceAdapter) Initialize(pricePool types.PricePool) {
 	ba.pricePool = pricePool
 }
 
+// todo: fetch prices by symbols from provider and push those prices into price pool once provider is clarified.
 func (ba *BinanceAdapter) FetchPrices(symbols []string) error {
+	// some fake data is simulated here since none data provider is clarified.
 	log.Printf("fetching data prices from provider: %s\n", ba.Name())
-	// todo: fetch prices by symbols from provider and push those prices into price pool
+	var prices []types.Price
+	for _, s := range symbols {
+		p := types.Price{
+			Timestamp: time.Now().UnixMilli(),
+			Symbol:    s,
+			Price:     decimal.RequireFromString("11.11"),
+		}
+		prices = append(prices, p)
+	}
+
+	// push data to price pool
+	ba.pricePool.AddPrices(prices)
 	return nil
 }
