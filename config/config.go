@@ -12,7 +12,7 @@ var (
 	EnvCryptoSymbols = "ORACLE_CRYPTO_SYMBOLS"
 
 	DefaultSymbols = "BNBBTC,BTCUSDT"
-	DefaultPort    = 30309
+	DefaultPort    = 30311
 )
 
 func MakeConfig() *types.OracleServiceConfig {

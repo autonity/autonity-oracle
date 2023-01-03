@@ -5,6 +5,8 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+var SimulatedPrice = decimal.RequireFromString("11.11")
+
 type Aggregator interface {
 	Aggregate(prices []decimal.Decimal) (decimal.Decimal, error)
 }

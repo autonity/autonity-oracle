@@ -2,7 +2,6 @@ package crypto_provider
 
 import (
 	"autonity-oralce/types"
-	"github.com/shopspring/decimal"
 	"log"
 	"time"
 )
@@ -47,7 +46,7 @@ func (ba *BinanceAdapter) FetchPrices(symbols []string) error {
 		p := types.Price{
 			Timestamp: time.Now().UnixMilli(),
 			Symbol:    s,
-			Price:     decimal.RequireFromString("11.11"),
+			Price:     types.SimulatedPrice,
 		}
 		prices = append(prices, p)
 	}
