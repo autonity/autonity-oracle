@@ -1,4 +1,4 @@
-package autonity_oracle
+package main
 
 import (
 	"autonity-oracle/config"
@@ -15,8 +15,9 @@ import (
 
 func main() { //nolint
 	// create config from system environment variables.
+	log.Println("starting autonity oracle")
 	conf := config.MakeConfig()
-	log.Printf("Start to run autonity oracle service at port: %d\n, with symbols: %s\n",
+	log.Printf("Start to run autonity oracle service at port: %d\n, with symbols: %s",
 		conf.HTTPPort, strings.Join(conf.Symbols, ","))
 
 	// create oracle service and start the ticker job.
