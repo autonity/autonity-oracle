@@ -52,9 +52,7 @@ Set the system environment variables and run the binary:
 
 
 ## API specifications
-The HTTP request message and response message are defined in json object JSONRPCMessage, it is carried by the HTTP body      
-in both the request or response message, all the APIs are access with POST method by specifying the method and the     
-corresponding method's params in params field, and the ID help the client to identify the requests and response pairing.
+The HTTP request message and response message are defined in json object JSONRPCMessage, it is carried by the HTTP body in both the request or response message, all the APIs are access with POST method by specifying the method and the corresponding method's params in params field, and the ID help the client to identify the requests and response pairing.
 ```go
 type JSONRPCMessage struct {
 	ID     json.RawMessage `json:"id,omitempty"`
