@@ -9,6 +9,8 @@ import (
 
 func TestResolveSymbols(t *testing.T) {
 	t.Run("no symbols set in system environment variable", func(t *testing.T) {
+		err := os.Unsetenv(EnvCryptoSymbols)
+		require.NoError(t, err)
 		symbols := resolveSymbols()
 		expected := strings.Split(DefaultSymbols, ",")
 		require.Equal(t, expected, symbols)
@@ -29,6 +31,8 @@ func TestResolveSymbols(t *testing.T) {
 
 func TestResolvePort(t *testing.T) {
 	t.Run("no port set in system environment variable", func(t *testing.T) {
+		err := os.Unsetenv(EnvHTTPPort)
+		require.NoError(t, err)
 		port := resolvePort()
 		require.Equal(t, port, DefaultPort)
 	})

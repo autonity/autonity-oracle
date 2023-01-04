@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/require"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -48,6 +49,8 @@ func TestGetVersion(t *testing.T) {
 }
 
 func TestGetPrices(t *testing.T) {
+	err := os.Unsetenv(config.EnvCryptoSymbols)
+	require.NoError(t, err)
 	conf := config.MakeConfig()
 	// create oracle service and start the ticker job.
 	oracle := oracle_server.NewOracleServer(conf.Symbols)
