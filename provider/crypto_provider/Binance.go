@@ -1,10 +1,12 @@
 package crypto_provider
 
 import (
-	"autonity-oralce/types"
+	"autonity-oracle/types"
 	"log"
 	"time"
 )
+
+const Binance = "Binance"
 
 // Since the data provider of Autonity cryptos is not being clarified, for the time being we assume that Binance might
 // be the provider, and in the FetchPrices interface, we simulate data points for the symbols we want to have.
@@ -12,9 +14,7 @@ import (
 type BinanceAdapter struct {
 	pricePool types.PricePool
 
-	aliveAt int64
-	alive   bool
-	url     string
+	alive bool
 }
 
 func NewBinanceAdapter() *BinanceAdapter {
@@ -22,7 +22,7 @@ func NewBinanceAdapter() *BinanceAdapter {
 }
 
 func (ba *BinanceAdapter) Name() string {
-	return "Binance"
+	return Binance
 }
 
 func (ba *BinanceAdapter) Version() string {

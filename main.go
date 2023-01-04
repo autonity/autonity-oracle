@@ -1,9 +1,9 @@
-package autonity_oralce
+package autonity_oracle
 
 import (
-	"autonity-oralce/config"
-	"autonity-oralce/http_server"
-	"autonity-oralce/oracle_server"
+	"autonity-oracle/config"
+	"autonity-oracle/http_server"
+	"autonity-oracle/oracle_server"
 	"context"
 	"log"
 	"os"
@@ -13,11 +13,11 @@ import (
 	"time"
 )
 
-func main() {
+func main() { //nolint
 	// create config from system environment variables.
 	conf := config.MakeConfig()
 	log.Printf("Start to run autonity oracle service at port: %d\n, with symbols: %s\n",
-		conf.HttpPort, strings.Join(conf.Symbols, ","))
+		conf.HTTPPort, strings.Join(conf.Symbols, ","))
 
 	// create oracle service and start the ticker job.
 	oracle := oracle_server.NewOracleServer(conf.Symbols)
@@ -25,8 +25,8 @@ func main() {
 	defer oracle.Stop()
 
 	// create http service.
-	srv := http_server.NewHttpServer(oracle, conf.HttpPort)
-	srv.StartHttpServer()
+	srv := http_server.NewHttpServer(oracle, conf.HTTPPort)
+	srv.StartHTTPServer()
 
 	// Wait for interrupt signal to gracefully shut down the server with
 	// a timeout of 5 seconds.

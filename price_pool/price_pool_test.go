@@ -1,14 +1,15 @@
 package price_pool
 
 import (
-	"autonity-oralce/types"
+	"autonity-oracle/provider/crypto_provider"
+	"autonity-oracle/types"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
 
 func TestPriceProvider(t *testing.T) {
-	provider := "Binance"
+	provider := crypto_provider.Binance
 	NTNUSDC := "NTNUSDC"
 	NTNETH := "NTNUETH"
 	t.Run("Add price and get price", func(t *testing.T) {

@@ -1,14 +1,14 @@
 package config
 
 import (
-	"autonity-oralce/types"
+	"autonity-oracle/types"
 	"os"
 	"strconv"
 	"strings"
 )
 
 var (
-	EnvHttpPort      = "ORACLE_HTTP_PORT"
+	EnvHTTPPort      = "ORACLE_HTTP_PORT"
 	EnvCryptoSymbols = "ORACLE_CRYPTO_SYMBOLS"
 
 	DefaultSymbols = "BNBBTC,BTCUSDT"
@@ -20,12 +20,12 @@ func MakeConfig() *types.OracleServiceConfig {
 	symbols := resolveSymbols()
 	return &types.OracleServiceConfig{
 		Symbols:  symbols,
-		HttpPort: port,
+		HTTPPort: port,
 	}
 }
 
 func resolvePort() int {
-	p, ok := os.LookupEnv(EnvHttpPort)
+	p, ok := os.LookupEnv(EnvHTTPPort)
 	if !ok {
 		return DefaultPort
 	}

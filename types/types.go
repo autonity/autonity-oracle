@@ -32,10 +32,10 @@ type PriceBySymbol map[string]Price
 
 type OracleServiceConfig struct {
 	Symbols  []string
-	HttpPort int
+	HTTPPort int
 }
 
-type JsonRpcMessage struct {
+type JSONRPCMessage struct {
 	ID     json.RawMessage `json:"id,omitempty"`
 	Method string          `json:"method,omitempty"`
 	Params json.RawMessage `json:"params,omitempty"`

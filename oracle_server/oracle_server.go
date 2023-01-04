@@ -1,10 +1,10 @@
 package oracle_server
 
 import (
-	"autonity-oralce/aggregator"
-	"autonity-oralce/price_pool"
-	"autonity-oralce/provider/crypto_provider"
-	"autonity-oralce/types"
+	"autonity-oracle/aggregator"
+	"autonity-oracle/price_pool"
+	"autonity-oracle/provider/crypto_provider"
+	"autonity-oracle/types"
 	"github.com/shopspring/decimal"
 	"golang.org/x/sync/errgroup"
 	"log"
@@ -81,8 +81,9 @@ func (os *OracleServer) UpdatePrice(price types.Price) {
 func (os *OracleServer) UpdatePrices() {
 	wg := &errgroup.Group{}
 	for _, ad := range os.adapters {
+		provider := ad
 		wg.Go(func() error {
-			return ad.FetchPrices(os.symbols)
+			return provider.FetchPrices(os.symbols)
 		})
 	}
 	err := wg.Wait()

@@ -1,10 +1,10 @@
 package e2e_test
 
 import (
-	"autonity-oralce/config"
-	"autonity-oralce/http_server"
-	"autonity-oralce/oracle_server"
-	"autonity-oralce/types"
+	"autonity-oracle/config"
+	"autonity-oracle/http_server"
+	"autonity-oracle/oracle_server"
+	"autonity-oracle/types"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -24,17 +24,17 @@ func TestGetVersion(t *testing.T) {
 	defer oracle.Stop()
 
 	// create http service.
-	srv := http_server.NewHttpServer(oracle, conf.HttpPort)
-	srv.StartHttpServer()
+	srv := http_server.NewHttpServer(oracle, conf.HTTPPort)
+	srv.StartHTTPServer()
 
 	// wait for the http service to be loaded.
 	time.Sleep(5 * time.Second)
 
-	var reqMsg = &types.JsonRpcMessage{
+	var reqMsg = &types.JSONRPCMessage{
 		Method: "get_version",
 	}
 
-	respMsg, err := httpPost(t, reqMsg, conf.HttpPort)
+	respMsg, err := httpPost(t, reqMsg, conf.HTTPPort)
 	require.NoError(t, err)
 	type Version struct {
 		Version string
@@ -55,17 +55,17 @@ func TestGetPrices(t *testing.T) {
 	defer oracle.Stop()
 
 	// create http service.
-	srv := http_server.NewHttpServer(oracle, conf.HttpPort)
-	srv.StartHttpServer()
+	srv := http_server.NewHttpServer(oracle, conf.HTTPPort)
+	srv.StartHTTPServer()
 
 	// wait for oracle ticker job to fetch data from providers.
 	time.Sleep(20 * time.Second)
 
-	var reqMsg = &types.JsonRpcMessage{
+	var reqMsg = &types.JSONRPCMessage{
 		Method: "get_prices",
 	}
 
-	respMsg, err := httpPost(t, reqMsg, conf.HttpPort)
+	respMsg, err := httpPost(t, reqMsg, conf.HTTPPort)
 	require.NoError(t, err)
 	type PriceAndSymbol struct {
 		Prices  types.PriceBySymbol
@@ -91,8 +91,8 @@ func TestUpdateSymbols(t *testing.T) {
 	defer oracle.Stop()
 
 	// create http service.
-	srv := http_server.NewHttpServer(oracle, conf.HttpPort)
-	srv.StartHttpServer()
+	srv := http_server.NewHttpServer(oracle, conf.HTTPPort)
+	srv.StartHTTPServer()
 
 	// wait for http service to be ready.
 	time.Sleep(5 * time.Second)
@@ -101,12 +101,12 @@ func TestUpdateSymbols(t *testing.T) {
 	encSymbols, err := json.Marshal(newSymbols)
 	require.NoError(t, err)
 
-	var reqMsg = &types.JsonRpcMessage{
+	var reqMsg = &types.JSONRPCMessage{
 		Method: "update_symbols",
 		Params: encSymbols,
 	}
 
-	respMsg, err := httpPost(t, reqMsg, conf.HttpPort)
+	respMsg, err := httpPost(t, reqMsg, conf.HTTPPort)
 	require.NoError(t, err)
 	var symbols []string
 	err = json.Unmarshal(respMsg.Result, &symbols)
@@ -116,14 +116,13 @@ func TestUpdateSymbols(t *testing.T) {
 	defer srv.Shutdown(context.Background())
 }
 
-func httpPost(t *testing.T, reqMsg *types.JsonRpcMessage, port int) (*types.JsonRpcMessage, error) {
+func httpPost(t *testing.T, reqMsg *types.JSONRPCMessage, port int) (*types.JSONRPCMessage, error) {
 	jsonData, err := json.Marshal(reqMsg)
 	require.NoError(t, err)
 
-	url := fmt.Sprintf("http://127.0.0.1:%d", port)
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	resp, err := http.Post(fmt.Sprintf("http://127.0.0.1:%d", port), "application/json", bytes.NewBuffer(jsonData))
 	require.NoError(t, err)
-	var respMsg types.JsonRpcMessage
+	var respMsg types.JSONRPCMessage
 	err = json.NewDecoder(resp.Body).Decode(&respMsg)
 	require.NoError(t, err)
 	return &respMsg, nil

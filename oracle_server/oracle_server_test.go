@@ -1,7 +1,7 @@
 package oracle_server
 
 import (
-	"autonity-oralce/types"
+	"autonity-oracle/types"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 	"testing"

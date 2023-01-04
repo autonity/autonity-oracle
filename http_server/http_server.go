@@ -1,8 +1,8 @@
 package http_server
 
 import (
-	"autonity-oralce/oracle_server"
-	"autonity-oralce/types"
+	"autonity-oracle/oracle_server"
+	"autonity-oracle/types"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -11,14 +11,14 @@ import (
 	"net/http"
 )
 
-type HttpServer struct {
+type HTTPServer struct {
 	http.Server
 	oracle *oracle_server.OracleServer
 	port   int
 }
 
-func NewHttpServer(os *oracle_server.OracleServer, port int) *HttpServer {
-	hs := &HttpServer{
+func NewHttpServer(os *oracle_server.OracleServer, port int) *HTTPServer {
+	hs := &HTTPServer{
 		oracle: os,
 		port:   port,
 	}
@@ -29,8 +29,8 @@ func NewHttpServer(os *oracle_server.OracleServer, port int) *HttpServer {
 	return hs
 }
 
-// StartHttpServer start the http server in a new go routine.
-func (hs *HttpServer) StartHttpServer() {
+// StartHTTPServer start the http server in a new go routine.
+func (hs *HTTPServer) StartHTTPServer() {
 	go func() {
 		if err := hs.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("listen: %s\n", err)
@@ -38,13 +38,13 @@ func (hs *HttpServer) StartHttpServer() {
 	}()
 }
 
-func (hs *HttpServer) createRouter() *gin.Engine {
+func (hs *HTTPServer) createRouter() *gin.Engine {
 	// create http api handlers.
 	router := gin.Default()
 	router.POST("/", func(c *gin.Context) {
-		var reqMsg types.JsonRpcMessage
+		var reqMsg types.JSONRPCMessage
 		if err := json.NewDecoder(c.Request.Body).Decode(&reqMsg); err != nil {
-			c.JSON(http.StatusBadRequest, types.JsonRpcMessage{Error: err.Error()})
+			c.JSON(http.StatusBadRequest, types.JSONRPCMessage{Error: err.Error()})
 		}
 
 		switch reqMsg.Method {
@@ -55,27 +55,27 @@ func (hs *HttpServer) createRouter() *gin.Engine {
 		case "update_symbols":
 			c.JSON(hs.updateSymbols(&reqMsg))
 		default:
-			c.JSON(http.StatusBadRequest, types.JsonRpcMessage{ID: reqMsg.ID, Error: "unknown method"})
+			c.JSON(http.StatusBadRequest, types.JSONRPCMessage{ID: reqMsg.ID, Error: "unknown method"})
 		}
 	})
 	return router
 }
 
 // handler functions
-func (hs *HttpServer) getVersion(reqMsg *types.JsonRpcMessage) (int, types.JsonRpcMessage) {
+func (hs *HTTPServer) getVersion(reqMsg *types.JSONRPCMessage) (int, types.JSONRPCMessage) {
 	type Version struct {
 		Version string
 	}
 
 	enc, err := json.Marshal(Version{Version: hs.oracle.Version()})
 	if err != nil {
-		return http.StatusInternalServerError, types.JsonRpcMessage{Error: err.Error()}
+		return http.StatusInternalServerError, types.JSONRPCMessage{Error: err.Error()}
 	}
 
-	return http.StatusOK, types.JsonRpcMessage{ID: reqMsg.ID, Result: enc}
+	return http.StatusOK, types.JSONRPCMessage{ID: reqMsg.ID, Result: enc}
 }
 
-func (hs *HttpServer) getPrices(reqMsg *types.JsonRpcMessage) (int, types.JsonRpcMessage) {
+func (hs *HTTPServer) getPrices(reqMsg *types.JSONRPCMessage) (int, types.JSONRPCMessage) {
 	type PriceAndSymbol struct {
 		Prices  types.PriceBySymbol
 		Symbols []string
@@ -85,21 +85,21 @@ func (hs *HttpServer) getPrices(reqMsg *types.JsonRpcMessage) (int, types.JsonRp
 		Symbols: hs.oracle.Symbols(),
 	})
 	if err != nil {
-		return http.StatusInternalServerError, types.JsonRpcMessage{Error: err.Error()}
+		return http.StatusInternalServerError, types.JSONRPCMessage{Error: err.Error()}
 	}
-	return http.StatusOK, types.JsonRpcMessage{ID: reqMsg.ID, Result: enc}
+	return http.StatusOK, types.JSONRPCMessage{ID: reqMsg.ID, Result: enc}
 }
 
-func (hs *HttpServer) updateSymbols(reqMsg *types.JsonRpcMessage) (int, types.JsonRpcMessage) {
+func (hs *HTTPServer) updateSymbols(reqMsg *types.JSONRPCMessage) (int, types.JSONRPCMessage) {
 	dec := json.NewDecoder(bytes.NewReader(reqMsg.Params))
 	var symbols []string
 	err := dec.Decode(&symbols)
 	if err != nil {
-		return http.StatusBadRequest, types.JsonRpcMessage{Error: err.Error()}
+		return http.StatusBadRequest, types.JSONRPCMessage{Error: err.Error()}
 	}
 	if len(symbols) == 0 {
-		return http.StatusBadRequest, types.JsonRpcMessage{Error: "setting with empty symbols"}
+		return http.StatusBadRequest, types.JSONRPCMessage{Error: "setting with empty symbols"}
 	}
 	hs.oracle.UpdateSymbols(symbols)
-	return http.StatusOK, types.JsonRpcMessage{ID: reqMsg.ID, Result: reqMsg.Params}
+	return http.StatusOK, types.JSONRPCMessage{ID: reqMsg.ID, Result: reqMsg.Params}
 }

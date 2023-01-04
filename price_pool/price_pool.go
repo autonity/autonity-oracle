@@ -1,7 +1,7 @@
 package price_pool
 
 import (
-	"autonity-oralce/types"
+	"autonity-oracle/types"
 	"fmt"
 	"sync"
 )

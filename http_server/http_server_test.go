@@ -1,9 +1,9 @@
 package http_server
 
 import (
-	"autonity-oralce/config"
-	"autonity-oralce/oracle_server"
-	"autonity-oralce/types"
+	"autonity-oracle/config"
+	"autonity-oracle/oracle_server"
+	"autonity-oracle/types"
 	"bytes"
 	"encoding/json"
 	"github.com/shopspring/decimal"
@@ -16,7 +16,7 @@ import (
 func TestHttpServerAPIHandlers(t *testing.T) {
 	conf := config.MakeConfig()
 	t.Run("test get version", func(t *testing.T) {
-		reqMsg := &types.JsonRpcMessage{
+		reqMsg := &types.JSONRPCMessage{
 			ID:     json.RawMessage{0},
 			Method: "get_version",
 			Params: nil,
@@ -25,7 +25,7 @@ func TestHttpServerAPIHandlers(t *testing.T) {
 		}
 
 		oracle := oracle_server.NewOracleServer(conf.Symbols)
-		hs := NewHttpServer(oracle, conf.HttpPort)
+		hs := NewHttpServer(oracle, conf.HTTPPort)
 
 		code, rspMsg := hs.getVersion(reqMsg)
 		require.Equal(t, http.StatusOK, code)
@@ -42,7 +42,7 @@ func TestHttpServerAPIHandlers(t *testing.T) {
 	})
 
 	t.Run("test get prices", func(t *testing.T) {
-		reqMsg := &types.JsonRpcMessage{
+		reqMsg := &types.JSONRPCMessage{
 			ID:     json.RawMessage{0},
 			Method: "get_prices",
 			Params: nil,
@@ -58,7 +58,7 @@ func TestHttpServerAPIHandlers(t *testing.T) {
 			}
 			oracle.UpdatePrice(price)
 		}
-		hs := NewHttpServer(oracle, conf.HttpPort)
+		hs := NewHttpServer(oracle, conf.HTTPPort)
 		code, rspMsg := hs.getPrices(reqMsg)
 		require.Equal(t, http.StatusOK, code)
 		require.Equal(t, reqMsg.ID, rspMsg.ID)
@@ -83,7 +83,7 @@ func TestHttpServerAPIHandlers(t *testing.T) {
 		encSymbols, err := json.Marshal(newSymbols)
 		require.NoError(t, err)
 
-		reqMsg := &types.JsonRpcMessage{
+		reqMsg := &types.JSONRPCMessage{
 			ID:     json.RawMessage{0},
 			Method: "update_symbols",
 			Params: encSymbols,
@@ -91,7 +91,7 @@ func TestHttpServerAPIHandlers(t *testing.T) {
 			Error:  "",
 		}
 		oracle := oracle_server.NewOracleServer(conf.Symbols)
-		hs := NewHttpServer(oracle, conf.HttpPort)
+		hs := NewHttpServer(oracle, conf.HTTPPort)
 		code, rspMsg := hs.updateSymbols(reqMsg)
 		require.Equal(t, http.StatusOK, code)
 		require.Equal(t, reqMsg.ID, rspMsg.ID)
