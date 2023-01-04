@@ -2,7 +2,7 @@
 # with Go source code. If you know what GOPATH is then you probably
 # don't need to bother with make.
 
-.PHONY: autoracle test clean lint dep all
+.PHONY: autoracle test e2e_test clean lint dep all
 
 BINDIR = ./build/bin
 GO ?= latest
@@ -28,13 +28,16 @@ test:
 test_coverage:
 	go test ./... -coverprofile=coverage.out
 
+e2e_test:
+	go test e2e_test/e2e_test.go
+
 dep:
 	go mod download
 
 lint:
 	@./.github/tools/golangci-lint run --config ./.golangci.yml
 
-all: autoracle test lint
+all: autoracle test test_coverage e2e_test lint
 
 
 
