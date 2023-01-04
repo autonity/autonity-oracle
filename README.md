@@ -52,9 +52,35 @@ Set the system environment variables and run the binary:
 
 
 ## API specifications
-The HTTP body contains a json object: 
+The HTTP request message and response message are defined in json object, it is carried by the HTTP body in both the request or response message, all the APIs are access with POST method.
+```go
+type JSONRPCMessage struct {
+	ID     json.RawMessage `json:"id,omitempty"`
+	Method string          `json:"method,omitempty"`
+	Params json.RawMessage `json:"params,omitempty"`
+	Result json.RawMessage `json:"result,omitempty"`
+	Error  string          `json:"error,omitempty"`
+}
+```
+
 ### get_version
+This method return the oracle service version.
 
+    curl -X POST -H "Content-Type: application/json" http://127.0.0.1:63306 --data '{"id":1, "method":"get_version", "params": []}'
+```json
+{"id":1,"result":{"Version":"0.0.1"}}
+```    
 ### get_prices
+This method returns all the symbols corresponding prices, and also the current symbols that is used by the oracle service.
 
+    curl -X POST -H "Content-Type: application/json" http://127.0.0.1:63306 --data '{"id":1, "method":"get_prices", "params": []}'
+```json
+{"id":1,"result":{"Prices":{"NTNBTC":{"Timestamp":1672836542504,"Symbol":"NTNBTC","Price":"11.11"},"NTNETH":{"Timestamp":1672836542504,"Symbol":"NTNETH","Price":"11.11"},"NTNRMB":{"Timestamp":1672836542504,"Symbol":"NTNRMB","Price":"11.11"}},"Symbols":["NTNBTC","NTNETH","NTNRMB"]}}
+```
 ### update_symbols
+This method update the symbols of current oracle service, and returned the updated symbols once update is finished.
+
+    curl -X POST -H "Content-Type: application/json" http://127.0.0.1:63306 --data '{"id":1, "method":"update_symbols", "params": ["NTNUSDC,NTNUSDT,NTNDAI"]}'
+```json
+{"id":1,"result":["NTNUSDC,NTNUSDT,NTNDAI"]}
+```

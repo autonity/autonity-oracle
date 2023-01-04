@@ -15,7 +15,6 @@ import (
 
 func main() { //nolint
 	// create config from system environment variables.
-	log.Println("starting autonity oracle")
 	conf := config.MakeConfig()
 	log.Printf("Start to run autonity oracle service at port: %d\n, with symbols: %s",
 		conf.HTTPPort, strings.Join(conf.Symbols, ","))
