@@ -11,7 +11,7 @@ var (
 	EnvHTTPPort      = "ORACLE_HTTP_PORT"
 	EnvCryptoSymbols = "ORACLE_CRYPTO_SYMBOLS"
 
-	DefaultSymbols = "BNBBTC,BTCUSDT"
+	DefaultSymbols = "NTNUSDT,NTNUSDC,NTNBTC,NTNETH"
 	DefaultPort    = 30311
 )
 

@@ -15,11 +15,11 @@ The component starts a ticker job that is triggered every 10s timely to fetch da
 ## Configuration 
 Values that can be configured using environment variables:    
 
-| **Env Variable**        | **Required?** | **Meaning**                                                  | **Default Value**  | **Valid Options**                |
-|-------------------------|---------------|--------------------------------------------------------------|--------------------|----------------------------------|
-| `ORACLE_HTTP_PORT`      | Yes           | The port that the HTTP service endpoint bind to              | `30311`            | any free port number on the host |
-| `ORACLE_CRYPTO_SYMBOLS` | Yes           | The symbols that the oracle component collect data point for | \"BNBBTC,BTCUSDT\" | symbols seperated by ','         |
-| `GIN_MODE`              | No            | The mode running by the HTTP service                         | "debug"            | release or debug                 |
+| **Env Variable**        | **Required?** | **Meaning**                                                  | **Default Value**                  | **Valid Options**                |
+|-------------------------|---------------|--------------------------------------------------------------|------------------------------------|----------------------------------|
+| `ORACLE_HTTP_PORT`      | Yes           | The port that the HTTP service endpoint bind to              | `30311`                            | any free port number on the host |
+| `ORACLE_CRYPTO_SYMBOLS` | Yes           | The symbols that the oracle component collect data point for | \"NTNUSDT,NTNUSDC,NTNBTC,NTNETH"\" | symbols seperated by ','         |
+| `GIN_MODE`              | No            | The mode running by the HTTP service                         | "debug"                            | release or debug                 |
 
 ## Developing
 
