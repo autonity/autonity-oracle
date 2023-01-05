@@ -7,10 +7,11 @@ This project assumes the following:
 * Go 1.19.3 
 * Linux / MacOS operating system
 
-## Product introduction 
+## Product introduction
 This component works as the bridge that brings data points from different data provider and unifies the data into the standard format that exposed by HTTP service. Thus, the Autonity blockchain nodes can fetch the unified data points from this component for its stabilisation module.
 The component starts a ticker job that is triggered every 10s timely to fetch data point from the data providers it adapted for those symbols which are interested of by the Autonity blockchain for its stabilisation module, meantime the component provides the unified price by symbols via the HTTP service.
 
+![The design diagram of autonity oracle](./diagrams/autoracle_design.png)
 ## Configuration 
 Values that can be configured using environment variables:    
 
