@@ -1,9 +1,9 @@
-package oracle_server
+package oracleserver
 
 import (
 	"autonity-oracle/aggregator"
-	"autonity-oracle/price_pool"
-	"autonity-oracle/provider/crypto_provider"
+	pricepool "autonity-oracle/price_pool"
+	cryptoprovider "autonity-oracle/provider/crypto_provider"
 	"autonity-oracle/types"
 	"github.com/shopspring/decimal"
 	"golang.org/x/sync/errgroup"
@@ -28,10 +28,10 @@ type OracleServer struct {
 	doneCh chan struct{}
 	ticker *time.Ticker // the clock source to trigger the 10s interval job.
 
-	symbols           []string                      // the symbols for data fetching in oracle service.
-	aggregator        types.Aggregator              // the price aggregator once we have multiple data providers.
-	priceProviderPool *price_pool.PriceProviderPool // the price pool organized by provider and by symbols
-	adapters          []types.Adapter               // the adaptors which adapts with different data providers.
+	symbols           []string                     // the symbols for data fetching in oracle service.
+	aggregator        types.Aggregator             // the price aggregator once we have multiple data providers.
+	priceProviderPool *pricepool.PriceProviderPool // the price pool organized by provider and by symbols
+	adapters          []types.Adapter              // the adaptors which adapts with different data providers.
 }
 
 func NewOracleServer(symbols []string) *OracleServer {
@@ -42,11 +42,11 @@ func NewOracleServer(symbols []string) *OracleServer {
 		doneCh:            make(chan struct{}),
 		ticker:            time.NewTicker(UpdateInterval),
 		aggregator:        aggregator.NewAveragePriceAggregator(),
-		priceProviderPool: price_pool.NewPriceProviderPool(),
+		priceProviderPool: pricepool.NewPriceProviderPool(),
 	}
 
 	// todo: create adapters for all the providers once we have the providers clarified.
-	adapter := crypto_provider.NewBinanceAdapter()
+	adapter := cryptoprovider.NewBinanceAdapter()
 	pool := os.priceProviderPool.AddPriceProvider(adapter.Name())
 	os.adapters = append(os.adapters, adapter)
 	adapter.Initialize(pool)

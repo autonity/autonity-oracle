@@ -1,4 +1,4 @@
-package price_pool
+package pricepool
 
 import (
 	"autonity-oracle/types"

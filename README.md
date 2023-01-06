@@ -13,13 +13,24 @@ The component starts a ticker job that is triggered every 10s timely to fetch da
 
 ![The design diagram of autonity oracle](./diagrams/autoracle_design.png)
 ## Configuration 
-Values that can be configured using environment variables:    
+Values that can be configured by using environment variables:    
 
 | **Env Variable**        | **Required?** | **Meaning**                                                  | **Default Value**                  | **Valid Options**                |
 |-------------------------|---------------|--------------------------------------------------------------|------------------------------------|----------------------------------|
 | `ORACLE_HTTP_PORT`      | Yes           | The port that the HTTP service endpoint bind to              | `30311`                            | any free port number on the host |
 | `ORACLE_CRYPTO_SYMBOLS` | Yes           | The symbols that the oracle component collect data point for | \"NTNUSDT,NTNUSDC,NTNBTC,NTNETH"\" | symbols seperated by ','         |
 | `GIN_MODE`              | No            | The mode running by the HTTP service                         | "debug"                            | release or debug                 |
+
+or by using console flags:
+
+    $./autoracle -help
+    Usage of ./autoracle:
+    -oracle_crypto_symbols="NTNUSDT,NTNUSDC,NTNBTC,NTNETH": The symbols string separated by comma
+    -oracle_http_port=30311: The HTTP service port to be bind for oracle service
+
+example to run the autonity oracle service with console flags:
+    
+    $./autoracle -oracle_crypto_symbols="NTNUSDT,NTNUSDC,NTNBTC,NTNETH" -oracle_http_port=30311
 
 ## Developing
 

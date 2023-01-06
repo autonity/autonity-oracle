@@ -1,4 +1,4 @@
-package http_server
+package httpserver
 
 import (
 	"autonity-oracle/oracle_server"
@@ -13,11 +13,11 @@ import (
 
 type HTTPServer struct {
 	http.Server
-	oracle *oracle_server.OracleServer
+	oracle *oracleserver.OracleServer
 	port   int
 }
 
-func NewHttpServer(os *oracle_server.OracleServer, port int) *HTTPServer {
+func NewHttpServer(os *oracleserver.OracleServer, port int) *HTTPServer {
 	hs := &HTTPServer{
 		oracle: os,
 		port:   port,
@@ -33,7 +33,7 @@ func NewHttpServer(os *oracle_server.OracleServer, port int) *HTTPServer {
 func (hs *HTTPServer) StartHTTPServer() {
 	go func() {
 		if err := hs.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("listen: %s\n", err)
+			log.Fatalf("HTTP service listen on port: %d, : %s\n", hs.port, err)
 		}
 	}()
 }

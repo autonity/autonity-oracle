@@ -1,4 +1,4 @@
-package oracle_server
+package oracleserver
 
 import (
 	"autonity-oracle/types"

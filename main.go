@@ -20,12 +20,12 @@ func main() { //nolint
 		conf.HTTPPort, strings.Join(conf.Symbols, ","))
 
 	// create oracle service and start the ticker job.
-	oracle := oracle_server.NewOracleServer(conf.Symbols)
+	oracle := oracleserver.NewOracleServer(conf.Symbols)
 	go oracle.Start()
 	defer oracle.Stop()
 
 	// create http service.
-	srv := http_server.NewHttpServer(oracle, conf.HTTPPort)
+	srv := httpserver.NewHttpServer(oracle, conf.HTTPPort)
 	srv.StartHTTPServer()
 
 	// Wait for interrupt signal to gracefully shut down the server with

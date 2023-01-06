@@ -1,4 +1,4 @@
-package crypto_provider
+package cryptoprovider
 
 import (
 	"autonity-oracle/types"

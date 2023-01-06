@@ -2,53 +2,35 @@ package config
 
 import (
 	"autonity-oracle/types"
-	"os"
-	"strconv"
+	"github.com/namsral/flag"
 	"strings"
 )
 
 var (
-	EnvHTTPPort      = "ORACLE_HTTP_PORT"
-	EnvCryptoSymbols = "ORACLE_CRYPTO_SYMBOLS"
-
 	DefaultSymbols = "NTNUSDT,NTNUSDC,NTNBTC,NTNETH"
 	DefaultPort    = 30311
 )
 
 func MakeConfig() *types.OracleServiceConfig {
-	port := resolvePort()
-	symbols := resolveSymbols()
-	return &types.OracleServiceConfig{
-		Symbols:  symbols,
-		HTTPPort: port,
-	}
-}
+	var port int
+	var symbols string
 
-func resolvePort() int {
-	p, ok := os.LookupEnv(EnvHTTPPort)
-	if !ok {
-		return DefaultPort
-	}
-	port, err := strconv.Atoi(p)
-	if err != nil {
-		return DefaultPort
-	}
-	return port
-}
+	flag.IntVar(&port, "oracle_http_port", DefaultPort, "The HTTP service port to be bind for oracle service")
+	flag.StringVar(&symbols, "oracle_crypto_symbols", DefaultSymbols, "The symbols string separated by comma")
+	flag.Parse()
 
-func resolveSymbols() []string {
-	symbols, ok := os.LookupEnv(EnvCryptoSymbols)
-	if !ok {
-		return strings.Split(DefaultSymbols, ",")
-	}
-	var result []string
+	var symbolArray []string
 	symbs := strings.Split(symbols, ",")
 	for _, s := range symbs {
 		symbol := strings.TrimSpace(s)
 		if len(symbol) == 0 {
 			continue
 		}
-		result = append(result, symbol)
+		symbolArray = append(symbolArray, symbol)
 	}
-	return result
+
+	return &types.OracleServiceConfig{
+		Symbols:  symbolArray,
+		HTTPPort: port,
+	}
 }

@@ -1,4 +1,4 @@
-package price_pool
+package pricepool
 
 import (
 	"autonity-oracle/provider/crypto_provider"
@@ -9,7 +9,7 @@ import (
 )
 
 func TestPriceProvider(t *testing.T) {
-	provider := crypto_provider.Binance
+	provider := cryptoprovider.Binance
 	NTNUSDC := "NTNUSDC"
 	NTNETH := "NTNUETH"
 	t.Run("Add price and get price", func(t *testing.T) {
