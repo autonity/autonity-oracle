@@ -62,6 +62,9 @@ Set the system environment variables and run the binary:
     $export ORACLE_CRYPTO_SYMBOLS="NTNBTC,NTNETH,NTNRMB"
     $.~/src/autonity-oracle/build/bin/autoracle    
 
+or configure by using console flags and run the binary:
+
+    $.~/src/autonity-oracle/build/bin/autoracle -oracle_crypto_symbols="NTNUSDT,NTNUSDC,NTNBTC,NTNETH" -oracle_http_port=63306
 
 ## API specifications
 The HTTP request message and response message are defined in json object JSONRPCMessage, it is carried by the HTTP body in both the request or response message, all the APIs are access with POST method by specifying the method and the corresponding method's params in params field, and the ID help the client to identify the requests and response pairing.

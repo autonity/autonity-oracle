@@ -14,10 +14,10 @@ import (
 )
 
 func main() { //nolint
-	// create config from system environment variables.
+	// create config from system environment variables or from console flags.
 	conf := config.MakeConfig()
-	log.Printf("Start to run autonity oracle service at port: %d\n, with symbols: %s",
-		conf.HTTPPort, strings.Join(conf.Symbols, ","))
+	log.Printf("Start to run autonity oracle service at port: %d, with symbols: %s.\n", conf.HTTPPort,
+		strings.Join(conf.Symbols, ","))
 
 	// create oracle service and start the ticker job.
 	oracle := oracleserver.NewOracleServer(conf.Symbols)
