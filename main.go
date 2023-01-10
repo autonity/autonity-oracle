@@ -20,7 +20,7 @@ func main() { //nolint
 		strings.Join(conf.Symbols, ","))
 
 	// create oracle service and start the ticker job.
-	oracle := oracleserver.NewOracleServer(conf.Symbols)
+	oracle := oracleserver.NewOracleServer(conf.Symbols, conf.PluginDIR)
 	go oracle.Start()
 	defer oracle.Stop()
 

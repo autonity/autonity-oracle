@@ -15,11 +15,10 @@ type PricePool interface {
 	AddPrices(prices []Price)
 }
 
-type Adapter interface {
+type PluginClient interface {
 	Name() string
-	Version() string
 	FetchPrices(symbols []string) error
-	Alive() bool
+	Close()
 }
 
 type Price struct {
@@ -31,8 +30,9 @@ type Price struct {
 type PriceBySymbol map[string]Price
 
 type OracleServiceConfig struct {
-	Symbols  []string
-	HTTPPort int
+	Symbols   []string
+	HTTPPort  int
+	PluginDIR string
 }
 
 type JSONRPCMessage struct {
