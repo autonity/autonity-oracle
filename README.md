@@ -9,8 +9,10 @@ This project assumes the following:
 
 ## Product introduction
 This component works as the bridge that brings data points from different data provider and unifies the data into the standard format that exposed by HTTP service. To support the runtime adaptations with different data providers, the adapters are implemented in plugins mechanism thus it maintains high availability of the autonity oracle service. 
-As the component starts ticker jobs that fetch data points from providers on every 10s timely, it also scans the plugin directory on every 2s to launch new plugins or to replace runtime plugins with newly modified one to adapt with data provider. By providing unified data service through HTTP RPC service, the autonity layer1 network can get the interested data for its stabilisation protocol.
-![The design diagram of autonity oracle](./diagrams/autoracle_design.png)
+As the component starts ticker jobs that fetch data points from providers on every 10s timely, it also scans the plugin directory on every 2s to launch new plugins or to replace runtime plugins with newly modified one to adapt with data provider. By providing unified data service through HTTP RPC service, the autonity layer1 network can get the interested data for its stabilisation protocol.   
+
+![The internal design of autonity oracle component](./diagrams/autoracle_design.png)
+
 ## Configuration 
 Values that can be configured by using environment variables:    
 
@@ -69,7 +71,8 @@ Set the system environment variables and run the binary:
 
 or configure by using console flags and run the binary:
 
-    $.~/src/autonity-oracle/build/bin/autoracle -oracle_crypto_symbols="NTNUSDT,NTNUSDC,NTNBTC,NTNETH" -oracle_http_port=63306
+    $.~/src/autonity-oracle/build/bin/autoracle -oracle_crypto_symbols="NTNUSDT,NTNUSDC,NTNBTC,NTNETH" -oracle_http_port=63306 -oracle_plugin_dir="./plugins/"
+
 ### Runtime plugin management
 #### Adding new plugins
 For new adaptations with newly added plugins, just put the new plugins into the service's plugin directory, the service auto discovery it and manage it. There is no other operations are required from operator.
