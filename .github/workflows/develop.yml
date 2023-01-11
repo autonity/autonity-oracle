@@ -72,7 +72,9 @@ jobs:
           key: ${{ runner.os }}-gocache-${{ env.GO_VERSION }}${{ hashFiles('go.mod', 'go.sum') }}
 
       - name: unit test
-        run: make test
+        run: |
+          make autoracle
+          make test
 
       - name: e2e test
         run: |
