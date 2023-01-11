@@ -75,7 +75,9 @@ jobs:
         run: make test
 
       - name: e2e test
-        run: make e2e_test
+        run: |
+          make autoracle
+          make e2e_test
 
       - name: test coverage
         run: make test_coverage
