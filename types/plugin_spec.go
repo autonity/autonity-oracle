@@ -48,16 +48,8 @@ func (s *AdapterRPCServer) FetchPrices(symbols []string, resp *[]Price) error {
 	return nil
 }
 
-// This is the implementation of plugin.Plugin so we can serve/consume this
-//
-// This has two methods: Server must return an RPC server for this plugin
-// type. We construct a AdapterRPCServer for this.
-//
-// Client must return an implementation of our interface that communicates
-// over an RPC client. We return AdapterRPCClient for this.
-//
-// Ignore MuxBroker. That is used to create more multiplexed streams on our
-// plugin connection and is a more advanced use case.
+// AdapterPlugin is the unified implementation of plugins, all the 3rd parties plugins need to inject their
+// implementation by using this structure in their source code.
 type AdapterPlugin struct {
 	// Impl Injection
 	Impl Adapter

@@ -25,7 +25,7 @@ func TestAutonityOracleAPIs(t *testing.T) {
 
 	conf := config.MakeConfig()
 	// create oracle service and start the ticker job.
-	oracle := oracleserver.NewOracleServer(conf.Symbols)
+	oracle := oracleserver.NewOracleServer(conf.Symbols, "../build/bin/plugins")
 	go oracle.Start()
 	defer oracle.Stop()
 

@@ -7,7 +7,8 @@ import (
 	"autonity-oracle/types"
 	"github.com/shopspring/decimal"
 	"golang.org/x/sync/errgroup"
-	"io/ioutil"
+	"io/fs"
+	"io/ioutil" // nolint
 	"log"
 	o "os"
 	"sync"
@@ -54,11 +55,11 @@ func NewOracleServer(symbols []string, pluginDir string) *OracleServer {
 	}
 
 	// discover plugins from plugin dir at startup.
-	binaries := discoverPlugins(pluginDir)
-	for _, name := range binaries {
-		pluginClient := cryptoprovider.NewPluginClient(name, pluginDir)
-		pool := os.priceProviderPool.AddPriceProvider(pluginClient.Name())
-		os.pluginClients[name] = pluginClient
+	binaries := listPluginDIR(pluginDir)
+	for _, file := range binaries {
+		pluginClient := cryptoprovider.NewPluginClient(file.Name(), pluginDir)
+		pool := os.priceProviderPool.AddPriceProvider(file.Name())
+		os.pluginClients[file.Name()] = pluginClient
 		pluginClient.Initialize(pool)
 	}
 
@@ -148,7 +149,8 @@ func (os *OracleServer) Stop() {
 }
 
 func (os *OracleServer) Start() {
-	// start the jobTicker job to fetch prices for all the symbols from all pluginClients on every 10s.
+	// start the ticker job to fetch prices for all the symbols from all pluginClients on every 10s.
+	// start the ticker jot to discover plugins on every 2s.
 	for {
 		select {
 		case <-os.doneCh:
@@ -165,33 +167,49 @@ func (os *OracleServer) Start() {
 }
 
 func (os *OracleServer) PluginRuntimeDiscovery() {
-	binaries := discoverPlugins(os.pluginDIR)
+	binaries := listPluginDIR(os.pluginDIR)
 
-	for _, name := range binaries {
-		_, ok := os.pluginClients[name]
+	for _, file := range binaries {
+		plugin, ok := os.pluginClients[file.Name()]
 		if !ok {
-			log.Printf("set up newly discovered plugin: %s\n", name)
-			pluginClient := cryptoprovider.NewPluginClient(name, os.pluginDIR)
-			pool := os.priceProviderPool.AddPriceProvider(pluginClient.Name())
-			os.pluginClients[name] = pluginClient
+			log.Printf("set up newly discovered plugin: %s\n", file)
+			pluginClient := cryptoprovider.NewPluginClient(file.Name(), os.pluginDIR)
+			pool := os.priceProviderPool.AddPriceProvider(file.Name())
+			os.pluginClients[file.Name()] = pluginClient
 			pluginClient.Initialize(pool)
+			continue
+		}
+		// the plugin was created, now we check the modification time is after the creation time of the plugin,
+		// and try to replace the old plugin if we have to.
+		if file.ModTime().After(plugin.StartTime()) {
+			log.Printf("going to stop plugin with setting up a new version: %s\n", file.Name())
+			pricePool := os.priceProviderPool.GetPriceProvider(file.Name())
+			// stop the former plugins process, and disconnect the net rpc connection.
+			plugin.Close()
+			// release the former client from oracle service.
+			delete(os.pluginClients, file.Name())
+			pluginClient := cryptoprovider.NewPluginClient(file.Name(), os.pluginDIR)
+			os.pluginClients[file.Name()] = pluginClient
+			pluginClient.Initialize(pricePool)
+			log.Printf("finnish the replacement of plugin: %s\n", file.Name())
 		}
 	}
 }
 
-func discoverPlugins(pluginDir string) []string {
-	var plugins []string
+func listPluginDIR(pluginDir string) []fs.FileInfo {
+	var plugins []fs.FileInfo
 
 	files, err := ioutil.ReadDir(pluginDir)
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("cannot read from plugin dir: %s, error: %s\n", plugins, err.Error())
+		return nil
 	}
 
 	for _, file := range files {
 		if file.Mode() != o.FileMode(0775) {
 			continue
 		}
-		plugins = append(plugins, file.Name())
+		plugins = append(plugins, file)
 	}
 	return plugins
 }

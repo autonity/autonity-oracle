@@ -3,6 +3,7 @@ package types
 import (
 	"encoding/json"
 	"github.com/shopspring/decimal"
+	"time"
 )
 
 var SimulatedPrice = decimal.RequireFromString("11.11")
@@ -19,6 +20,7 @@ type PluginClient interface {
 	Name() string
 	FetchPrices(symbols []string) error
 	Close()
+	StartTime() time.Time
 }
 
 type Price struct {

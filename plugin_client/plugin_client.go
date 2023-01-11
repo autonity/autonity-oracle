@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"time"
 )
 
 var errConnectionNotEstablished = errors.New("connection not established yet")
@@ -18,6 +19,7 @@ type PluginClient struct {
 	client         *plugin.Client
 	clientProtocol plugin.ClientProtocol
 	name           string
+	startAt        time.Time
 }
 
 func NewPluginClient(name string, pluginDir string) *PluginClient {
@@ -37,18 +39,23 @@ func NewPluginClient(name string, pluginDir string) *PluginClient {
 	rpcClient := plugin.NewClient(&plugin.ClientConfig{
 		HandshakeConfig: types.HandshakeConfig,
 		Plugins:         pluginMap,
-		Cmd:             exec.Command(fmt.Sprintf("%s/%s", pluginDir, name)),
+		Cmd:             exec.Command(fmt.Sprintf("%s/%s", pluginDir, name)), //nolint
 		Logger:          logger,
 	})
 
 	return &PluginClient{
-		name:   name,
-		client: rpcClient,
+		name:    name,
+		client:  rpcClient,
+		startAt: time.Now(),
 	}
 }
 
 func (ba *PluginClient) Name() string {
 	return ba.name
+}
+
+func (ba *PluginClient) StartTime() time.Time {
+	return ba.startAt
 }
 
 func (ba *PluginClient) Initialize(pricePool types.PricePool) {
@@ -76,7 +83,7 @@ func (ba *PluginClient) FetchPrices(symbols []string) error {
 		ba.clientProtocol.Close() // no lint
 		ba.clientProtocol = nil
 		// try to reconnect during the runtime.
-		err := ba.connect()
+		err = ba.connect()
 		if err != nil {
 			return err
 		}

@@ -5,6 +5,8 @@
 .PHONY: autoracle test e2e_test clean lint dep all
 
 BINDIR = ./build/bin
+PLUGINDIR = ./build/bin/plugins
+PLUGINSRCDIR = ./plugins
 GO ?= latest
 LATEST_COMMIT ?= $(shell git log -n 1 master --pretty=format:"%H")
 ifeq ($(LATEST_COMMIT),)
@@ -13,8 +15,12 @@ endif
 
 autoracle:
 	mkdir -p $(BINDIR)
+	mkdir -p $(PLUGINDIR)
 	go build -o $(BINDIR)/autoracle
 	chmod +x $(BINDIR)/autoracle
+	go build -o $(PLUGINDIR)/binance $(PLUGINSRCDIR)/binance/binance.go
+	go build -o $(PLUGINDIR)/fakeplugin $(PLUGINSRCDIR)/fakeplugin/fakeplugin.go
+	chmod +x $(PLUGINDIR)/*
 	@echo "Done building."
 	@echo "Run \"$(BINDIR)/autoracle\" to launch autonity oracle."
 
@@ -22,13 +28,13 @@ clean:
 	go clean -cache
 	rm -rf build/_workspace/pkg $(BINDIR)/*
 
-test:
+test: autoracle
 	go test ./...
 
-test_coverage:
+test_coverage: autoracle
 	go test ./... -coverprofile=coverage.out
 
-e2e_test:
+e2e_test: autoracle
 	go test e2e_test/e2e_test.go
 
 dep:
