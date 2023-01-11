@@ -71,18 +71,5 @@ jobs:
             ${{ env.GO_MODULES_CACHE }}
           key: ${{ runner.os }}-gocache-${{ env.GO_VERSION }}${{ hashFiles('go.mod', 'go.sum') }}
 
-      - name: unit test
-        run: |
-          make autoracle
-          make test
-
-      - name: e2e test
-        run: |
-          make autoracle
-          make e2e_test
-
-      - name: test coverage
-        run: make test_coverage
-
-      - name: lint
-        run: make lint
+      - name: all tests
+        run: make all

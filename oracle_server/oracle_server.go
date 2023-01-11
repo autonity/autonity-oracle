@@ -201,7 +201,7 @@ func listPluginDIR(pluginDir string) []fs.FileInfo {
 
 	files, err := ioutil.ReadDir(pluginDir)
 	if err != nil {
-		log.Printf("cannot read from plugin dir: %s, error: %s\n", plugins, err.Error())
+		log.Printf("cannot read from plugin dir: %s, error: %s\n", pluginDir, err.Error())
 		return nil
 	}
 
