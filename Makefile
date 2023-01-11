@@ -35,7 +35,7 @@ test_coverage: autoracle
 	go test ./... -coverprofile=coverage.out
 
 e2e_test: autoracle
-	go test e2e_test/e2e_test.go
+	go test e2e_test.go
 
 dep:
 	go mod download

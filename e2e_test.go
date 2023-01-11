@@ -1,4 +1,4 @@
-package e2e_test
+package main_test
 
 import (
 	"autonity-oracle/config"
@@ -25,7 +25,7 @@ func TestAutonityOracleAPIs(t *testing.T) {
 
 	conf := config.MakeConfig()
 	// create oracle service and start the ticker job.
-	oracle := oracleserver.NewOracleServer(conf.Symbols, "./test_plugins/")
+	oracle := oracleserver.NewOracleServer(conf.Symbols, "./e2e_test_plugins/")
 	go oracle.Start()
 	defer oracle.Stop()
 
@@ -42,7 +42,7 @@ func TestAutonityOracleAPIs(t *testing.T) {
 
 	testUpdateSymbols(t, conf.HTTPPort)
 
-	defer srv.Shutdown(context.Background())
+	defer srv.Shutdown(context.Background()) //nolint
 }
 
 func testGetVersion(t *testing.T, port int) {
