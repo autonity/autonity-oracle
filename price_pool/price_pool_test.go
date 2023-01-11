@@ -1,7 +1,6 @@
 package pricepool
 
 import (
-	"autonity-oracle/provider/crypto_provider"
 	"autonity-oracle/types"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
@@ -9,7 +8,7 @@ import (
 )
 
 func TestPriceProvider(t *testing.T) {
-	provider := cryptoprovider.Binance
+	provider := "binance"
 	NTNUSDC := "NTNUSDC"
 	NTNETH := "NTNUETH"
 	t.Run("Add price and get price", func(t *testing.T) {
@@ -61,13 +60,13 @@ func TestPriceProvider(t *testing.T) {
 
 func TestPriceProviderPool(t *testing.T) {
 	provider := "Binance"
-	t.Run("add price provider", func(t *testing.T) {
+	t.Run("add price plugin_client", func(t *testing.T) {
 		pool := NewPriceProviderPool()
 		pool.AddPriceProvider(provider)
 		actualProvider := pool.GetPriceProvider(provider)
 		require.Equal(t, provider, actualProvider.name)
 	})
-	t.Run("delete price provider", func(t *testing.T) {
+	t.Run("delete price plugin_client", func(t *testing.T) {
 		pool := NewPriceProviderPool()
 		pool.AddPriceProvider(provider)
 		actualProvider := pool.GetPriceProvider(provider)

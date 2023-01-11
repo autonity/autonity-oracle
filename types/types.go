@@ -3,6 +3,7 @@ package types
 import (
 	"encoding/json"
 	"github.com/shopspring/decimal"
+	"time"
 )
 
 var SimulatedPrice = decimal.RequireFromString("11.11")
@@ -15,11 +16,11 @@ type PricePool interface {
 	AddPrices(prices []Price)
 }
 
-type Adapter interface {
+type PluginClient interface {
 	Name() string
-	Version() string
 	FetchPrices(symbols []string) error
-	Alive() bool
+	Close()
+	StartTime() time.Time
 }
 
 type Price struct {
@@ -31,8 +32,9 @@ type Price struct {
 type PriceBySymbol map[string]Price
 
 type OracleServiceConfig struct {
-	Symbols  []string
-	HTTPPort int
+	Symbols   []string
+	HTTPPort  int
+	PluginDIR string
 }
 
 type JSONRPCMessage struct {

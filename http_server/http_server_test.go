@@ -24,7 +24,7 @@ func TestHttpServerAPIHandlers(t *testing.T) {
 			Error:  "",
 		}
 
-		oracle := oracleserver.NewOracleServer(conf.Symbols)
+		oracle := oracleserver.NewOracleServer(conf.Symbols, ".")
 		hs := NewHttpServer(oracle, conf.HTTPPort)
 
 		code, rspMsg := hs.getVersion(reqMsg)
@@ -49,7 +49,7 @@ func TestHttpServerAPIHandlers(t *testing.T) {
 			Result: nil,
 			Error:  "",
 		}
-		oracle := oracleserver.NewOracleServer(conf.Symbols)
+		oracle := oracleserver.NewOracleServer(conf.Symbols, ".")
 		for _, s := range conf.Symbols {
 			price := types.Price{
 				Timestamp: 0,
@@ -90,7 +90,7 @@ func TestHttpServerAPIHandlers(t *testing.T) {
 			Result: nil,
 			Error:  "",
 		}
-		oracle := oracleserver.NewOracleServer(conf.Symbols)
+		oracle := oracleserver.NewOracleServer(conf.Symbols, ".")
 		hs := NewHttpServer(oracle, conf.HTTPPort)
 		code, rspMsg := hs.updateSymbols(reqMsg)
 		require.Equal(t, http.StatusOK, code)
