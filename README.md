@@ -19,7 +19,7 @@ Values that can be configured by using environment variables:
 | **Env Variable**        | **Required?** | **Meaning**                                                  | **Default Value**                  | **Valid Options**                |
 |-------------------------|---------------|--------------------------------------------------------------|------------------------------------|----------------------------------|
 | `ORACLE_HTTP_PORT`      | No            | The port that the HTTP service endpoint bind to              | `30311`                            | any free port number on the host |
-| `ORACLE_CRYPTO_SYMBOLS` | No            | The symbols that the oracle component collect data point for | \"NTNUSDT,NTNUSDC,NTNBTC,NTNETH"\" | symbols seperated by ','         |
+| `ORACLE_CRYPTO_SYMBOLS` | No            | The symbols that the oracle component collect data point for | "NTNUSDT,NTNUSDC,NTNBTC,NTNETH"    | symbols seperated by ','         |
 | `ORACLE_PLUGIN_DIR`     | No            | The directory that stores the plugins                        | "./plugins"                        | any directory that saves plugins |
 | `GIN_MODE`              | No            | The mode running by the HTTP service                         | "debug"                            | release or debug                 |
 
