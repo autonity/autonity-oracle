@@ -39,15 +39,15 @@ example to run the autonity oracle service with console flags:
 
 To run e2e test use
 
-    make e2e_test
+    make e2e-test
 
-To run uint tests use
+To run all tests use
     
     make test
 
 To generate code coverage reports run
 
-    make test_coverage
+    make test-coverage
 
 To lint code run
 

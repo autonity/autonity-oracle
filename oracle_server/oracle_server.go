@@ -5,6 +5,7 @@ import (
 	cryptoprovider "autonity-oracle/plugin_client"
 	pricepool "autonity-oracle/price_pool"
 	"autonity-oracle/types"
+	"fmt"
 	"github.com/hashicorp/go-hclog"
 	"github.com/modern-go/reflect2"
 	"github.com/shopspring/decimal"
@@ -64,6 +65,10 @@ func NewOracleServer(symbols []string, pluginDir string) *OracleServer {
 
 	// discover plugins from plugin dir at startup.
 	binaries := os.listPluginDIR()
+	if len(binaries) == 0 {
+		// to stop the service on the start once there is no plugin in the db.
+		panic(fmt.Sprintf("No plugins at plugin dir: %s, please build the plugins", os.pluginDIR))
+	}
 	for _, file := range binaries {
 		pluginClient := cryptoprovider.NewPluginClient(file.Name(), pluginDir)
 		pool := os.priceProviderPool.AddPriceProvider(file.Name())
@@ -208,7 +213,6 @@ func (os *OracleServer) listPluginDIR() []fs.FileInfo {
 	var plugins []fs.FileInfo
 
 	files, err := ioutil.ReadDir(os.pluginDIR)
-	os.logger.Debug("files from plugin DIR ", files, os.pluginDIR)
 	if err != nil {
 		os.logger.Error("cannot read from plugin store, please double check plugins are saved in the directory: ",
 			os.pluginDIR, err.Error())
@@ -217,12 +221,6 @@ func (os *OracleServer) listPluginDIR() []fs.FileInfo {
 
 	for _, file := range files {
 		if file.IsDir() {
-			continue
-		}
-
-		os.logger.Debug("file mode: ", file.Mode().String())
-
-		if file.Mode() != o.FileMode(0775) {
 			continue
 		}
 		plugins = append(plugins, file)

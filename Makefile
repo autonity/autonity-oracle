@@ -31,10 +31,10 @@ clean:
 test:
 	go test ./...
 
-test_coverage:
+test-coverage:
 	go test ./... -coverprofile=coverage.out
 
-e2e_test:
+e2e-test: autoracle
 	go test e2e_test.go
 
 dep:
@@ -43,7 +43,4 @@ dep:
 lint:
 	@./.github/tools/golangci-lint run --config ./.golangci.yml
 
-all: autoracle test test_coverage e2e_test lint
-
-
-
+all: autoracle test test-coverage lint e2e-test
