@@ -181,21 +181,21 @@ func (os *OracleServer) Start() {
 
 func (os *OracleServer) PluginRuntimeDiscovery() {
 	binaries := os.listPluginDIR()
-	os.logger.Debug("getting plugins from store: ", binaries)
 	for _, file := range binaries {
 		plugin, ok := os.pluginClients[file.Name()]
 		if !ok {
-			os.logger.Info("New plugin set up by oracle service: ", file)
+			os.logger.Info("** New plugin discovered, going to setup it: ", file.Name(), file.Mode().String())
 			pluginClient := cryptoprovider.NewPluginClient(file.Name(), os.pluginDIR)
 			pool := os.priceProviderPool.AddPriceProvider(file.Name())
 			os.pluginClients[file.Name()] = pluginClient
 			pluginClient.Initialize(pool)
+			os.logger.Info("** New plugin on ready: ", file.Name())
 			continue
 		}
 		// the plugin was created, now we check the modification time is after the creation time of the plugin,
 		// and try to replace the old plugin if we have to.
 		if file.ModTime().After(plugin.StartTime()) {
-			os.logger.Info("Replacing plugin: ", file.Name())
+			os.logger.Info("*** Replacing legacy plugin with new one: ", file.Name(), file.Mode().String())
 			pricePool := os.priceProviderPool.GetPriceProvider(file.Name())
 			// stop the former plugins process, and disconnect the net rpc connection.
 			plugin.Close()
@@ -204,7 +204,7 @@ func (os *OracleServer) PluginRuntimeDiscovery() {
 			pluginClient := cryptoprovider.NewPluginClient(file.Name(), os.pluginDIR)
 			os.pluginClients[file.Name()] = pluginClient
 			pluginClient.Initialize(pricePool)
-			os.logger.Info("Finnish the replacement of plugin: ", file.Name())
+			os.logger.Info("*** Finnish the replacement of plugin: ", file.Name())
 		}
 	}
 }
