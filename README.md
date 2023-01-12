@@ -95,6 +95,7 @@ The HTTP request message and response message are defined in json object JSONRPC
 This method return the oracle service version.
 
     curl -X POST -H "Content-Type: application/json" http://127.0.0.1:63306 --data '{"id":1, "method":"get_version", "params": []}'
+
 ```json
 {"id":1,"result":{"Version":"0.0.1"}}
 ```    
@@ -102,6 +103,7 @@ This method return the oracle service version.
 This method returns all the symbols corresponding prices, and also the current symbols that is used by the oracle service.
 
     curl -X POST -H "Content-Type: application/json" http://127.0.0.1:63306 --data '{"id":1, "method":"get_prices", "params": []}'
+
 ```json
 {"id":1,"result":{"Prices":{"NTNBTC":{"Timestamp":1672836542504,"Symbol":"NTNBTC","Price":"11.11"},"NTNETH":{"Timestamp":1672836542504,"Symbol":"NTNETH","Price":"11.11"},"NTNRMB":{"Timestamp":1672836542504,"Symbol":"NTNRMB","Price":"11.11"}},"Symbols":["NTNBTC","NTNETH","NTNRMB"]}}
 ```
@@ -109,6 +111,16 @@ This method returns all the symbols corresponding prices, and also the current s
 This method update the symbols of current oracle service, and returned the updated symbols once update is finished.
 
     curl -X POST -H "Content-Type: application/json" http://127.0.0.1:63306 --data '{"id":1, "method":"update_symbols", "params": ["NTNUSDC,NTNUSDT,NTNDAI"]}'
+
 ```json
 {"id":1,"result":["NTNUSDC,NTNUSDT,NTNDAI"]}
+```
+
+### list_plugins
+This method list all the running plugins on the oracle service.
+
+    curl -X POST -H "Content-Type: application/json" http://127.0.0.1:30311 --data '{"id":1, "method":"list_plugins", "params": []}'
+
+```json
+{"id":1,"result":{"binance":{"Version":"v0.0.1","Name":"binance","StartAt":"2023-01-12T11:43:10.32010817Z"},"fakeplugin":{"Version":"v0.0.1","Name":"fakeplugin","StartAt":"2023-01-12T11:43:10.325786993Z"}}}
 ```

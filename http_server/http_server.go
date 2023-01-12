@@ -48,6 +48,8 @@ func (hs *HTTPServer) createRouter() *gin.Engine {
 		}
 
 		switch reqMsg.Method {
+		case "list_plugins":
+			c.JSON(hs.listPlugins(&reqMsg))
 		case "get_version":
 			c.JSON(hs.getVersion(&reqMsg))
 		case "get_prices":
@@ -84,6 +86,14 @@ func (hs *HTTPServer) getPrices(reqMsg *types.JSONRPCMessage) (int, types.JSONRP
 		Prices:  hs.oracle.GetPrices(),
 		Symbols: hs.oracle.Symbols(),
 	})
+	if err != nil {
+		return http.StatusInternalServerError, types.JSONRPCMessage{Error: err.Error()}
+	}
+	return http.StatusOK, types.JSONRPCMessage{ID: reqMsg.ID, Result: enc}
+}
+
+func (hs *HTTPServer) listPlugins(reqMsg *types.JSONRPCMessage) (int, types.JSONRPCMessage) {
+	enc, err := json.Marshal(hs.oracle.GetPlugins())
 	if err != nil {
 		return http.StatusInternalServerError, types.JSONRPCMessage{Error: err.Error()}
 	}

@@ -2,7 +2,6 @@ package types
 
 import (
 	"github.com/hashicorp/go-plugin"
-	"log"
 	"net/rpc"
 )
 
@@ -21,20 +20,31 @@ var HandshakeConfig = plugin.HandshakeConfig{
 
 // Adapter is the interface that we're exposing as a plugin.
 type Adapter interface {
-	FetchPrices(symbols []string) []Price
+	FetchPrices(symbols []string) ([]Price, error)
+	GetVersion() (string, error)
 }
 
 // AdapterRPCClient is an implementation that talks over RPC client
 type AdapterRPCClient struct{ client *rpc.Client }
 
-func (g *AdapterRPCClient) FetchPrices(symbols []string) []Price {
+func (g *AdapterRPCClient) FetchPrices(symbols []string) ([]Price, error) {
 	var resp []Price
 	err := g.client.Call("Plugin.FetchPrices", symbols, &resp)
 	if err != nil {
-		log.Printf("cannot call plugin: %s.", err.Error())
+		return nil, err
 	}
 
-	return resp
+	return resp, nil
+}
+
+func (g *AdapterRPCClient) GetVersion() (string, error) {
+	var resp string
+	err := g.client.Call("Plugin.GetVersion", new(interface{}), &resp)
+	if err != nil {
+		return resp, err
+	}
+
+	return resp, nil
 }
 
 // AdapterRPCServer Here is the RPC server that AdapterRPCClient talks to, conforming to the requirements of net/rpc
@@ -44,8 +54,15 @@ type AdapterRPCServer struct {
 }
 
 func (s *AdapterRPCServer) FetchPrices(symbols []string, resp *[]Price) error {
-	*resp = s.Impl.FetchPrices(symbols)
-	return nil
+	prices, err := s.Impl.FetchPrices(symbols)
+	*resp = prices
+	return err
+}
+
+func (s *AdapterRPCServer) GetVersion(args interface{}, resp *string) error {
+	v, err := s.Impl.GetVersion()
+	*resp = v
+	return err
 }
 
 // AdapterPlugin is the unified implementation of plugins, all the 3rd parties plugins need to inject their

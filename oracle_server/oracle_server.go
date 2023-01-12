@@ -19,7 +19,7 @@ import (
 
 var (
 	ValidDataAge            = 3 * 60 * 1000 // 3 minutes, data fetched within 3 minutes are valid to update the price.
-	Version                 = "0.0.1"
+	Version                 = "v0.0.1"
 	UpdateInterval          = 10 * time.Second // 10s, the data fetching interval for the oracle server's jobTicker job.
 	PluginDiscoveryInterval = 2 * time.Second  // 2s, the plugin discovery interval.
 )
@@ -28,19 +28,21 @@ type OracleServer struct {
 	version string
 	logger  hclog.Logger
 
-	lock sync.RWMutex
-
-	prices types.PriceBySymbol // aggregated prices which is referred by http data service to provide the data service.
+	lockPrices  sync.RWMutex        // mutex to prevent the race condition between ticker job and http service routine.
+	prices      types.PriceBySymbol // aggregated prices which is referred by http data service to provide the data service.
+	lockPlugins sync.RWMutex        // mutex to prevent the race condition between ticker job and http service routine.
+	plugins     types.PluginByName  // save the plugin infos that can be queried via http service.
 
 	doneCh          chan struct{}
 	jobTicker       *time.Ticker // the clock source to trigger the 10s interval job.
 	discoveryTicker *time.Ticker
 
-	pluginDIR         string                        // the dir saves the plugins.
-	symbols           []string                      // the symbols for data fetching in oracle service.
-	aggregator        types.Aggregator              // the price aggregator once we have multiple data providers.
-	priceProviderPool *pricepool.PriceProviderPool  // the price pool organized by plugin_client and by symbols
-	pluginClients     map[string]types.PluginClient // the plugin clients that connect with different adapters.
+	pluginDIR         string                       // the dir saves the plugins.
+	symbols           []string                     // the symbols for data fetching in oracle service.
+	aggregator        types.Aggregator             // the price aggregator once we have multiple data providers.
+	priceProviderPool *pricepool.PriceProviderPool // the price pool organized by plugin_client and by symbols
+
+	pluginClients map[string]types.PluginClient // the plugin clients that connect with different adapters.
 }
 
 func NewOracleServer(symbols []string, pluginDir string) *OracleServer {
@@ -49,6 +51,7 @@ func NewOracleServer(symbols []string, pluginDir string) *OracleServer {
 		symbols:           symbols,
 		pluginDIR:         pluginDir,
 		prices:            make(types.PriceBySymbol),
+		plugins:           make(types.PluginByName),
 		pluginClients:     make(map[string]types.PluginClient),
 		doneCh:            make(chan struct{}),
 		jobTicker:         time.NewTicker(UpdateInterval),
@@ -70,10 +73,7 @@ func NewOracleServer(symbols []string, pluginDir string) *OracleServer {
 		panic(fmt.Sprintf("No plugins at plugin dir: %s, please build the plugins", os.pluginDIR))
 	}
 	for _, file := range binaries {
-		pluginClient := cryptoprovider.NewPluginClient(file.Name(), pluginDir)
-		pool := os.priceProviderPool.AddPriceProvider(file.Name())
-		os.pluginClients[file.Name()] = pluginClient
-		pluginClient.Initialize(pool)
+		os.createPlugin(file.Name())
 	}
 
 	return os
@@ -91,15 +91,27 @@ func (os *OracleServer) Symbols() []string {
 	return os.symbols
 }
 
+func (os *OracleServer) GetPlugins() types.PluginByName {
+	os.lockPlugins.RLock()
+	defer os.lockPlugins.RUnlock()
+	return os.plugins
+}
+
+func (os *OracleServer) PutPlugin(name string, plugin types.Plugin) {
+	os.lockPlugins.Lock()
+	defer os.lockPlugins.Unlock()
+	os.plugins[name] = plugin
+}
+
 func (os *OracleServer) GetPrices() types.PriceBySymbol {
-	os.lock.RLock()
-	defer os.lock.RUnlock()
+	os.lockPrices.RLock()
+	defer os.lockPrices.RUnlock()
 	return os.prices
 }
 
 func (os *OracleServer) UpdatePrice(price types.Price) {
-	os.lock.Lock()
-	defer os.lock.Unlock()
+	os.lockPrices.Lock()
+	defer os.lockPrices.Unlock()
 	os.prices[price.Symbol] = price
 }
 
@@ -141,6 +153,7 @@ func (os *OracleServer) UpdatePrices() {
 			Symbol:    s,
 		}
 
+		// we have multiple provider provide prices for this symbol, we have to aggregate it.
 		if len(prices) > 1 {
 			p, err := os.aggregator.Aggregate(prices)
 			if err != nil {
@@ -181,32 +194,42 @@ func (os *OracleServer) Start() {
 
 func (os *OracleServer) PluginRuntimeDiscovery() {
 	binaries := os.listPluginDIR()
+
 	for _, file := range binaries {
 		plugin, ok := os.pluginClients[file.Name()]
 		if !ok {
 			os.logger.Info("** New plugin discovered, going to setup it: ", file.Name(), file.Mode().String())
-			pluginClient := cryptoprovider.NewPluginClient(file.Name(), os.pluginDIR)
-			pool := os.priceProviderPool.AddPriceProvider(file.Name())
-			os.pluginClients[file.Name()] = pluginClient
-			pluginClient.Initialize(pool)
+			os.createPlugin(file.Name())
 			os.logger.Info("** New plugin on ready: ", file.Name())
 			continue
 		}
-		// the plugin was created, now we check the modification time is after the creation time of the plugin,
-		// and try to replace the old plugin if we have to.
+
 		if file.ModTime().After(plugin.StartTime()) {
 			os.logger.Info("*** Replacing legacy plugin with new one: ", file.Name(), file.Mode().String())
-			pricePool := os.priceProviderPool.GetPriceProvider(file.Name())
-			// stop the former plugins process, and disconnect the net rpc connection.
+			// stop the legacy plugins process, disconnect rpc connection and release memory.
 			plugin.Close()
-			// release the former client from oracle service.
 			delete(os.pluginClients, file.Name())
-			pluginClient := cryptoprovider.NewPluginClient(file.Name(), os.pluginDIR)
-			os.pluginClients[file.Name()] = pluginClient
-			pluginClient.Initialize(pricePool)
+			os.createPlugin(file.Name())
 			os.logger.Info("*** Finnish the replacement of plugin: ", file.Name())
 		}
 	}
+}
+
+func (os *OracleServer) createPlugin(name string) {
+
+	pluginClient := cryptoprovider.NewPluginClient(name, os.pluginDIR)
+	pool := os.priceProviderPool.GetPriceProvider(name)
+	if pool == nil {
+		pool = os.priceProviderPool.AddPriceProvider(name)
+	}
+	os.pluginClients[name] = pluginClient
+	pluginClient.Initialize(pool)
+
+	os.PutPlugin(pluginClient.Name(), types.Plugin{
+		Version: pluginClient.Version(),
+		Name:    pluginClient.Name(),
+		StartAt: pluginClient.StartTime(),
+	})
 }
 
 func (os *OracleServer) listPluginDIR() []fs.FileInfo {

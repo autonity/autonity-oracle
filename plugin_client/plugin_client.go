@@ -15,6 +15,7 @@ import (
 var errConnectionNotEstablished = errors.New("connection not established yet")
 
 type PluginClient struct {
+	version        string
 	pricePool      types.PricePool
 	client         *plugin.Client
 	clientProtocol plugin.ClientProtocol
@@ -54,6 +55,10 @@ func (ba *PluginClient) Name() string {
 	return ba.name
 }
 
+func (ba *PluginClient) Version() string {
+	return ba.version
+}
+
 func (ba *PluginClient) StartTime() time.Time {
 	return ba.startAt
 }
@@ -68,6 +73,46 @@ func (ba *PluginClient) Initialize(pricePool types.PricePool) {
 		return
 	}
 	ba.clientProtocol = rpcClient
+	// load plugin's version
+	version, err := ba.GetVersion()
+	if err != nil {
+		log.Printf("connot get plugin's version")
+		return
+	}
+	log.Printf("plugin %s with version: %s intitalized", ba.name, version)
+}
+
+func (ba *PluginClient) GetVersion() (string, error) {
+	if ba.clientProtocol == nil {
+		// try to reconnect during the runtime.
+		err := ba.connect()
+		if err != nil {
+			return "", err
+		}
+	}
+	err := ba.clientProtocol.Ping()
+	if err != nil {
+		ba.clientProtocol.Close() // no lint
+		ba.clientProtocol = nil
+		// try to reconnect during the runtime.
+		err = ba.connect()
+		if err != nil {
+			return "", err
+		}
+	}
+
+	raw, err := ba.clientProtocol.Dispense("adapter")
+	if err != nil {
+		return "", err
+	}
+
+	adapter := raw.(types.Adapter)
+	ba.version, err = adapter.GetVersion()
+	if err != nil {
+		return ba.version, err
+	}
+
+	return ba.version, nil
 }
 
 func (ba *PluginClient) FetchPrices(symbols []string) error {
@@ -95,7 +140,10 @@ func (ba *PluginClient) FetchPrices(symbols []string) error {
 	}
 
 	adapter := raw.(types.Adapter)
-	prices := adapter.FetchPrices(symbols)
+	prices, err := adapter.FetchPrices(symbols)
+	if err != nil {
+		return err
+	}
 
 	if len(prices) > 0 {
 		ba.pricePool.AddPrices(prices)

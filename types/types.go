@@ -18,6 +18,7 @@ type PricePool interface {
 
 type PluginClient interface {
 	Name() string
+	Version() string
 	FetchPrices(symbols []string) error
 	Close()
 	StartTime() time.Time
@@ -30,6 +31,15 @@ type Price struct {
 }
 
 type PriceBySymbol map[string]Price
+
+// Plugin list the information of the running plugins in oracle service.
+type Plugin struct {
+	Version string
+	Name    string
+	StartAt time.Time
+}
+
+type PluginByName map[string]Plugin
 
 type OracleServiceConfig struct {
 	Symbols   []string

@@ -8,12 +8,14 @@ import (
 	"time"
 )
 
+var version = "v0.0.1"
+
 // FakePlugin Here is an implementation of a fake plugin which returns simulated data points.
 type FakePlugin struct {
 	logger hclog.Logger
 }
 
-func (g *FakePlugin) FetchPrices(symbols []string) []types.Price {
+func (g *FakePlugin) FetchPrices(symbols []string) ([]types.Price, error) {
 	g.logger.Debug("receive request from oracle service, send data response.")
 	var prices []types.Price
 	for _, s := range symbols {
@@ -25,7 +27,11 @@ func (g *FakePlugin) FetchPrices(symbols []string) []types.Price {
 		prices = append(prices, p)
 	}
 	g.logger.Debug("", prices)
-	return prices
+	return prices, nil
+}
+
+func (g *FakePlugin) GetVersion() (string, error) {
+	return version, nil
 }
 
 func main() {
