@@ -208,6 +208,7 @@ func (os *OracleServer) listPluginDIR() []fs.FileInfo {
 	var plugins []fs.FileInfo
 
 	files, err := ioutil.ReadDir(os.pluginDIR)
+	os.logger.Debug("files from plugin DIR ", files, os.pluginDIR)
 	if err != nil {
 		os.logger.Error("cannot read from plugin store, please double check plugins are saved in the directory: ",
 			os.pluginDIR, err.Error())

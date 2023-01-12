@@ -26,7 +26,7 @@ func TestAutonityOracleAPIs(t *testing.T) {
 
 	conf := config.MakeConfig()
 	// create oracle service and start the ticker job.
-	oracle := oracleserver.NewOracleServer(conf.Symbols, "./e2e_test_plugins/")
+	oracle := oracleserver.NewOracleServer(conf.Symbols, "./e2e_test_plugins")
 	go oracle.Start()
 	defer oracle.Stop()
 
