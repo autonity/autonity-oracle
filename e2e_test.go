@@ -18,7 +18,6 @@ import (
 )
 
 func TestAutonityOracleAPIs(t *testing.T) {
-	t.Skip("it fails in ci job environment, but works in local environment, todo e2e test via docker.")
 	err := os.Unsetenv("ORACLE_HTTP_PORT")
 	require.NoError(t, err)
 	err = os.Unsetenv("ORACLE_CRYPTO_SYMBOLS")
@@ -26,7 +25,7 @@ func TestAutonityOracleAPIs(t *testing.T) {
 
 	conf := config.MakeConfig()
 	// create oracle service and start the ticker job.
-	oracle := oracleserver.NewOracleServer(conf.Symbols, "./e2e_test_plugins/")
+	oracle := oracleserver.NewOracleServer(conf.Symbols, "./build/bin/plugins")
 	go oracle.Start()
 	defer oracle.Stop()
 
@@ -44,6 +43,14 @@ func TestAutonityOracleAPIs(t *testing.T) {
 	testUpdateSymbols(t, conf.HTTPPort)
 
 	defer srv.Shutdown(context.Background()) //nolint
+}
+
+func TestAddNewPlugin(t *testing.T) {
+	// todo add new plugins
+}
+
+func TestReplacePlugin(t *testing.T) {
+	// todo replace plugins
 }
 
 func testGetVersion(t *testing.T, port int) {

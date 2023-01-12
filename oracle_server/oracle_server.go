@@ -5,6 +5,7 @@ import (
 	cryptoprovider "autonity-oracle/plugin_client"
 	pricepool "autonity-oracle/price_pool"
 	"autonity-oracle/types"
+	"fmt"
 	"github.com/hashicorp/go-hclog"
 	"github.com/modern-go/reflect2"
 	"github.com/shopspring/decimal"
@@ -64,6 +65,10 @@ func NewOracleServer(symbols []string, pluginDir string) *OracleServer {
 
 	// discover plugins from plugin dir at startup.
 	binaries := os.listPluginDIR()
+	if len(binaries) == 0 {
+		// to stop the service on the start once there is no plugin in the db.
+		panic(fmt.Sprintf("No plugins at plugin dir: %s, please build the plugins", os.pluginDIR))
+	}
 	for _, file := range binaries {
 		pluginClient := cryptoprovider.NewPluginClient(file.Name(), pluginDir)
 		pool := os.priceProviderPool.AddPriceProvider(file.Name())
@@ -176,21 +181,21 @@ func (os *OracleServer) Start() {
 
 func (os *OracleServer) PluginRuntimeDiscovery() {
 	binaries := os.listPluginDIR()
-	os.logger.Debug("getting plugins from store: ", binaries)
 	for _, file := range binaries {
 		plugin, ok := os.pluginClients[file.Name()]
 		if !ok {
-			os.logger.Info("New plugin set up by oracle service: ", file)
+			os.logger.Info("** New plugin discovered, going to setup it: ", file.Name(), file.Mode().String())
 			pluginClient := cryptoprovider.NewPluginClient(file.Name(), os.pluginDIR)
 			pool := os.priceProviderPool.AddPriceProvider(file.Name())
 			os.pluginClients[file.Name()] = pluginClient
 			pluginClient.Initialize(pool)
+			os.logger.Info("** New plugin on ready: ", file.Name())
 			continue
 		}
 		// the plugin was created, now we check the modification time is after the creation time of the plugin,
 		// and try to replace the old plugin if we have to.
 		if file.ModTime().After(plugin.StartTime()) {
-			os.logger.Info("Replacing plugin: ", file.Name())
+			os.logger.Info("*** Replacing legacy plugin with new one: ", file.Name(), file.Mode().String())
 			pricePool := os.priceProviderPool.GetPriceProvider(file.Name())
 			// stop the former plugins process, and disconnect the net rpc connection.
 			plugin.Close()
@@ -199,7 +204,7 @@ func (os *OracleServer) PluginRuntimeDiscovery() {
 			pluginClient := cryptoprovider.NewPluginClient(file.Name(), os.pluginDIR)
 			os.pluginClients[file.Name()] = pluginClient
 			pluginClient.Initialize(pricePool)
-			os.logger.Info("Finnish the replacement of plugin: ", file.Name())
+			os.logger.Info("*** Finnish the replacement of plugin: ", file.Name())
 		}
 	}
 }
@@ -215,7 +220,7 @@ func (os *OracleServer) listPluginDIR() []fs.FileInfo {
 	}
 
 	for _, file := range files {
-		if file.Mode() != o.FileMode(0775) {
+		if file.IsDir() {
 			continue
 		}
 		plugins = append(plugins, file)
