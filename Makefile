@@ -28,13 +28,13 @@ clean:
 	go clean -cache
 	rm -rf build/_workspace/pkg $(BINDIR)/*
 
-test: autoracle
+test:
 	go test ./...
 
-test_coverage: autoracle
+test_coverage:
 	go test ./... -coverprofile=coverage.out
 
-e2e_test: autoracle
+e2e_test:
 	go test e2e_test.go
 
 dep:
