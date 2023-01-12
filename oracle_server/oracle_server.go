@@ -221,10 +221,10 @@ func (os *OracleServer) listPluginDIR() []fs.FileInfo {
 		}
 
 		os.logger.Debug("file mode: ", file.Mode().String())
-		/*
-			if file.Mode() != o.FileMode(0775) {
-				continue
-			}*/
+
+		if file.Mode() != o.FileMode(0775) {
+			continue
+		}
 		plugins = append(plugins, file)
 	}
 	return plugins
