@@ -5,11 +5,12 @@ import (
 	cryptoprovider "autonity-oracle/plugin_client"
 	pricepool "autonity-oracle/price_pool"
 	"autonity-oracle/types"
+	"github.com/hashicorp/go-hclog"
+	"github.com/modern-go/reflect2"
 	"github.com/shopspring/decimal"
 	"golang.org/x/sync/errgroup"
 	"io/fs"
 	"io/ioutil" // nolint
-	"log"
 	o "os"
 	"sync"
 	"time"
@@ -24,6 +25,7 @@ var (
 
 type OracleServer struct {
 	version string
+	logger  hclog.Logger
 
 	lock sync.RWMutex
 
@@ -54,8 +56,14 @@ func NewOracleServer(symbols []string, pluginDir string) *OracleServer {
 		priceProviderPool: pricepool.NewPriceProviderPool(),
 	}
 
+	os.logger = hclog.New(&hclog.LoggerOptions{
+		Name:   reflect2.TypeOfPtr(os).String(),
+		Output: o.Stdout,
+		Level:  hclog.Debug,
+	})
+
 	// discover plugins from plugin dir at startup.
-	binaries := listPluginDIR(pluginDir)
+	binaries := os.listPluginDIR()
 	for _, file := range binaries {
 		pluginClient := cryptoprovider.NewPluginClient(file.Name(), pluginDir)
 		pool := os.priceProviderPool.AddPriceProvider(file.Name())
@@ -100,7 +108,7 @@ func (os *OracleServer) UpdatePrices() {
 	}
 	err := wg.Wait()
 	if err != nil {
-		log.Printf("error %s occurs when fetching prices from plugin_client", err.Error())
+		os.logger.Error("fetching prices from plugins error: ", err.Error())
 	}
 
 	now := time.Now().UnixMilli()
@@ -156,7 +164,7 @@ func (os *OracleServer) Start() {
 		case <-os.doneCh:
 			os.discoveryTicker.Stop()
 			os.jobTicker.Stop()
-			log.Println("the jobTicker job for data update is stopped")
+			os.logger.Info("the jobTicker jobs of oracle service is stopped")
 			return
 		case <-os.discoveryTicker.C:
 			os.PluginRuntimeDiscovery()
@@ -167,12 +175,12 @@ func (os *OracleServer) Start() {
 }
 
 func (os *OracleServer) PluginRuntimeDiscovery() {
-	binaries := listPluginDIR(os.pluginDIR)
-
+	binaries := os.listPluginDIR()
+	os.logger.Debug("getting plugins from store: ", binaries)
 	for _, file := range binaries {
 		plugin, ok := os.pluginClients[file.Name()]
 		if !ok {
-			log.Printf("set up newly discovered plugin: %s\n", file)
+			os.logger.Info("New plugin set up by oracle service: ", file)
 			pluginClient := cryptoprovider.NewPluginClient(file.Name(), os.pluginDIR)
 			pool := os.priceProviderPool.AddPriceProvider(file.Name())
 			os.pluginClients[file.Name()] = pluginClient
@@ -182,7 +190,7 @@ func (os *OracleServer) PluginRuntimeDiscovery() {
 		// the plugin was created, now we check the modification time is after the creation time of the plugin,
 		// and try to replace the old plugin if we have to.
 		if file.ModTime().After(plugin.StartTime()) {
-			log.Printf("going to stop plugin with setting up a new version: %s\n", file.Name())
+			os.logger.Info("Replacing plugin: ", file.Name())
 			pricePool := os.priceProviderPool.GetPriceProvider(file.Name())
 			// stop the former plugins process, and disconnect the net rpc connection.
 			plugin.Close()
@@ -191,17 +199,18 @@ func (os *OracleServer) PluginRuntimeDiscovery() {
 			pluginClient := cryptoprovider.NewPluginClient(file.Name(), os.pluginDIR)
 			os.pluginClients[file.Name()] = pluginClient
 			pluginClient.Initialize(pricePool)
-			log.Printf("finnish the replacement of plugin: %s\n", file.Name())
+			os.logger.Info("Finnish the replacement of plugin: ", file.Name())
 		}
 	}
 }
 
-func listPluginDIR(pluginDir string) []fs.FileInfo {
+func (os *OracleServer) listPluginDIR() []fs.FileInfo {
 	var plugins []fs.FileInfo
 
-	files, err := ioutil.ReadDir(pluginDir)
+	files, err := ioutil.ReadDir(os.pluginDIR)
 	if err != nil {
-		log.Printf("cannot read from plugin dir: %s, error: %s\n", pluginDir, err.Error())
+		os.logger.Error("cannot read from plugin store, please double check plugins are saved in the directory: ",
+			os.pluginDIR, err.Error())
 		return nil
 	}
 
