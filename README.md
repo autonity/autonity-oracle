@@ -20,7 +20,7 @@ Values that can be configured by using environment variables:
 |-------------------------|---------------|--------------------------------------------------------------|------------------------------------|----------------------------------|
 | `ORACLE_HTTP_PORT`      | No            | The port that the HTTP service endpoint bind to              | `30311`                            | any free port number on the host |
 | `ORACLE_CRYPTO_SYMBOLS` | No            | The symbols that the oracle component collect data point for | \"NTNUSDT,NTNUSDC,NTNBTC,NTNETH"\" | symbols seperated by ','         |
-| `ORACLE_PLUGIN_DIR`     | No            | The directory that stores the plugins                        | "./plugins/"                       | any directory that saves plugins |
+| `ORACLE_PLUGIN_DIR`     | No            | The directory that stores the plugins                        | "./plugins"                        | any directory that saves plugins |
 | `GIN_MODE`              | No            | The mode running by the HTTP service                         | "debug"                            | release or debug                 |
 
 or by using console flags:
@@ -29,11 +29,11 @@ or by using console flags:
     Usage of ./autoracle:
     -oracle_crypto_symbols="NTNUSDT,NTNUSDC,NTNBTC,NTNETH": The symbols string separated by comma
     -oracle_http_port=30311: The HTTP service port to be bind for oracle service
-    -oracle_plugin_dir="./plugins/": The DIR where the adapter plugins are stored
+    -oracle_plugin_dir="./plugins": The DIR where the adapter plugins are stored
 
 example to run the autonity oracle service with console flags:
     
-    $./autoracle -oracle_crypto_symbols="NTNUSDT,NTNUSDC,NTNBTC,NTNETH" -oracle_http_port=30311 -oracle_plugin_dir="./plugins/"
+    $./autoracle -oracle_crypto_symbols="NTNUSDT,NTNUSDC,NTNBTC,NTNETH" -oracle_http_port=30311 -oracle_plugin_dir="./plugins"
 
 ## Developing
 
@@ -66,12 +66,12 @@ Set the system environment variables and run the binary:
 
     $export ORACLE_HTTP_PORT=63306
     $export ORACLE_CRYPTO_SYMBOLS="NTNBTC,NTNETH,NTNRMB"
-    $export ORACLE_PLUGIN_DIR="./plugins/"
+    $export ORACLE_PLUGIN_DIR="./plugins"
     $.~/src/autonity-oracle/build/bin/autoracle    
 
 or configure by using console flags and run the binary:
 
-    $.~/src/autonity-oracle/build/bin/autoracle -oracle_crypto_symbols="NTNUSDT,NTNUSDC,NTNBTC,NTNETH" -oracle_http_port=63306 -oracle_plugin_dir="./plugins/"
+    $.~/src/autonity-oracle/build/bin/autoracle -oracle_crypto_symbols="NTNUSDT,NTNUSDC,NTNBTC,NTNETH" -oracle_http_port=63306 -oracle_plugin_dir="./plugins"
 
 ### Runtime plugin management
 #### Adding new plugins

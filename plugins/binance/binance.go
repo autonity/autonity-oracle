@@ -4,7 +4,6 @@ import (
 	"autonity-oracle/types"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
-	"github.com/modern-go/reflect2"
 	"os"
 	"time"
 )
@@ -16,9 +15,7 @@ type Binance struct {
 
 func (g *Binance) FetchPrices(symbols []string) []types.Price {
 	// todo: fetch prices for symbols from binance http endpoint, for the time being, we just simulate fake data.
-	g.logger.Debug("message from Binance.FetchPrices")
-	// some fake data is simulated here since none data plugin_client is clarified.
-	g.logger.Debug("fetching data prices from plugin_client: ", reflect2.TypeOfPtr(g).String())
+	g.logger.Debug("receive request from oracle service, send data response.")
 	var prices []types.Price
 	for _, s := range symbols {
 		p := types.Price{
@@ -29,6 +26,7 @@ func (g *Binance) FetchPrices(symbols []string) []types.Price {
 		prices = append(prices, p)
 	}
 
+	g.logger.Debug("", prices)
 	return prices
 }
 

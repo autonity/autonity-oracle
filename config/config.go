@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	DefaultPluginDir = "./plugins/"
+	DefaultPluginDir = "./plugins"
 	DefaultSymbols   = "NTNUSDT,NTNUSDC,NTNBTC,NTNETH"
 	DefaultPort      = 30311
 )
