@@ -36,8 +36,8 @@ func (g *FakePlugin) GetVersion() (string, error) {
 
 func main() {
 	logger := hclog.New(&hclog.LoggerOptions{
-		Level:      hclog.Trace,
-		Output:     os.Stderr,
+		Level:      hclog.Debug,
+		Output:     os.Stderr, // logging to stderr thus the framework can redirect the logs from plugin to plugin server.
 		JSONFormat: true,
 	})
 

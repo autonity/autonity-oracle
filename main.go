@@ -16,7 +16,7 @@ import (
 func main() { //nolint
 	// create config from system environment variables or from console flags.
 	conf := config.MakeConfig()
-	log.Printf("Running autonity oracle service at port: %d, with symbols: %s and plugin diretory: %s.\n\n\n",
+	log.Printf("\n\n\n \tRunning autonity oracle service at port: %d, with symbols: %s and plugin diretory: %s\n\n\n",
 		conf.HTTPPort, strings.Join(conf.Symbols, ","), conf.PluginDIR)
 
 	// create oracle service and start the ticker job.
