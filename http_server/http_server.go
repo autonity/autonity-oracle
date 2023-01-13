@@ -46,7 +46,6 @@ func (hs *HTTPServer) createRouter() *gin.Engine {
 		if err := json.NewDecoder(c.Request.Body).Decode(&reqMsg); err != nil {
 			c.JSON(http.StatusBadRequest, types.JSONRPCMessage{Error: err.Error()})
 		}
-
 		switch reqMsg.Method {
 		case "list_plugins":
 			c.JSON(hs.listPlugins(&reqMsg))
