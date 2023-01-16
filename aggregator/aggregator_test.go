@@ -11,7 +11,7 @@ func TestAveragePriceAggregator_Aggregate(t *testing.T) {
 		var prices = []decimal.Decimal{decimal.RequireFromString("1.0")}
 		aggregator := NewAveragePriceAggregator()
 
-		aggPrice, err := aggregator.Aggregate(prices)
+		aggPrice, err := aggregator.Mean(prices)
 		require.NoError(t, err)
 		aggPrice.Equals(decimal.RequireFromString("1.0"))
 	})
@@ -19,7 +19,7 @@ func TestAveragePriceAggregator_Aggregate(t *testing.T) {
 		var prices = []decimal.Decimal{decimal.RequireFromString("1.0"), decimal.RequireFromString("2.0")}
 		aggregator := NewAveragePriceAggregator()
 
-		aggPrice, err := aggregator.Aggregate(prices)
+		aggPrice, err := aggregator.Mean(prices)
 		require.NoError(t, err)
 		aggPrice.Equals(decimal.RequireFromString("1.5"))
 	})
@@ -28,13 +28,13 @@ func TestAveragePriceAggregator_Aggregate(t *testing.T) {
 			decimal.RequireFromString("2.0"), decimal.RequireFromString("3.0")}
 		aggregator := NewAveragePriceAggregator()
 
-		aggPrice, err := aggregator.Aggregate(prices)
+		aggPrice, err := aggregator.Mean(prices)
 		require.NoError(t, err)
 		aggPrice.Equals(decimal.RequireFromString("2.0"))
 	})
 	t.Run("with an empty prices set", func(t *testing.T) {
 		aggregator := NewAveragePriceAggregator()
-		_, err := aggregator.Aggregate(nil)
+		_, err := aggregator.Mean(nil)
 		require.Error(t, err)
 	})
 }

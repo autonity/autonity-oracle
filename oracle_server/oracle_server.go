@@ -155,7 +155,7 @@ func (os *OracleServer) UpdatePrices() {
 
 		// we have multiple provider provide prices for this symbol, we have to aggregate it.
 		if len(prices) > 1 {
-			p, err := os.aggregator.Aggregate(prices)
+			p, err := os.aggregator.Mean(prices)
 			if err != nil {
 				continue
 			}
