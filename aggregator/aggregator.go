@@ -3,12 +3,13 @@ package aggregator
 import (
 	"fmt"
 	"github.com/shopspring/decimal"
+	"sort"
 )
 
 type Aggregator struct {
 }
 
-func NewAveragePriceAggregator() *Aggregator {
+func NewAggregator() *Aggregator {
 	return &Aggregator{}
 }
 
@@ -27,6 +28,22 @@ func (apa *Aggregator) Mean(prices []decimal.Decimal) (decimal.Decimal, error) {
 
 // Median return the median value in the provided data set
 func (apa *Aggregator) Median(prices []decimal.Decimal) (decimal.Decimal, error) {
-	// todo: compute median value from the provided data set.
-	return decimal.Decimal{}, nil
+	l := len(prices)
+	if l == 0 {
+		return decimal.Decimal{}, fmt.Errorf("empty data set")
+	}
+
+	if l == 1 {
+		return prices[0], nil
+	}
+
+	sort.SliceStable(prices, func(i, j int) bool {
+		return prices[i].Cmp(prices[j]) == -1
+	})
+
+	if len(prices)%2 == 0 {
+		return prices[l/2-1].Add(prices[l/2]).Div(decimal.RequireFromString("2.0")), nil
+	}
+
+	return prices[l/2], nil
 }

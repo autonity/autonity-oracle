@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
-	"log"
 	"os"
 	"os/exec"
 	"time"
@@ -21,9 +20,10 @@ type PluginClient struct {
 	clientProtocol plugin.ClientProtocol
 	name           string
 	startAt        time.Time
+	logger         hclog.Logger
 }
 
-func NewPluginClient(name string, pluginDir string) *PluginClient {
+func NewPluginClient(name string, pluginDir string, pricePool types.PricePool) *PluginClient {
 	// Create an hclog.Logger
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   name,
@@ -45,9 +45,11 @@ func NewPluginClient(name string, pluginDir string) *PluginClient {
 	})
 
 	return &PluginClient{
-		name:    name,
-		client:  rpcClient,
-		startAt: time.Now(),
+		name:      name,
+		client:    rpcClient,
+		startAt:   time.Now(),
+		pricePool: pricePool,
+		logger:    logger,
 	}
 }
 
@@ -63,23 +65,21 @@ func (ba *PluginClient) StartTime() time.Time {
 	return ba.startAt
 }
 
-func (ba *PluginClient) Initialize(pricePool types.PricePool) {
-	ba.pricePool = pricePool
-
+func (ba *PluginClient) Initialize() {
 	// connect to remote rpc plugin
 	rpcClient, err := ba.client.Client()
 	if err != nil {
-		log.Printf("cannot connect remote plugin: %s", err.Error())
+		ba.logger.Error("cannot connect remote plugin", err.Error())
 		return
 	}
 	ba.clientProtocol = rpcClient
 	// load plugin's version
 	version, err := ba.GetVersion()
 	if err != nil {
-		log.Printf("connot get plugin's version")
+		ba.logger.Warn("cannot get plugin's version")
 		return
 	}
-	log.Printf("plugin %s with version: %s intitalized", ba.name, version)
+	ba.logger.Info("plugin initialized", ba.name, version)
 }
 
 func (ba *PluginClient) GetVersion() (string, error) {
@@ -162,7 +162,7 @@ func (ba *PluginClient) connect() error {
 	// connect to remote rpc plugin
 	rpcClient, err := ba.client.Client()
 	if err != nil {
-		log.Printf("cannot connect remote plugin: %s", err.Error())
+		ba.logger.Error("cannot connect remote plugin", err.Error())
 		return errConnectionNotEstablished
 	}
 	ba.clientProtocol = rpcClient

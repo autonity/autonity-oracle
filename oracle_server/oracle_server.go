@@ -56,7 +56,7 @@ func NewOracleServer(symbols []string, pluginDir string) *OracleServer {
 		doneCh:            make(chan struct{}),
 		jobTicker:         time.NewTicker(UpdateInterval),
 		discoveryTicker:   time.NewTicker(PluginDiscoveryInterval),
-		aggregator:        aggregator.NewAveragePriceAggregator(),
+		aggregator:        aggregator.NewAggregator(),
 		priceProviderPool: pricepool.NewPriceProviderPool(),
 	}
 
@@ -125,7 +125,7 @@ func (os *OracleServer) UpdatePrices() {
 	}
 	err := wg.Wait()
 	if err != nil {
-		os.logger.Error("fetching prices from plugins error: ", err.Error())
+		os.logger.Error("fetching prices from plugins error", err.Error())
 	}
 
 	now := time.Now().UnixMilli()
@@ -155,7 +155,7 @@ func (os *OracleServer) UpdatePrices() {
 
 		// we have multiple provider provide prices for this symbol, we have to aggregate it.
 		if len(prices) > 1 {
-			p, err := os.aggregator.Mean(prices)
+			p, err := os.aggregator.Median(prices)
 			if err != nil {
 				continue
 			}
@@ -216,14 +216,15 @@ func (os *OracleServer) PluginRuntimeDiscovery() {
 }
 
 func (os *OracleServer) createPlugin(name string) {
-
-	pluginClient := cryptoprovider.NewPluginClient(name, os.pluginDIR)
 	pool := os.priceProviderPool.GetPriceProvider(name)
 	if pool == nil {
 		pool = os.priceProviderPool.AddPriceProvider(name)
 	}
+
+	pluginClient := cryptoprovider.NewPluginClient(name, os.pluginDIR, pool)
+	pluginClient.Initialize()
+
 	os.pluginClients[name] = pluginClient
-	pluginClient.Initialize(pool)
 
 	os.PutPlugin(pluginClient.Name(), types.Plugin{
 		Version: pluginClient.Version(),

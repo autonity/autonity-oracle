@@ -16,7 +16,7 @@ type FakePlugin struct {
 }
 
 func (g *FakePlugin) FetchPrices(symbols []string) ([]types.Price, error) {
-	g.logger.Debug("receive request from oracle service, send data response.")
+	g.logger.Debug("receive request from oracle service, send data response")
 	var prices []types.Price
 	for _, s := range symbols {
 		p := types.Price{
