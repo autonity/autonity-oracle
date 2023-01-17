@@ -7,11 +7,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"log"
+	"github.com/hashicorp/go-hclog"
+	"github.com/modern-go/reflect2"
 	"net/http"
+	o "os"
 )
 
 type HTTPServer struct {
+	logger hclog.Logger
 	http.Server
 	oracle *oracleserver.OracleServer
 	port   int
@@ -23,7 +26,11 @@ func NewHttpServer(os *oracleserver.OracleServer, port int) *HTTPServer {
 		port:   port,
 	}
 	router := hs.createRouter()
-
+	hs.logger = hclog.New(&hclog.LoggerOptions{
+		Name:   reflect2.TypeOfPtr(hs).String(),
+		Output: o.Stdout,
+		Level:  hclog.Debug,
+	})
 	hs.Addr = fmt.Sprintf(":%d", port)
 	hs.Handler = router
 	return hs
@@ -33,19 +40,22 @@ func NewHttpServer(os *oracleserver.OracleServer, port int) *HTTPServer {
 func (hs *HTTPServer) StartHTTPServer() {
 	go func() {
 		if err := hs.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("HTTP service listen on port: %d, : %s\n", hs.port, err)
+			hs.logger.Error("HTTP service listen on port: ", hs.port, err)
+			panic(err.Error())
 		}
 	}()
 }
 
 func (hs *HTTPServer) createRouter() *gin.Engine {
 	// create http api handlers.
+	gin.SetMode("release")
 	router := gin.Default()
 	router.POST("/", func(c *gin.Context) {
 		var reqMsg types.JSONRPCMessage
 		if err := json.NewDecoder(c.Request.Body).Decode(&reqMsg); err != nil {
 			c.JSON(http.StatusBadRequest, types.JSONRPCMessage{Error: err.Error()})
 		}
+		hs.logger.Debug("handling method:", reqMsg.Method)
 		switch reqMsg.Method {
 		case "list_plugins":
 			c.JSON(hs.listPlugins(&reqMsg))
