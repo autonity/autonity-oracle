@@ -60,7 +60,7 @@ To build the project run
 The built binaries are presented at: ./build/bin under which there is a plugins directory saves the built plugins as well.
 
 ## Deployment
-### Start up the service
+### Start up the service from shell console
 Prepare the plugin binaries, and save them into the plugin directory, then start the service:
 Set the system environment variables and run the binary:
 
@@ -72,6 +72,100 @@ Set the system environment variables and run the binary:
 or configure by using console flags and run the binary:
 
     $.~/src/autonity-oracle/build/bin/autoracle -oracle_crypto_symbols="NTNUSDT,NTNUSDC,NTNBTC,NTNETH" -oracle_http_port=63306 -oracle_plugin_dir="./plugins"
+
+### An elegant way base on linux system daemon
+#### Preparations
+Prepare the configurations via system environment variables and the corresponding plugin binaries. Create a service registration file under your service discovery DIR of the system daemon, for example "/etc/systemd/system/" in Ubuntu Linux.
+Here I create a service registration file called "/etc/systemd/system/autoracle.service" with content:
+```
+[Unit]
+Description=Clearmatics Autonity Oracle Server
+After=syslog.target network.target
+[Service]
+Type=simple
+ExecStart=/home/jason/src/autonity-oracle/build/bin/autoracle -oracle_plugin_dir="/home/jason/src/autonity-oracle/build/bin/plugins"
+KillMode=process
+KillSignal=SIGINT
+TimeoutStopSec=5
+Restart=on-failure
+RestartSec=5
+[Install]
+Alias=autoracle.service
+WantedBy=multi-user.target
+```
+#### Start the service
+
+    sudo systemctl start autoracle.service
+
+#### Stop the service
+
+    sudo systemctl stop autoracle.service
+
+```
+● autoracle.service - Clearmatics Autonity Oracle Server
+     Loaded: loaded (/etc/systemd/system/autoracle.service; disabled; vendor preset: enabled)
+     Active: inactive (dead)
+
+Jan 19 03:03:45 jason-ThinkPad-X1-Carbon-7th systemd[1]: Stopping Clearmatics Autonity Oracle Server...
+Jan 19 03:03:45 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T03:03:45.233Z [INFO]  *oracleserver.OracleServer: the jobTicker jobs of oracle service is stopped
+Jan 19 03:03:45 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T03:03:45.233Z [DEBUG] binance.binance: 2023/01/19 03:03:45 [DEBUG] plugin: plugin server: accept unix /tmp/plugin3024381010: use of closed network connection
+Jan 19 03:03:45 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T03:03:45.235Z [INFO]  binance: plugin process exited: path=/home/jason/src/autonity-oracle/build/bin/plugins/binance pid=14577
+Jan 19 03:03:45 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T03:03:45.235Z [DEBUG] binance: plugin exited
+Jan 19 03:03:45 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T03:03:45.236Z [DEBUG] fakeplugin.fakeplugin: 2023/01/19 03:03:45 [DEBUG] plugin: plugin server: accept unix /tmp/plugin2424636505: use of closed network connection
+Jan 19 03:03:45 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T03:03:45.237Z [INFO]  fakeplugin: plugin process exited: path=/home/jason/src/autonity-oracle/build/bin/plugins/fakeplugin pid=14586
+Jan 19 03:03:45 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T03:03:45.237Z [DEBUG] fakeplugin: plugin exited
+Jan 19 03:03:45 jason-ThinkPad-X1-Carbon-7th systemd[1]: autoracle.service: Succeeded.
+Jan 19 03:03:45 jason-ThinkPad-X1-Carbon-7th systemd[1]: Stopped Clearmatics Autonity Oracle Server.
+
+```
+
+#### Check the runtime status
+
+    sudo systemctl status autoracle.service
+
+```
+● autoracle.service - Clearmatics Autonity Oracle Server
+     Loaded: loaded (/etc/systemd/system/autoracle.service; disabled; vendor preset: enabled)
+     Active: active (running) since Thu 2023-01-19 02:42:19 GMT; 15min ago
+   Main PID: 14568 (autoracle)
+      Tasks: 34 (limit: 18690)
+     Memory: 25.4M
+     CGroup: /system.slice/autoracle.service
+             ├─14568 /home/jason/src/autonity-oracle/build/bin/autoracle -oracle_plugin_dir=/home/jason/src/autonity-oracle/build/bin/plugins
+             ├─14577 /home/jason/src/autonity-oracle/build/bin/plugins/binance
+             └─14586 /home/jason/src/autonity-oracle/build/bin/plugins/fakeplugin
+
+Jan 19 02:57:39 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:57:39.155Z [DEBUG] fakeplugin.fakeplugin: receive request from oracle service, send data response: timestamp=2023-01-19T02:57:39.154Z
+Jan 19 02:57:59 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:57:59.156Z [DEBUG] fakeplugin.fakeplugin: receive request from oracle service, send data response: timestamp=2023-01-19T02:57:59.156Z
+
+```
+
+#### Collect system logs
+
+    sudo journalctl -u autoracle.service -b
+
+```
+-- Logs begin at Sat 2022-11-26 11:54:00 GMT, end at Thu 2023-01-19 02:59:51 GMT. --
+Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th systemd[1]: Started Clearmatics Autonity Oracle Server.
+Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023/01/19 02:42:19
+Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]:          Running autonity oracle service at port: 30311, with symbols: NTNUSDT,NTNUSDC,NTNBTC,NTNETH and plugin diretory: /home/jason/src/autonity-oracle/build/bin/plugins
+Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.152Z [WARN]  binance: plugin configured with a nil SecureConfig
+Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.152Z [DEBUG] binance: starting plugin: path=/home/jason/src/autonity-oracle/build/bin/plugins/binance args=[/home/jason/src/autonity-oracle/build/bin/plugins/binance]
+Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.152Z [DEBUG] binance: plugin started: path=/home/jason/src/autonity-oracle/build/bin/plugins/binance pid=14577
+Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.152Z [DEBUG] binance: waiting for RPC address: path=/home/jason/src/autonity-oracle/build/bin/plugins/binance
+Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.159Z [DEBUG] binance.binance: plugin address: network=unix address=/tmp/plugin3024381010 timestamp=2023-01-19T02:42:19.159Z
+Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.159Z [DEBUG] binance: using plugin: version=1
+Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.161Z [INFO]  binance: plugin initialized: binance=v0.0.1
+Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.161Z [WARN]  fakeplugin: plugin configured with a nil SecureConfig
+Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.161Z [DEBUG] fakeplugin: starting plugin: path=/home/jason/src/autonity-oracle/build/bin/plugins/fakeplugin args=[/home/jason/src/autonity-oracle/build/bin/plugins/fakeplugin]
+Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.161Z [DEBUG] fakeplugin: plugin started: path=/home/jason/src/autonity-oracle/build/bin/plugins/fakeplugin pid=14586
+Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.161Z [DEBUG] fakeplugin: waiting for RPC address: path=/home/jason/src/autonity-oracle/build/bin/plugins/fakeplugin
+Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.168Z [DEBUG] fakeplugin.fakeplugin: plugin address: address=/tmp/plugin2424636505 network=unix timestamp=2023-01-19T02:42:19.167Z
+Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.168Z [DEBUG] fakeplugin: using plugin: version=1
+Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.170Z [INFO]  fakeplugin: plugin initialized: fakeplugin=v0.0.1
+Jan 19 02:42:29 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:29.156Z [DEBUG] fakeplugin.fakeplugin: receive request from oracle service, send data response: timestamp=2023-01-19T02:42:29.156Z
+Jan 19 02:43:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:43:19.156Z [DEBUG] fakeplugin.fakeplugin: receive request from oracle service, send data response: timestamp=2023-01-19T02:43:19.156Z
+```
 
 ### Runtime plugin management
 #### Adding new plugins
