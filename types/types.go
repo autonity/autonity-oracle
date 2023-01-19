@@ -9,7 +9,8 @@ import (
 var SimulatedPrice = decimal.RequireFromString("11.11")
 
 type Aggregator interface {
-	Aggregate(prices []decimal.Decimal) (decimal.Decimal, error)
+	Mean(prices []decimal.Decimal) (decimal.Decimal, error)
+	Median(prices []decimal.Decimal) (decimal.Decimal, error)
 }
 
 type PricePool interface {

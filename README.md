@@ -9,7 +9,7 @@ This project assumes the following:
 
 ## Product introduction
 This component works as the bridge that brings data points from different data provider and unifies the data into the standard format that exposed by HTTP service. To support the runtime adaptations with different data providers, the adapters are implemented in plugins mechanism thus it maintains high availability of the autonity oracle service. 
-As the component starts ticker jobs that fetch data points from providers on every 10s timely, it also scans the plugin directory on every 2s to launch new plugins or to replace runtime plugins with newly modified one to adapt with data provider. By providing unified data service through HTTP RPC service, the autonity layer1 network can get the interested data for its stabilisation protocol.   
+As the component starts ticker jobs that fetch data points from providers on every 10s timely, it also scans the plugin directory on every 2s to launch new plugins or to replace runtime plugins with newly modified one to adapt with data provider. The data aggregation at this level is base on taking the median value out from the data set. By providing unified data service through HTTP RPC service, the autonity layer1 network can get the interested data for its stabilisation protocol.
 
 ![diagram](https://user-images.githubusercontent.com/54585152/212061134-0323ae22-23c2-4a3b-b62d-c5ddb62df243.png)
 

@@ -17,7 +17,7 @@ type Binance struct {
 
 func (g *Binance) FetchPrices(symbols []string) ([]types.Price, error) {
 	// todo: fetch prices for symbols from binance http endpoint, for the time being, we just simulate fake data.
-	g.logger.Debug("receive request from oracle service, send data response.")
+	g.logger.Debug("receive request from oracle service, send data response")
 	var prices []types.Price
 	for _, s := range symbols {
 		p := types.Price{
