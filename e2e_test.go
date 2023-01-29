@@ -19,14 +19,14 @@ import (
 	"time"
 )
 
-func TestAutonityOracleAPIs(t *testing.T) {
+func TestE2EAutonityOracleServer(t *testing.T) {
 	err := os.Unsetenv("ORACLE_HTTP_PORT")
 	require.NoError(t, err)
 	err = os.Unsetenv("ORACLE_CRYPTO_SYMBOLS")
 	require.NoError(t, err)
 
 	conf := config.MakeConfig()
-	conf.PluginDIR = "./build/bin/plugins"
+	conf.PluginDIR = "./plugins/fakeplugin/bin"
 	// create oracle service and start the ticker job.
 	oracle := oracleserver.NewOracleServer(conf.Symbols, conf.PluginDIR)
 	go oracle.Start()
