@@ -20,6 +20,9 @@ autoracle:
 	chmod +x $(BINDIR)/autoracle
 	go build -o $(PLUGINDIR)/binance $(PLUGINSRCDIR)/binance/binance.go
 	chmod +x $(PLUGINDIR)/*
+	mkdir -p $(PLUGINSRCDIR)/fakeplugin/bin
+	go build -o $(PLUGINSRCDIR)/fakeplugin/bin/fakeplugin $(PLUGINSRCDIR)/fakeplugin/fakeplugin.go
+	chmod +x $(PLUGINSRCDIR)/fakeplugin/bin/fakeplugin
 	@echo "Done building."
 	@echo "Run \"$(BINDIR)/autoracle\" to launch autonity oracle."
 
@@ -34,9 +37,6 @@ test-coverage:
 	go test ./... -coverprofile=coverage.out
 
 e2e-test: autoracle
-	mkdir -p $(PLUGINSRCDIR)/fakeplugin/bin
-	go build -o $(PLUGINSRCDIR)/fakeplugin/bin/fakeplugin $(PLUGINSRCDIR)/fakeplugin/fakeplugin.go
-	chmod +x $(PLUGINSRCDIR)/fakeplugin/bin/fakeplugin
 	go test e2e_test.go
 
 dep:
