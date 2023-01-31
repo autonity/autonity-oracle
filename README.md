@@ -16,24 +16,24 @@ As the component starts ticker jobs that fetch data points from providers on eve
 ## Configuration 
 Values that can be configured by using environment variables:    
 
-| **Env Variable**        | **Required?** | **Meaning**                                                  | **Default Value**                  | **Valid Options**                |
-|-------------------------|---------------|--------------------------------------------------------------|------------------------------------|----------------------------------|
-| `ORACLE_HTTP_PORT`      | No            | The port that the HTTP service endpoint bind to              | `30311`                            | any free port number on the host |
-| `ORACLE_CRYPTO_SYMBOLS` | No            | The symbols that the oracle component collect data point for | "NTNUSDT,NTNUSDC,NTNBTC,NTNETH"    | symbols seperated by ','         |
-| `ORACLE_PLUGIN_DIR`     | No            | The directory that stores the plugins                        | "./plugins"                        | any directory that saves plugins |
-| `GIN_MODE`              | No            | The mode running by the HTTP service                         | "debug"                            | release or debug                 |
+| **Env Variable**        | **Required?** | **Meaning**                                                  | **Default Value**           | **Valid Options**                |
+|-------------------------|---------------|--------------------------------------------------------------|-----------------------------|----------------------------------|
+| `ORACLE_HTTP_PORT`      | No            | The port that the HTTP service endpoint bind to              | `30311`                     | any free port number on the host |
+| `ORACLE_CRYPTO_SYMBOLS` | No            | The symbols that the oracle component collect data point for | "ETHUSDC,ETHUSDT,ETHBTC"    | symbols seperated by ','         |
+| `ORACLE_PLUGIN_DIR`     | No            | The directory that stores the plugins                        | "./plugins"                 | any directory that saves plugins |
+| `GIN_MODE`              | No            | The mode running by the HTTP service                         | "debug"                     | release or debug                 |
 
 or by using console flags:
 
     $./autoracle -help
     Usage of ./autoracle:
-    -oracle_crypto_symbols="NTNUSDT,NTNUSDC,NTNBTC,NTNETH": The symbols string separated by comma
+    -oracle_crypto_symbols="ETHUSDC,ETHUSDT,ETHBTC": The symbols string separated by comma
     -oracle_http_port=30311: The HTTP service port to be bind for oracle service
     -oracle_plugin_dir="./plugins": The DIR where the adapter plugins are stored
 
 example to run the autonity oracle service with console flags:
     
-    $./autoracle -oracle_crypto_symbols="NTNUSDT,NTNUSDC,NTNBTC,NTNETH" -oracle_http_port=30311 -oracle_plugin_dir="./plugins"
+    $./autoracle -oracle_crypto_symbols="ETHUSDC,ETHUSDT,ETHBTC" -oracle_http_port=30311 -oracle_plugin_dir="./plugins"
 
 ## Developing
 
@@ -65,13 +65,13 @@ Prepare the plugin binaries, and save them into the plugin directory, then start
 Set the system environment variables and run the binary:
 
     $export ORACLE_HTTP_PORT=63306
-    $export ORACLE_CRYPTO_SYMBOLS="NTNBTC,NTNETH,NTNRMB"
+    $export ORACLE_CRYPTO_SYMBOLS="ETHUSDC,ETHUSDT,ETHBTC"
     $export ORACLE_PLUGIN_DIR="./plugins"
     $.~/src/autonity-oracle/build/bin/autoracle    
 
 or configure by using console flags and run the binary:
 
-    $.~/src/autonity-oracle/build/bin/autoracle -oracle_crypto_symbols="NTNUSDT,NTNUSDC,NTNBTC,NTNETH" -oracle_http_port=63306 -oracle_plugin_dir="./plugins"
+    $.~/src/autonity-oracle/build/bin/autoracle -oracle_crypto_symbols="ETHUSDC,ETHUSDT,ETHBTC" -oracle_http_port=63306 -oracle_plugin_dir="./plugins"
 
 ### An elegant way base on linux system daemon
 #### Preparations

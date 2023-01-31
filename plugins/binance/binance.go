@@ -14,7 +14,10 @@ import (
 
 var version = "v0.0.1"
 
-const BinanceMarketDataURL = "https://api.binance.com/api/v3/price"
+// BinanceMarketDataURL using namespace .us rather than .com since the data legal issue in different regions.
+// refer to legal issue: https://dev.binance.vision/t/api-error-451-unavailable-for-legal-reasons/13828/4, once we list
+// our token in Binance, we need their customer service to resolve it.
+const BinanceMarketDataURL = "https://api.binance.us/api/v3/ticker/price"
 
 // Price is the basic data structure returned by Binance.
 type Price struct {
@@ -64,47 +67,45 @@ func (g *Binance) FetchPrices(symbols []string) ([]types.Price, error) {
 	}
 
 	g.logger.Debug("Get HTTP response status code: ", resp.StatusCode)
-
-	if resp.StatusCode == http.StatusUnavailableForLegalReasons {
-		// https://dev.binance.vision/t/api-error-451-unavailable-for-legal-reasons/13828/4
-		return nil, fmt.Errorf("StatusUnavailableForLegalReasons")
-	}
-
-	if resp.StatusCode == http.StatusBadRequest {
-		var badReq BadRequest
-		err = json.NewDecoder(resp.Body).Decode(&badReq)
-		if err != nil {
-			return nil, err
+	if resp.StatusCode != http.StatusOK {
+		msg := "unknown error"
+		if resp.StatusCode == http.StatusUnavailableForLegalReasons {
+			msg = "StatusUnavailableForLegalReasons"
 		}
-		return nil, fmt.Errorf("BadRequest: %s", badReq.Msg)
-	}
-
-	if resp.StatusCode == http.StatusOK {
-		var prices Prices
-		err = json.NewDecoder(resp.Body).Decode(&prices)
-		if err != nil {
-			return nil, err
-		}
-		g.logger.Debug("data points: ", prices)
-
-		var results []types.Price
-		now := time.Now().UnixMilli()
-		for _, v := range prices {
-			dec, err := decimal.NewFromString(v.Price)
+		if resp.StatusCode == http.StatusBadRequest {
+			var badReq BadRequest
+			err = json.NewDecoder(resp.Body).Decode(&badReq)
 			if err != nil {
-				g.logger.Error("cannot convert price string to decimal: ", v.Price, err)
-				continue
+				return nil, fmt.Errorf("ErrorCode: %d, msg: %s", resp.StatusCode, msg)
 			}
-			results = append(results, types.Price{
-				Timestamp: now,
-				Symbol:    v.Symbol,
-				Price:     dec,
-			})
+			msg = badReq.Msg
 		}
-
-		return results, nil
+		return nil, fmt.Errorf("ErrorCode: %d, msg: %s", resp.StatusCode, msg)
 	}
-	return nil, nil
+
+	var prices Prices
+	err = json.NewDecoder(resp.Body).Decode(&prices)
+	if err != nil {
+		return nil, err
+	}
+	g.logger.Debug("data points: ", prices)
+
+	var results []types.Price
+	now := time.Now().UnixMilli()
+	for _, v := range prices {
+		dec, err := decimal.NewFromString(v.Price)
+		if err != nil {
+			g.logger.Error("cannot convert price string to decimal: ", v.Price, err)
+			continue
+		}
+		results = append(results, types.Price{
+			Timestamp: now,
+			Symbol:    v.Symbol,
+			Price:     dec,
+		})
+	}
+
+	return results, nil
 }
 
 func (g *Binance) GetVersion() (string, error) {

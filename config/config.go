@@ -8,8 +8,9 @@ import (
 
 var (
 	DefaultPluginDir = "./plugins"
-	DefaultSymbols   = "NTNUSDT,NTNUSDC,NTNBTC,NTNETH"
-	DefaultPort      = 30311
+	//DefaultSymbols   = "NTNUSDT,NTNUSDC,NTNBTC,NTNETH"
+	DefaultSymbols = "ETHUSDC,ETHUSDT,ETHBTC"
+	DefaultPort    = 30311
 )
 
 func MakeConfig() *types.OracleServiceConfig {
