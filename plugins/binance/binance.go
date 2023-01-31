@@ -3,6 +3,7 @@ package main
 import (
 	"autonity-oracle/types"
 	"encoding/json"
+	"fmt"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"github.com/shopspring/decimal"
@@ -22,6 +23,11 @@ type Price struct {
 }
 
 type Prices []Price
+
+type BadRequest struct {
+	Code int    `json:"code,omitempty"`
+	Msg  string `json:"msg,omitempty"`
+}
 
 // Binance Here is an implementation of a fake plugin which returns simulated data points.
 type Binance struct {
@@ -57,28 +63,48 @@ func (g *Binance) FetchPrices(symbols []string) ([]types.Price, error) {
 		return nil, err
 	}
 
-	var prices Prices
-	err = json.NewDecoder(resp.Body).Decode(&prices)
-	if err != nil {
-		return nil, err
+	g.logger.Debug("Get HTTP response status code: ", resp.StatusCode)
+
+	if resp.StatusCode == http.StatusUnavailableForLegalReasons {
+		// https://dev.binance.vision/t/api-error-451-unavailable-for-legal-reasons/13828/4
+		return nil, fmt.Errorf("StatusUnavailableForLegalReasons")
 	}
 
-	var results []types.Price
-	now := time.Now().UnixMilli()
-	for _, v := range prices {
-		dec, err := decimal.NewFromString(v.Price)
+	if resp.StatusCode == http.StatusBadRequest {
+		var badReq BadRequest
+		err = json.NewDecoder(resp.Body).Decode(&badReq)
 		if err != nil {
-			g.logger.Error("cannot convert price string to decimal: ", v.Price, err)
-			continue
+			return nil, err
 		}
-		results = append(results, types.Price{
-			Timestamp: now,
-			Symbol:    v.Symbol,
-			Price:     dec,
-		})
+		return nil, fmt.Errorf("BadRequest: %s", badReq.Msg)
 	}
 
-	return results, nil
+	if resp.StatusCode == http.StatusOK {
+		var prices Prices
+		err = json.NewDecoder(resp.Body).Decode(&prices)
+		if err != nil {
+			return nil, err
+		}
+		g.logger.Debug("data points: ", prices)
+
+		var results []types.Price
+		now := time.Now().UnixMilli()
+		for _, v := range prices {
+			dec, err := decimal.NewFromString(v.Price)
+			if err != nil {
+				g.logger.Error("cannot convert price string to decimal: ", v.Price, err)
+				continue
+			}
+			results = append(results, types.Price{
+				Timestamp: now,
+				Symbol:    v.Symbol,
+				Price:     dec,
+			})
+		}
+
+		return results, nil
+	}
+	return nil, nil
 }
 
 func (g *Binance) GetVersion() (string, error) {
