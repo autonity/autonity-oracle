@@ -6,6 +6,8 @@
 
 BINDIR = ./build/bin
 PLUGINDIR = ./build/bin/plugins
+SIMULATORBINDIR = ./data_source_simulator/build/bin
+SIMULATORSRCDIR = ./data_source_simulator/binance_simulator
 PLUGINSRCDIR = ./plugins
 GO ?= latest
 LATEST_COMMIT ?= $(shell git log -n 1 master --pretty=format:"%H")
@@ -25,6 +27,10 @@ autoracle:
 	chmod +x $(PLUGINSRCDIR)/fakeplugin/bin/fakeplugin
 	@echo "Done building."
 	@echo "Run \"$(BINDIR)/autoracle\" to launch autonity oracle."
+
+simulator:
+	mkdir -p $(SIMULATORBINDIR)
+	go build -o $(SIMULATORBINDIR)/simulator $(SIMULATORSRCDIR)/main.go
 
 clean:
 	go clean -cache
