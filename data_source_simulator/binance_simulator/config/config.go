@@ -17,23 +17,27 @@ var (
 	DefSimulatorPort                            = 50991 // default port bind with the http service in the simulator.
 	DefDataPointMagnificationFactor             = 7.0   // the default starting points are multiplied by this factor for increasing or decreasing.
 	DefDataDistributionRangeMagnificationFactor = 2.0   // the default data distribution rate range is multiplied by this factor for increasing or decreasing.
+	DefPlaybook                                 = ""    // the default playbook file used to replay data points in the generator.
 )
 
-type GeneratorConfig struct {
+type RandGeneratorConfig struct {
 	ReferenceDataPoint decimal.Decimal
 	DistributionRate   decimal.Decimal
 }
 
 type SimulatorConfig struct {
 	Port          int
-	SimulatorConf map[string]*GeneratorConfig
+	Playbook      string
+	SimulatorConf map[string]*RandGeneratorConfig
 }
 
 func MakeSimulatorConfig() *SimulatorConfig {
 	var port int
 	var simulatorConf string
+	var playbook string
 
 	flag.IntVar(&port, "sim_http_port", DefSimulatorPort, "The HTTP rpc port to be bind for binance_simulator simulator")
+	flag.StringVar(&playbook, "sim_playook_file", DefPlaybook, "The .csv file which contains datapoint for symbols.")
 	flag.StringVar(&simulatorConf, "sim_symbol_config", DefSimulatorConf,
 		"The list of data items with the pattern of SYMBOL:StartingDataPoint:DataDistributionRateRange with each separated by a \"|\"")
 	dataPointMagnificationFactor := flag.Float64("sim_data_magnification_factor", DefDataPointMagnificationFactor,
@@ -48,16 +52,17 @@ func MakeSimulatorConfig() *SimulatorConfig {
 
 	return &SimulatorConfig{
 		Port:          port,
+		Playbook:      playbook,
 		SimulatorConf: conf,
 	}
 }
 
-func ParseSimulatorConf(conf string, dataPointFactor decimal.Decimal, distributionRateFactor decimal.Decimal) map[string]*GeneratorConfig {
+func ParseSimulatorConf(conf string, dataPointFactor decimal.Decimal, distributionRateFactor decimal.Decimal) map[string]*RandGeneratorConfig {
 	println("\n\n\n\tRunning simulator with conf: ", conf)
 	println("\twith data point factor: ", dataPointFactor.String())
 	println("\twith data distribution rate factor: ", distributionRateFactor.String())
 
-	result := make(map[string]*GeneratorConfig)
+	result := make(map[string]*RandGeneratorConfig)
 	items := strings.Split(conf, "|")
 	for _, it := range items {
 		i := strings.TrimSpace(it)
@@ -72,7 +77,7 @@ func ParseSimulatorConf(conf string, dataPointFactor decimal.Decimal, distributi
 		symbol := fields[0]
 		startPoint := fields[1]
 		rateRange := fields[2]
-		result[symbol] = &GeneratorConfig{
+		result[symbol] = &RandGeneratorConfig{
 			ReferenceDataPoint: decimal.RequireFromString(startPoint).Mul(dataPointFactor),
 			DistributionRate:   decimal.RequireFromString(rateRange).Mul(distributionRateFactor),
 		}

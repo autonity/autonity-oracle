@@ -14,12 +14,12 @@ import (
 )
 
 var (
-	PriceUpdateInterval = 1 * time.Second
+	DataGenInterval = 1 * time.Second
 )
 
-type GeneratorManager struct {
+type RandGeneratorManager struct {
 	logger     hclog.Logger
-	conf       map[string]*config.GeneratorConfig
+	conf       map[string]*config.RandGeneratorConfig
 	mutex      sync.RWMutex
 	prices     map[string]decimal.Decimal
 	generators map[string]data_source_simulator.DataGenerator
@@ -27,11 +27,11 @@ type GeneratorManager struct {
 	jobTicker  *time.Ticker
 }
 
-func NewGeneratorManager(conf map[string]*config.GeneratorConfig) *GeneratorManager {
-	gm := &GeneratorManager{
+func NewRandGeneratorManager(conf map[string]*config.RandGeneratorConfig) *RandGeneratorManager {
+	gm := &RandGeneratorManager{
 		conf:       conf,
 		doneCh:     make(chan struct{}),
-		jobTicker:  time.NewTicker(PriceUpdateInterval),
+		jobTicker:  time.NewTicker(DataGenInterval),
 		prices:     make(map[string]decimal.Decimal),
 		generators: make(map[string]data_source_simulator.DataGenerator),
 	}
@@ -40,22 +40,14 @@ func NewGeneratorManager(conf map[string]*config.GeneratorConfig) *GeneratorMana
 	}
 
 	gm.logger = hclog.New(&hclog.LoggerOptions{
-		Name:   "BinanceSimulator",
+		Name:   "BinanceSimulator-Random",
 		Level:  hclog.Debug,
 		Output: os.Stdout,
 	})
 	return gm
 }
 
-func (gm *GeneratorManager) Symbols() []string {
-	var symbols []string
-	for k := range gm.conf {
-		symbols = append(symbols, k)
-	}
-	return symbols
-}
-
-func (gm *GeneratorManager) GetSymbolPrice(symbols []string) (types.Prices, error) {
+func (gm *RandGeneratorManager) GetSymbolPrice(symbols []string) (types.Prices, error) {
 	gm.mutex.RLock()
 	defer gm.mutex.RUnlock()
 	var result types.Prices
@@ -72,7 +64,7 @@ func (gm *GeneratorManager) GetSymbolPrice(symbols []string) (types.Prices, erro
 	return result, nil
 }
 
-func (gm *GeneratorManager) AdjustParams(params types.GeneratorParams, method string) error {
+func (gm *RandGeneratorManager) AdjustParams(params types.GeneratorParams, method string) error {
 	gm.mutex.Lock()
 	defer gm.mutex.Unlock()
 	for _, v := range params {
@@ -94,7 +86,7 @@ func (gm *GeneratorManager) AdjustParams(params types.GeneratorParams, method st
 	return nil
 }
 
-func (gm *GeneratorManager) UpdatePrices() {
+func (gm *RandGeneratorManager) UpdatePrices() {
 	gm.mutex.Lock()
 	defer gm.mutex.Unlock()
 	for k, gen := range gm.generators {
@@ -104,7 +96,7 @@ func (gm *GeneratorManager) UpdatePrices() {
 	}
 }
 
-func (gm *GeneratorManager) Start() {
+func (gm *RandGeneratorManager) Start() {
 	for {
 		select {
 		case <-gm.doneCh:
@@ -117,6 +109,6 @@ func (gm *GeneratorManager) Start() {
 	}
 }
 
-func (gm *GeneratorManager) Stop() {
+func (gm *RandGeneratorManager) Stop() {
 	gm.doneCh <- struct{}{}
 }

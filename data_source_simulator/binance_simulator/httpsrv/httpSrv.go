@@ -1,7 +1,7 @@
 package httpsrv
 
 import (
-	"autonity-oracle/data_source_simulator/binance_simulator/generator_manager"
+	"autonity-oracle/data_source_simulator"
 	types2 "autonity-oracle/data_source_simulator/binance_simulator/types"
 	"autonity-oracle/types"
 	"bytes"
@@ -17,11 +17,11 @@ import (
 type BinanceSimulatorHTTPServer struct {
 	logger hclog.Logger
 	http.Server
-	generators *generator_manager.GeneratorManager
+	generators data_source_simulator.GeneratorManager
 	port       int
 }
 
-func NewHttpServer(gen *generator_manager.GeneratorManager, port int) *BinanceSimulatorHTTPServer {
+func NewHttpServer(gen data_source_simulator.GeneratorManager, port int) *BinanceSimulatorHTTPServer {
 	hs := &BinanceSimulatorHTTPServer{
 		generators: gen,
 		port:       port,

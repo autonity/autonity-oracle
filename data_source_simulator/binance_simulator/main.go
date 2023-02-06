@@ -1,6 +1,7 @@
 package main
 
 import (
+	"autonity-oracle/data_source_simulator"
 	"autonity-oracle/data_source_simulator/binance_simulator/config"
 	"autonity-oracle/data_source_simulator/binance_simulator/generator_manager"
 	"autonity-oracle/data_source_simulator/binance_simulator/httpsrv"
@@ -19,12 +20,17 @@ func main() { //nolint
 	log.Printf("\n\n\n \t Running Binance data simulator at port: %d", conf.Port)
 
 	// create simulators and start the ticker job to generate data points.
-	generatorManager := generator_manager.NewGeneratorManager(conf.SimulatorConf)
-	go generatorManager.Start()
-	defer generatorManager.Stop()
+	var genManager data_source_simulator.GeneratorManager
+	if len(conf.Playbook) == 0 {
+		genManager = generator_manager.NewRandGeneratorManager(conf.SimulatorConf)
+	} else {
+		genManager = generator_manager.NewPlaybookGeneratorManager(conf.Playbook)
+	}
 
+	go genManager.Start()
+	defer genManager.Stop()
 	// create http service.
-	srv := httpsrv.NewHttpServer(generatorManager, conf.Port)
+	srv := httpsrv.NewHttpServer(genManager, conf.Port)
 	srv.StartHTTPServer()
 
 	// Wait for interrupt signal to gracefully shut down the server with
