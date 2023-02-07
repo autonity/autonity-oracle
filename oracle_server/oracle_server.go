@@ -2,7 +2,7 @@ package oracleserver
 
 import (
 	"autonity-oracle/aggregator"
-	cryptoprovider "autonity-oracle/plugin_client"
+	cryptoprovider "autonity-oracle/plugin_wrapper"
 	pricepool "autonity-oracle/price_pool"
 	"autonity-oracle/types"
 	"fmt"
@@ -40,7 +40,7 @@ type OracleServer struct {
 	pluginDIR         string                       // the dir saves the plugins.
 	symbols           []string                     // the symbols for data fetching in oracle service.
 	aggregator        types.Aggregator             // the price aggregator once we have multiple data providers.
-	priceProviderPool *pricepool.PriceProviderPool // the price pool organized by plugin_client and by symbols
+	priceProviderPool *pricepool.PriceProviderPool // the price pool organized by plugin_wrapper and by symbols
 
 	pluginClients map[string]types.PluginClient // the plugin clients that connect with different adapters.
 }

@@ -1,16 +1,15 @@
 package config
 
 import (
+	"autonity-oracle/helpers"
 	"autonity-oracle/types"
 	"github.com/namsral/flag"
-	"strings"
 )
 
 var (
 	DefaultPluginDir = "./plugins"
-	//DefaultSymbols   = "NTNUSDT,NTNUSDC,NTNBTC,NTNETH"
-	DefaultSymbols = "ETHUSDC,ETHUSDT,ETHBTC"
-	DefaultPort    = 30311
+	DefaultSymbols   = "ETHUSDC,ETHUSDT,ETHBTC"
+	DefaultPort      = 30311
 )
 
 func MakeConfig() *types.OracleServiceConfig {
@@ -23,15 +22,7 @@ func MakeConfig() *types.OracleServiceConfig {
 	flag.StringVar(&symbols, "oracle_crypto_symbols", DefaultSymbols, "The symbols string separated by comma")
 	flag.Parse()
 
-	var symbolArray []string
-	symbs := strings.Split(symbols, ",")
-	for _, s := range symbs {
-		symbol := strings.TrimSpace(s)
-		if len(symbol) == 0 {
-			continue
-		}
-		symbolArray = append(symbolArray, symbol)
-	}
+	symbolArray := helpers.ParseSymbols(symbols)
 
 	return &types.OracleServiceConfig{
 		Symbols:   symbolArray,

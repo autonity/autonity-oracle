@@ -13,7 +13,7 @@ import (
 
 var errConnectionNotEstablished = errors.New("connection not established yet")
 
-type PluginClient struct {
+type PluginWrapper struct {
 	version        string
 	pricePool      types.PricePool
 	client         *plugin.Client
@@ -23,7 +23,7 @@ type PluginClient struct {
 	logger         hclog.Logger
 }
 
-func NewPluginClient(name string, pluginDir string, pricePool types.PricePool) *PluginClient {
+func NewPluginClient(name string, pluginDir string, pricePool types.PricePool) *PluginWrapper {
 	// Create an hclog.Logger
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   name,
@@ -44,7 +44,7 @@ func NewPluginClient(name string, pluginDir string, pricePool types.PricePool) *
 		Logger:          logger,
 	})
 
-	return &PluginClient{
+	return &PluginWrapper{
 		name:      name,
 		client:    rpcClient,
 		startAt:   time.Now(),
@@ -53,19 +53,19 @@ func NewPluginClient(name string, pluginDir string, pricePool types.PricePool) *
 	}
 }
 
-func (ba *PluginClient) Name() string {
+func (ba *PluginWrapper) Name() string {
 	return ba.name
 }
 
-func (ba *PluginClient) Version() string {
+func (ba *PluginWrapper) Version() string {
 	return ba.version
 }
 
-func (ba *PluginClient) StartTime() time.Time {
+func (ba *PluginWrapper) StartTime() time.Time {
 	return ba.startAt
 }
 
-func (ba *PluginClient) Initialize() {
+func (ba *PluginWrapper) Initialize() {
 	// connect to remote rpc plugin
 	rpcClient, err := ba.client.Client()
 	if err != nil {
@@ -82,7 +82,7 @@ func (ba *PluginClient) Initialize() {
 	ba.logger.Info("plugin initialized", ba.name, version)
 }
 
-func (ba *PluginClient) GetVersion() (string, error) {
+func (ba *PluginWrapper) GetVersion() (string, error) {
 	if ba.clientProtocol == nil {
 		// try to reconnect during the runtime.
 		err := ba.connect()
@@ -115,7 +115,7 @@ func (ba *PluginClient) GetVersion() (string, error) {
 	return ba.version, nil
 }
 
-func (ba *PluginClient) FetchPrices(symbols []string) error {
+func (ba *PluginWrapper) FetchPrices(symbols []string) error {
 	if ba.clientProtocol == nil {
 		// try to reconnect during the runtime.
 		err := ba.connect()
@@ -151,14 +151,14 @@ func (ba *PluginClient) FetchPrices(symbols []string) error {
 	return nil
 }
 
-func (ba *PluginClient) Close() {
+func (ba *PluginWrapper) Close() {
 	ba.client.Kill()
 	if ba.clientProtocol != nil {
 		ba.clientProtocol.Close() // no lint
 	}
 }
 
-func (ba *PluginClient) connect() error {
+func (ba *PluginWrapper) connect() error {
 	// connect to remote rpc plugin
 	rpcClient, err := ba.client.Client()
 	if err != nil {
