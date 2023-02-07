@@ -53,6 +53,10 @@ To lint code run
 
     make lint
 
+To build the data source simulator run
+
+    make simulator
+
 To build the project run
 
     make autoracle
