@@ -78,9 +78,9 @@ func (bs *BinanceSimulatorHTTPServer) createRouter() *gin.Engine {
 		var reqMsg types.JSONRPCMessage
 		if err := json.NewDecoder(c.Request.Body).Decode(&reqMsg); err != nil {
 			c.JSON(http.StatusBadRequest, types.JSONRPCMessage{Error: err.Error()})
-			bs.logger.Debug("handling method:", reqMsg.Method)
-			c.JSON(bs.adjustSimulatorParam(&reqMsg))
 		}
+		bs.logger.Debug("handling method:", reqMsg.Method)
+		c.JSON(bs.adjustSimulatorParam(&reqMsg))
 	})
 
 	return router

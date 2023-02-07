@@ -99,7 +99,7 @@ func (gm *RandGeneratorManager) AdjustParams(params types.GeneratorParams, metho
 		if _, ok := gm.generators[v.Symbol]; !ok {
 			return fmt.Errorf("InavlidSymbol")
 		}
-
+		gm.logger.Debug("handle method: ", method)
 		switch method {
 		case "move_to":
 			gm.generators[v.Symbol].MoveTo(decimal.NewFromFloat(v.Value))

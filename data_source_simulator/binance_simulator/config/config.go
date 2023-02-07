@@ -51,7 +51,7 @@ func MakeSimulatorConfig() *SimulatorConfig {
 	distributionRateFactor := decimal.NewFromFloat(*distributionRangeMagnificationFactor)
 	conf := ParseSimulatorConf(simulatorConf, dataPointFactor, distributionRateFactor)
 
-	println("\n\n\n\tRunning simulator with conf: ", conf)
+	println("\n\n\n\tRunning simulator with conf: ", simulatorConf)
 	println("\twith data point factor: ", dataPointFactor.String())
 	println("\twith data distribution rate factor: ", distributionRateFactor.String())
 	println("\tRunning simulator only with playbook if playbook is configured: ", playbook)
