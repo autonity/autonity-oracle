@@ -93,6 +93,7 @@ func (pm *PlaybookGeneratorManager) UpdatePrices(csvReader *csv.Reader) error {
 			pm.logger.Error("symbol have invalid value at playbook: ", pm.columnIndex[i], data)
 			continue
 		}
+		pm.logger.Debug("replay data point for symbol: ", pm.columnIndex[i], p.String())
 		pm.prices[pm.columnIndex[i]] = p
 	}
 	return nil

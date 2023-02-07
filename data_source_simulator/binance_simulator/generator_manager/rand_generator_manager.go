@@ -5,6 +5,7 @@ import (
 	"autonity-oracle/data_source_simulator/binance_simulator/config"
 	"autonity-oracle/data_source_simulator/binance_simulator/types"
 	"autonity-oracle/data_source_simulator/generators"
+	"encoding/csv"
 	"fmt"
 	"github.com/hashicorp/go-hclog"
 	"github.com/shopspring/decimal"
@@ -18,13 +19,17 @@ var (
 )
 
 type RandGeneratorManager struct {
-	logger     hclog.Logger
-	conf       map[string]*config.RandGeneratorConfig
-	mutex      sync.RWMutex
-	prices     map[string]decimal.Decimal
-	generators map[string]data_source_simulator.DataGenerator
-	doneCh     chan struct{}
-	jobTicker  *time.Ticker
+	logger       hclog.Logger
+	conf         map[string]*config.RandGeneratorConfig
+	mutex        sync.RWMutex
+	prices       map[string]decimal.Decimal
+	generators   map[string]data_source_simulator.DataGenerator
+	dataPointLog string
+	symbols      []string
+	doneCh       chan struct{}
+	jobTicker    *time.Ticker
+	file         *os.File
+	writer       *csv.Writer
 }
 
 func NewRandGeneratorManager(conf map[string]*config.RandGeneratorConfig) *RandGeneratorManager {
@@ -37,6 +42,12 @@ func NewRandGeneratorManager(conf map[string]*config.RandGeneratorConfig) *RandG
 	}
 	for k, v := range conf {
 		gm.generators[k] = generators.NewRandDataGenerator(v.ReferenceDataPoint, v.DistributionRate)
+		gm.symbols = append(gm.symbols, k)
+	}
+
+	err := gm.createDataPointLog()
+	if err != nil {
+		panic(err)
 	}
 
 	gm.logger = hclog.New(&hclog.LoggerOptions{
@@ -45,6 +56,23 @@ func NewRandGeneratorManager(conf map[string]*config.RandGeneratorConfig) *RandG
 		Output: os.Stdout,
 	})
 	return gm
+}
+
+func (gm *RandGeneratorManager) createDataPointLog() error {
+	// create data point log and write header
+	gm.dataPointLog = fmt.Sprintf(".data-point-%d.csv", os.Getpid())
+	f, err := os.Create(gm.dataPointLog)
+	if err != nil {
+		panic(err)
+	}
+
+	gm.file = f
+	gm.writer = csv.NewWriter(gm.file)
+	defer gm.writer.Flush()
+	if err := gm.writer.Write(gm.symbols); err != nil {
+		panic(err)
+	}
+	return nil
 }
 
 func (gm *RandGeneratorManager) GetSymbolPrice(symbols []string) (types.Prices, error) {
@@ -94,6 +122,16 @@ func (gm *RandGeneratorManager) UpdatePrices() {
 		gm.prices[k] = g.NextDataPoint()
 		gm.logger.Debug("simulator generates price: ", k, gm.prices[k].String())
 	}
+	// record data point record in log file.
+	var rec []string
+	for _, s := range gm.symbols {
+		rec = append(rec, gm.prices[s].String())
+	}
+
+	if err := gm.writer.Write(rec); err != nil {
+		panic(err)
+	}
+	defer gm.writer.Flush()
 }
 
 func (gm *RandGeneratorManager) Start() {
@@ -111,4 +149,7 @@ func (gm *RandGeneratorManager) Start() {
 
 func (gm *RandGeneratorManager) Stop() {
 	gm.doneCh <- struct{}{}
+	gm.writer.Flush()
+	gm.file.Close()
+	gm.logger.Info("Data point logs saved at: ", gm.dataPointLog)
 }

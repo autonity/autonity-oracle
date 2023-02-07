@@ -37,18 +37,24 @@ func MakeSimulatorConfig() *SimulatorConfig {
 	var playbook string
 
 	flag.IntVar(&port, "sim_http_port", DefSimulatorPort, "The HTTP rpc port to be bind for binance_simulator simulator")
-	flag.StringVar(&playbook, "sim_playook_file", DefPlaybook, "The .csv file which contains datapoint for symbols.")
+	flag.StringVar(&playbook, "sim_playbook_file", DefPlaybook, "The .csv file which contains datapoint for symbols.")
 	flag.StringVar(&simulatorConf, "sim_symbol_config", DefSimulatorConf,
 		"The list of data items with the pattern of SYMBOL:StartingDataPoint:DataDistributionRateRange with each separated by a \"|\"")
 	dataPointMagnificationFactor := flag.Float64("sim_data_magnification_factor", DefDataPointMagnificationFactor,
 		"The magnification factor to increase or decrease symbols' starting data point")
-	distributionRangeMagnificaitonFactor := flag.Float64("sim_data_dist_range_magnification_factor",
+	distributionRangeMagnificationFactor := flag.Float64("sim_data_dist_range_magnification_factor",
 		DefDataDistributionRangeMagnificationFactor, "The magnification factor to increase or decrease the range of the rate for random data distribution")
 
 	flag.Parse()
 
-	conf := ParseSimulatorConf(simulatorConf, decimal.NewFromFloat(*dataPointMagnificationFactor),
-		decimal.NewFromFloat(*distributionRangeMagnificaitonFactor))
+	dataPointFactor := decimal.NewFromFloat(*dataPointMagnificationFactor)
+	distributionRateFactor := decimal.NewFromFloat(*distributionRangeMagnificationFactor)
+	conf := ParseSimulatorConf(simulatorConf, dataPointFactor, distributionRateFactor)
+
+	println("\n\n\n\tRunning simulator with conf: ", conf)
+	println("\twith data point factor: ", dataPointFactor.String())
+	println("\twith data distribution rate factor: ", distributionRateFactor.String())
+	println("\tRunning simulator only with playbook if playbook is configured: ", playbook)
 
 	return &SimulatorConfig{
 		Port:          port,
@@ -58,10 +64,6 @@ func MakeSimulatorConfig() *SimulatorConfig {
 }
 
 func ParseSimulatorConf(conf string, dataPointFactor decimal.Decimal, distributionRateFactor decimal.Decimal) map[string]*RandGeneratorConfig {
-	println("\n\n\n\tRunning simulator with conf: ", conf)
-	println("\twith data point factor: ", dataPointFactor.String())
-	println("\twith data distribution rate factor: ", distributionRateFactor.String())
-
 	result := make(map[string]*RandGeneratorConfig)
 	items := strings.Split(conf, "|")
 	for _, it := range items {
