@@ -12,7 +12,7 @@ All the configuration have default values, in case of configuring the simulator,
 |-------------------------|---------------|--------------------------------------------------------------|-----------------------------|----------------------------------|
 | `SIM_HTTP_PORT`         | No            | The port that the simulator HTTP rpc endpoint bind to        | `50991`                     | any free port number on the host |
 | `SIM_PLAYBOOK_FILE`     | No            | The data point playbook that simulator replay with           | ""                          | a .csv file with symbols at header line and datapoint at the other lines|
-| `SIM_SYMBOL_CONFIG`     | No            | The string with items of patter: SYMBOL:StartingDataPoint:DataDistributionRateRange | "NTNUSD:1.0:0.01|NTNAUD:1.408:0.01|NTNCAD:1.3333:0.01|NTNEUR:0.9767:0.01|NTNGBP:0.813:0.01|NTNJPY:128.205:0.01|NTNSEK:10.309:0.01"                 | similar string in such pattern |
+| `SIM_SYMBOL_CONFIG`     | No            | The string with items of patter: SYMBOL:StartingDataPoint:DataDistributionRateRange  | "NTNUSD:1.0:0.01\|NTNAUD:1.408:0.01\|NTNCAD:1.3333:0.01\|NTNEUR:0.9767:0.01\|NTNGBP:0.813:0.01\|NTNJPY:128.205:0.01\|NTNSEK:10.309:0.01"                 | similar string in such pattern |
 | `SIM_DATA_MAGNIFICATION_FACTOR`  | No   | The factor to tune the starting data reference point         | 7.0                         | any float number                 |
 | `SIM_DATA_DIST_RANGE_MAGNIFICATION_FACTOR`  | No   | The magnification factor to increase or decrease the range of the rate for random data distribution         | 2.0  | any float number                 |
 
