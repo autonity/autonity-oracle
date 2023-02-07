@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	DataPlayInterval = 1 * time.Second
+	DataPlayInterval = 5 * time.Second
 )
 
 type PlaybookGeneratorManager struct {

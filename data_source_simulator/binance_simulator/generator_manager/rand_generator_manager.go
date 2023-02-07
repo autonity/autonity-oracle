@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	DataGenInterval = 1 * time.Second
+	DataGenInterval = 5 * time.Second
 )
 
 type RandGeneratorManager struct {
