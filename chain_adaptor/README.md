@@ -64,3 +64,14 @@ sub protocl on this part.
 With committee member re-shuffled, as the oracle client subscribes the chain head event, they can be notified with the role changes, those client who were not a member of
 committee start to skip the report while those one in the committee set should start to report data.
 
+## Task dependency
+
+### Phase 1: Oracle Contract ABI Spec.
+### Phase 2: Contract implementation and the interactions between contract and oracle client.
+1. The implementation of contract and deploy it.
+2. The interactions between contract and oracle client.
+    - a chain event subscribe base on web socket.
+    - a go binder of oracle contract.
+    - data reporting on commit and reveal way.
+### Phase integration test
+### E2E test
