@@ -1,5 +1,5 @@
-# Chain Adaptor
-To report oracle data to an on-chain oracle contract from oracle client, we need to build the antonity L1 blockchain adaptor.
+# Data Reporting Module
+To report oracle data to an on-chain oracle contract from oracle client, we need to build the reporting module.
 
 ## Basic helper functions
 
