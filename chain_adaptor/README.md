@@ -58,7 +58,7 @@ thus the external contracts or the stabilisation module can target to the price 
 ### Accountability, incentives and slashing.
 On each data report, the oracle contract collects the number of valid report rounds of each reporter, thus we have the live-ness of oracle client collected for each epoch,
 so in the end of epoch, the reward distribution and slashing can happen by according to the collected accountability data. We need to kick off the incentive and slashing
-sub protocl on this part.
+sub protocol on this part.
 
 ### Epoch rotation.
 With committee member re-shuffled, as the oracle client subscribes the chain head event, they can be notified with the role changes, those client who were not a member of

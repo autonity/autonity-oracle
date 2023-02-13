@@ -109,6 +109,7 @@ func (hs *HTTPServer) listPlugins(reqMsg *types.JSONRPCMessage) (int, types.JSON
 	return http.StatusOK, types.JSONRPCMessage{ID: reqMsg.ID, Result: enc}
 }
 
+// todo: remove this method from HTTP service since the symbol discovery is done internally by oracle contract discovery.
 func (hs *HTTPServer) updateSymbols(reqMsg *types.JSONRPCMessage) (int, types.JSONRPCMessage) {
 	dec := json.NewDecoder(bytes.NewReader(reqMsg.Params))
 	var symbols []string

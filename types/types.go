@@ -3,6 +3,7 @@ package types
 import (
 	"encoding/json"
 	"github.com/shopspring/decimal"
+	"math/big"
 	"time"
 )
 
@@ -33,6 +34,11 @@ type Price struct {
 
 type PriceBySymbol map[string]Price
 
+type RoundData struct {
+	salt   *big.Int
+	prices PriceBySymbol
+}
+
 // Plugin list the information of the running plugins in oracle service.
 type Plugin struct {
 	Version string
@@ -43,9 +49,11 @@ type Plugin struct {
 type PluginByName map[string]Plugin
 
 type OracleServiceConfig struct {
-	Symbols   []string
-	HTTPPort  int
-	PluginDIR string
+	KeyFile       string
+	AutonityWSUrl string
+	Symbols       []string
+	HTTPPort      int
+	PluginDIR     string
 }
 
 type JSONRPCMessage struct {

@@ -24,6 +24,8 @@ func main() { //nolint
 	go oracle.Start()
 	defer oracle.Stop()
 
+	// todo: create data reporter with oracle interface, and start the data reporter routine.
+
 	// create http service.
 	srv := httpserver.NewHttpServer(oracle, conf.HTTPPort)
 	srv.StartHTTPServer()
