@@ -6,18 +6,42 @@ package chain_adaptor
 
 import (
 	"autonity-oracle/types"
+	"crypto/ecdsa"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/hashicorp/go-hclog"
+	"github.com/modern-go/reflect2"
+	o "os"
 )
 
 type DataReporter struct {
+	logger        hclog.Logger
+	client        *ethclient.Client
+	autonityWSUrl string
 	currentRound  uint64
 	roundData     map[uint64]*types.RoundData
-	account       string
-	privateKey    string // todo: use *ecdsa.PrivateKey.
-	autonityWSUrl string
+	privateKey    *ecdsa.PrivateKey
 }
 
-func NewDataReporter(ws string) *DataReporter {
-	return &DataReporter{autonityWSUrl: ws}
+func NewDataReporter(ws string, privateKey *ecdsa.PrivateKey) *DataReporter {
+	client, err := ethclient.Dial(ws)
+	if err != nil {
+		panic(err)
+	}
+
+	dp := &DataReporter{
+		client:        client,
+		autonityWSUrl: ws,
+		roundData:     make(map[uint64]*types.RoundData),
+		privateKey:    privateKey,
+	}
+	dp.logger = hclog.New(&hclog.LoggerOptions{
+		Name:   reflect2.TypeOfPtr(dp).String(),
+		Output: o.Stdout,
+		Level:  hclog.Debug,
+	})
+
+	dp.logger.Info("Running data reporter", "rpc: ", ws)
+	return dp
 }
 
 // Start starts the data reporter, it prepares the ws connection, build contract binders, subscribe the chain head event,
@@ -27,9 +51,9 @@ func (dp *DataReporter) Start() error {
 	return nil
 }
 
-// todo: connect to autonity ws end point.
-func (dp *DataReporter) connectAutonity() error {
-	return nil
+func (dp *DataReporter) Stop() {
+	dp.client.Close()
+	// todo: close the chain head event handler routine.
 }
 
 // todo: construct the oracle contract binder instance
