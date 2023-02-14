@@ -7,6 +7,7 @@ package chain_adaptor
 import (
 	"autonity-oracle/types"
 	"crypto/ecdsa"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/hashicorp/go-hclog"
 	"github.com/modern-go/reflect2"
@@ -14,25 +15,27 @@ import (
 )
 
 type DataReporter struct {
-	logger        hclog.Logger
-	client        *ethclient.Client
-	autonityWSUrl string
-	currentRound  uint64
-	roundData     map[uint64]*types.RoundData
-	privateKey    *ecdsa.PrivateKey
+	logger           hclog.Logger
+	client           *ethclient.Client
+	autonityWSUrl    string
+	currentRound     uint64
+	roundData        map[uint64]*types.RoundData
+	privateKey       *ecdsa.PrivateKey
+	validatorAccount common.Address
 }
 
-func NewDataReporter(ws string, privateKey *ecdsa.PrivateKey) *DataReporter {
+func NewDataReporter(ws string, privateKey *ecdsa.PrivateKey, validatorAccount common.Address) *DataReporter {
 	client, err := ethclient.Dial(ws)
 	if err != nil {
 		panic(err)
 	}
 
 	dp := &DataReporter{
-		client:        client,
-		autonityWSUrl: ws,
-		roundData:     make(map[uint64]*types.RoundData),
-		privateKey:    privateKey,
+		validatorAccount: validatorAccount,
+		client:           client,
+		autonityWSUrl:    ws,
+		roundData:        make(map[uint64]*types.RoundData),
+		privateKey:       privateKey,
 	}
 	dp.logger = hclog.New(&hclog.LoggerOptions{
 		Name:   reflect2.TypeOfPtr(dp).String(),

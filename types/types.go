@@ -2,6 +2,8 @@ package types
 
 import (
 	"encoding/json"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
 	"math/big"
 	"time"
@@ -49,11 +51,12 @@ type Plugin struct {
 type PluginByName map[string]Plugin
 
 type OracleServiceConfig struct {
-	KeyFile       string
-	AutonityWSUrl string
-	Symbols       []string
-	HTTPPort      int
-	PluginDIR     string
+	ValidatorAccount common.Address
+	Key              *keystore.Key
+	AutonityWSUrl    string
+	Symbols          []string
+	HTTPPort         int
+	PluginDIR        string
 }
 
 type JSONRPCMessage struct {
