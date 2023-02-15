@@ -27,9 +27,10 @@ type DataReporter struct {
 	roundData        map[uint64]*types.RoundData
 	privateKey       *ecdsa.PrivateKey
 	validatorAccount common.Address
+	symbolsWriter    types.OracleService
 }
 
-func NewDataReporter(ws string, privateKey *ecdsa.PrivateKey, validatorAccount common.Address) *DataReporter {
+func NewDataReporter(ws string, privateKey *ecdsa.PrivateKey, validatorAccount common.Address, symbolsWriter types.OracleService) *DataReporter {
 	// connect to autonity node via web socket
 	client, err := ethclient.Dial(ws)
 	if err != nil {
@@ -43,6 +44,7 @@ func NewDataReporter(ws string, privateKey *ecdsa.PrivateKey, validatorAccount c
 		autonityWSUrl:    ws,
 		roundData:        make(map[uint64]*types.RoundData),
 		privateKey:       privateKey,
+		symbolsWriter:    symbolsWriter,
 	}
 
 	// subscribe chain head event for the round data reporting coordination.
@@ -91,21 +93,53 @@ func (dp *DataReporter) autonityContract() error {
 	return nil
 }
 
+// todo: resolve round id with header
+func (dp *DataReporter) resolveRoundID(curHeader *tp.Header) (uint64, error) {
+	return 0, nil
+}
+
+func (dp *DataReporter) isReported(round uint64) bool {
+	return true
+}
+
 // todo: get symbols from oracle contract
 func (dp *DataReporter) latestSymbols() ([]string, error) {
 	return nil, nil
 }
 
+// todo: check if current oracle's corresponding validator is a member of committee.
+func (dp *DataReporter) isCommittee() bool {
+	return true
+}
+
 func (dp *DataReporter) handleNewBlockEvent(header *tp.Header) error {
-	// todo: use the chain head event to coordinate the data reporting.
-	// getLatestSymbols, update oracle servers' symbols with the latest one.
+	// try to update symbols with the latest symbols of oracle contract
+	symbols, err := dp.latestSymbols()
+	if err != nil {
+		return err
+	}
+	if len(symbols) > 0 {
+		dp.symbolsWriter.UpdateSymbols(symbols)
+	}
 
-	// getCommittee, if client is not committee member skip.
+	// if client is not committee member skip.
+	if !dp.isCommittee() {
+		return nil
+	}
 
-	// GetLastBlockEpoch, GetRoundLength, to resolve the latest round ID, if already reported, skip the reporting.
+	// GetLastBlockEpoch, GetRoundLength, to resolve the latest round ID,
+	round, err := dp.resolveRoundID(header)
+	if err != nil {
+		return err
+	}
+
+	// if client already reported at the round, skip the reporting.
+	if dp.isReported(round) {
+		return nil
+	}
 
 	// do the data reporting.
-	return nil
+	return dp.report(round)
 }
 
 // todo: do the data reporting.

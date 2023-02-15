@@ -28,6 +28,11 @@ type PluginClient interface {
 	StartTime() time.Time
 }
 
+type OracleService interface {
+	UpdateSymbols([]string)
+	GetPrices() PriceBySymbol
+}
+
 type Price struct {
 	Timestamp int64
 	Symbol    string
