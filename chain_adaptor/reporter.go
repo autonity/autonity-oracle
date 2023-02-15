@@ -93,13 +93,16 @@ func (dp *DataReporter) autonityContract() error {
 	return nil
 }
 
-// todo: resolve round id with header
+// todo: resolve round id with header, if we just have fix round period, then just compute from local, there is no need
+//  to get the last block of last epoch to compute the round ID, and the round ID never resets at all.
 func (dp *DataReporter) resolveRoundID(curHeader *tp.Header) (uint64, error) {
 	return 0, nil
 }
 
+// todo: if round can be reset to 0 once EPOCH rotated, we need to reset the buffer round data as well.
 func (dp *DataReporter) isReported(round uint64) bool {
-	return true
+	_, ok := dp.roundData[round]
+	return ok
 }
 
 // todo: get symbols from oracle contract
@@ -114,12 +117,12 @@ func (dp *DataReporter) isCommittee() bool {
 
 func (dp *DataReporter) handleNewBlockEvent(header *tp.Header) error {
 	// try to update symbols with the latest symbols of oracle contract
-	symbols, err := dp.latestSymbols()
+	requiredSymbols, err := dp.latestSymbols()
 	if err != nil {
 		return err
 	}
-	if len(symbols) > 0 {
-		dp.symbolsWriter.UpdateSymbols(symbols)
+	if len(requiredSymbols) > 0 {
+		dp.symbolsWriter.UpdateSymbols(requiredSymbols)
 	}
 
 	// if client is not committee member skip.
@@ -139,13 +142,19 @@ func (dp *DataReporter) handleNewBlockEvent(header *tp.Header) error {
 	}
 
 	// do the data reporting.
-	return dp.report(round)
+	return dp.report(round, requiredSymbols)
 }
 
 // todo: do the data reporting.
 // 1. collect current round's data commitment hash with a random salt.
 // 2. save current round's data values.
 // 3. send the report with last round's values with salts, and current rounds' commitment hash.
-func (dp *DataReporter) report(round uint64) error {
+func (dp *DataReporter) report(round uint64, requiredSymbols []string) error {
+	// todo: compute current round's commitment hash: keccak-hash([price,price,price,price,salt]), where the price is
+	// the price of each symbols list as required symbols, while the salt is a random generated value for the reveal.
+
+	// todo: save current rounds' data values and the corresponding salt.
+
+	// todo: send last rounds' data values and its corresponding salt and current rounds' commitment hash.
 	return nil
 }
