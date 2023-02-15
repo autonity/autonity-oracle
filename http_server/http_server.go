@@ -3,7 +3,6 @@ package httpserver
 import (
 	"autonity-oracle/oracle_server"
 	"autonity-oracle/types"
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -63,8 +62,6 @@ func (hs *HTTPServer) createRouter() *gin.Engine {
 			c.JSON(hs.getVersion(&reqMsg))
 		case "get_prices":
 			c.JSON(hs.getPrices(&reqMsg))
-		case "update_symbols":
-			c.JSON(hs.updateSymbols(&reqMsg))
 		default:
 			c.JSON(http.StatusBadRequest, types.JSONRPCMessage{ID: reqMsg.ID, Error: "unknown method"})
 		}
@@ -107,19 +104,4 @@ func (hs *HTTPServer) listPlugins(reqMsg *types.JSONRPCMessage) (int, types.JSON
 		return http.StatusInternalServerError, types.JSONRPCMessage{Error: err.Error()}
 	}
 	return http.StatusOK, types.JSONRPCMessage{ID: reqMsg.ID, Result: enc}
-}
-
-// todo: remove this method from HTTP service since the symbol discovery is done internally by oracle contract discovery.
-func (hs *HTTPServer) updateSymbols(reqMsg *types.JSONRPCMessage) (int, types.JSONRPCMessage) {
-	dec := json.NewDecoder(bytes.NewReader(reqMsg.Params))
-	var symbols []string
-	err := dec.Decode(&symbols)
-	if err != nil {
-		return http.StatusBadRequest, types.JSONRPCMessage{Error: err.Error()}
-	}
-	if len(symbols) == 0 {
-		return http.StatusBadRequest, types.JSONRPCMessage{Error: "setting with empty symbols"}
-	}
-	hs.oracle.UpdateSymbols(symbols)
-	return http.StatusOK, types.JSONRPCMessage{ID: reqMsg.ID, Result: reqMsg.Params}
 }

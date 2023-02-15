@@ -7,8 +7,8 @@ package chain_adaptor
 import (
 	"autonity-oracle/types"
 	"context"
-	"crypto/ecdsa"
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	tp "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -25,12 +25,12 @@ type DataReporter struct {
 	autonityWSUrl    string
 	currentRound     uint64
 	roundData        map[uint64]*types.RoundData
-	privateKey       *ecdsa.PrivateKey
+	key              *keystore.Key
 	validatorAccount common.Address
 	symbolsWriter    types.OracleService
 }
 
-func NewDataReporter(ws string, privateKey *ecdsa.PrivateKey, validatorAccount common.Address, symbolsWriter types.OracleService) *DataReporter {
+func NewDataReporter(ws string, key *keystore.Key, validatorAccount common.Address, symbolsWriter types.OracleService) *DataReporter {
 	// connect to autonity node via web socket
 	client, err := ethclient.Dial(ws)
 	if err != nil {
@@ -43,7 +43,7 @@ func NewDataReporter(ws string, privateKey *ecdsa.PrivateKey, validatorAccount c
 		client:           client,
 		autonityWSUrl:    ws,
 		roundData:        make(map[uint64]*types.RoundData),
-		privateKey:       privateKey,
+		key:              key,
 		symbolsWriter:    symbolsWriter,
 	}
 

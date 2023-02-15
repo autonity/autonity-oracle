@@ -77,25 +77,4 @@ func TestHttpServerAPIHandlers(t *testing.T) {
 		}
 		require.Equal(t, conf.Symbols, prices.Symbols)
 	})
-
-	t.Run("update symbols", func(t *testing.T) {
-		newSymbols := []string{"NTNETH", "NTNBTC", "NTNBNB"}
-		encSymbols, err := json.Marshal(newSymbols)
-		require.NoError(t, err)
-
-		reqMsg := &types.JSONRPCMessage{
-			ID:     json.RawMessage{0},
-			Method: "update_symbols",
-			Params: encSymbols,
-			Result: nil,
-			Error:  "",
-		}
-		oracle := oracleserver.NewOracleServer(conf.Symbols, ".")
-		hs := NewHttpServer(oracle, conf.HTTPPort)
-		code, rspMsg := hs.updateSymbols(reqMsg)
-		require.Equal(t, http.StatusOK, code)
-		require.Equal(t, reqMsg.ID, rspMsg.ID)
-		require.Equal(t, reqMsg.Params, rspMsg.Result)
-		require.Equal(t, newSymbols, oracle.Symbols())
-	})
 }

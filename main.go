@@ -1,6 +1,7 @@
 package main
 
 import (
+	"autonity-oracle/chain_adaptor"
 	"autonity-oracle/config"
 	"autonity-oracle/http_server"
 	"autonity-oracle/oracle_server"
@@ -24,7 +25,9 @@ func main() { //nolint
 	go oracle.Start()
 	defer oracle.Stop()
 
-	// todo: create data reporter with oracle interface, and start the data reporter routine.
+	reporter := chain_adaptor.NewDataReporter(conf.AutonityWSUrl, conf.Key, conf.ValidatorAccount, oracle)
+	go reporter.Start()
+	defer reporter.Stop()
 
 	// create http service.
 	srv := httpserver.NewHttpServer(oracle, conf.HTTPPort)
