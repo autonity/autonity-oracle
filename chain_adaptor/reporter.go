@@ -6,8 +6,11 @@ package chain_adaptor
 
 import (
 	"autonity-oracle/types"
+	"context"
 	"crypto/ecdsa"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
+	tp "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/hashicorp/go-hclog"
 	"github.com/modern-go/reflect2"
@@ -17,6 +20,8 @@ import (
 type DataReporter struct {
 	logger           hclog.Logger
 	client           *ethclient.Client
+	headers          chan *tp.Header
+	sub              ethereum.Subscription
 	autonityWSUrl    string
 	currentRound     uint64
 	roundData        map[uint64]*types.RoundData
@@ -25,18 +30,28 @@ type DataReporter struct {
 }
 
 func NewDataReporter(ws string, privateKey *ecdsa.PrivateKey, validatorAccount common.Address) *DataReporter {
+	// connect to autonity node via web socket
 	client, err := ethclient.Dial(ws)
 	if err != nil {
 		panic(err)
 	}
 
 	dp := &DataReporter{
+		headers:          make(chan *tp.Header),
 		validatorAccount: validatorAccount,
 		client:           client,
 		autonityWSUrl:    ws,
 		roundData:        make(map[uint64]*types.RoundData),
 		privateKey:       privateKey,
 	}
+
+	// subscribe chain head event for the round data reporting coordination.
+	sub, err := dp.client.SubscribeNewHead(context.Background(), dp.headers)
+	if err != nil {
+		panic(err)
+	}
+
+	dp.sub = sub
 	dp.logger = hclog.New(&hclog.LoggerOptions{
 		Name:   reflect2.TypeOfPtr(dp).String(),
 		Output: o.Stdout,
@@ -47,16 +62,23 @@ func NewDataReporter(ws string, privateKey *ecdsa.PrivateKey, validatorAccount c
 	return dp
 }
 
-// Start starts the data reporter, it prepares the ws connection, build contract binders, subscribe the chain head event,
-// discover the latest symbols from oracle contract for oracle service, and start the chain head event handler routine to
-// coordinate the data reporting workflows.
-func (dp *DataReporter) Start() error {
-	return nil
+// Start starts the event loop to handle the chain head events.
+func (dp *DataReporter) Start() {
+	for {
+		select {
+		case err := <-dp.sub.Err():
+			dp.logger.Info("reporter routine is shutting down ", err)
+		case header := <-dp.headers:
+			dp.logger.Info("new block: ", header.Number.Uint64())
+			err := dp.handleNewBlockEvent(header)
+			dp.logger.Info("do data reporting ", err.Error())
+		}
+	}
 }
 
 func (dp *DataReporter) Stop() {
 	dp.client.Close()
-	// todo: close the chain head event handler routine.
+	dp.sub.Unsubscribe()
 }
 
 // todo: construct the oracle contract binder instance
@@ -74,18 +96,8 @@ func (dp *DataReporter) latestSymbols() ([]string, error) {
 	return nil, nil
 }
 
-// todo: subscribe the chain head event
-func (dp *DataReporter) subscribeChainHeadEvent() error {
-	return nil
-}
-
-// todo: a chain head event handler that handles the chain head event to coordinate the oracle data reporting.
-func (dp *DataReporter) chainHeadEventHandler() error {
-	return nil
-}
-
-// todo: coordinate the data reporting workflow.
-func (dp *DataReporter) handleNewBlockEvent() error {
+func (dp *DataReporter) handleNewBlockEvent(header *tp.Header) error {
+	// todo: use the chain head event to coordinate the data reporting.
 	// getLatestSymbols, update oracle servers' symbols with the latest one.
 
 	// getCommittee, if client is not committee member skip.
