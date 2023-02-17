@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/shopspring/decimal"
 	"math/big"
 	"time"
@@ -43,6 +44,7 @@ type Price struct {
 type PriceBySymbol map[string]Price
 
 type RoundData struct {
+	Tx     *types.Transaction
 	Salt   *big.Int
 	Hash   common.Hash
 	Prices PriceBySymbol

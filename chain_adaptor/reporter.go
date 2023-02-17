@@ -7,9 +7,11 @@ package chain_adaptor
 import (
 	contract "autonity-oracle/chain_adaptor/contract"
 	"autonity-oracle/types"
+	"context"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
+	tp "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/event"
@@ -166,8 +168,6 @@ func (dp *DataReporter) handleRoundChange(newRound uint64) error {
 	//todo, if there is prices not available, shall we wait for a while(10s) until we get the all the prices to be ready.
 	prices := dp.oracleService.GetPricesBySymbols(symbols)
 	curRoundData := dp.computeCommitment(prices)
-	// save current round's commitment, prices and the random salt.
-	dp.roundData[newRound] = curRoundData
 
 	// query last round's prices, its random salt which will reveal last round's report.
 	lastRoundData, ok := dp.roundData[newRound-1]
@@ -176,19 +176,62 @@ func (dp *DataReporter) handleRoundChange(newRound uint64) error {
 	}
 
 	// prepare the transaction which carry current round's commitment, and last round's data.
-	err = dp.doReport(curRoundData.Hash, lastRoundData, symbols)
+	curRoundData.Tx, err = dp.doReport(curRoundData.Hash, lastRoundData, symbols)
 	if err != nil {
 		return err
 	}
+
+	// save current round's commitment, prices and the random salt.
+	dp.roundData[newRound] = curRoundData
 	return nil
 }
 
-func (dp *DataReporter) doReport(commitment common.Hash, lastRoundData *types.RoundData, symbols []string) error {
-	if lastRoundData == nil {
-		// cannot find last round data, just submit commitment hash.
+func (dp *DataReporter) doReport(commitment common.Hash, lastRoundData *types.RoundData, symbols []string) (*tp.Transaction, error) {
+	from := dp.key.Address
+
+	nonce, err := dp.client.PendingNonceAt(context.Background(), from)
+	if err != nil {
+		return nil, err
 	}
-	// prepare transaction and do the reporting.
-	return nil
+
+	gasPrice, err := dp.client.SuggestGasPrice(context.Background())
+	if err != nil {
+		return nil, err
+	}
+
+	chainID, err := dp.client.ChainID(context.Background())
+	if err != nil {
+		return nil, err
+	}
+
+	auth, err := bind.NewKeyedTransactorWithChainID(dp.key.PrivateKey, chainID)
+	if err != nil {
+		return nil, err
+	}
+
+	auth.Nonce = big.NewInt(int64(nonce))
+	auth.Value = big.NewInt(0)
+	auth.GasLimit = uint64(3000000)
+	auth.GasPrice = gasPrice
+
+	noPrice := big.NewInt(0)
+	var votes []*big.Int
+	for _, s := range symbols {
+		_, ok := lastRoundData.Prices[s]
+		if !ok {
+			votes = append(votes, noPrice)
+		} else {
+			price := lastRoundData.Prices[s].Price.Mul(PricePrecision).BigInt()
+			votes = append(votes, price)
+		}
+	}
+
+	tx, err := dp.oracleContract.Vote(auth, new(big.Int).SetBytes(commitment.Bytes()), votes)
+	if err != nil {
+		return tx, err
+	}
+
+	return tx, nil
 }
 
 func (dp *DataReporter) computeCommitment(prices types.PriceBySymbol) *types.RoundData {
