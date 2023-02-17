@@ -5,29 +5,40 @@
 package chain_adaptor
 
 import (
+	contract "autonity-oracle/chain_adaptor/contract"
 	"autonity-oracle/types"
-	"context"
-	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
-	tp "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/hashicorp/go-hclog"
 	"github.com/modern-go/reflect2"
-	o "os"
+	"github.com/shopspring/decimal"
+	"math/big"
+	"math/rand"
+	"os"
 )
+
+var Deployer = common.Address{}
+var ContractAddress = crypto.CreateAddress(Deployer, 1)
+var PricePrecision = decimal.RequireFromString("1000000000")
 
 type DataReporter struct {
 	logger           hclog.Logger
+	oracleContract   *contract.Oracle
 	client           *ethclient.Client
-	headers          chan *tp.Header
-	sub              ethereum.Subscription
 	autonityWSUrl    string
 	currentRound     uint64
 	roundData        map[uint64]*types.RoundData
 	key              *keystore.Key
 	validatorAccount common.Address
-	symbolsWriter    types.OracleService
+	oracleService    types.OracleService
+	chRoundEvent     chan *contract.OracleUpdatedRound
+	subRoundEvent    event.Subscription
+	chSymbolsEvent   chan *contract.OracleUpdatedSymbols
+	subSymbolsEvent  event.Subscription
 }
 
 func NewDataReporter(ws string, key *keystore.Key, validatorAccount common.Address, symbolsWriter types.OracleService) *DataReporter {
@@ -37,26 +48,52 @@ func NewDataReporter(ws string, key *keystore.Key, validatorAccount common.Addre
 		panic(err)
 	}
 
+	// bind client with oracle contract address
+	oc, err := contract.NewOracle(ContractAddress, client)
+	if err != nil {
+		panic(err)
+	}
+
+	// get initial states from on-chain oracle contract.
+	curRound, curSymbols := getStartingStates(oc)
+	if len(curSymbols) > 0 {
+		symbolsWriter.UpdateSymbols(curSymbols)
+	}
+
+	// todo: watch the vote accepted event to let the client to know their reporting is accepted.
+
+	// subscribe on-chain round rotation event
+	chanRoundEvent := make(chan *contract.OracleUpdatedRound)
+	subRoundEvent, err := oc.WatchUpdatedRound(new(bind.WatchOpts), chanRoundEvent)
+	if err != nil {
+		panic(err)
+	}
+
+	// subscribe on-chain symbol update event
+	chanSymbolsEvent := make(chan *contract.OracleUpdatedSymbols)
+	subSymbolEvent, err := oc.WatchUpdatedSymbols(new(bind.WatchOpts), chanSymbolsEvent)
+	if err != nil {
+		panic(err)
+	}
+
 	dp := &DataReporter{
-		headers:          make(chan *tp.Header),
+		currentRound:     curRound,
+		oracleContract:   oc,
 		validatorAccount: validatorAccount,
 		client:           client,
 		autonityWSUrl:    ws,
 		roundData:        make(map[uint64]*types.RoundData),
 		key:              key,
-		symbolsWriter:    symbolsWriter,
+		oracleService:    symbolsWriter,
+		chRoundEvent:     chanRoundEvent,
+		chSymbolsEvent:   chanSymbolsEvent,
+		subSymbolsEvent:  subSymbolEvent,
+		subRoundEvent:    subRoundEvent,
 	}
 
-	// subscribe chain head event for the round data reporting coordination.
-	sub, err := dp.client.SubscribeNewHead(context.Background(), dp.headers)
-	if err != nil {
-		panic(err)
-	}
-
-	dp.sub = sub
 	dp.logger = hclog.New(&hclog.LoggerOptions{
 		Name:   reflect2.TypeOfPtr(dp).String(),
-		Output: o.Stdout,
+		Output: os.Stdout,
 		Level:  hclog.Debug,
 	})
 
@@ -64,97 +101,122 @@ func NewDataReporter(ws string, key *keystore.Key, validatorAccount common.Addre
 	return dp
 }
 
-// Start starts the event loop to handle the chain head events.
+// getStartingStates returns round id, symbols and committees on current chain, it is called on the startup of client.
+func getStartingStates(oc *contract.Oracle) (uint64, []string) {
+	// on the startup, we need to sync the round id, symbols and committees from contract.
+	currentRound, err := oc.GetRound(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	symbols, err := oc.GetSymbols(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	return currentRound.Uint64(), symbols
+}
+
+// Start starts the event loop to handle the on-chain events, we have 3 events to be processed.
 func (dp *DataReporter) Start() {
 	for {
 		select {
-		case err := <-dp.sub.Err():
+		case err := <-dp.subSymbolsEvent.Err():
 			dp.logger.Info("reporter routine is shutting down ", err)
-		case header := <-dp.headers:
-			dp.logger.Info("new block: ", header.Number.Uint64())
-			err := dp.handleNewBlockEvent(header)
-			dp.logger.Info("do data reporting ", err.Error())
+		case err := <-dp.subRoundEvent.Err():
+			dp.logger.Info("reporter routine is shutting down ", err)
+		case round := <-dp.chRoundEvent:
+			err := dp.handleRoundChange(round.Round.Uint64())
+			if err != nil {
+				dp.logger.Error("Handling round change event", "err", err.Error())
+			}
+		case symbols := <-dp.chSymbolsEvent:
+			dp.handleNewSymbols(symbols.Symbols)
 		}
 	}
 }
 
+func (dp *DataReporter) isCommitteeMember() bool {
+	committee, err := dp.oracleContract.GetCommittee(nil)
+	if err != nil {
+		return false
+	}
+
+	for _, c := range committee {
+		if c == dp.validatorAccount {
+			return true
+		}
+	}
+	return false
+}
+
+func (dp *DataReporter) handleRoundChange(newRound uint64) error {
+	dp.currentRound = newRound
+	// todo, if the autonity node is on peer synchronization state, just skip the reporting.
+	// if client is not a committee member, just skip reporting.
+	if !dp.isCommitteeMember() {
+		return nil
+	}
+
+	symbols, err := dp.oracleContract.GetSymbols(nil)
+	if err != nil {
+		return err
+	}
+
+	//todo, if there is prices not available, shall we wait for a while(10s) until we get the all the prices to be ready.
+	prices := dp.oracleService.GetPricesBySymbols(symbols)
+	curRoundData := dp.computeCommitment(prices)
+	// save current round's commitment, prices and the random salt.
+	dp.roundData[newRound] = curRoundData
+
+	// query last round's prices, its random salt which will reveal last round's report.
+	lastRoundData, ok := dp.roundData[newRound-1]
+	if !ok {
+		dp.logger.Info("Cannot find last round's data")
+	}
+
+	// prepare the transaction which carry current round's commitment, and last round's data.
+	err = dp.doReport(curRoundData.Hash, lastRoundData, symbols)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (dp *DataReporter) doReport(commitment common.Hash, lastRoundData *types.RoundData, symbols []string) error {
+	if lastRoundData == nil {
+		// cannot find last round data, just submit commitment hash.
+	}
+	// prepare transaction and do the reporting.
+	return nil
+}
+
+func (dp *DataReporter) computeCommitment(prices types.PriceBySymbol) *types.RoundData {
+	var roundData = &types.RoundData{
+		Salt:   new(big.Int).SetUint64(rand.Uint64()),
+		Hash:   common.Hash{},
+		Prices: prices,
+	}
+
+	salt := roundData.Salt
+	sum := salt
+
+	for _, p := range roundData.Prices {
+		pr := p
+		sum.Add(sum, pr.Price.Mul(PricePrecision).BigInt())
+	}
+
+	// todo, double check the endian problem and the packing of 0 bits of big integer.
+	roundData.Hash = crypto.Keccak256Hash(sum.Bytes())
+	return roundData
+}
+
+func (dp *DataReporter) handleNewSymbols(symbols []string) {
+	dp.oracleService.UpdateSymbols(symbols)
+}
+
 func (dp *DataReporter) Stop() {
 	dp.client.Close()
-	dp.sub.Unsubscribe()
-}
-
-// todo: construct the oracle contract binder instance
-func (dp *DataReporter) oracleContract() error {
-	return nil
-}
-
-// todo: construct the autonity contract binder instance
-func (dp *DataReporter) autonityContract() error {
-	return nil
-}
-
-// todo: resolve round id with header, if we just have fix round period, then just compute from local, there is no need
-//  to get the last block of last epoch to compute the round ID, and the round ID never resets at all.
-func (dp *DataReporter) resolveRoundID(curHeader *tp.Header) (uint64, error) {
-	return 0, nil
-}
-
-// todo: if round can be reset to 0 once EPOCH rotated, we need to reset the buffer round data as well.
-func (dp *DataReporter) isReported(round uint64) bool {
-	_, ok := dp.roundData[round]
-	return ok
-}
-
-// todo: get symbols from oracle contract
-func (dp *DataReporter) latestSymbols() ([]string, error) {
-	return nil, nil
-}
-
-// todo: check if current oracle's corresponding validator is a member of committee.
-func (dp *DataReporter) isCommittee() bool {
-	return true
-}
-
-func (dp *DataReporter) handleNewBlockEvent(header *tp.Header) error {
-	// try to update symbols with the latest symbols of oracle contract
-	requiredSymbols, err := dp.latestSymbols()
-	if err != nil {
-		return err
-	}
-	if len(requiredSymbols) > 0 {
-		dp.symbolsWriter.UpdateSymbols(requiredSymbols)
-	}
-
-	// if client is not committee member skip.
-	if !dp.isCommittee() {
-		return nil
-	}
-
-	// GetLastBlockEpoch, GetRoundLength, to resolve the latest round ID,
-	round, err := dp.resolveRoundID(header)
-	if err != nil {
-		return err
-	}
-
-	// if client already reported at the round, skip the reporting.
-	if dp.isReported(round) {
-		return nil
-	}
-
-	// do the data reporting.
-	return dp.report(round, requiredSymbols)
-}
-
-// todo: do the data reporting.
-// 1. collect current round's data commitment hash with a random salt.
-// 2. save current round's data values.
-// 3. send the report with last round's values with salts, and current rounds' commitment hash.
-func (dp *DataReporter) report(round uint64, requiredSymbols []string) error {
-	// todo: compute current round's commitment hash: keccak-hash([price,price,price,price,salt]), where the price is
-	// the price of each symbols list as required symbols, while the salt is a random generated value for the reveal.
-
-	// todo: save current rounds' data values and the corresponding salt.
-
-	// todo: send last rounds' data values and its corresponding salt and current rounds' commitment hash.
-	return nil
+	dp.subRoundEvent.Unsubscribe()
+	dp.subSymbolsEvent.Unsubscribe()
 }

@@ -31,6 +31,7 @@ type PluginClient interface {
 type OracleService interface {
 	UpdateSymbols([]string)
 	GetPrices() PriceBySymbol
+	GetPricesBySymbols(symbols []string) PriceBySymbol
 }
 
 type Price struct {
@@ -42,8 +43,9 @@ type Price struct {
 type PriceBySymbol map[string]Price
 
 type RoundData struct {
-	salt   *big.Int
-	prices PriceBySymbol
+	Salt   *big.Int
+	Hash   common.Hash
+	Prices PriceBySymbol
 }
 
 // Plugin list the information of the running plugins in oracle service.

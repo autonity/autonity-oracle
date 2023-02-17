@@ -84,6 +84,8 @@ func (os *OracleServer) Version() string {
 }
 
 func (os *OracleServer) UpdateSymbols(symbols []string) {
+	// todo: maintain the most extensive symbols that could be fetch by oracle service,
+	//  if there is a symbol with no data, do the fetching at once?
 	os.symbols = symbols
 }
 
@@ -107,6 +109,18 @@ func (os *OracleServer) GetPrices() types.PriceBySymbol {
 	os.lockPrices.RLock()
 	defer os.lockPrices.RUnlock()
 	return os.prices
+}
+
+func (os *OracleServer) GetPricesBySymbols(symbols []string) types.PriceBySymbol {
+	os.lockPrices.RLock()
+	defer os.lockPrices.RUnlock()
+	prices := make(types.PriceBySymbol)
+	for _, s := range symbols {
+		if p, ok := os.prices[s]; ok {
+			prices[s] = p
+		}
+	}
+	return prices
 }
 
 func (os *OracleServer) UpdatePrice(price types.Price) {

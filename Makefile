@@ -4,7 +4,9 @@
 
 .PHONY: autoracle test e2e_test clean lint dep all
 
+SOLC_VERSION = 0.8.2
 BINDIR = ./build/bin
+SOLC_BINARY = $(BINDIR)/solc_static_linux_v$(SOLC_VERSION)
 PLUGINDIR = ./build/bin/plugins
 SIMULATORBINDIR = ./data_source_simulator/build/bin
 SIMULATORSRCDIR = ./data_source_simulator/binance_simulator
@@ -27,6 +29,11 @@ autoracle:
 	chmod +x $(PLUGINSRCDIR)/fakeplugin/bin/fakeplugin
 	@echo "Done building."
 	@echo "Run \"$(BINDIR)/autoracle\" to launch autonity oracle."
+
+oracle-contract:
+	mkdir -p $(BINDIR)
+	wget -O $(SOLC_BINARY) https://github.com/ethereum/solidity/releases/download/v$(SOLC_VERSION)/solc-static-linux
+	chmod +x $(SOLC_BINARY)
 
 simulator:
 	mkdir -p $(SIMULATORBINDIR)
