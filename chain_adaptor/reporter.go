@@ -30,7 +30,7 @@ var ContractAddress = crypto.CreateAddress(Deployer, 1)
 var PricePrecision = decimal.RequireFromString("1000000000")
 
 var ErrPeerOnSync = errors.New("l1 node is on peer sync")
-var HealthCheckerInterval = 2 * time.Minute // ws liveness checker interval.
+var HealthCheckerInterval = 2 * time.Minute // ws connectivity checker interval.
 
 const MaxBufferedRounds = 10
 
@@ -159,7 +159,7 @@ func (dp *DataReporter) Start() {
 func (dp *DataReporter) gcRoundData() {
 	if len(dp.roundData) >= MaxBufferedRounds {
 		offset := dp.currentRound - MaxBufferedRounds
-		for k, _ := range dp.roundData {
+		for k := range dp.roundData {
 			if k < offset {
 				delete(dp.roundData, k)
 			}
@@ -317,8 +317,7 @@ func (dp *DataReporter) computeCommitment(prices types.PriceBySymbol) *types.Rou
 		sum.Add(sum, pr.Price.Mul(PricePrecision).BigInt())
 	}
 
-	// todo, double check the endian problem and the packing of 0 bits of big integer.
-	roundData.Hash = crypto.Keccak256Hash(sum.Bytes())
+	roundData.Hash = crypto.Keccak256Hash(sum.FillBytes(make([]byte, 32)))
 	return roundData
 }
 
