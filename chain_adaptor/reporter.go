@@ -8,7 +8,7 @@ import (
 	contract "autonity-oracle/chain_adaptor/contract"
 	"autonity-oracle/types"
 	"context"
-	"fmt"
+	"errors"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
@@ -22,11 +22,15 @@ import (
 	"math/big"
 	"math/rand"
 	"os"
+	"time"
 )
 
 var Deployer = common.Address{}
 var ContractAddress = crypto.CreateAddress(Deployer, 1)
 var PricePrecision = decimal.RequireFromString("1000000000")
+
+var ErrPeerOnSync = errors.New("l1 node is on peer sync")
+var HealthCheckerInterval = 2 * time.Millisecond // ws liveness checker interval.
 
 type DataReporter struct {
 	logger           hclog.Logger
@@ -34,6 +38,7 @@ type DataReporter struct {
 	client           *ethclient.Client
 	autonityWSUrl    string
 	currentRound     uint64
+	currentSymbols   []string
 	roundData        map[uint64]*types.RoundData
 	key              *keystore.Key
 	validatorAccount common.Address
@@ -42,54 +47,23 @@ type DataReporter struct {
 	subRoundEvent    event.Subscription
 	chSymbolsEvent   chan *contract.OracleUpdatedSymbols
 	subSymbolsEvent  event.Subscription
+	liveTicker       *time.Ticker
 }
 
-func NewDataReporter(ws string, key *keystore.Key, validatorAccount common.Address, symbolsWriter types.OracleService) *DataReporter {
-	// connect to autonity node via web socket
-	client, err := ethclient.Dial(ws)
-	if err != nil {
-		panic(err)
-	}
-
-	// bind client with oracle contract address
-	oc, err := contract.NewOracle(ContractAddress, client)
-	if err != nil {
-		panic(err)
-	}
-
-	// get initial states from on-chain oracle contract.
-	curRound, curSymbols := getStartingStates(oc)
-	if len(curSymbols) > 0 {
-		symbolsWriter.UpdateSymbols(curSymbols)
-	}
-
-	// subscribe on-chain round rotation event
-	chanRoundEvent := make(chan *contract.OracleUpdatedRound)
-	subRoundEvent, err := oc.WatchUpdatedRound(new(bind.WatchOpts), chanRoundEvent)
-	if err != nil {
-		panic(err)
-	}
-
-	// subscribe on-chain symbol update event
-	chanSymbolsEvent := make(chan *contract.OracleUpdatedSymbols)
-	subSymbolEvent, err := oc.WatchUpdatedSymbols(new(bind.WatchOpts), chanSymbolsEvent)
-	if err != nil {
-		panic(err)
-	}
-
+func NewDataReporter(ws string, key *keystore.Key, validatorAccount common.Address, oracleService types.OracleService) *DataReporter {
 	dp := &DataReporter{
-		currentRound:     curRound,
-		oracleContract:   oc,
 		validatorAccount: validatorAccount,
-		client:           client,
 		autonityWSUrl:    ws,
 		roundData:        make(map[uint64]*types.RoundData),
 		key:              key,
-		oracleService:    symbolsWriter,
-		chRoundEvent:     chanRoundEvent,
-		chSymbolsEvent:   chanSymbolsEvent,
-		subSymbolsEvent:  subSymbolEvent,
-		subRoundEvent:    subRoundEvent,
+		oracleService:    oracleService,
+		liveTicker:       time.NewTicker(HealthCheckerInterval),
+	}
+
+	err := dp.buildConnection()
+	if err != nil {
+		// stop the client on start up once the remote endpoint of autonity L1 network is not ready.
+		panic(err)
 	}
 
 	dp.logger = hclog.New(&hclog.LoggerOptions{
@@ -102,20 +76,60 @@ func NewDataReporter(ws string, key *keystore.Key, validatorAccount common.Addre
 	return dp
 }
 
+func (dp *DataReporter) buildConnection() error {
+	// connect to autonity node via web socket
+	var err error
+	dp.client, err = ethclient.Dial(dp.autonityWSUrl)
+	if err != nil {
+		return err
+	}
+
+	// bind client with oracle contract address
+	oc, err := contract.NewOracle(ContractAddress, dp.client)
+	if err != nil {
+		return err
+	}
+
+	// get initial states from on-chain oracle contract.
+	dp.currentRound, dp.currentSymbols, err = getStartingStates(oc)
+	if err != nil {
+		return err
+	}
+
+	if len(dp.currentSymbols) > 0 {
+		dp.oracleService.UpdateSymbols(dp.currentSymbols)
+	}
+
+	// subscribe on-chain round rotation event
+	dp.chRoundEvent = make(chan *contract.OracleUpdatedRound)
+	dp.subRoundEvent, err = oc.WatchUpdatedRound(new(bind.WatchOpts), dp.chRoundEvent)
+	if err != nil {
+		return err
+	}
+
+	// subscribe on-chain symbol update event
+	dp.chSymbolsEvent = make(chan *contract.OracleUpdatedSymbols)
+	dp.subSymbolsEvent, err = oc.WatchUpdatedSymbols(new(bind.WatchOpts), dp.chSymbolsEvent)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // getStartingStates returns round id, symbols and committees on current chain, it is called on the startup of client.
-func getStartingStates(oc *contract.Oracle) (uint64, []string) {
+func getStartingStates(oc *contract.Oracle) (uint64, []string, error) {
 	// on the startup, we need to sync the round id, symbols and committees from contract.
 	currentRound, err := oc.GetRound(nil)
 	if err != nil {
-		panic(err)
+		return 0, nil, err
 	}
 
 	symbols, err := oc.GetSymbols(nil)
 	if err != nil {
-		panic(err)
+		return 0, nil, err
 	}
 
-	return currentRound.Uint64(), symbols
+	return currentRound.Uint64(), symbols, nil
 }
 
 // Start starts the event loop to handle the on-chain events, we have 3 events to be processed.
@@ -133,22 +147,46 @@ func (dp *DataReporter) Start() {
 			}
 		case symbols := <-dp.chSymbolsEvent:
 			dp.handleNewSymbols(symbols.Symbols)
+		case <-dp.liveTicker.C:
+			dp.checkHealth()
 		}
 	}
 }
 
-func (dp *DataReporter) isCommitteeMember() bool {
+// get the latest chain height at the L1 autonity node, if it encounters any failure, do the connection rebuilding.
+func (dp *DataReporter) checkHealth() {
+
+	height, err := dp.client.BlockNumber(context.Background())
+	if err == nil {
+		dp.logger.Info("L1 autonity client health check is okay!", "height", height)
+		return
+	}
+
+	// release the legacy resources.
+	dp.client.Close()
+	dp.subRoundEvent.Unsubscribe()
+	dp.subSymbolsEvent.Unsubscribe()
+
+	// rebuild the connection with autonity L1 node.
+	err = dp.buildConnection()
+	if err != nil {
+		dp.logger.Info("rebuilding connectivity with autonity L1 node", "error", err)
+	}
+	return
+}
+
+func (dp *DataReporter) isCommitteeMember() (bool, error) {
 	committee, err := dp.oracleContract.GetCommittee(nil)
 	if err != nil {
-		return false
+		return false, err
 	}
 
 	for _, c := range committee {
 		if c == dp.validatorAccount {
-			return true
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 func (dp *DataReporter) handleRoundChange(newRound uint64) error {
@@ -160,11 +198,16 @@ func (dp *DataReporter) handleRoundChange(newRound uint64) error {
 		return err
 	}
 	if sync != nil {
-		return fmt.Errorf("the autonity client is on peer sync")
+		return ErrPeerOnSync
 	}
 
 	// if client is not a committee member, just skip reporting.
-	if !dp.isCommitteeMember() {
+	isCommittee, err := dp.isCommitteeMember()
+	if err != nil {
+		return err
+	}
+
+	if !isCommittee {
 		return nil
 	}
 
@@ -234,6 +277,9 @@ func (dp *DataReporter) doReport(commitment common.Hash, lastRoundData *types.Ro
 		}
 	}
 
+	// append the salt at the end of the slice, to reveal the report.
+	votes = append(votes, lastRoundData.Salt)
+
 	tx, err := dp.oracleContract.Vote(auth, new(big.Int).SetBytes(commitment.Bytes()), votes)
 	if err != nil {
 		return tx, err
@@ -263,6 +309,8 @@ func (dp *DataReporter) computeCommitment(prices types.PriceBySymbol) *types.Rou
 }
 
 func (dp *DataReporter) handleNewSymbols(symbols []string) {
+	dp.logger.Info("handleNewSymbols", "symbols", symbols)
+	dp.currentSymbols = symbols
 	dp.oracleService.UpdateSymbols(symbols)
 }
 
@@ -270,4 +318,5 @@ func (dp *DataReporter) Stop() {
 	dp.client.Close()
 	dp.subRoundEvent.Unsubscribe()
 	dp.subSymbolsEvent.Unsubscribe()
+	dp.liveTicker.Stop()
 }
