@@ -230,14 +230,13 @@ func (dp *DataReporter) handleRoundChange(newRound uint64) error {
 		return err
 	}
 
-	//todo, if there is prices not available, shall we wait for a while(10s) until we get the all the prices to be ready.
 	prices := dp.oracleService.GetPricesBySymbols(symbols)
 	curRoundData := dp.computeCommitment(prices)
 
 	// query last round's prices, its random salt which will reveal last round's report.
 	lastRoundData, ok := dp.roundData[newRound-1]
 	if !ok {
-		dp.logger.Info("Cannot find last round's data")
+		dp.logger.Info("Cannot find last round's data, oracle will just report current round commitment hash.")
 	}
 
 	// prepare the transaction which carry current round's commitment, and last round's data.
@@ -279,6 +278,11 @@ func (dp *DataReporter) doReport(commitment common.Hash, lastRoundData *types.Ro
 	auth.GasLimit = uint64(3000000)
 	auth.GasPrice = gasPrice
 
+	// if there is no last round data, then we just submit the commitment hash of current round.
+	if lastRoundData == nil {
+		return dp.oracleContract.Vote(auth, new(big.Int).SetBytes(commitment.Bytes()), nil)
+	}
+
 	noPrice := big.NewInt(0)
 	var votes []*big.Int
 	for _, s := range symbols {
@@ -294,12 +298,7 @@ func (dp *DataReporter) doReport(commitment common.Hash, lastRoundData *types.Ro
 	// append the salt at the end of the slice, to reveal the report.
 	votes = append(votes, lastRoundData.Salt)
 
-	tx, err := dp.oracleContract.Vote(auth, new(big.Int).SetBytes(commitment.Bytes()), votes)
-	if err != nil {
-		return tx, err
-	}
-
-	return tx, nil
+	return dp.oracleContract.Vote(auth, new(big.Int).SetBytes(commitment.Bytes()), votes)
 }
 
 func (dp *DataReporter) computeCommitment(prices types.PriceBySymbol) *types.RoundData {

@@ -118,6 +118,8 @@ func (os *OracleServer) GetPricesBySymbols(symbols []string) types.PriceBySymbol
 	for _, s := range symbols {
 		if p, ok := os.prices[s]; ok {
 			prices[s] = p
+		} else {
+			os.logger.Warn("price not available yet", "symbol", s)
 		}
 	}
 	return prices
