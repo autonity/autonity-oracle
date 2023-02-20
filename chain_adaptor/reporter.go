@@ -8,6 +8,7 @@ import (
 	contract "autonity-oracle/chain_adaptor/contract"
 	"autonity-oracle/types"
 	"context"
+	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
@@ -61,8 +62,6 @@ func NewDataReporter(ws string, key *keystore.Key, validatorAccount common.Addre
 	if len(curSymbols) > 0 {
 		symbolsWriter.UpdateSymbols(curSymbols)
 	}
-
-	// todo: watch the vote accepted event to let the client to know their reporting is accepted.
 
 	// subscribe on-chain round rotation event
 	chanRoundEvent := make(chan *contract.OracleUpdatedRound)
@@ -154,7 +153,16 @@ func (dp *DataReporter) isCommitteeMember() bool {
 
 func (dp *DataReporter) handleRoundChange(newRound uint64) error {
 	dp.currentRound = newRound
-	// todo, if the autonity node is on peer synchronization state, just skip the reporting.
+
+	// if the autonity node is on peer synchronization state, just skip the reporting.
+	sync, err := dp.client.SyncProgress(context.Background())
+	if err != nil {
+		return err
+	}
+	if sync != nil {
+		return fmt.Errorf("the autonity client is on peer sync")
+	}
+
 	// if client is not a committee member, just skip reporting.
 	if !dp.isCommitteeMember() {
 		return nil
