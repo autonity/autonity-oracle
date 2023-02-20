@@ -30,6 +30,7 @@ var ContractAddress = crypto.CreateAddress(Deployer, 1)
 var PricePrecision = decimal.RequireFromString("1000000000")
 
 var ErrPeerOnSync = errors.New("l1 node is on peer sync")
+var ErrNoAvailablePrice = errors.New("no available prices collected yet")
 var HealthCheckerInterval = 2 * time.Minute // ws connectivity checker interval.
 
 const MaxBufferedRounds = 10
@@ -231,6 +232,9 @@ func (dp *DataReporter) handleRoundChange(newRound uint64) error {
 	}
 
 	prices := dp.oracleService.GetPricesBySymbols(symbols)
+	if len(prices) == 0 {
+		return ErrNoAvailablePrice
+	}
 	curRoundData := dp.computeCommitment(prices)
 
 	// query last round's prices, its random salt which will reveal last round's report.

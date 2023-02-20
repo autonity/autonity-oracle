@@ -38,6 +38,7 @@ type OracleServer struct {
 	discoveryTicker *time.Ticker
 
 	pluginDIR         string                       // the dir saves the plugins.
+	lockSymbols       sync.RWMutex                 // mutex to prevent the race condition between symbols writer and reader routine.
 	symbols           []string                     // the symbols for data fetching in oracle service.
 	aggregator        types.Aggregator             // the price aggregator once we have multiple data providers.
 	priceProviderPool *pricepool.PriceProviderPool // the price pool organized by plugin_wrapper and by symbols
@@ -84,12 +85,14 @@ func (os *OracleServer) Version() string {
 }
 
 func (os *OracleServer) UpdateSymbols(symbols []string) {
-	// todo: maintain the most extensive symbols that could be fetch by oracle service,
-	//  if there is a symbol with no data, do the fetching at once?
+	os.lockSymbols.Lock()
+	defer os.lockSymbols.Unlock()
 	os.symbols = symbols
 }
 
 func (os *OracleServer) Symbols() []string {
+	os.lockSymbols.RLock()
+	defer os.lockSymbols.RUnlock()
 	return os.symbols
 }
 
@@ -115,9 +118,15 @@ func (os *OracleServer) GetPricesBySymbols(symbols []string) types.PriceBySymbol
 	os.lockPrices.RLock()
 	defer os.lockPrices.RUnlock()
 	prices := make(types.PriceBySymbol)
+	now := time.Now().UnixMilli()
 	for _, s := range symbols {
 		if p, ok := os.prices[s]; ok {
-			prices[s] = p
+			// only those price collected within 3 minutes are valid to be exposed.
+			if now-p.Timestamp < int64(ValidDataAge) && now >= p.Timestamp {
+				prices[s] = p
+			} else {
+				os.logger.Warn("price is out of update", "symbol", s)
+			}
 		} else {
 			os.logger.Warn("price not available yet", "symbol", s)
 		}
@@ -131,12 +140,12 @@ func (os *OracleServer) UpdatePrice(price types.Price) {
 	os.prices[price.Symbol] = price
 }
 
-func (os *OracleServer) UpdatePrices() {
+func (os *OracleServer) UpdatePrices(symbols []string) {
 	wg := &errgroup.Group{}
 	for _, p := range os.pluginClients {
 		plugin := p
 		wg.Go(func() error {
-			return plugin.FetchPrices(os.symbols)
+			return plugin.FetchPrices(symbols)
 		})
 	}
 	err := wg.Wait()
@@ -146,7 +155,7 @@ func (os *OracleServer) UpdatePrices() {
 
 	now := time.Now().UnixMilli()
 
-	for _, s := range os.symbols {
+	for _, s := range symbols {
 		var prices []decimal.Decimal
 		for _, plugin := range os.pluginClients {
 			p, err := os.priceProviderPool.GetPriceProvider(plugin.Name()).GetPrice(s)
@@ -203,7 +212,7 @@ func (os *OracleServer) Start() {
 		case <-os.discoveryTicker.C:
 			os.PluginRuntimeDiscovery()
 		case <-os.jobTicker.C:
-			os.UpdatePrices()
+			os.UpdatePrices(os.Symbols())
 		}
 	}
 }
