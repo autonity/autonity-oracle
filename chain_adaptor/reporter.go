@@ -30,7 +30,9 @@ var ContractAddress = crypto.CreateAddress(Deployer, 1)
 var PricePrecision = decimal.RequireFromString("1000000000")
 
 var ErrPeerOnSync = errors.New("l1 node is on peer sync")
-var HealthCheckerInterval = 2 * time.Millisecond // ws liveness checker interval.
+var HealthCheckerInterval = 2 * time.Minute // ws liveness checker interval.
+
+const MaxBufferedRounds = 10
 
 type DataReporter struct {
 	logger           hclog.Logger
@@ -149,6 +151,18 @@ func (dp *DataReporter) Start() {
 			dp.handleNewSymbols(symbols.Symbols)
 		case <-dp.liveTicker.C:
 			dp.checkHealth()
+			dp.gcRoundData()
+		}
+	}
+}
+
+func (dp *DataReporter) gcRoundData() {
+	if len(dp.roundData) >= MaxBufferedRounds {
+		offset := dp.currentRound - MaxBufferedRounds
+		for k, _ := range dp.roundData {
+			if k < offset {
+				delete(dp.roundData, k)
+			}
 		}
 	}
 }
@@ -162,7 +176,7 @@ func (dp *DataReporter) checkHealth() {
 		return
 	}
 
-	// release the legacy resources.
+	// release the legacy resources if the connectivity was lost.
 	dp.client.Close()
 	dp.subRoundEvent.Unsubscribe()
 	dp.subSymbolsEvent.Unsubscribe()
