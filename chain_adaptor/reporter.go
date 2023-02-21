@@ -144,12 +144,12 @@ func (dp *DataReporter) Start() {
 		case err := <-dp.subRoundEvent.Err():
 			dp.logger.Info("reporter routine is shutting down ", err)
 		case round := <-dp.chRoundEvent:
-			err := dp.handleRoundChange(round.Round.Uint64())
+			err := dp.handleRoundChangeEvent(round.Round.Uint64())
 			if err != nil {
 				dp.logger.Error("Handling round change event", "err", err.Error())
 			}
 		case symbols := <-dp.chSymbolsEvent:
-			dp.handleNewSymbols(symbols.Symbols)
+			dp.handleNewSymbolsEvent(symbols.Symbols)
 		case <-dp.liveTicker.C:
 			dp.checkHealth()
 			dp.gcRoundData()
@@ -203,7 +203,7 @@ func (dp *DataReporter) isCommitteeMember() (bool, error) {
 	return false, nil
 }
 
-func (dp *DataReporter) handleRoundChange(newRound uint64) error {
+func (dp *DataReporter) handleRoundChangeEvent(newRound uint64) error {
 	dp.currentRound = newRound
 
 	// if the autonity node is on peer synchronization state, just skip the reporting.
@@ -242,7 +242,7 @@ func (dp *DataReporter) handleRoundChange(newRound uint64) error {
 		return err
 	}
 
-	// save current round's commitment, prices and the random salt.
+	// save current round data.
 	dp.roundData[newRound] = curRoundData
 	return nil
 }
@@ -333,8 +333,8 @@ func (dp *DataReporter) buildRoundData() (*types.RoundData, error) {
 	return roundData, nil
 }
 
-func (dp *DataReporter) handleNewSymbols(symbols []string) {
-	dp.logger.Info("handleNewSymbols", "symbols", symbols)
+func (dp *DataReporter) handleNewSymbolsEvent(symbols []string) {
+	dp.logger.Info("handleNewSymbolsEvent", "symbols", symbols)
 	dp.currentSymbols = symbols
 	dp.oracleService.UpdateSymbols(symbols)
 }
