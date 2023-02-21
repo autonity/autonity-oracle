@@ -25,7 +25,6 @@ import (
 	"time"
 )
 
-// todo: resolve contract address and price data precision from L1 protocol.
 var Deployer = common.Address{}
 var ContractAddress = crypto.CreateAddress(Deployer, 1)
 var PricePrecision = decimal.RequireFromString("1000000000")
@@ -226,16 +225,10 @@ func (dp *DataReporter) handleRoundChange(newRound uint64) error {
 		return nil
 	}
 
-	symbols, err := dp.oracleContract.GetSymbols(nil)
+	curRoundData, err := dp.buildRoundData()
 	if err != nil {
 		return err
 	}
-
-	prices := dp.oracleService.GetPricesBySymbols(symbols)
-	if len(prices) == 0 {
-		return ErrNoAvailablePrice
-	}
-	curRoundData := dp.computeCommitment(prices)
 
 	// query last round's prices, its random salt which will reveal last round's report.
 	lastRoundData, ok := dp.roundData[newRound-1]
@@ -244,7 +237,7 @@ func (dp *DataReporter) handleRoundChange(newRound uint64) error {
 	}
 
 	// prepare the transaction which carry current round's commitment, and last round's data.
-	curRoundData.Tx, err = dp.doReport(curRoundData.Hash, lastRoundData, symbols)
+	curRoundData.Tx, err = dp.doReport(curRoundData.Hash, lastRoundData)
 	if err != nil {
 		return err
 	}
@@ -254,7 +247,7 @@ func (dp *DataReporter) handleRoundChange(newRound uint64) error {
 	return nil
 }
 
-func (dp *DataReporter) doReport(commitment common.Hash, lastRoundData *types.RoundData, symbols []string) (*tp.Transaction, error) {
+func (dp *DataReporter) doReport(curRndCommitHash common.Hash, lastRoundData *types.RoundData) (*tp.Transaction, error) {
 	from := dp.key.Address
 
 	nonce, err := dp.client.PendingNonceAt(context.Background(), from)
@@ -282,14 +275,14 @@ func (dp *DataReporter) doReport(commitment common.Hash, lastRoundData *types.Ro
 	auth.GasLimit = uint64(3000000)
 	auth.GasPrice = gasPrice
 
-	// if there is no last round data, then we just submit the commitment hash of current round.
+	// if there is no last round data, then we just submit the curRndCommitHash hash of current round.
 	if lastRoundData == nil {
-		return dp.oracleContract.Vote(auth, new(big.Int).SetBytes(commitment.Bytes()), nil)
+		return dp.oracleContract.Vote(auth, new(big.Int).SetBytes(curRndCommitHash.Bytes()), nil)
 	}
 
 	noPrice := big.NewInt(0)
 	var votes []*big.Int
-	for _, s := range symbols {
+	for _, s := range lastRoundData.Symbols {
 		_, ok := lastRoundData.Prices[s]
 		if !ok {
 			votes = append(votes, noPrice)
@@ -302,28 +295,42 @@ func (dp *DataReporter) doReport(commitment common.Hash, lastRoundData *types.Ro
 	// append the salt at the end of the slice, to reveal the report.
 	votes = append(votes, lastRoundData.Salt)
 
-	return dp.oracleContract.Vote(auth, new(big.Int).SetBytes(commitment.Bytes()), votes)
+	return dp.oracleContract.Vote(auth, new(big.Int).SetBytes(curRndCommitHash.Bytes()), votes)
 }
 
-// todo: resolve the way we compute the commitment hash with oracle protocol contract.
-func (dp *DataReporter) computeCommitment(prices types.PriceBySymbol) *types.RoundData {
+func (dp *DataReporter) buildRoundData() (*types.RoundData, error) {
+	// get symbols of the latest round.
+	symbols, err := dp.oracleContract.GetSymbols(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	prices := dp.oracleService.GetPricesBySymbols(symbols)
+	if len(prices) == 0 {
+		return nil, ErrNoAvailablePrice
+	}
+
 	seed := time.Now().UnixNano()
 	var roundData = &types.RoundData{
-		Salt:   new(big.Int).SetUint64(rand.New(rand.NewSource(seed)).Uint64()), // nolint
-		Hash:   common.Hash{},
-		Prices: prices,
+		Symbols: symbols,
+		Salt:    new(big.Int).SetUint64(rand.New(rand.NewSource(seed)).Uint64()), // nolint
+		Hash:    common.Hash{},
+		Prices:  prices,
 	}
 
-	salt := roundData.Salt
-	sum := salt
-
-	for _, p := range roundData.Prices {
-		pr := p
-		sum.Add(sum, pr.Price.Mul(PricePrecision).BigInt())
+	var source []byte
+	noPrice := new(big.Int).SetUint64(0)
+	for _, s := range symbols {
+		if pr, ok := roundData.Prices[s]; ok {
+			source = append(source, common.LeftPadBytes(pr.Price.Mul(PricePrecision).BigInt().Bytes(), 32)...)
+		} else {
+			source = append(source, common.LeftPadBytes(noPrice.Bytes(), 32)...)
+		}
 	}
-
-	roundData.Hash = crypto.Keccak256Hash(sum.FillBytes(make([]byte, 32)))
-	return roundData
+	// append the salt at the tail of votes
+	source = append(source, common.LeftPadBytes(roundData.Salt.Bytes(), 32)...)
+	roundData.Hash = crypto.Keccak256Hash(source)
+	return roundData, nil
 }
 
 func (dp *DataReporter) handleNewSymbols(symbols []string) {

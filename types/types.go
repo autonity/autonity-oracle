@@ -44,10 +44,11 @@ type Price struct {
 type PriceBySymbol map[string]Price
 
 type RoundData struct {
-	Tx     *types.Transaction
-	Salt   *big.Int
-	Hash   common.Hash
-	Prices PriceBySymbol
+	Tx      *types.Transaction
+	Salt    *big.Int
+	Hash    common.Hash
+	Prices  PriceBySymbol
+	Symbols []string
 }
 
 // Plugin list the information of the running plugins in oracle service.
