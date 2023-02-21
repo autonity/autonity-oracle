@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/namsral/flag"
-	"io/ioutil"
+	"io/ioutil" //nolint
 )
 
 var (

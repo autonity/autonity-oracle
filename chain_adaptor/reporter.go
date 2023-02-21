@@ -25,6 +25,7 @@ import (
 	"time"
 )
 
+// todo: resolve contract address and price data precision from L1 protocol.
 var Deployer = common.Address{}
 var ContractAddress = crypto.CreateAddress(Deployer, 1)
 var PricePrecision = decimal.RequireFromString("1000000000")
@@ -168,9 +169,9 @@ func (dp *DataReporter) gcRoundData() {
 	}
 }
 
-// get the latest chain height at the L1 autonity node, if it encounters any failure, do the connection rebuilding.
 func (dp *DataReporter) checkHealth() {
 
+	// get the latest chain height at the L1 autonity node, if it encounters any failure, do the connection rebuilding.
 	height, err := dp.client.BlockNumber(context.Background())
 	if err == nil {
 		dp.logger.Info("L1 autonity client health check is okay!", "height", height)
@@ -187,7 +188,6 @@ func (dp *DataReporter) checkHealth() {
 	if err != nil {
 		dp.logger.Info("rebuilding connectivity with autonity L1 node", "error", err)
 	}
-	return
 }
 
 func (dp *DataReporter) isCommitteeMember() (bool, error) {
@@ -305,9 +305,11 @@ func (dp *DataReporter) doReport(commitment common.Hash, lastRoundData *types.Ro
 	return dp.oracleContract.Vote(auth, new(big.Int).SetBytes(commitment.Bytes()), votes)
 }
 
+// todo: resolve the way we compute the commitment hash with oracle protocol contract.
 func (dp *DataReporter) computeCommitment(prices types.PriceBySymbol) *types.RoundData {
+	seed := time.Now().UnixNano()
 	var roundData = &types.RoundData{
-		Salt:   new(big.Int).SetUint64(rand.Uint64()),
+		Salt:   new(big.Int).SetUint64(rand.New(rand.NewSource(seed)).Uint64()), // nolint
 		Hash:   common.Hash{},
 		Prices: prices,
 	}
