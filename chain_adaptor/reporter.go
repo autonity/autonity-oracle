@@ -37,7 +37,7 @@ const MaxBufferedRounds = 10
 
 type DataReporter struct {
 	logger           hclog.Logger
-	oracleContract   *contract.Oracle
+	oracleContract   contract.ContractAPI
 	client           *ethclient.Client
 	autonityWSUrl    string
 	currentRound     uint64
@@ -63,12 +63,6 @@ func NewDataReporter(ws string, key *keystore.Key, validatorAccount common.Addre
 		liveTicker:       time.NewTicker(HealthCheckerInterval),
 	}
 
-	err := dp.buildConnection()
-	if err != nil {
-		// stop the client on start up once the remote endpoint of autonity L1 network is not ready.
-		panic(err)
-	}
-
 	dp.logger = hclog.New(&hclog.LoggerOptions{
 		Name:   reflect2.TypeOfPtr(dp).String(),
 		Output: os.Stdout,
@@ -88,13 +82,13 @@ func (dp *DataReporter) buildConnection() error {
 	}
 
 	// bind client with oracle contract address
-	oc, err := contract.NewOracle(ContractAddress, dp.client)
+	dp.oracleContract, err = contract.NewOracle(ContractAddress, dp.client)
 	if err != nil {
 		return err
 	}
 
 	// get initial states from on-chain oracle contract.
-	dp.currentRound, dp.currentSymbols, err = getStartingStates(oc)
+	dp.currentRound, dp.currentSymbols, err = getStartingStates(dp.oracleContract)
 	if err != nil {
 		return err
 	}
@@ -105,14 +99,14 @@ func (dp *DataReporter) buildConnection() error {
 
 	// subscribe on-chain round rotation event
 	dp.chRoundEvent = make(chan *contract.OracleUpdatedRound)
-	dp.subRoundEvent, err = oc.WatchUpdatedRound(new(bind.WatchOpts), dp.chRoundEvent)
+	dp.subRoundEvent, err = dp.oracleContract.WatchUpdatedRound(new(bind.WatchOpts), dp.chRoundEvent)
 	if err != nil {
 		return err
 	}
 
 	// subscribe on-chain symbol update event
 	dp.chSymbolsEvent = make(chan *contract.OracleUpdatedSymbols)
-	dp.subSymbolsEvent, err = oc.WatchUpdatedSymbols(new(bind.WatchOpts), dp.chSymbolsEvent)
+	dp.subSymbolsEvent, err = dp.oracleContract.WatchUpdatedSymbols(new(bind.WatchOpts), dp.chSymbolsEvent)
 	if err != nil {
 		return err
 	}
@@ -120,7 +114,7 @@ func (dp *DataReporter) buildConnection() error {
 }
 
 // getStartingStates returns round id, symbols and committees on current chain, it is called on the startup of client.
-func getStartingStates(oc *contract.Oracle) (uint64, []string, error) {
+func getStartingStates(oc contract.ContractAPI) (uint64, []string, error) {
 	// on the startup, we need to sync the round id, symbols and committees from contract.
 	currentRound, err := oc.GetRound(nil)
 	if err != nil {
@@ -137,6 +131,12 @@ func getStartingStates(oc *contract.Oracle) (uint64, []string, error) {
 
 // Start starts the event loop to handle the on-chain events, we have 3 events to be processed.
 func (dp *DataReporter) Start() {
+	err := dp.buildConnection()
+	if err != nil {
+		// stop the client on start up once the remote endpoint of autonity L1 network is not ready.
+		panic(err)
+	}
+
 	for {
 		select {
 		case err := <-dp.subSymbolsEvent.Err():
@@ -161,7 +161,7 @@ func (dp *DataReporter) gcRoundData() {
 	if len(dp.roundData) >= MaxBufferedRounds {
 		offset := dp.currentRound - MaxBufferedRounds
 		for k := range dp.roundData {
-			if k < offset {
+			if k <= offset {
 				delete(dp.roundData, k)
 			}
 		}
