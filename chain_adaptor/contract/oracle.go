@@ -589,23 +589,23 @@ func (_Oracle *OracleTransactorSession) SetSymbols(_symbols []string) (*types.Tr
 
 // Vote is a paid mutator transaction binding the contract method 0x94803508.
 //
-// Solidity: function vote(uint256 _commit, int256[] _prevotes) returns()
-func (_Oracle *OracleTransactor) Vote(opts *bind.TransactOpts, _commit *big.Int, _prevotes []*big.Int) (*types.Transaction, error) {
-	return _Oracle.contract.Transact(opts, "vote", _commit, _prevotes)
+// Solidity: function vote(uint256 _commit, int256[] _prevotes, uint256 _salt) returns()
+func (_Oracle *OracleTransactor) Vote(opts *bind.TransactOpts, _commit *big.Int, _prevotes []*big.Int, _salt *big.Int) (*types.Transaction, error) {
+	return _Oracle.contract.Transact(opts, "vote", _commit, _prevotes, _salt)
 }
 
 // Vote is a paid mutator transaction binding the contract method 0x94803508.
 //
-// Solidity: function vote(uint256 _commit, int256[] _prevotes) returns()
-func (_Oracle *OracleSession) Vote(_commit *big.Int, _prevotes []*big.Int) (*types.Transaction, error) {
-	return _Oracle.Contract.Vote(&_Oracle.TransactOpts, _commit, _prevotes)
+// Solidity: function vote(uint256 _commit, int256[] _prevotes, uint256 _salt) returns()
+func (_Oracle *OracleSession) Vote(_commit *big.Int, _prevotes []*big.Int, _salt *big.Int) (*types.Transaction, error) {
+	return _Oracle.Contract.Vote(&_Oracle.TransactOpts, _commit, _prevotes, _salt)
 }
 
 // Vote is a paid mutator transaction binding the contract method 0x94803508.
 //
-// Solidity: function vote(uint256 _commit, int256[] _prevotes) returns()
-func (_Oracle *OracleTransactorSession) Vote(_commit *big.Int, _prevotes []*big.Int) (*types.Transaction, error) {
-	return _Oracle.Contract.Vote(&_Oracle.TransactOpts, _commit, _prevotes)
+// Solidity: function vote(uint256 _commit, int256[] _prevotes, uint256 _salt) returns()
+func (_Oracle *OracleTransactorSession) Vote(_commit *big.Int, _prevotes []*big.Int, _salt *big.Int) (*types.Transaction, error) {
+	return _Oracle.Contract.Vote(&_Oracle.TransactOpts, _commit, _prevotes, _salt)
 }
 
 // OracleUpdatedCommitteeIterator is returned from FilterUpdatedCommittee and is used to iterate over the raw logs and unpacked data for UpdatedCommittee events raised by the Oracle contract.

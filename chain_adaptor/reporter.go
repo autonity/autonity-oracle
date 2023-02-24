@@ -277,7 +277,7 @@ func (dp *DataReporter) doReport(curRndCommitHash common.Hash, lastRoundData *ty
 
 	// if there is no last round data, then we just submit the curRndCommitHash hash of current round.
 	if lastRoundData == nil {
-		return dp.oracleContract.Vote(auth, new(big.Int).SetBytes(curRndCommitHash.Bytes()), nil)
+		return dp.oracleContract.Vote(auth, new(big.Int).SetBytes(curRndCommitHash.Bytes()), nil, nil)
 	}
 
 	noPrice := big.NewInt(0)
@@ -292,10 +292,7 @@ func (dp *DataReporter) doReport(curRndCommitHash common.Hash, lastRoundData *ty
 		}
 	}
 
-	// append the salt at the end of the slice, to reveal the report.
-	votes = append(votes, lastRoundData.Salt)
-
-	return dp.oracleContract.Vote(auth, new(big.Int).SetBytes(curRndCommitHash.Bytes()), votes)
+	return dp.oracleContract.Vote(auth, new(big.Int).SetBytes(curRndCommitHash.Bytes()), votes, lastRoundData.Salt)
 }
 
 func (dp *DataReporter) buildRoundData() (*types.RoundData, error) {
