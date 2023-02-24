@@ -221,19 +221,30 @@ func (dp *DataReporter) handleRoundChangeEvent(newRound uint64) error {
 		return err
 	}
 
-	if !isCommittee {
-		return nil
-	}
-
-	curRoundData, err := dp.buildRoundData()
-	if err != nil {
-		return err
-	}
-
 	// query last round's prices, its random salt which will reveal last round's report.
 	lastRoundData, ok := dp.roundData[newRound-1]
 	if !ok {
 		dp.logger.Info("Cannot find last round's data, oracle will just report current round commitment hash.")
+	}
+
+	// if node is no longer a validator, and it doesn't have last round data, skip reporting.
+	if !isCommittee && !ok {
+		return nil
+	}
+
+	if isCommittee {
+		// report with last round data and with current round commitment hash.
+		return dp.reportWithCommitment(newRound, lastRoundData)
+	}
+
+	// report with last round data but without current round commitment.
+	return dp.reportWithoutCommitment(lastRoundData)
+}
+
+func (dp *DataReporter) reportWithCommitment(newRound uint64, lastRoundData *types.RoundData) error {
+	curRoundData, err := dp.buildRoundData()
+	if err != nil {
+		return err
 	}
 
 	// prepare the transaction which carry current round's commitment, and last round's data.
@@ -244,6 +255,17 @@ func (dp *DataReporter) handleRoundChangeEvent(newRound uint64) error {
 
 	// save current round data.
 	dp.roundData[newRound] = curRoundData
+	return nil
+}
+
+// report with last round data but without current round commitment.
+func (dp *DataReporter) reportWithoutCommitment(lastRoundData *types.RoundData) error {
+
+	_, err := dp.doReport(common.Hash{}, lastRoundData)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
