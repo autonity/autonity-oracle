@@ -63,6 +63,12 @@ func NewDataReporter(ws string, key *keystore.Key, validatorAccount common.Addre
 		liveTicker:       time.NewTicker(HealthCheckerInterval),
 	}
 
+	err := dp.buildConnection()
+	if err != nil {
+		// stop the client on start up once the remote endpoint of autonity L1 network is not ready.
+		panic(err)
+	}
+
 	dp.logger = hclog.New(&hclog.LoggerOptions{
 		Name:   reflect2.TypeOfPtr(dp).String(),
 		Output: os.Stdout,
@@ -131,12 +137,6 @@ func getStartingStates(oc contract.ContractAPI) (uint64, []string, error) {
 
 // Start starts the event loop to handle the on-chain events, we have 3 events to be processed.
 func (dp *DataReporter) Start() {
-	err := dp.buildConnection()
-	if err != nil {
-		// stop the client on start up once the remote endpoint of autonity L1 network is not ready.
-		panic(err)
-	}
-
 	for {
 		select {
 		case err := <-dp.subSymbolsEvent.Err():

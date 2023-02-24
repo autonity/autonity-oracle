@@ -85,18 +85,18 @@ func (mr *MockContractAPIMockRecorder) GetSymbols(opts interface{}) *gomock.Call
 }
 
 // Vote mocks base method.
-func (m *MockContractAPI) Vote(opts *bind.TransactOpts, _commit *big.Int, _prevotes []*big.Int) (*types.Transaction, error) {
+func (m *MockContractAPI) Vote(opts *bind.TransactOpts, _commit *big.Int, _prevotes []*big.Int, _salt *big.Int) (*types.Transaction, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Vote", opts, _commit, _prevotes)
+	ret := m.ctrl.Call(m, "Vote", opts, _commit, _prevotes, _salt)
 	ret0, _ := ret[0].(*types.Transaction)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Vote indicates an expected call of Vote.
-func (mr *MockContractAPIMockRecorder) Vote(opts, _commit, _prevotes interface{}) *gomock.Call {
+func (mr *MockContractAPIMockRecorder) Vote(opts, _commit, _prevotes, _salt interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Vote", reflect.TypeOf((*MockContractAPI)(nil).Vote), opts, _commit, _prevotes)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Vote", reflect.TypeOf((*MockContractAPI)(nil).Vote), opts, _commit, _prevotes, _salt)
 }
 
 // WatchUpdatedCommittee mocks base method.
