@@ -58,4 +58,7 @@ dep:
 lint:
 	@./.github/tools/golangci-lint run --config ./.golangci.yml
 
+mock:
+	mockgen -source=chain_adaptor/contract/interface.go > chain_adaptor/contract/mock/contract_mock.go
+
 all: autoracle test test-coverage lint e2e-test
