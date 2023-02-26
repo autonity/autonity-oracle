@@ -15,7 +15,7 @@ type FakePlugin struct {
 	logger hclog.Logger
 }
 
-func (g *FakePlugin) FetchPrices(symbols []string) ([]types.Price, error) {
+func (g *FakePlugin) FetchPrices(symbols []string) ([]types.Price, []string, error) {
 	g.logger.Debug("receive request from oracle service, send data response")
 	var prices []types.Price
 	for _, s := range symbols {
@@ -27,7 +27,7 @@ func (g *FakePlugin) FetchPrices(symbols []string) ([]types.Price, error) {
 		prices = append(prices, p)
 	}
 	g.logger.Debug("", prices)
-	return prices, nil
+	return prices, nil, nil
 }
 
 func (g *FakePlugin) GetVersion() (string, error) {

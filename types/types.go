@@ -21,7 +21,7 @@ type PricePool interface {
 	AddPrices(prices []Price)
 }
 
-type PluginClient interface {
+type PluginWrapper interface {
 	Name() string
 	Version() string
 	FetchPrices(symbols []string) error

@@ -56,11 +56,14 @@ func (bs *BinanceSimulatorHTTPServer) createRouter() *gin.Engine {
 	router.GET("/api/v3/ticker/price", func(c *gin.Context) {
 		s := c.Query("symbols")
 		var symbols []string
-		if err := json.Unmarshal([]byte(s), &symbols); err != nil {
-			c.JSON(http.StatusBadRequest, types2.BadRequest{
-				Code: 400,
-				Msg:  "Invalid parameters",
-			})
+
+		if s != "" {
+			if err := json.Unmarshal([]byte(s), &symbols); err != nil {
+				c.JSON(http.StatusBadRequest, types2.BadRequest{
+					Code: 400,
+					Msg:  "Invalid parameters",
+				})
+			}
 		}
 
 		prices, err := bs.generators.GetSymbolPrice(symbols)

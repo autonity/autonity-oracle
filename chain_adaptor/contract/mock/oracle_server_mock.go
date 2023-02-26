@@ -101,7 +101,7 @@ func (mr *MockPricePoolMockRecorder) AddPrices(prices interface{}) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddPrices", reflect.TypeOf((*MockPricePool)(nil).AddPrices), prices)
 }
 
-// MockPluginClient is a mock of PluginClient interface.
+// MockPluginClient is a mock of PluginWrapper interface.
 type MockPluginClient struct {
 	ctrl     *gomock.Controller
 	recorder *MockPluginClientMockRecorder

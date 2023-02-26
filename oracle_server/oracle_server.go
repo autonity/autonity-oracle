@@ -43,7 +43,7 @@ type OracleServer struct {
 	aggregator        types.Aggregator             // the price aggregator once we have multiple data providers.
 	priceProviderPool *pricepool.PriceProviderPool // the price pool organized by plugin_wrapper and by symbols
 
-	pluginClients map[string]types.PluginClient // the plugin clients that connect with different adapters.
+	pluginWrappers map[string]types.PluginWrapper // the plugin clients that connect with different adapters.
 }
 
 func NewOracleServer(symbols []string, pluginDir string) *OracleServer {
@@ -53,7 +53,7 @@ func NewOracleServer(symbols []string, pluginDir string) *OracleServer {
 		pluginDIR:         pluginDir,
 		prices:            make(types.PriceBySymbol),
 		plugins:           make(types.PluginByName),
-		pluginClients:     make(map[string]types.PluginClient),
+		pluginWrappers:    make(map[string]types.PluginWrapper),
 		doneCh:            make(chan struct{}),
 		jobTicker:         time.NewTicker(UpdateInterval),
 		discoveryTicker:   time.NewTicker(PluginDiscoveryInterval),
@@ -142,7 +142,7 @@ func (os *OracleServer) UpdatePrice(price types.Price) {
 
 func (os *OracleServer) UpdatePrices(symbols []string) {
 	wg := &errgroup.Group{}
-	for _, p := range os.pluginClients {
+	for _, p := range os.pluginWrappers {
 		plugin := p
 		wg.Go(func() error {
 			return plugin.FetchPrices(symbols)
@@ -157,7 +157,7 @@ func (os *OracleServer) UpdatePrices(symbols []string) {
 
 	for _, s := range symbols {
 		var prices []decimal.Decimal
-		for _, plugin := range os.pluginClients {
+		for _, plugin := range os.pluginWrappers {
 			p, err := os.priceProviderPool.GetPriceProvider(plugin.Name()).GetPrice(s)
 			if err != nil {
 				continue
@@ -193,14 +193,14 @@ func (os *OracleServer) UpdatePrices(symbols []string) {
 
 func (os *OracleServer) Stop() {
 	os.doneCh <- struct{}{}
-	for _, c := range os.pluginClients {
+	for _, c := range os.pluginWrappers {
 		p := c
 		p.Close()
 	}
 }
 
 func (os *OracleServer) Start() {
-	// start the ticker job to fetch prices for all the symbols from all pluginClients on every 10s.
+	// start the ticker job to fetch prices for all the symbols from all pluginWrappers on every 10s.
 	// start the ticker jot to discover plugins on every 2s.
 	for {
 		select {
@@ -221,7 +221,7 @@ func (os *OracleServer) PluginRuntimeDiscovery() {
 	binaries := os.listPluginDIR()
 
 	for _, file := range binaries {
-		plugin, ok := os.pluginClients[file.Name()]
+		plugin, ok := os.pluginWrappers[file.Name()]
 		if !ok {
 			os.logger.Info("** New plugin discovered, going to setup it: ", file.Name(), file.Mode().String())
 			os.createPlugin(file.Name())
@@ -233,7 +233,7 @@ func (os *OracleServer) PluginRuntimeDiscovery() {
 			os.logger.Info("*** Replacing legacy plugin with new one: ", file.Name(), file.Mode().String())
 			// stop the legacy plugins process, disconnect rpc connection and release memory.
 			plugin.Close()
-			delete(os.pluginClients, file.Name())
+			delete(os.pluginWrappers, file.Name())
 			os.createPlugin(file.Name())
 			os.logger.Info("*** Finnish the replacement of plugin: ", file.Name())
 		}
@@ -246,15 +246,15 @@ func (os *OracleServer) createPlugin(name string) {
 		pool = os.priceProviderPool.AddPriceProvider(name)
 	}
 
-	pluginClient := cryptoprovider.NewPluginClient(name, os.pluginDIR, pool)
-	pluginClient.Initialize()
+	pluginWrapper := cryptoprovider.NewPluginWrapper(name, os.pluginDIR, pool)
+	pluginWrapper.Initialize()
 
-	os.pluginClients[name] = pluginClient
+	os.pluginWrappers[name] = pluginWrapper
 
-	os.PutPlugin(pluginClient.Name(), types.Plugin{
-		Version: pluginClient.Version(),
-		Name:    pluginClient.Name(),
-		StartAt: pluginClient.StartTime(),
+	os.PutPlugin(pluginWrapper.Name(), types.Plugin{
+		Version: pluginWrapper.Version(),
+		Name:    pluginWrapper.Name(),
+		StartAt: pluginWrapper.StartTime(),
 	})
 }
 

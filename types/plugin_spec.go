@@ -20,7 +20,7 @@ var HandshakeConfig = plugin.HandshakeConfig{
 
 // Adapter is the interface that we're exposing as a plugin.
 type Adapter interface {
-	FetchPrices(symbols []string) ([]Price, error)
+	FetchPrices(symbols []string) ([]Price, []string, error)
 	GetVersion() (string, error)
 }
 
@@ -53,9 +53,10 @@ type AdapterRPCServer struct {
 	Impl Adapter
 }
 
-func (s *AdapterRPCServer) FetchPrices(symbols []string, resp *[]Price) error {
-	prices, err := s.Impl.FetchPrices(symbols)
+func (s *AdapterRPCServer) FetchPrices(symbols []string, resp *[]Price, badSyms *[]string) error {
+	prices, badSymbols, err := s.Impl.FetchPrices(symbols)
 	*resp = prices
+	*badSyms = badSymbols
 	return err
 }
 

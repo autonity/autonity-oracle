@@ -79,7 +79,14 @@ func (gm *RandGeneratorManager) GetSymbolPrice(symbols []string) (types.Prices, 
 	gm.mutex.RLock()
 	defer gm.mutex.RUnlock()
 	var result types.Prices
-	for _, s := range symbols {
+
+	// if no symbols sepcified, return all the symbols' price.
+	syms := symbols
+	if len(symbols) == 0 {
+		syms = gm.symbols
+	}
+
+	for _, s := range syms {
 		if p, ok := gm.prices[s]; !ok {
 			return result, fmt.Errorf("InvalidSymbols")
 		} else {

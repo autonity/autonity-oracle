@@ -58,16 +58,26 @@ func (pm *PlaybookGeneratorManager) GetSymbolPrice(symbols []string) (types.Pric
 	pm.mutex.RLock()
 	defer pm.mutex.RUnlock()
 	var result types.Prices
-	for _, s := range symbols {
-		if p, ok := pm.prices[s]; !ok {
-			return result, fmt.Errorf("InvalidSymbols")
-		} else {
+	if len(symbols) != 0 {
+		for _, s := range symbols {
+			if p, ok := pm.prices[s]; !ok {
+				return result, fmt.Errorf("InvalidSymbols")
+			} else {
+				result = append(result, types.Price{
+					Symbol: s,
+					Price:  p.String(),
+				})
+			}
+		}
+	} else {
+		for s, p := range pm.prices {
 			result = append(result, types.Price{
 				Symbol: s,
 				Price:  p.String(),
 			})
 		}
 	}
+
 	return result, nil
 }
 

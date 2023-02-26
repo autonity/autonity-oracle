@@ -23,7 +23,7 @@ type PluginWrapper struct {
 	logger         hclog.Logger
 }
 
-func NewPluginClient(name string, pluginDir string, pricePool types.PricePool) *PluginWrapper {
+func NewPluginWrapper(name string, pluginDir string, pricePool types.PricePool) *PluginWrapper {
 	// Create an hclog.Logger
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   name,
@@ -140,7 +140,10 @@ func (ba *PluginWrapper) FetchPrices(symbols []string) error {
 	}
 
 	adapter := raw.(types.Adapter)
-	prices, err := adapter.FetchPrices(symbols)
+	prices, badSymbols, err := adapter.FetchPrices(symbols)
+	if len(badSymbols) != 0 {
+		ba.logger.Warn("find bad symbols: ", badSymbols)
+	}
 	if err != nil {
 		return err
 	}
