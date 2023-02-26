@@ -1,7 +1,7 @@
-package chain_adaptor
+package reporter
 
 import (
-	mock_oracle "autonity-oracle/chain_adaptor/contract/mock"
+	mock_oracle "autonity-oracle/reporter/contract/mock"
 	"autonity-oracle/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/golang/mock/gomock"

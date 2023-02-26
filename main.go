@@ -1,10 +1,10 @@
 package main
 
 import (
-	"autonity-oracle/chain_adaptor"
 	"autonity-oracle/config"
 	"autonity-oracle/http_server"
 	"autonity-oracle/oracle_server"
+	"autonity-oracle/reporter"
 	"context"
 	"log"
 	"os"
@@ -25,7 +25,7 @@ func main() { //nolint
 	go oracle.Start()
 	defer oracle.Stop()
 
-	reporter := chain_adaptor.NewDataReporter(conf.AutonityWSUrl, conf.Key, conf.ValidatorAccount, oracle)
+	reporter := reporter.NewDataReporter(conf.AutonityWSUrl, conf.Key, conf.ValidatorAccount, oracle)
 	go reporter.Start()
 	defer reporter.Stop()
 

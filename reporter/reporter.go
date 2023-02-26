@@ -1,11 +1,11 @@
-// Package chain_adaptor implement the client connect to autonity client via web socket, it also implements a data
+// Package reporter implement the client connect to autonity client via web socket, it also implements a data
 // reporting module, which not only construct the oracle contract binder on the start, and discovery the latest symbols from the
 // oracle contract for oracle service, but also subscribe the chain head event, create event handler routine to coordinate
 // the oracle data reporting workflows as well.
-package chain_adaptor
+package reporter
 
 import (
-	contract "autonity-oracle/chain_adaptor/contract"
+	contract "autonity-oracle/reporter/contract"
 	"autonity-oracle/types"
 	"context"
 	"errors"
