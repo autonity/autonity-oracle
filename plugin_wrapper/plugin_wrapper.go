@@ -1,4 +1,4 @@
-package pluginclient
+package pluginwrapper
 
 import (
 	"autonity-oracle/types"
