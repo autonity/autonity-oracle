@@ -9,11 +9,16 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 	"net/http"
+	"os"
 	"testing"
 )
 
 // todo: add tests for http api handlers.
 func TestHttpServerAPIHandlers(t *testing.T) {
+	err := os.Setenv(types.EnvKeyFile, "../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe")
+	require.NoError(t, err)
+	err = os.Setenv(types.EnvKeyFilePASS, "123")
+	require.NoError(t, err)
 	conf := config.MakeConfig()
 	t.Run("test get version", func(t *testing.T) {
 		reqMsg := &types.JSONRPCMessage{

@@ -10,7 +10,15 @@ import (
 	"time"
 )
 
-var SimulatedPrice = decimal.RequireFromString("11.11")
+var (
+	EnvHTTPPort         = "ORACLE_HTTP_PORT"
+	EnvCryptoSymbols    = "ORACLE_CRYPTO_SYMBOLS"
+	EnvPluginDIR        = "ORACLE_PLUGIN_DIR"
+	EnvKeyFile          = "ORACLE_KEY_FILE"
+	EnvKeyFilePASS      = "ORACLE_KEY_PASSWORD"
+	EnvValidatorAccount = "ORACLE_VALIDATOR_ACCOUNT"
+	SimulatedPrice      = decimal.RequireFromString("11.11")
+)
 
 type Aggregator interface {
 	Mean(prices []decimal.Decimal) (decimal.Decimal, error)
