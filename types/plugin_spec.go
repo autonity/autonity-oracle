@@ -20,18 +20,18 @@ var HandshakeConfig = plugin.HandshakeConfig{
 
 // Adapter is the interface that we're exposing as a plugin.
 type Adapter interface {
-	FetchPrices(symbols []string) ([]Price, []string, error)
+	FetchPrices(symbols []string) (PluginPriceReport, error)
 	GetVersion() (string, error)
 }
 
 // AdapterRPCClient is an implementation that talks over RPC client
 type AdapterRPCClient struct{ client *rpc.Client }
 
-func (g *AdapterRPCClient) FetchPrices(symbols []string) ([]Price, error) {
-	var resp []Price
+func (g *AdapterRPCClient) FetchPrices(symbols []string) (PluginPriceReport, error) {
+	var resp PluginPriceReport
 	err := g.client.Call("Plugin.FetchPrices", symbols, &resp)
 	if err != nil {
-		return nil, err
+		return resp, err
 	}
 
 	return resp, nil
@@ -53,10 +53,9 @@ type AdapterRPCServer struct {
 	Impl Adapter
 }
 
-func (s *AdapterRPCServer) FetchPrices(symbols []string, resp *[]Price, badSyms *[]string) error {
-	prices, badSymbols, err := s.Impl.FetchPrices(symbols)
-	*resp = prices
-	*badSyms = badSymbols
+func (s *AdapterRPCServer) FetchPrices(symbols []string, resp *PluginPriceReport) error {
+	report, err := s.Impl.FetchPrices(symbols)
+	*resp = report
 	return err
 }
 

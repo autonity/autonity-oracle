@@ -41,8 +41,10 @@ type Binance struct {
 	client *http.Client
 }
 
-func (g *Binance) FetchPrices(symbols []string) ([]types.Price, []string, error) {
+func (g *Binance) FetchPrices(symbols []string) (types.PluginPriceReport, error) {
 	g.logger.Debug("fetching price for symbols: ", symbols)
+	var report types.PluginPriceReport
+
 	if FetchCounter%SyncSymbolsInterval == 0 {
 		FetchCounter++
 		return g.FetchPricesWithSymbolSync(symbols)
@@ -51,7 +53,7 @@ func (g *Binance) FetchPrices(symbols []string) ([]types.Price, []string, error)
 	goodSym, badSym := resolveSymbols(symbols)
 	parameters, err := json.Marshal(goodSym)
 	if err != nil {
-		return nil, nil, err
+		return report, err
 	}
 
 	if g.client == nil {
@@ -60,7 +62,7 @@ func (g *Binance) FetchPrices(symbols []string) ([]types.Price, []string, error)
 
 	req, err := http.NewRequest(http.MethodGet, BinanceMarketDataURL, nil)
 	if err != nil {
-		return nil, nil, err
+		return report, err
 	}
 
 	req.Header.Set("accept", "application/json")
@@ -72,7 +74,7 @@ func (g *Binance) FetchPrices(symbols []string) ([]types.Price, []string, error)
 
 	resp, err := g.client.Do(req)
 	if err != nil {
-		return nil, nil, err
+		return report, err
 	}
 
 	g.logger.Debug("Get HTTP response status code: ", resp.StatusCode)
@@ -84,17 +86,16 @@ func (g *Binance) FetchPrices(symbols []string) ([]types.Price, []string, error)
 		if resp.StatusCode == http.StatusBadRequest {
 			return g.FetchPricesWithSymbolSync(symbols)
 		}
-		return nil, nil, fmt.Errorf("ErrorCode: %d, msg: %s", resp.StatusCode, msg)
+		return report, fmt.Errorf("ErrorCode: %d, msg: %s", resp.StatusCode, msg)
 	}
 
 	var prices Prices
 	err = json.NewDecoder(resp.Body).Decode(&prices)
 	if err != nil {
-		return nil, nil, err
+		return report, err
 	}
 	g.logger.Debug("data points: ", prices)
 
-	var results []types.Price
 	now := time.Now().UnixMilli()
 	for _, v := range prices {
 		dec, err := decimal.NewFromString(v.Price)
@@ -102,14 +103,15 @@ func (g *Binance) FetchPrices(symbols []string) ([]types.Price, []string, error)
 			g.logger.Error("cannot convert price string to decimal: ", v.Price, err)
 			continue
 		}
-		results = append(results, types.Price{
+		report.Prices = append(report.Prices, types.Price{
 			Timestamp: now,
 			Symbol:    v.Symbol,
 			Price:     dec,
 		})
 	}
+	report.BadSymbols = badSym
 
-	return results, badSym, nil
+	return report, nil
 }
 
 func resolveSymbols(symbols []string) ([]string, []string) {
@@ -127,7 +129,7 @@ func resolveSymbols(symbols []string) ([]string, []string) {
 }
 
 // FetchPricesWithSymbolSync fetch all prices of supported symbols from binance, and filter out invalid symbols.
-func (g *Binance) FetchPricesWithSymbolSync(symbols []string) (retPrices []types.Price, badSymbols []string, e error) {
+func (g *Binance) FetchPricesWithSymbolSync(symbols []string) (report types.PluginPriceReport, e error) {
 	if g.client == nil {
 		g.client = &http.Client{}
 	}
@@ -135,13 +137,13 @@ func (g *Binance) FetchPricesWithSymbolSync(symbols []string) (retPrices []types
 	// without specifying the query parameter, binance will return all its symbols' price.
 	req, err := http.NewRequest(http.MethodGet, BinanceMarketDataURL, nil)
 	if err != nil {
-		return nil, nil, err
+		return report, err
 	}
 	req.Header.Set("accept", "application/json")
 
 	resp, err := g.client.Do(req)
 	if err != nil {
-		return nil, nil, err
+		return report, err
 	}
 
 	g.logger.Debug("Get HTTP response status code: ", resp.StatusCode)
@@ -150,13 +152,13 @@ func (g *Binance) FetchPricesWithSymbolSync(symbols []string) (retPrices []types
 		if resp.StatusCode == http.StatusUnavailableForLegalReasons {
 			msg = DataLegalErr
 		}
-		return nil, nil, fmt.Errorf("ErrorCode: %d, msg: %s", resp.StatusCode, msg)
+		return report, fmt.Errorf("ErrorCode: %d, msg: %s", resp.StatusCode, msg)
 	}
 
 	var prices Prices
 	err = json.NewDecoder(resp.Body).Decode(&prices)
 	if err != nil {
-		return nil, nil, err
+		return report, err
 	}
 
 	now := time.Now().UnixMilli()
@@ -177,13 +179,13 @@ func (g *Binance) FetchPricesWithSymbolSync(symbols []string) (retPrices []types
 	for _, s := range symbols {
 		p, ok := LatestBinanceSymbols[s]
 		if !ok {
-			badSymbols = append(badSymbols, s)
+			report.BadSymbols = append(report.BadSymbols, s)
 		} else {
-			retPrices = append(retPrices, p)
+			report.Prices = append(report.Prices, p)
 		}
 	}
 
-	return retPrices, badSymbols, nil
+	return report, nil
 }
 
 func (g *Binance) GetVersion() (string, error) {
@@ -207,7 +209,7 @@ func main() {
 		logger: logger,
 	}
 
-	_, _, err := adapter.FetchPricesWithSymbolSync(nil)
+	_, err := adapter.FetchPricesWithSymbolSync(nil)
 	if err != nil {
 		logger.Warn("Init symbols failed: ", err)
 	}

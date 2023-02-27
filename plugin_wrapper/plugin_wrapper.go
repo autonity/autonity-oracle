@@ -140,16 +140,16 @@ func (ba *PluginWrapper) FetchPrices(symbols []string) error {
 	}
 
 	adapter := raw.(types.Adapter)
-	prices, badSymbols, err := adapter.FetchPrices(symbols)
-	if len(badSymbols) != 0 {
-		ba.logger.Warn("find bad symbols: ", badSymbols)
+	report, err := adapter.FetchPrices(symbols)
+	if len(report.BadSymbols) != 0 {
+		ba.logger.Warn("find bad symbols: ", report.BadSymbols)
 	}
 	if err != nil {
 		return err
 	}
 
-	if len(prices) > 0 {
-		ba.pricePool.AddPrices(prices)
+	if len(report.Prices) > 0 {
+		ba.pricePool.AddPrices(report.Prices)
 	}
 	return nil
 }

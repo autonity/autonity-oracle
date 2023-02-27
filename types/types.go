@@ -43,6 +43,11 @@ type OracleService interface {
 	GetPricesBySymbols(symbols []string) PriceBySymbol
 }
 
+type PluginPriceReport struct {
+	Prices     []Price
+	BadSymbols []string
+}
+
 type Price struct {
 	Timestamp int64
 	Symbol    string

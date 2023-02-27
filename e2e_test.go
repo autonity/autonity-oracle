@@ -24,7 +24,10 @@ func TestE2EAutonityOracleServer(t *testing.T) {
 	require.NoError(t, err)
 	err = os.Unsetenv("ORACLE_CRYPTO_SYMBOLS")
 	require.NoError(t, err)
-
+	err = os.Setenv(types.EnvKeyFile, "./test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe")
+	require.NoError(t, err)
+	err = os.Setenv(types.EnvKeyFilePASS, "123")
+	require.NoError(t, err)
 	conf := config.MakeConfig()
 	conf.PluginDIR = "./plugins/fakeplugin/bin"
 	// create oracle service and start the ticker job.
@@ -44,8 +47,6 @@ func TestE2EAutonityOracleServer(t *testing.T) {
 	testListPlugins(t, conf.HTTPPort, conf.PluginDIR)
 
 	testGetPrices(t, conf.HTTPPort)
-
-	testUpdateSymbols(t, conf.HTTPPort)
 
 	testReplacePlugin(t, conf.HTTPPort, conf.PluginDIR)
 

@@ -15,19 +15,19 @@ type FakePlugin struct {
 	logger hclog.Logger
 }
 
-func (g *FakePlugin) FetchPrices(symbols []string) ([]types.Price, []string, error) {
+func (g *FakePlugin) FetchPrices(symbols []string) (types.PluginPriceReport, error) {
 	g.logger.Debug("receive request from oracle service, send data response")
-	var prices []types.Price
+	var report types.PluginPriceReport
 	for _, s := range symbols {
 		p := types.Price{
 			Timestamp: time.Now().UnixMilli(),
 			Symbol:    s,
 			Price:     types.SimulatedPrice,
 		}
-		prices = append(prices, p)
+		report.Prices = append(report.Prices, p)
 	}
-	g.logger.Debug("", prices)
-	return prices, nil, nil
+	g.logger.Debug("", report.Prices)
+	return report, nil
 }
 
 func (g *FakePlugin) GetVersion() (string, error) {
