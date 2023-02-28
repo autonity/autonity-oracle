@@ -9,7 +9,7 @@ This project assumes the following:
 
 ## Product introduction
 This component works as the bridge that brings data points from different data provider and unifies the data into the standard format that can be pushed to Autonity L1 network. To support the runtime adaptations with different data providers, the adapters are implemented in plugins mechanism thus it maintains high availability of the autonity oracle service. 
-As the component starts ticker jobs that fetch data points from providers on every 10s timely, it also scans the plugin directory on every 2s to launch new plugins or to replace runtime plugins with newly modified one to adapt with data provider. The data aggregation at this level is base on taking the median value out from the data set. By providing unified data points and pushing the data samples on a round base intervals to L1 oracle contract, the autonity layer1 network can get the requried data for its stabilisation protocol.
+As the component starts ticker jobs that fetch data points from providers on every 10s timely, it also scans the plugin directory on every 2s to launch new plugins or to replace runtime plugins with newly modified one to adapt with data provider. The data aggregation at this level is base on taking the median value out from the data set. By providing unified data and pushing the data samples on a round base intervals to L1 oracle contract, thus, the autonity layer1 network can get the requried data for its stabilisation protocol.
 
 ![Screenshot from 2023-02-28 06-55-34](https://user-images.githubusercontent.com/54585152/221777340-400bedc7-6a55-4055-8b18-4f6158e168c6.png)
 
@@ -204,14 +204,6 @@ This method returns all the symbols corresponding prices, and also the current s
 
 ```json
 {"id":1,"result":{"Prices":{"NTNBTC":{"Timestamp":1672836542504,"Symbol":"NTNBTC","Price":"11.11"},"NTNETH":{"Timestamp":1672836542504,"Symbol":"NTNETH","Price":"11.11"},"NTNRMB":{"Timestamp":1672836542504,"Symbol":"NTNRMB","Price":"11.11"}},"Symbols":["NTNBTC","NTNETH","NTNRMB"]}}
-```
-### update_symbols
-This method update the symbols of current oracle service, and returned the updated symbols once update is finished.
-
-    curl -X POST -H "Content-Type: application/json" http://127.0.0.1:63306 --data '{"id":1, "method":"update_symbols", "params": ["NTNUSDC,NTNUSDT,NTNDAI"]}'
-
-```json
-{"id":1,"result":["NTNUSDC,NTNUSDT,NTNDAI"]}
 ```
 
 ### list_plugins
