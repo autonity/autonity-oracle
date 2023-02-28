@@ -43,7 +43,7 @@ Those omission faulty oracle client's binding validator would be slashed.
 
 
 ## Work flows
-![Screenshot from 2023-02-10 10-30-08](https://user-images.githubusercontent.com/54585152/218069488-97345965-31e3-40ed-895b-af8c311b1f3d.png)
+![Screenshot from 2023-02-28 07-01-27](https://user-images.githubusercontent.com/54585152/221778482-2939116f-1025-4013-beac-31f934430c10.png)
 
 ### Oracle contract deployment
 Deploy oracle contract after the autonity contract is deployed, save the oracle contract address as a protocol parameter for discovery.
