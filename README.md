@@ -16,24 +16,33 @@ As the component starts ticker jobs that fetch data points from providers on eve
 ## Configuration 
 Values that can be configured by using environment variables:    
 
-| **Env Variable**        | **Required?** | **Meaning**                                                  | **Default Value**           | **Valid Options**                |
-|-------------------------|---------------|--------------------------------------------------------------|-----------------------------|----------------------------------|
-| `ORACLE_HTTP_PORT`      | No            | The port that the HTTP service endpoint bind to              | `30311`                     | any free port number on the host |
-| `ORACLE_CRYPTO_SYMBOLS` | No            | The symbols that the oracle component collect data point for | "ETHUSDC,ETHUSDT,ETHBTC"    | symbols seperated by ','         |
-| `ORACLE_PLUGIN_DIR`     | No            | The directory that stores the plugins                        | "./plugins"                 | any directory that saves plugins |
-| `GIN_MODE`              | No            | The mode running by the HTTP service                         | "debug"                     | release or debug                 |
+| **Env Variable**           | **Required?** | **Meaning**                                                                                 | **Default Value**                   | **Valid Options**                                       |
+|----------------------------|---------------|---------------------------------------------------------------------------------------------|-------------------------------------|---------------------------------------------------------|
+| `ORACLE_HTTP_PORT`         | No            | The port that the HTTP service endpoint bind to                                             | `30311`                             | any free port number on the host                        |
+| `ORACLE_CRYPTO_SYMBOLS`    | No            | The symbols that the oracle component collect data point for                                | "ETHUSDC,ETHUSDT,ETHBTC"            | symbols seperated by ','                                |
+| `ORACLE_PLUGIN_DIR`        | No            | The directory that stores the plugins                                                       | "./plugins"                         | any directory that saves plugins                        |
+| `ORACLE_KEY_FILE`          | Yes           | The encrypted key file path that contains the private key of the oracle client.             | "a path to your encrypted key file" | any key file that saves the private key                 |
+| `ORACLE_KEY_PASSWORD`      | Yes           | The password of the key file that contains the private key of the oracle client.            | "123"                               | any password that encrypted the private key             |
+| `ORACLE_VALIDATOR_ACCOUNT` | Yes           | The validator account in hex string that the client served for data reporting.              | "0x"                                | an account address of a your validator.                 |
+| `ORACLE_AUTONITY_WS_URL`   | Yes           | The web socket RPC URL of your Autonity L1 Node that the oracle client communicated with.   | "ws://127.0.0.1:8000"               | the web socket rpc endpoint url of the Autonity client. |
+| `GIN_MODE`                 | No            | The mode running by the HTTP service                                                        | "debug"                             | release or debug                                        |
 
 or by using console flags:
 
     $./autoracle -help
     Usage of ./autoracle:
+    -oracle_autonity_ws_url="ws://127.0.0.1:7000": The websocket URL of autonity client
     -oracle_crypto_symbols="ETHUSDC,ETHUSDT,ETHBTC": The symbols string separated by comma
     -oracle_http_port=30311: The HTTP service port to be bind for oracle service
+    -oracle_key_file="a path to your key file": The file that save the private key of the oracle client
+    -oracle_key_password="key-password": The password to decode your oracle account's key file
     -oracle_plugin_dir="./plugins": The DIR where the adapter plugins are stored
+    -oracle_validator_account="0x": The account address in HEX string of the validator that this oracle client served for
+
 
 example to run the autonity oracle service with console flags:
     
-    $./autoracle -oracle_crypto_symbols="ETHUSDC,ETHUSDT,ETHBTC" -oracle_http_port=30311 -oracle_plugin_dir="./plugins"
+    $./autoracle -oracle_crypto_symbols="ETHUSDC,ETHUSDT,ETHBTC" -oracle_http_port=30311 -oracle_plugin_dir="./plugins" -oracle_key_file="../../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" -oracle_key_password="123" -oracle_validator_account="0xabcbd3d83376276ab4cdfe3d9300fb5ce70cd192" -oracle_autonity_ws_url="ws://127.0.0.1:800"
 
 ## Developing
 
@@ -64,6 +73,25 @@ To build the project run
 The built binaries are presented at: ./build/bin under which there is a plugins directory saves the built plugins as well.
 
 ## Deployment
+### Oracle Client Private Key generation
+Download the Autonity client to generate the private key from console, and set the password to encode the key file, the
+key file path will display, and remember the password that encrypted the key file.
+
+    $./autonity --datadir ./keys/ account new
+    Your new account is locked with a password. Please give a password. Do not forget this password.
+    Password:xxxxxx
+    Repeat password:xxxxxx
+
+    Your new key was generated
+
+    Public address of the key:   0x7C785Fe9404574AaC7daf2FF30637546493900d1
+    Path of the secret key file: key-data/keystore/UTC--2023-02-28T11-40-15.383709761Z--7c785fe9404574aac7daf2ff30637546493900d1
+
+    - You can share your public address with anyone. Others need it to interact with you.
+    - You must NEVER share the secret key with anyone! The key controls access to your funds!
+    - You must BACKUP your key file! Without the key, it's impossible to access account funds!
+    - You must REMEMBER your password! Without the password, it's impossible to decrypt the key!
+
 ### Start up the service from shell console
 Prepare the plugin binaries, and save them into the plugin directory, then start the service:
 Set the system environment variables and run the binary:
@@ -71,11 +99,14 @@ Set the system environment variables and run the binary:
     $export ORACLE_HTTP_PORT=63306
     $export ORACLE_CRYPTO_SYMBOLS="ETHUSDC,ETHUSDT,ETHBTC"
     $export ORACLE_PLUGIN_DIR="./plugins"
-    $.~/src/autonity-oracle/build/bin/autoracle    
+    $export ORACLE_KEY_FILE="./test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"
+    $export ORACLE_KEY_PASSWORD="your passord to the key file"
+    $export ORACLE_VALIDATOR_ACCOUNT="0xabcbd3d83376276ab4cdfe3d9300fb5ce70cd192"
+    $.~/src/autonity-oracle/build/bin/autoracle
 
 or configure by using console flags and run the binary:
 
-    $.~/src/autonity-oracle/build/bin/autoracle -oracle_crypto_symbols="ETHUSDC,ETHUSDT,ETHBTC" -oracle_http_port=63306 -oracle_plugin_dir="./plugins"
+    $./autoracle -oracle_crypto_symbols="ETHUSDC,ETHUSDT,ETHBTC" -oracle_http_port=30311 -oracle_plugin_dir="./plugins" -oracle_key_file="../../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" -oracle_key_password="123" -oracle_validator_account="0xabcbd3d83376276ab4cdfe3d9300fb5ce70cd192" -oracle_autonity_ws_url="ws://127.0.0.1:800"
 
 ### An elegant way base on linux system daemon
 #### Preparations
