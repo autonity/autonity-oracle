@@ -18,7 +18,7 @@ Get bindings from genesis config.
 requires the binding information and the committee to initialize the oracle contract.
 
 #### keep binding upated
-    - setComitte should bring bindings of committee members.
+
     - updateBinding once a validator update its binding in the validator pool of autonity contract.
 
 ### Data reporting
@@ -42,3 +42,6 @@ Vote with commitment of current round without last round data.
         Vote without commitment of current round but with last round data.
 
 All of the above data reporting scenario is valid and normal reports. Any missing of report from this set is accountable for penalty protocol.
+#### New Update Symbols Event
+    - Update symbols happens at round N, it notify msg(newSymbols, N+1) to the oracle server.
+    then the oracle server are going to use the new symbols when new round right after the notification event.
