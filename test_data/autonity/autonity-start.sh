@@ -1,6 +1,6 @@
 #!/bin/sh
 
-AUTONITY=../../../../build/bin/autonity
+AUTONITY=./autonity
 
 DATADIR=data
 KEYSTORE=keystore

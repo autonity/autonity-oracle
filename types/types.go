@@ -12,14 +12,13 @@ import (
 )
 
 var (
-	EnvHTTPPort         = "ORACLE_HTTP_PORT"
-	EnvCryptoSymbols    = "ORACLE_CRYPTO_SYMBOLS"
-	EnvPluginDIR        = "ORACLE_PLUGIN_DIR"
-	EnvKeyFile          = "ORACLE_KEY_FILE"
-	EnvKeyFilePASS      = "ORACLE_KEY_PASSWORD"
-	EnvValidatorAccount = "ORACLE_VALIDATOR_ACCOUNT"
-	SimulatedPrice      = decimal.RequireFromString("11.11")
-	InvalidPrice        = math.MaxBig256
+	EnvHTTPPort      = "ORACLE_HTTP_PORT"
+	EnvCryptoSymbols = "ORACLE_CRYPTO_SYMBOLS"
+	EnvPluginDIR     = "ORACLE_PLUGIN_DIR"
+	EnvKeyFile       = "ORACLE_KEY_FILE"
+	EnvKeyFilePASS   = "ORACLE_KEY_PASSWORD"
+	SimulatedPrice   = decimal.RequireFromString("11.11")
+	InvalidPrice     = math.MaxBig256
 )
 
 type Aggregator interface {
@@ -76,12 +75,11 @@ type Plugin struct {
 type PluginByName map[string]Plugin
 
 type OracleServiceConfig struct {
-	ValidatorAccount common.Address
-	Key              *keystore.Key
-	AutonityWSUrl    string
-	Symbols          []string
-	HTTPPort         int
-	PluginDIR        string
+	Key           *keystore.Key
+	AutonityWSUrl string
+	Symbols       []string
+	HTTPPort      int
+	PluginDIR     string
 }
 
 type JSONRPCMessage struct {

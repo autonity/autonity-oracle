@@ -5,19 +5,17 @@ import (
 	"autonity-oracle/types"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/namsral/flag"
 	"io/ioutil" //nolint
 )
 
 var (
-	DefaultValidatorAccount = "0x"
-	DefaultAutonityWSUrl    = "ws://127.0.0.1:7000"
-	DefaultKeyFile          = "a path to your key file"
-	DefaultKeyPassword      = "key-password"
-	DefaultPluginDir        = "./plugins"
-	DefaultSymbols          = "ETHUSDC,ETHUSDT,ETHBTC"
-	DefaultPort             = 30311
+	DefaultAutonityWSUrl = "ws://127.0.0.1:8645"
+	DefaultKeyFile       = "./test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"
+	DefaultKeyPassword   = "123"
+	DefaultPluginDir     = "./build/bin/plugins"
+	DefaultSymbols       = "NTNUSD,NTNAUD,NTNCAD,NTNEUR,NTNGBP,NTNJPY,NTNSEK"
+	DefaultPort          = 30311
 )
 
 func MakeConfig() *types.OracleServiceConfig {
@@ -27,14 +25,12 @@ func MakeConfig() *types.OracleServiceConfig {
 	var pluginDir string
 	var keyPassword string
 	var autonityWSUrl string
-	var validatorAccount string
 
 	flag.IntVar(&port, "oracle_http_port", DefaultPort, "The HTTP service port to be bind for oracle service")
 	flag.StringVar(&pluginDir, "oracle_plugin_dir", DefaultPluginDir, "The DIR where the adapter plugins are stored")
 	flag.StringVar(&symbols, "oracle_crypto_symbols", DefaultSymbols, "The symbols string separated by comma")
 	flag.StringVar(&keyFile, "oracle_key_file", DefaultKeyFile, "The file that save the private key of the oracle client")
 	flag.StringVar(&autonityWSUrl, "oracle_autonity_ws_url", DefaultAutonityWSUrl, "The websocket URL of autonity client")
-	flag.StringVar(&validatorAccount, "oracle_validator_account", DefaultValidatorAccount, "The account address in HEX string of the validator that this oracle client served for")
 	flag.StringVar(&keyPassword, "oracle_key_password", DefaultKeyPassword, "The password to decode your oracle account's key file")
 	flag.Parse()
 
@@ -51,11 +47,10 @@ func MakeConfig() *types.OracleServiceConfig {
 	}
 
 	return &types.OracleServiceConfig{
-		ValidatorAccount: common.HexToAddress(validatorAccount),
-		Key:              key,
-		AutonityWSUrl:    autonityWSUrl,
-		Symbols:          symbolArray,
-		HTTPPort:         port,
-		PluginDIR:        pluginDir,
+		Key:           key,
+		AutonityWSUrl: autonityWSUrl,
+		Symbols:       symbolArray,
+		HTTPPort:      port,
+		PluginDIR:     pluginDir,
 	}
 }

@@ -36,46 +36,42 @@ var HealthCheckerInterval = 2 * time.Minute // ws connectivity checker interval.
 const MaxBufferedRounds = 10
 
 type DataReporter struct {
-	logger           hclog.Logger
-	oracleContract   contract.ContractAPI
-	client           *ethclient.Client
-	autonityWSUrl    string
-	currentRound     uint64
-	currentSymbols   []string
-	roundData        map[uint64]*types.RoundData
-	key              *keystore.Key
-	validatorAccount common.Address
-	oracleService    types.OracleService
-	chRoundEvent     chan *contract.OracleNewRound
-	subRoundEvent    event.Subscription
-	chSymbolsEvent   chan *contract.OracleNewSymbols
-	subSymbolsEvent  event.Subscription
-	liveTicker       *time.Ticker
+	logger          hclog.Logger
+	oracleContract  contract.ContractAPI
+	client          *ethclient.Client
+	autonityWSUrl   string
+	currentRound    uint64
+	currentSymbols  []string
+	roundData       map[uint64]*types.RoundData
+	key             *keystore.Key
+	oracleService   types.OracleService
+	chRoundEvent    chan *contract.OracleNewRound
+	subRoundEvent   event.Subscription
+	chSymbolsEvent  chan *contract.OracleNewSymbols
+	subSymbolsEvent event.Subscription
+	liveTicker      *time.Ticker
 }
 
-func NewDataReporter(ws string, key *keystore.Key, validatorAccount common.Address, oracleService types.OracleService) *DataReporter {
+func NewDataReporter(ws string, key *keystore.Key, oracleService types.OracleService) *DataReporter {
 	dp := &DataReporter{
-		validatorAccount: validatorAccount,
-		autonityWSUrl:    ws,
-		roundData:        make(map[uint64]*types.RoundData),
-		key:              key,
-		oracleService:    oracleService,
-		liveTicker:       time.NewTicker(HealthCheckerInterval),
+		autonityWSUrl: ws,
+		roundData:     make(map[uint64]*types.RoundData),
+		key:           key,
+		oracleService: oracleService,
+		liveTicker:    time.NewTicker(HealthCheckerInterval),
 	}
-
-	err := dp.buildConnection()
-	if err != nil {
-		// stop the client on start up once the remote endpoint of autonity L1 network is not ready.
-		panic(err)
-	}
-
 	dp.logger = hclog.New(&hclog.LoggerOptions{
 		Name:   reflect2.TypeOfPtr(dp).String(),
 		Output: os.Stdout,
 		Level:  hclog.Debug,
 	})
 
-	dp.logger.Info("Running data reporter", "rpc: ", ws)
+	dp.logger.Info("Running data reporter", "rpc: ", ws, "voter", key.Address.String())
+	err := dp.buildConnection()
+	if err != nil {
+		// stop the client on start up once the remote endpoint of autonity L1 network is not ready.
+		panic(err)
+	}
 	return dp
 }
 
@@ -88,6 +84,7 @@ func (dp *DataReporter) buildConnection() error {
 	}
 
 	// bind client with oracle contract address
+	dp.logger.Info("binding with oracle contract", "address", ContractAddress.String())
 	dp.oracleContract, err = contract.NewOracle(ContractAddress, dp.client)
 	if err != nil {
 		return err
@@ -144,6 +141,7 @@ func (dp *DataReporter) Start() {
 		case err := <-dp.subRoundEvent.Err():
 			dp.logger.Info("reporter routine is shutting down ", err)
 		case round := <-dp.chRoundEvent:
+			dp.logger.Info("handle new round", "round", round.Round.Uint64())
 			err := dp.handleRoundChangeEvent(round.Round.Uint64())
 			if err != nil {
 				dp.logger.Error("Handling round change event", "err", err.Error())
@@ -170,10 +168,9 @@ func (dp *DataReporter) gcRoundData() {
 
 func (dp *DataReporter) checkHealth() {
 
-	// get the latest chain height at the L1 autonity node, if it encounters any failure, do the connection rebuilding.
-	height, err := dp.client.BlockNumber(context.Background())
+	r, err := dp.oracleContract.GetRound(nil)
 	if err == nil {
-		dp.logger.Info("L1 autonity client health check is okay!", "height", height)
+		dp.logger.Warn("checking heart beat", "current voting round", r.Uint64())
 		return
 	}
 
@@ -189,14 +186,14 @@ func (dp *DataReporter) checkHealth() {
 	}
 }
 
-func (dp *DataReporter) isCommitteeMember() (bool, error) {
-	committee, err := dp.oracleContract.GetVoters(nil)
+func (dp *DataReporter) isVoter() (bool, error) {
+	voters, err := dp.oracleContract.GetVoters(nil)
 	if err != nil {
 		return false, err
 	}
 
-	for _, c := range committee {
-		if c == dp.validatorAccount {
+	for _, c := range voters {
+		if c == dp.key.Address {
 			return true, nil
 		}
 	}
@@ -215,8 +212,8 @@ func (dp *DataReporter) handleRoundChangeEvent(newRound uint64) error {
 		return ErrPeerOnSync
 	}
 
-	// if client is not a committee member, just skip reporting.
-	isCommittee, err := dp.isCommitteeMember()
+	// if client is not a voter, just skip reporting.
+	isVoter, err := dp.isVoter()
 	if err != nil {
 		return err
 	}
@@ -228,11 +225,12 @@ func (dp *DataReporter) handleRoundChangeEvent(newRound uint64) error {
 	}
 
 	// if node is no longer a validator, and it doesn't have last round data, skip reporting.
-	if !isCommittee && !ok {
+	if !isVoter && !ok {
+		dp.logger.Debug("skip reporting since client is no long a voter, and have no last round data.")
 		return nil
 	}
 
-	if isCommittee {
+	if isVoter {
 		// report with last round data and with current round commitment hash.
 		return dp.reportWithCommitment(newRound, lastRoundData)
 	}
@@ -255,17 +253,18 @@ func (dp *DataReporter) reportWithCommitment(newRound uint64, lastRoundData *typ
 
 	// save current round data.
 	dp.roundData[newRound] = curRoundData
+	dp.logger.Info("report with commitment", "TX hash", curRoundData.Tx.Hash(), "Nonce", curRoundData.Tx.Nonce())
 	return nil
 }
 
 // report with last round data but without current round commitment.
 func (dp *DataReporter) reportWithoutCommitment(lastRoundData *types.RoundData) error {
 
-	_, err := dp.doReport(common.Hash{}, lastRoundData)
+	tx, err := dp.doReport(common.Hash{}, lastRoundData)
 	if err != nil {
 		return err
 	}
-
+	dp.logger.Info("report with commitment", "TX hash", tx.Hash(), "Nonce", tx.Nonce())
 	return nil
 }
 
@@ -299,7 +298,8 @@ func (dp *DataReporter) doReport(curRndCommitHash common.Hash, lastRoundData *ty
 
 	// if there is no last round data, then we just submit the curRndCommitHash hash of current round.
 	if lastRoundData == nil {
-		return dp.oracleContract.Vote(auth, new(big.Int).SetBytes(curRndCommitHash.Bytes()), nil, nil)
+		var votes []*big.Int
+		return dp.oracleContract.Vote(auth, new(big.Int).SetBytes(curRndCommitHash.Bytes()), votes, types.InvalidPrice)
 	}
 
 	var votes []*big.Int

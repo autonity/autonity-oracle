@@ -25,7 +25,7 @@ func main() { //nolint
 	go oracle.Start()
 	defer oracle.Stop()
 
-	reporter := reporter.NewDataReporter(conf.AutonityWSUrl, conf.Key, conf.ValidatorAccount, oracle)
+	reporter := reporter.NewDataReporter(conf.AutonityWSUrl, conf.Key, oracle)
 	go reporter.Start()
 	defer reporter.Stop()
 

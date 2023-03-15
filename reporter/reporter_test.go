@@ -3,6 +3,7 @@ package reporter
 import (
 	orcMock "autonity-oracle/reporter/contract/mock"
 	"autonity-oracle/types"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/golang/mock/gomock"
@@ -54,10 +55,10 @@ func TestDataReporter(t *testing.T) {
 		contractMock := orcMock.NewMockContractAPI(ctrl)
 		contractMock.EXPECT().GetVoters(nil).AnyTimes().Return(committee, nil)
 
-		dp := &DataReporter{validatorAccount: validatorAddr,
+		dp := &DataReporter{key: &keystore.Key{Address: common.Address{}},
 			oracleContract: contractMock}
 
-		isCommittee, err := dp.isCommitteeMember()
+		isCommittee, err := dp.isVoter()
 		require.Equal(t, true, isCommittee)
 		require.NoError(t, err)
 	})
