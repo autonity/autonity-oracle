@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/shopspring/decimal"
 	"math/big"
@@ -18,6 +19,7 @@ var (
 	EnvKeyFilePASS      = "ORACLE_KEY_PASSWORD"
 	EnvValidatorAccount = "ORACLE_VALIDATOR_ACCOUNT"
 	SimulatedPrice      = decimal.RequireFromString("11.11")
+	InvalidPrice        = math.MaxBig256
 )
 
 type Aggregator interface {

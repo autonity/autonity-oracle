@@ -16,16 +16,6 @@ import (
 )
 
 func TestDataReporter(t *testing.T) {
-	/*
-		priKey, err := crypto.GenerateKey()
-		require.NoError(t, err)
-		ws := config.DefaultAutonityWSUrl
-		validator := common.Address{}
-		key := &keystore.Key{
-			PrivateKey: priKey,
-			Address:    crypto.PubkeyToAddress(priKey.PublicKey),
-		}*/
-	//oracle := &oracleserver.OracleServer{}
 
 	t.Run("gc round data", func(t *testing.T) {
 		dp := &DataReporter{
@@ -62,7 +52,7 @@ func TestDataReporter(t *testing.T) {
 		validatorAddr := common.Address{}
 		committee := []common.Address{validatorAddr}
 		contractMock := orcMock.NewMockContractAPI(ctrl)
-		contractMock.EXPECT().GetCommittee(nil).AnyTimes().Return(committee, nil)
+		contractMock.EXPECT().GetVoters(nil).AnyTimes().Return(committee, nil)
 
 		dp := &DataReporter{validatorAccount: validatorAddr,
 			oracleContract: contractMock}

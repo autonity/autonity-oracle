@@ -11,9 +11,8 @@ import (
 type ContractAPI interface {
 	GetSymbols(opts *bind.CallOpts) ([]string, error)
 	Vote(opts *bind.TransactOpts, _commit *big.Int, _prevotes []*big.Int, _salt *big.Int) (*types.Transaction, error)
-	GetCommittee(opts *bind.CallOpts) ([]common.Address, error)
+	GetVoters(opts *bind.CallOpts) ([]common.Address, error)
 	GetRound(opts *bind.CallOpts) (*big.Int, error)
-	WatchUpdatedCommittee(opts *bind.WatchOpts, sink chan<- *OracleUpdatedCommittee) (event.Subscription, error)
-	WatchUpdatedRound(opts *bind.WatchOpts, sink chan<- *OracleUpdatedRound) (event.Subscription, error)
-	WatchUpdatedSymbols(opts *bind.WatchOpts, sink chan<- *OracleUpdatedSymbols) (event.Subscription, error)
+	WatchNewRound(opts *bind.WatchOpts, sink chan<- *OracleNewRound) (event.Subscription, error)
+	WatchNewSymbols(opts *bind.WatchOpts, sink chan<- *OracleNewSymbols) (event.Subscription, error)
 }

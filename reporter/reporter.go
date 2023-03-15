@@ -27,7 +27,7 @@ import (
 
 var Deployer = common.Address{}
 var ContractAddress = crypto.CreateAddress(Deployer, 1)
-var PricePrecision = decimal.RequireFromString("1000000000")
+var PricePrecision = decimal.RequireFromString("10000000")
 
 var ErrPeerOnSync = errors.New("l1 node is on peer sync")
 var ErrNoAvailablePrice = errors.New("no available prices collected yet")
@@ -46,9 +46,9 @@ type DataReporter struct {
 	key              *keystore.Key
 	validatorAccount common.Address
 	oracleService    types.OracleService
-	chRoundEvent     chan *contract.OracleUpdatedRound
+	chRoundEvent     chan *contract.OracleNewRound
 	subRoundEvent    event.Subscription
-	chSymbolsEvent   chan *contract.OracleUpdatedSymbols
+	chSymbolsEvent   chan *contract.OracleNewSymbols
 	subSymbolsEvent  event.Subscription
 	liveTicker       *time.Ticker
 }
@@ -104,15 +104,15 @@ func (dp *DataReporter) buildConnection() error {
 	}
 
 	// subscribe on-chain round rotation event
-	dp.chRoundEvent = make(chan *contract.OracleUpdatedRound)
-	dp.subRoundEvent, err = dp.oracleContract.WatchUpdatedRound(new(bind.WatchOpts), dp.chRoundEvent)
+	dp.chRoundEvent = make(chan *contract.OracleNewRound)
+	dp.subRoundEvent, err = dp.oracleContract.WatchNewRound(new(bind.WatchOpts), dp.chRoundEvent)
 	if err != nil {
 		return err
 	}
 
 	// subscribe on-chain symbol update event
-	dp.chSymbolsEvent = make(chan *contract.OracleUpdatedSymbols)
-	dp.subSymbolsEvent, err = dp.oracleContract.WatchUpdatedSymbols(new(bind.WatchOpts), dp.chSymbolsEvent)
+	dp.chSymbolsEvent = make(chan *contract.OracleNewSymbols)
+	dp.subSymbolsEvent, err = dp.oracleContract.WatchNewSymbols(new(bind.WatchOpts), dp.chSymbolsEvent)
 	if err != nil {
 		return err
 	}
@@ -190,7 +190,7 @@ func (dp *DataReporter) checkHealth() {
 }
 
 func (dp *DataReporter) isCommitteeMember() (bool, error) {
-	committee, err := dp.oracleContract.GetCommittee(nil)
+	committee, err := dp.oracleContract.GetVoters(nil)
 	if err != nil {
 		return false, err
 	}
@@ -302,12 +302,11 @@ func (dp *DataReporter) doReport(curRndCommitHash common.Hash, lastRoundData *ty
 		return dp.oracleContract.Vote(auth, new(big.Int).SetBytes(curRndCommitHash.Bytes()), nil, nil)
 	}
 
-	noPrice := big.NewInt(0)
 	var votes []*big.Int
 	for _, s := range lastRoundData.Symbols {
 		_, ok := lastRoundData.Prices[s]
 		if !ok {
-			votes = append(votes, noPrice)
+			votes = append(votes, types.InvalidPrice)
 		} else {
 			price := lastRoundData.Prices[s].Price.Mul(PricePrecision).BigInt()
 			votes = append(votes, price)
@@ -338,12 +337,11 @@ func (dp *DataReporter) buildRoundData() (*types.RoundData, error) {
 	}
 
 	var source []byte
-	noPrice := new(big.Int).SetUint64(0)
 	for _, s := range symbols {
 		if pr, ok := roundData.Prices[s]; ok {
 			source = append(source, common.LeftPadBytes(pr.Price.Mul(PricePrecision).BigInt().Bytes(), 32)...)
 		} else {
-			source = append(source, common.LeftPadBytes(noPrice.Bytes(), 32)...)
+			source = append(source, common.LeftPadBytes(types.InvalidPrice.Bytes(), 32)...)
 		}
 	}
 	// append the salt at the tail of votes

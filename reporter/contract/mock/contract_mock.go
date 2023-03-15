@@ -40,18 +40,18 @@ func (m *MockContractAPI) EXPECT() *MockContractAPIMockRecorder {
 }
 
 // GetCommittee mocks base method.
-func (m *MockContractAPI) GetCommittee(opts *bind.CallOpts) ([]common.Address, error) {
+func (m *MockContractAPI) GetVoters(opts *bind.CallOpts) ([]common.Address, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetCommittee", opts)
+	ret := m.ctrl.Call(m, "GetVoters", opts)
 	ret0, _ := ret[0].([]common.Address)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetCommittee indicates an expected call of GetCommittee.
-func (mr *MockContractAPIMockRecorder) GetCommittee(opts interface{}) *gomock.Call {
+func (mr *MockContractAPIMockRecorder) GetVoters(opts interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCommittee", reflect.TypeOf((*MockContractAPI)(nil).GetCommittee), opts)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVoters", reflect.TypeOf((*MockContractAPI)(nil).GetVoters), opts)
 }
 
 // GetRound mocks base method.
@@ -99,47 +99,32 @@ func (mr *MockContractAPIMockRecorder) Vote(opts, _commit, _prevotes, _salt inte
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Vote", reflect.TypeOf((*MockContractAPI)(nil).Vote), opts, _commit, _prevotes, _salt)
 }
 
-// WatchUpdatedCommittee mocks base method.
-func (m *MockContractAPI) WatchUpdatedCommittee(opts *bind.WatchOpts, sink chan<- *oracle.OracleUpdatedCommittee) (event.Subscription, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WatchUpdatedCommittee", opts, sink)
-	ret0, _ := ret[0].(event.Subscription)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// WatchUpdatedCommittee indicates an expected call of WatchUpdatedCommittee.
-func (mr *MockContractAPIMockRecorder) WatchUpdatedCommittee(opts, sink interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchUpdatedCommittee", reflect.TypeOf((*MockContractAPI)(nil).WatchUpdatedCommittee), opts, sink)
-}
-
 // WatchUpdatedRound mocks base method.
-func (m *MockContractAPI) WatchUpdatedRound(opts *bind.WatchOpts, sink chan<- *oracle.OracleUpdatedRound) (event.Subscription, error) {
+func (m *MockContractAPI) WatchNewRound(opts *bind.WatchOpts, sink chan<- *oracle.OracleNewRound) (event.Subscription, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WatchUpdatedRound", opts, sink)
+	ret := m.ctrl.Call(m, "WatchNewRound", opts, sink)
 	ret0, _ := ret[0].(event.Subscription)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // WatchUpdatedRound indicates an expected call of WatchUpdatedRound.
-func (mr *MockContractAPIMockRecorder) WatchUpdatedRound(opts, sink interface{}) *gomock.Call {
+func (mr *MockContractAPIMockRecorder) WatchNewRound(opts, sink interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchUpdatedRound", reflect.TypeOf((*MockContractAPI)(nil).WatchUpdatedRound), opts, sink)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchNewRound", reflect.TypeOf((*MockContractAPI)(nil).WatchNewRound), opts, sink)
 }
 
 // WatchUpdatedSymbols mocks base method.
-func (m *MockContractAPI) WatchUpdatedSymbols(opts *bind.WatchOpts, sink chan<- *oracle.OracleUpdatedSymbols) (event.Subscription, error) {
+func (m *MockContractAPI) WatchNewSymbols(opts *bind.WatchOpts, sink chan<- *oracle.OracleNewSymbols) (event.Subscription, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WatchUpdatedSymbols", opts, sink)
+	ret := m.ctrl.Call(m, "WatchNewSymbols", opts, sink)
 	ret0, _ := ret[0].(event.Subscription)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // WatchUpdatedSymbols indicates an expected call of WatchUpdatedSymbols.
-func (mr *MockContractAPIMockRecorder) WatchUpdatedSymbols(opts, sink interface{}) *gomock.Call {
+func (mr *MockContractAPIMockRecorder) WatchNewSymbols(opts, sink interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchUpdatedSymbols", reflect.TypeOf((*MockContractAPI)(nil).WatchUpdatedSymbols), opts, sink)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchNewSymbols", reflect.TypeOf((*MockContractAPI)(nil).WatchNewSymbols), opts, sink)
 }
