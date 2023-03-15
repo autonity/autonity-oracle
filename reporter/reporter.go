@@ -31,7 +31,9 @@ var PricePrecision = decimal.RequireFromString("10000000")
 
 var ErrPeerOnSync = errors.New("l1 node is on peer sync")
 var ErrNoAvailablePrice = errors.New("no available prices collected yet")
-var HealthCheckerInterval = 2 * time.Minute // ws connectivity checker interval.
+
+// var HealthCheckerInterval = 2 * time.Minute // ws connectivity checker interval.
+var HealthCheckerInterval = 30 * time.Second // ws connectivity checker interval.
 
 const MaxBufferedRounds = 10
 
@@ -96,6 +98,7 @@ func (dp *DataReporter) buildConnection() error {
 		return err
 	}
 
+	dp.logger.Info("buildConnection", "CurrentRound", dp.currentRound, "Num of Symbols", len(dp.currentSymbols), "CurrentSymbols", dp.currentSymbols)
 	if len(dp.currentSymbols) > 0 {
 		dp.oracleService.UpdateSymbols(dp.currentSymbols)
 	}
@@ -128,7 +131,6 @@ func getStartingStates(oc contract.ContractAPI) (uint64, []string, error) {
 	if err != nil {
 		return 0, nil, err
 	}
-
 	return currentRound.Uint64(), symbols, nil
 }
 
@@ -167,22 +169,35 @@ func (dp *DataReporter) gcRoundData() {
 }
 
 func (dp *DataReporter) checkHealth() {
+	h, err := dp.client.BlockNumber(context.Background())
+	if err != nil {
+		// release the legacy resources if the connectivity was lost.
+		dp.client.Close()
+		dp.subRoundEvent.Unsubscribe()
+		dp.subSymbolsEvent.Unsubscribe()
 
-	r, err := dp.oracleContract.GetRound(nil)
-	if err == nil {
-		dp.logger.Warn("checking heart beat", "current voting round", r.Uint64())
+		// rebuild the connection with autonity L1 node.
+		err = dp.buildConnection()
+		if err != nil {
+			dp.logger.Info("rebuilding connectivity with autonity L1 node", "error", err)
+		}
 		return
 	}
 
-	// release the legacy resources if the connectivity was lost.
-	dp.client.Close()
-	dp.subRoundEvent.Unsubscribe()
-	dp.subSymbolsEvent.Unsubscribe()
+	dp.logger.Info("checking heart beat", "current height", h)
 
-	// rebuild the connection with autonity L1 node.
-	err = dp.buildConnection()
+	r, err := dp.oracleContract.GetRound(nil)
 	if err != nil {
-		dp.logger.Info("rebuilding connectivity with autonity L1 node", "error", err)
+		return
+	}
+	dp.logger.Warn("checking heart beat", "current round", r.Uint64())
+	for _, s := range dp.currentSymbols {
+		roundPrice, err := dp.oracleContract.GetRoundData(nil, r, s)
+		if err != nil {
+			dp.logger.Error("GetRoundData", "error", err.Error())
+			return
+		}
+		dp.logger.Info("GetRoundData", "round", r.Uint64(), "symbol", s, "Price", roundPrice.Price.Uint64())
 	}
 }
 
@@ -264,7 +279,7 @@ func (dp *DataReporter) reportWithoutCommitment(lastRoundData *types.RoundData) 
 	if err != nil {
 		return err
 	}
-	dp.logger.Info("report with commitment", "TX hash", tx.Hash(), "Nonce", tx.Nonce())
+	dp.logger.Info("report without commitment", "TX hash", tx.Hash(), "Nonce", tx.Nonce())
 	return nil
 }
 
@@ -297,12 +312,11 @@ func (dp *DataReporter) doReport(curRndCommitHash common.Hash, lastRoundData *ty
 	auth.GasPrice = gasPrice
 
 	// if there is no last round data, then we just submit the curRndCommitHash hash of current round.
+	var votes []*big.Int
 	if lastRoundData == nil {
-		var votes []*big.Int
-		return dp.oracleContract.Vote(auth, new(big.Int).SetBytes(curRndCommitHash.Bytes()), votes, types.InvalidPrice)
+		return dp.oracleContract.Vote(auth, new(big.Int).SetBytes(curRndCommitHash.Bytes()), votes, types.InvalidSalt)
 	}
 
-	var votes []*big.Int
 	for _, s := range lastRoundData.Symbols {
 		_, ok := lastRoundData.Prices[s]
 		if !ok {

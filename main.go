@@ -4,7 +4,7 @@ import (
 	"autonity-oracle/config"
 	"autonity-oracle/http_server"
 	"autonity-oracle/oracle_server"
-	"autonity-oracle/reporter"
+	rp "autonity-oracle/reporter"
 	"context"
 	"log"
 	"os"
@@ -25,7 +25,7 @@ func main() { //nolint
 	go oracle.Start()
 	defer oracle.Stop()
 
-	reporter := reporter.NewDataReporter(conf.AutonityWSUrl, conf.Key, oracle)
+	reporter := rp.NewDataReporter(conf.AutonityWSUrl, conf.Key, oracle)
 	go reporter.Start()
 	defer reporter.Stop()
 

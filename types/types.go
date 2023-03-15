@@ -19,6 +19,7 @@ var (
 	EnvKeyFilePASS   = "ORACLE_KEY_PASSWORD"
 	SimulatedPrice   = decimal.RequireFromString("11.11")
 	InvalidPrice     = math.MaxBig256
+	InvalidSalt      = big.NewInt(0)
 )
 
 type Aggregator interface {
