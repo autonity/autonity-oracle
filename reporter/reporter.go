@@ -12,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	tp "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -32,6 +31,7 @@ var PricePrecision = decimal.RequireFromString("10000000")
 
 var ErrPeerOnSync = errors.New("l1 node is on peer sync")
 var ErrNoAvailablePrice = errors.New("no available prices collected yet")
+var ErrNoSymbolsObserved = errors.New("no symbols observed from oracle contract")
 
 // var HealthCheckerInterval = 2 * time.Minute // ws connectivity checker interval.
 var HealthCheckerInterval = 30 * time.Second // ws connectivity checker interval.
@@ -52,16 +52,6 @@ type DataReporter struct {
 	subRoundEvent   event.Subscription
 	chSymbolsEvent  chan *contract.OracleNewSymbols
 	subSymbolsEvent event.Subscription
-
-	// for test only
-	chHashEvent  chan *contract.OracleNewCommitHash
-	subHashEvent event.Subscription
-
-	chCompareHashEvent  chan *contract.OracleCompareHash
-	subCompareHashEvent event.Subscription
-
-	chResolveValueEvent  chan *contract.OracleResolvedValue
-	subResolveValueEvent event.Subscription
 
 	liveTicker *time.Ticker
 }
@@ -129,25 +119,6 @@ func (dp *DataReporter) buildConnection() error {
 		return err
 	}
 
-	// test only
-	dp.chHashEvent = make(chan *contract.OracleNewCommitHash)
-	dp.subHashEvent, err = dp.oracleContract.WatchNewCommitHash(new(bind.WatchOpts), dp.chHashEvent)
-	if err != nil {
-		return err
-	}
-
-	dp.chCompareHashEvent = make(chan *contract.OracleCompareHash)
-	dp.subCompareHashEvent, err = dp.oracleContract.WatchCompareHash(new(bind.WatchOpts), dp.chCompareHashEvent)
-	if err != nil {
-		return err
-	}
-
-	dp.chResolveValueEvent = make(chan *contract.OracleResolvedValue)
-	dp.subResolveValueEvent, err = dp.oracleContract.WatchResolvedValue(new(bind.WatchOpts), dp.chResolveValueEvent)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -174,8 +145,6 @@ func (dp *DataReporter) Start() {
 			dp.logger.Info("reporter routine is shutting down ", err)
 		case err := <-dp.subRoundEvent.Err():
 			dp.logger.Info("reporter routine is shutting down ", err)
-		case err := <-dp.subHashEvent.Err():
-			dp.logger.Info("reporter routine is shutting down ", err)
 		case round := <-dp.chRoundEvent:
 			dp.logger.Info("handle new round", "round", round.Round.Uint64())
 			err := dp.handleNewRoundEvent(round.Round.Uint64())
@@ -184,12 +153,6 @@ func (dp *DataReporter) Start() {
 			}
 		case symbols := <-dp.chSymbolsEvent:
 			dp.handleNewSymbolsEvent(symbols.Symbols)
-		case hash := <-dp.chHashEvent:
-			dp.logger.Info("**handle add new hash", "round", hash.Round.Uint64(), "hash", hexutil.Encode(hash.Hash[:]))
-		case com := <-dp.chCompareHashEvent:
-			dp.logger.Info("**handle compare hash", "saved", hexutil.Encode(com.Saved[:]), "computed", hexutil.Encode(com.Computed[:]))
-		case val := <-dp.chResolveValueEvent:
-			dp.logger.Info("**handle resolved value", "price", val.Price.String(), "symbol", val.Symbol)
 		case <-dp.liveTicker.C:
 			dp.checkHealth()
 			dp.gcRoundData()
@@ -215,7 +178,6 @@ func (dp *DataReporter) checkHealth() {
 		dp.client.Close()
 		dp.subRoundEvent.Unsubscribe()
 		dp.subSymbolsEvent.Unsubscribe()
-		dp.subHashEvent.Unsubscribe()
 
 		// rebuild the connection with autonity L1 node.
 		err = dp.buildConnection()
@@ -370,13 +332,6 @@ func (dp *DataReporter) doReport(curRndCommitHash common.Hash, lastRoundData *ty
 		}
 	}
 
-	hpacked, err := dp.oracleContract.AbiEncodePackedKeccak256Hash(nil, votes, lastRoundData.Salt)
-	if err != nil {
-		return nil, err
-	}
-
-	dp.logger.Info("**** abi.encodePackedHash", "round", lastRoundData.RoundID, "hash", hexutil.Encode(hpacked[:]))
-
 	return dp.oracleContract.Vote(auth, new(big.Int).SetBytes(curRndCommitHash.Bytes()), votes, lastRoundData.Salt)
 }
 
@@ -385,6 +340,10 @@ func (dp *DataReporter) buildRoundData(round uint64) (*types.RoundData, error) {
 	symbols, err := dp.oracleContract.GetSymbols(nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(symbols) == 0 {
+		return nil, ErrNoSymbolsObserved
 	}
 
 	prices := dp.oracleService.GetPricesBySymbols(symbols)
@@ -426,8 +385,5 @@ func (dp *DataReporter) Stop() {
 	dp.client.Close()
 	dp.subRoundEvent.Unsubscribe()
 	dp.subSymbolsEvent.Unsubscribe()
-	dp.subHashEvent.Unsubscribe()
-	dp.subResolveValueEvent.Unsubscribe()
-	dp.subCompareHashEvent.Unsubscribe()
 	dp.liveTicker.Stop()
 }

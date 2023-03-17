@@ -23,30 +23,30 @@ interface IOracle {
      *
      * @param _commit hash of the ABI packed-encoded prevotes to be
      * submitted the next voting round.
-     * @param _prevotes list of prices to be voted on. Ordering must
+     * @param _reports list of prices to be voted on. Ordering must
      * respect the list of symbols returned by {getSymbols}.
      *
      */
-    function vote(uint256 _commit, uint256[] memory _prevotes, uint256 _salt ) external;
+    function vote(uint256 _commit, int256[] memory _reports, uint256 _salt ) external;
     /**
      * @notice Get data about a specific round, using the roundId.
      *
      * @return price The current price.
      * @return timestamp The unix timestamp when the price got decided.
-     * @return error Error code. 0 meaning success. Others TBD.
+     * @return status Status code. 0 meaning success. Others Error.
      */
     function getRoundData(uint256 _round, string memory _symbol) external
-    view returns (uint256 price, uint timestamp, uint error);
+    view returns (int256 price, uint timestamp, uint status);
     /**
      * @notice  Get data about the last round
      *
      * @return round The current latest round.
      * @return price The current price.
      * @return timestamp The unix timestamp when the price got decided.
-     * @return error Error code. 0 meaning success. Others TBD.
+     * @return status Status code. 0 meaning success. Others Error.
      */
     function latestRoundData(string memory _symbol) external view
-    returns (uint round, uint256 price, uint timestamp, uint error);
+    returns (uint round, int256 price, uint timestamp, uint status);
     /**
     * @notice Retrieve the current voters in the committee.
     */
@@ -68,14 +68,8 @@ interface IOracle {
      * @dev Emitted when a new voting round is started.
      */
     event NewRound(uint256 round);
-    event NewCommitHash(uint256 round, bytes32 hash);
-    event CompareHash(bytes32 saved, bytes32 computed);
-    event ResolvedValue(int256 price, string symbol);
-    function abiEncodePackedKeccak256Hash(int256[] memory _report, uint256 _salt) external view returns(bytes32 hash);
-    function abiEncodeKeccak256Hash(int256[] memory _report, uint256 _salt) external view returns(bytes32 hash);
-    function getInvalidPrice() external view returns(int256);
     //         [9] - [10] - [11]                -     [12]         - [13]
-    // NewRound(3) -        NewSymbols(AUTUSD)  -    NewRound(4)   - Vote(AUTUSD)
+    // NewRound(3) -        NewSymbols(AUTUSD)  -    NewRound(4)   -Vote(AUTUSD)
     // Note : at init phase of the Oracle Server, you need to need to wait for NewRound
     // before voting to make sure that you have the correct symbols.
     // Init phase Oracle Server:
