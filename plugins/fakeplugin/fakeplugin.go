@@ -16,7 +16,6 @@ type FakePlugin struct {
 }
 
 func (g *FakePlugin) FetchPrices(symbols []string) (types.PluginPriceReport, error) {
-	g.logger.Debug("receive request from oracle service, send data response")
 	var report types.PluginPriceReport
 	for _, s := range symbols {
 		p := types.Price{
@@ -26,7 +25,6 @@ func (g *FakePlugin) FetchPrices(symbols []string) (types.PluginPriceReport, err
 		}
 		report.Prices = append(report.Prices, p)
 	}
-	g.logger.Debug("", report.Prices)
 	return report, nil
 }
 

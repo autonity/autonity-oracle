@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	tp "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -51,7 +52,18 @@ type DataReporter struct {
 	subRoundEvent   event.Subscription
 	chSymbolsEvent  chan *contract.OracleNewSymbols
 	subSymbolsEvent event.Subscription
-	liveTicker      *time.Ticker
+
+	// for test only
+	chHashEvent  chan *contract.OracleNewCommitHash
+	subHashEvent event.Subscription
+
+	chCompareHashEvent  chan *contract.OracleCompareHash
+	subCompareHashEvent event.Subscription
+
+	chResolveValueEvent  chan *contract.OracleResolvedValue
+	subResolveValueEvent event.Subscription
+
+	liveTicker *time.Ticker
 }
 
 func NewDataReporter(ws string, key *keystore.Key, oracleService types.OracleService) *DataReporter {
@@ -116,6 +128,26 @@ func (dp *DataReporter) buildConnection() error {
 	if err != nil {
 		return err
 	}
+
+	// test only
+	dp.chHashEvent = make(chan *contract.OracleNewCommitHash)
+	dp.subHashEvent, err = dp.oracleContract.WatchNewCommitHash(new(bind.WatchOpts), dp.chHashEvent)
+	if err != nil {
+		return err
+	}
+
+	dp.chCompareHashEvent = make(chan *contract.OracleCompareHash)
+	dp.subCompareHashEvent, err = dp.oracleContract.WatchCompareHash(new(bind.WatchOpts), dp.chCompareHashEvent)
+	if err != nil {
+		return err
+	}
+
+	dp.chResolveValueEvent = make(chan *contract.OracleResolvedValue)
+	dp.subResolveValueEvent, err = dp.oracleContract.WatchResolvedValue(new(bind.WatchOpts), dp.chResolveValueEvent)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -142,14 +174,22 @@ func (dp *DataReporter) Start() {
 			dp.logger.Info("reporter routine is shutting down ", err)
 		case err := <-dp.subRoundEvent.Err():
 			dp.logger.Info("reporter routine is shutting down ", err)
+		case err := <-dp.subHashEvent.Err():
+			dp.logger.Info("reporter routine is shutting down ", err)
 		case round := <-dp.chRoundEvent:
 			dp.logger.Info("handle new round", "round", round.Round.Uint64())
-			err := dp.handleRoundChangeEvent(round.Round.Uint64())
+			err := dp.handleNewRoundEvent(round.Round.Uint64())
 			if err != nil {
 				dp.logger.Error("Handling round change event", "err", err.Error())
 			}
 		case symbols := <-dp.chSymbolsEvent:
 			dp.handleNewSymbolsEvent(symbols.Symbols)
+		case hash := <-dp.chHashEvent:
+			dp.logger.Info("**handle add new hash", "round", hash.Round.Uint64(), "hash", hexutil.Encode(hash.Hash[:]))
+		case com := <-dp.chCompareHashEvent:
+			dp.logger.Info("**handle compare hash", "saved", hexutil.Encode(com.Saved[:]), "computed", hexutil.Encode(com.Computed[:]))
+		case val := <-dp.chResolveValueEvent:
+			dp.logger.Info("**handle resolved value", "price", val.Price.String(), "symbol", val.Symbol)
 		case <-dp.liveTicker.C:
 			dp.checkHealth()
 			dp.gcRoundData()
@@ -175,6 +215,7 @@ func (dp *DataReporter) checkHealth() {
 		dp.client.Close()
 		dp.subRoundEvent.Unsubscribe()
 		dp.subSymbolsEvent.Unsubscribe()
+		dp.subHashEvent.Unsubscribe()
 
 		// rebuild the connection with autonity L1 node.
 		err = dp.buildConnection()
@@ -184,21 +225,11 @@ func (dp *DataReporter) checkHealth() {
 		return
 	}
 
-	dp.logger.Info("checking heart beat", "current height", h)
-
 	r, err := dp.oracleContract.GetRound(nil)
 	if err != nil {
 		return
 	}
-	dp.logger.Warn("checking heart beat", "current round", r.Uint64())
-	for _, s := range dp.currentSymbols {
-		roundPrice, err := dp.oracleContract.GetRoundData(nil, r, s)
-		if err != nil {
-			dp.logger.Error("GetRoundData", "error", err.Error())
-			return
-		}
-		dp.logger.Info("GetRoundData", "round", r.Uint64(), "symbol", s, "Price", roundPrice.Price.Uint64())
-	}
+	dp.logger.Info("checking heart beat", "current height", h, "current round", r.Uint64())
 }
 
 func (dp *DataReporter) isVoter() (bool, error) {
@@ -215,7 +246,16 @@ func (dp *DataReporter) isVoter() (bool, error) {
 	return false, nil
 }
 
-func (dp *DataReporter) handleRoundChangeEvent(newRound uint64) error {
+func (dp *DataReporter) handleNewRoundEvent(newRound uint64) error {
+	for _, s := range dp.currentSymbols {
+		roundPrice, err := dp.oracleContract.GetRoundData(nil, new(big.Int).SetUint64(newRound-1), s)
+		if err != nil {
+			dp.logger.Error("GetRoundData", "error", err.Error())
+		}
+
+		dp.logger.Info("GetLastRoundPrice", "round", newRound-1, "symbol", s, "Price in big int", roundPrice.Price.String())
+	}
+
 	dp.currentRound = newRound
 
 	// if the autonity node is on peer synchronization state, just skip the reporting.
@@ -255,7 +295,7 @@ func (dp *DataReporter) handleRoundChangeEvent(newRound uint64) error {
 }
 
 func (dp *DataReporter) reportWithCommitment(newRound uint64, lastRoundData *types.RoundData) error {
-	curRoundData, err := dp.buildRoundData()
+	curRoundData, err := dp.buildRoundData(newRound)
 	if err != nil {
 		return err
 	}
@@ -314,6 +354,9 @@ func (dp *DataReporter) doReport(curRndCommitHash common.Hash, lastRoundData *ty
 	// if there is no last round data, then we just submit the curRndCommitHash hash of current round.
 	var votes []*big.Int
 	if lastRoundData == nil {
+		for i := 0; i < len(dp.currentSymbols); i++ {
+			votes = append(votes, types.InvalidPrice)
+		}
 		return dp.oracleContract.Vote(auth, new(big.Int).SetBytes(curRndCommitHash.Bytes()), votes, types.InvalidSalt)
 	}
 
@@ -327,10 +370,17 @@ func (dp *DataReporter) doReport(curRndCommitHash common.Hash, lastRoundData *ty
 		}
 	}
 
+	hpacked, err := dp.oracleContract.AbiEncodePackedKeccak256Hash(nil, votes, lastRoundData.Salt)
+	if err != nil {
+		return nil, err
+	}
+
+	dp.logger.Info("**** abi.encodePackedHash", "round", lastRoundData.RoundID, "hash", hexutil.Encode(hpacked[:]))
+
 	return dp.oracleContract.Vote(auth, new(big.Int).SetBytes(curRndCommitHash.Bytes()), votes, lastRoundData.Salt)
 }
 
-func (dp *DataReporter) buildRoundData() (*types.RoundData, error) {
+func (dp *DataReporter) buildRoundData(round uint64) (*types.RoundData, error) {
 	// get symbols of the latest round.
 	symbols, err := dp.oracleContract.GetSymbols(nil)
 	if err != nil {
@@ -344,6 +394,7 @@ func (dp *DataReporter) buildRoundData() (*types.RoundData, error) {
 
 	seed := time.Now().UnixNano()
 	var roundData = &types.RoundData{
+		RoundID: round,
 		Symbols: symbols,
 		Salt:    new(big.Int).SetUint64(rand.New(rand.NewSource(seed)).Uint64()), // nolint
 		Hash:    common.Hash{},
@@ -361,6 +412,7 @@ func (dp *DataReporter) buildRoundData() (*types.RoundData, error) {
 	// append the salt at the tail of votes
 	source = append(source, common.LeftPadBytes(roundData.Salt.Bytes(), 32)...)
 	roundData.Hash = crypto.Keccak256Hash(source)
+	dp.logger.Info("build round data", "current round", round, "commitment hash", roundData.Hash.String())
 	return roundData, nil
 }
 
@@ -374,5 +426,8 @@ func (dp *DataReporter) Stop() {
 	dp.client.Close()
 	dp.subRoundEvent.Unsubscribe()
 	dp.subSymbolsEvent.Unsubscribe()
+	dp.subHashEvent.Unsubscribe()
+	dp.subResolveValueEvent.Unsubscribe()
+	dp.subCompareHashEvent.Unsubscribe()
 	dp.liveTicker.Stop()
 }

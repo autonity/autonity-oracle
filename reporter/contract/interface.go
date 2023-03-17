@@ -15,6 +15,14 @@ type ContractAPI interface {
 	GetRound(opts *bind.CallOpts) (*big.Int, error)
 	WatchNewRound(opts *bind.WatchOpts, sink chan<- *OracleNewRound) (event.Subscription, error)
 	WatchNewSymbols(opts *bind.WatchOpts, sink chan<- *OracleNewSymbols) (event.Subscription, error)
+
+	WatchNewCommitHash(opts *bind.WatchOpts, sink chan<- *OracleNewCommitHash) (event.Subscription, error)
+	WatchCompareHash(opts *bind.WatchOpts, sink chan<- *OracleCompareHash) (event.Subscription, error)
+	WatchResolvedValue(opts *bind.WatchOpts, sink chan<- *OracleResolvedValue) (event.Subscription, error)
+
+	AbiEncodeKeccak256Hash(opts *bind.CallOpts, _report []*big.Int, _salt *big.Int) ([32]byte, error)
+	AbiEncodePackedKeccak256Hash(opts *bind.CallOpts, _report []*big.Int, _salt *big.Int) ([32]byte, error)
+	GetInvalidPrice(opts *bind.CallOpts) (*big.Int, error)
 	GetRoundData(opts *bind.CallOpts, _round *big.Int, _symbol string) (struct {
 		Price     *big.Int
 		Timestamp *big.Int

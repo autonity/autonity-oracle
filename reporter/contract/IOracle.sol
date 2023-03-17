@@ -68,6 +68,12 @@ interface IOracle {
      * @dev Emitted when a new voting round is started.
      */
     event NewRound(uint256 round);
+    event NewCommitHash(uint256 round, bytes32 hash);
+    event CompareHash(bytes32 saved, bytes32 computed);
+    event ResolvedValue(int256 price, string symbol);
+    function abiEncodePackedKeccak256Hash(int256[] memory _report, uint256 _salt) external view returns(bytes32 hash);
+    function abiEncodeKeccak256Hash(int256[] memory _report, uint256 _salt) external view returns(bytes32 hash);
+    function getInvalidPrice() external view returns(int256);
     //         [9] - [10] - [11]                -     [12]         - [13]
     // NewRound(3) -        NewSymbols(AUTUSD)  -    NewRound(4)   - Vote(AUTUSD)
     // Note : at init phase of the Oracle Server, you need to need to wait for NewRound

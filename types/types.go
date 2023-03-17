@@ -18,7 +18,7 @@ var (
 	EnvKeyFile       = "ORACLE_KEY_FILE"
 	EnvKeyFilePASS   = "ORACLE_KEY_PASSWORD"
 	SimulatedPrice   = decimal.RequireFromString("11.11")
-	InvalidPrice     = math.MaxBig256
+	InvalidPrice     = new(big.Int).Sub(math.BigPow(2, 255), big.NewInt(1))
 	InvalidSalt      = big.NewInt(0)
 )
 
@@ -59,6 +59,7 @@ type Price struct {
 type PriceBySymbol map[string]Price
 
 type RoundData struct {
+	RoundID uint64
 	Tx      *types.Transaction
 	Salt    *big.Int
 	Hash    common.Hash
