@@ -84,10 +84,20 @@ func (os *OracleServer) Version() string {
 	return os.version
 }
 
-func (os *OracleServer) UpdateSymbols(symbols []string) {
+func (os *OracleServer) UpdateSymbols(newSymbols []string) {
 	os.lockSymbols.Lock()
 	defer os.lockSymbols.Unlock()
-	os.symbols = symbols
+
+	var symbolsMap = make(map[string]struct{})
+	for _, s := range os.symbols {
+		symbolsMap[s] = struct{}{}
+	}
+
+	for _, newS := range newSymbols {
+		if _, ok := symbolsMap[newS]; !ok {
+			os.symbols = append(os.symbols, newS)
+		}
+	}
 }
 
 func (os *OracleServer) Symbols() []string {
