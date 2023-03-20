@@ -4,6 +4,13 @@ pragma solidity >=0.8.2 < 0.9.0;
  * @dev Interface of the Oracle Contract
  */
 interface IOracle {
+    // A structure contains the round data that helps gomock to mock the oracle contract interfaces.
+    struct RoundData {
+        uint round;
+        int256 price;
+        uint timestamp;
+        uint status;
+    }
     /**
      * @notice Update the symbols to be requested.
      * Only effective at the next round.
@@ -31,22 +38,15 @@ interface IOracle {
     /**
      * @notice Get data about a specific round, using the roundId.
      *
-     * @return price The current price.
-     * @return timestamp The unix timestamp when the price got decided.
-     * @return status Status code. 0 meaning success. Others Error.
+     * @return the round data include round, price, timestamp and status.
      */
-    function getRoundData(uint256 _round, string memory _symbol) external
-    view returns (int256 price, uint timestamp, uint status);
+    function getRoundData(uint256 _round, string memory _symbol) external view returns (RoundData memory);
     /**
      * @notice  Get data about the last round
      *
-     * @return round The current latest round.
-     * @return price The current price.
-     * @return timestamp The unix timestamp when the price got decided.
-     * @return status Status code. 0 meaning success. Others Error.
+     * @return the round data include round, price, timestamp and status.
      */
-    function latestRoundData(string memory _symbol) external view
-    returns (uint round, int256 price, uint timestamp, uint status);
+    function latestRoundData(string memory _symbol) external view returns (RoundData memory);
     /**
     * @notice Retrieve the current voters in the committee.
     */
@@ -55,11 +55,15 @@ interface IOracle {
      * @notice Retrieve the current round ID.
     */
     function getRound() external view returns (uint256);
+
     /**
      * @dev Emitted when a vote has been succesfully accounted after a {vote} call.
      */
     event Voted(address indexed _voter, int[] _votes);
 
+    /**
+     * @dev Emitted with a debug msg for oracle contract debugging.
+     */
     event DebugEvent(string);
 
     /**
@@ -67,6 +71,7 @@ interface IOracle {
      * round - the round at which new symbols are effective
      */
     event NewSymbols(string[] _symbols, uint256 round);
+
     /**
      * @dev Emitted when a new voting round is started.
      */

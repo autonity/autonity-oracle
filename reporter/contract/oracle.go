@@ -28,9 +28,17 @@ var (
 	_ = event.NewSubscription
 )
 
+// IOracleRoundData is an auto generated low-level Go binding around an user-defined struct.
+type IOracleRoundData struct {
+	Round     *big.Int
+	Price     *big.Int
+	Timestamp *big.Int
+	Status    *big.Int
+}
+
 // OracleMetaData contains all meta data concerning the Oracle contract.
 var OracleMetaData = &bind.MetaData{
-	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"name\":\"DebugEvent\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"round\",\"type\":\"uint256\"}],\"name\":\"NewRound\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"string[]\",\"name\":\"_symbols\",\"type\":\"string[]\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"round\",\"type\":\"uint256\"}],\"name\":\"NewSymbols\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"_voter\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"int256[]\",\"name\":\"_votes\",\"type\":\"int256[]\"}],\"name\":\"Voted\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"getRound\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_round\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"_symbol\",\"type\":\"string\"}],\"name\":\"getRoundData\",\"outputs\":[{\"internalType\":\"int256\",\"name\":\"price\",\"type\":\"int256\"},{\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"status\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getSymbols\",\"outputs\":[{\"internalType\":\"string[]\",\"name\":\"_symbols\",\"type\":\"string[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getVoters\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"\",\"type\":\"address[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"_symbol\",\"type\":\"string\"}],\"name\":\"latestRoundData\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"round\",\"type\":\"uint256\"},{\"internalType\":\"int256\",\"name\":\"price\",\"type\":\"int256\"},{\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"status\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string[]\",\"name\":\"_symbols\",\"type\":\"string[]\"}],\"name\":\"setSymbols\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_commit\",\"type\":\"uint256\"},{\"internalType\":\"int256[]\",\"name\":\"_reports\",\"type\":\"int256[]\"},{\"internalType\":\"uint256\",\"name\":\"_salt\",\"type\":\"uint256\"}],\"name\":\"vote\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"name\":\"DebugEvent\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"round\",\"type\":\"uint256\"}],\"name\":\"NewRound\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"string[]\",\"name\":\"_symbols\",\"type\":\"string[]\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"round\",\"type\":\"uint256\"}],\"name\":\"NewSymbols\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"_voter\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"int256[]\",\"name\":\"_votes\",\"type\":\"int256[]\"}],\"name\":\"Voted\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"getRound\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_round\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"_symbol\",\"type\":\"string\"}],\"name\":\"getRoundData\",\"outputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"round\",\"type\":\"uint256\"},{\"internalType\":\"int256\",\"name\":\"price\",\"type\":\"int256\"},{\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"status\",\"type\":\"uint256\"}],\"internalType\":\"structIOracle.RoundData\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getSymbols\",\"outputs\":[{\"internalType\":\"string[]\",\"name\":\"_symbols\",\"type\":\"string[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getVoters\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"\",\"type\":\"address[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"_symbol\",\"type\":\"string\"}],\"name\":\"latestRoundData\",\"outputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"round\",\"type\":\"uint256\"},{\"internalType\":\"int256\",\"name\":\"price\",\"type\":\"int256\"},{\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"status\",\"type\":\"uint256\"}],\"internalType\":\"structIOracle.RoundData\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string[]\",\"name\":\"_symbols\",\"type\":\"string[]\"}],\"name\":\"setSymbols\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_commit\",\"type\":\"uint256\"},{\"internalType\":\"int256[]\",\"name\":\"_reports\",\"type\":\"int256[]\"},{\"internalType\":\"uint256\",\"name\":\"_salt\",\"type\":\"uint256\"}],\"name\":\"vote\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
 }
 
 // OracleABI is the input ABI used to generate the binding from.
@@ -212,51 +220,32 @@ func (_Oracle *OracleCallerSession) GetRound() (*big.Int, error) {
 
 // GetRoundData is a free data retrieval call binding the contract method 0x3c8510fd.
 //
-// Solidity: function getRoundData(uint256 _round, string _symbol) view returns(int256 price, uint256 timestamp, uint256 status)
-func (_Oracle *OracleCaller) GetRoundData(opts *bind.CallOpts, _round *big.Int, _symbol string) (struct {
-	Price     *big.Int
-	Timestamp *big.Int
-	Status    *big.Int
-}, error) {
+// Solidity: function getRoundData(uint256 _round, string _symbol) view returns((uint256,int256,uint256,uint256))
+func (_Oracle *OracleCaller) GetRoundData(opts *bind.CallOpts, _round *big.Int, _symbol string) (IOracleRoundData, error) {
 	var out []interface{}
 	err := _Oracle.contract.Call(opts, &out, "getRoundData", _round, _symbol)
 
-	outstruct := new(struct {
-		Price     *big.Int
-		Timestamp *big.Int
-		Status    *big.Int
-	})
 	if err != nil {
-		return *outstruct, err
+		return *new(IOracleRoundData), err
 	}
 
-	outstruct.Price = *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-	outstruct.Timestamp = *abi.ConvertType(out[1], new(*big.Int)).(**big.Int)
-	outstruct.Status = *abi.ConvertType(out[2], new(*big.Int)).(**big.Int)
+	out0 := *abi.ConvertType(out[0], new(IOracleRoundData)).(*IOracleRoundData)
 
-	return *outstruct, err
+	return out0, err
 
 }
 
 // GetRoundData is a free data retrieval call binding the contract method 0x3c8510fd.
 //
-// Solidity: function getRoundData(uint256 _round, string _symbol) view returns(int256 price, uint256 timestamp, uint256 status)
-func (_Oracle *OracleSession) GetRoundData(_round *big.Int, _symbol string) (struct {
-	Price     *big.Int
-	Timestamp *big.Int
-	Status    *big.Int
-}, error) {
+// Solidity: function getRoundData(uint256 _round, string _symbol) view returns((uint256,int256,uint256,uint256))
+func (_Oracle *OracleSession) GetRoundData(_round *big.Int, _symbol string) (IOracleRoundData, error) {
 	return _Oracle.Contract.GetRoundData(&_Oracle.CallOpts, _round, _symbol)
 }
 
 // GetRoundData is a free data retrieval call binding the contract method 0x3c8510fd.
 //
-// Solidity: function getRoundData(uint256 _round, string _symbol) view returns(int256 price, uint256 timestamp, uint256 status)
-func (_Oracle *OracleCallerSession) GetRoundData(_round *big.Int, _symbol string) (struct {
-	Price     *big.Int
-	Timestamp *big.Int
-	Status    *big.Int
-}, error) {
+// Solidity: function getRoundData(uint256 _round, string _symbol) view returns((uint256,int256,uint256,uint256))
+func (_Oracle *OracleCallerSession) GetRoundData(_round *big.Int, _symbol string) (IOracleRoundData, error) {
 	return _Oracle.Contract.GetRoundData(&_Oracle.CallOpts, _round, _symbol)
 }
 
@@ -324,56 +313,32 @@ func (_Oracle *OracleCallerSession) GetVoters() ([]common.Address, error) {
 
 // LatestRoundData is a free data retrieval call binding the contract method 0x33f98c77.
 //
-// Solidity: function latestRoundData(string _symbol) view returns(uint256 round, int256 price, uint256 timestamp, uint256 status)
-func (_Oracle *OracleCaller) LatestRoundData(opts *bind.CallOpts, _symbol string) (struct {
-	Round     *big.Int
-	Price     *big.Int
-	Timestamp *big.Int
-	Status    *big.Int
-}, error) {
+// Solidity: function latestRoundData(string _symbol) view returns((uint256,int256,uint256,uint256))
+func (_Oracle *OracleCaller) LatestRoundData(opts *bind.CallOpts, _symbol string) (IOracleRoundData, error) {
 	var out []interface{}
 	err := _Oracle.contract.Call(opts, &out, "latestRoundData", _symbol)
 
-	outstruct := new(struct {
-		Round     *big.Int
-		Price     *big.Int
-		Timestamp *big.Int
-		Status    *big.Int
-	})
 	if err != nil {
-		return *outstruct, err
+		return *new(IOracleRoundData), err
 	}
 
-	outstruct.Round = *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-	outstruct.Price = *abi.ConvertType(out[1], new(*big.Int)).(**big.Int)
-	outstruct.Timestamp = *abi.ConvertType(out[2], new(*big.Int)).(**big.Int)
-	outstruct.Status = *abi.ConvertType(out[3], new(*big.Int)).(**big.Int)
+	out0 := *abi.ConvertType(out[0], new(IOracleRoundData)).(*IOracleRoundData)
 
-	return *outstruct, err
+	return out0, err
 
 }
 
 // LatestRoundData is a free data retrieval call binding the contract method 0x33f98c77.
 //
-// Solidity: function latestRoundData(string _symbol) view returns(uint256 round, int256 price, uint256 timestamp, uint256 status)
-func (_Oracle *OracleSession) LatestRoundData(_symbol string) (struct {
-	Round     *big.Int
-	Price     *big.Int
-	Timestamp *big.Int
-	Status    *big.Int
-}, error) {
+// Solidity: function latestRoundData(string _symbol) view returns((uint256,int256,uint256,uint256))
+func (_Oracle *OracleSession) LatestRoundData(_symbol string) (IOracleRoundData, error) {
 	return _Oracle.Contract.LatestRoundData(&_Oracle.CallOpts, _symbol)
 }
 
 // LatestRoundData is a free data retrieval call binding the contract method 0x33f98c77.
 //
-// Solidity: function latestRoundData(string _symbol) view returns(uint256 round, int256 price, uint256 timestamp, uint256 status)
-func (_Oracle *OracleCallerSession) LatestRoundData(_symbol string) (struct {
-	Round     *big.Int
-	Price     *big.Int
-	Timestamp *big.Int
-	Status    *big.Int
-}, error) {
+// Solidity: function latestRoundData(string _symbol) view returns((uint256,int256,uint256,uint256))
+func (_Oracle *OracleCallerSession) LatestRoundData(_symbol string) (IOracleRoundData, error) {
 	return _Oracle.Contract.LatestRoundData(&_Oracle.CallOpts, _symbol)
 }
 

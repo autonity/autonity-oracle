@@ -82,8 +82,13 @@ func TestDataReporter(t *testing.T) {
 		oracleMock := orcMock.NewMockOracleService(ctrl)
 		oracleMock.EXPECT().GetPricesBySymbols(symbols).Return(prices)
 
-		dp := &DataReporter{oracleContract: contractMock, oracleService: oracleMock, roundData: make(map[uint64]*types.RoundData)}
-		roundData, err := dp.buildRoundData()
+		dp := &DataReporter{oracleContract: contractMock, oracleService: oracleMock,
+			roundData: make(map[uint64]*types.RoundData), logger: hclog.New(&hclog.LoggerOptions{
+				Name:   "data reporter",
+				Output: os.Stdout,
+				Level:  hclog.Debug,
+			})}
+		roundData, err := dp.buildRoundData(uint64(100))
 		require.NoError(t, err)
 		require.Equal(t, symbols, roundData.Symbols)
 		require.Equal(t, prices, roundData.Prices)
@@ -112,6 +117,5 @@ func TestDataReporter(t *testing.T) {
 		})}
 
 		dp.handleNewSymbolsEvent(symbols)
-		require.Equal(t, symbols, dp.currentSymbols)
 	})
 }

@@ -151,15 +151,18 @@ func (dp *DataReporter) Start() {
 		select {
 		case err := <-dp.subSymbolsEvent.Err():
 			if err != nil {
-				dp.logger.Info("subscription error of new symbols event", err.Error())
+				dp.logger.Info("subscription error of new symbols event", err)
+				dp.handleConnectivityError()
 			}
 		case err := <-dp.subRoundEvent.Err():
 			if err != nil {
-				dp.logger.Info("subscription error of new round event", err.Error())
+				dp.logger.Info("subscription error of new round event", err)
+				dp.handleConnectivityError()
 			}
 		case err := <-dp.subDebugEvent.Err():
 			if err != nil {
-				dp.logger.Info("subscription error of debug msg event", err.Error())
+				dp.handleConnectivityError()
+				dp.logger.Info("subscription error of debug msg event", err)
 			}
 		case round := <-dp.chRoundEvent:
 			dp.logger.Info("handle new round", "round", round.Round.Uint64())
@@ -190,14 +193,19 @@ func (dp *DataReporter) gcRoundData() {
 	}
 }
 
+func (dp *DataReporter) handleConnectivityError() {
+	if dp.client != nil {
+		dp.client.Close()
+		dp.client = nil
+	}
+	dp.subRoundEvent.Unsubscribe()
+	dp.subSymbolsEvent.Unsubscribe()
+	dp.subDebugEvent.Unsubscribe()
+}
+
 func (dp *DataReporter) checkHealth() {
 	// if the web socket was drops my remote peer, the client will be reset into nil.
 	if dp.client == nil {
-		// release the legacy resources if the connectivity was lost.
-		dp.subRoundEvent.Unsubscribe()
-		dp.subSymbolsEvent.Unsubscribe()
-		dp.subDebugEvent.Unsubscribe()
-
 		// rebuild the connection with autonity L1 node.
 		err := dp.buildConnection()
 		if err != nil {
@@ -234,20 +242,22 @@ func (dp *DataReporter) isVoter() (bool, error) {
 
 func (dp *DataReporter) printLatestRoundData(newRound uint64) {
 	for _, s := range dp.currentSymbols {
-		roundPrice, err := dp.oracleContract.GetRoundData(nil, new(big.Int).SetUint64(newRound-1), s)
+		rd, err := dp.oracleContract.GetRoundData(nil, new(big.Int).SetUint64(newRound-1), s)
 		if err != nil {
 			dp.logger.Error("GetRoundData", "error", err.Error())
 		}
 
-		dp.logger.Info("GetRoundPrice", "round", newRound-1, "symbol", s, "Price", roundPrice.Price.String(), "status", roundPrice.Status.String())
+		dp.logger.Info("GetRoundPrice", "round", rd.Round.Uint64(), "symbol", s, "Price",
+			rd.Price.String(), "status", rd.Status.String())
 	}
 
 	for _, s := range dp.currentSymbols {
-		latestRoundPrice, err := dp.oracleContract.LatestRoundData(nil, s)
+		rd, err := dp.oracleContract.LatestRoundData(nil, s)
 		if err != nil {
 			dp.logger.Error("GetLatestRoundData", "error", err.Error())
 		}
-		dp.logger.Info("GetLatestRoundData", "round", latestRoundPrice.Round.Uint64(), "symbol", s, "Price", latestRoundPrice.Price.String(), "status", latestRoundPrice.Status.String())
+		dp.logger.Info("GetLatestRoundData", "round", rd.Round.Uint64(), "symbol", s, "Price",
+			rd.Price.String(), "status", rd.Status.String())
 	}
 }
 
