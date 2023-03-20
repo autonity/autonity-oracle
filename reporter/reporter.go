@@ -33,8 +33,7 @@ var ErrPeerOnSync = errors.New("l1 node is on peer sync")
 var ErrNoAvailablePrice = errors.New("no available prices collected yet")
 var ErrNoSymbolsObserved = errors.New("no symbols observed from oracle contract")
 
-// var HealthCheckerInterval = 2 * time.Minute // ws connectivity checker interval.
-var HealthCheckerInterval = 30 * time.Second // ws connectivity checker interval.
+var HealthCheckerInterval = 30 * time.Second // connectivity health checker interval.
 
 const MaxBufferedRounds = 10
 
@@ -52,6 +51,8 @@ type DataReporter struct {
 	subRoundEvent   event.Subscription
 	chSymbolsEvent  chan *contract.OracleNewSymbols
 	subSymbolsEvent event.Subscription
+	chDebugEvent    chan *contract.OracleDebugEvent
+	subDebugEvent   event.Subscription
 
 	liveTicker *time.Ticker
 }
@@ -119,6 +120,13 @@ func (dp *DataReporter) buildConnection() error {
 		return err
 	}
 
+	// subscribe on-chain debug event
+	dp.chDebugEvent = make(chan *contract.OracleDebugEvent)
+	dp.subDebugEvent, err = dp.oracleContract.WatchDebugEvent(new(bind.WatchOpts), dp.chDebugEvent)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -142,9 +150,17 @@ func (dp *DataReporter) Start() {
 	for {
 		select {
 		case err := <-dp.subSymbolsEvent.Err():
-			dp.logger.Info("reporter routine is shutting down ", err)
+			if err != nil {
+				dp.logger.Info("subscription error of new symbols event", err.Error())
+			}
 		case err := <-dp.subRoundEvent.Err():
-			dp.logger.Info("reporter routine is shutting down ", err)
+			if err != nil {
+				dp.logger.Info("subscription error of new round event", err.Error())
+			}
+		case err := <-dp.subDebugEvent.Err():
+			if err != nil {
+				dp.logger.Info("subscription error of debug msg event", err.Error())
+			}
 		case round := <-dp.chRoundEvent:
 			dp.logger.Info("handle new round", "round", round.Round.Uint64())
 			err := dp.handleNewRoundEvent(round.Round.Uint64())
@@ -152,7 +168,10 @@ func (dp *DataReporter) Start() {
 				dp.logger.Error("Handling round change event", "err", err.Error())
 			}
 		case symbols := <-dp.chSymbolsEvent:
+			dp.logger.Info("handle new symbols", "symbols", symbols.Symbols, "activated at round", symbols.Round)
 			dp.handleNewSymbolsEvent(symbols.Symbols)
+		case debugMsg := <-dp.chDebugEvent:
+			dp.logger.Info("****Debug event", "msg", debugMsg.Arg0)
 		case <-dp.liveTicker.C:
 			dp.checkHealth()
 			dp.gcRoundData()
@@ -172,18 +191,23 @@ func (dp *DataReporter) gcRoundData() {
 }
 
 func (dp *DataReporter) checkHealth() {
-	h, err := dp.client.BlockNumber(context.Background())
-	if err != nil {
+	// if the web socket was drops my remote peer, the client will be reset into nil.
+	if dp.client == nil {
 		// release the legacy resources if the connectivity was lost.
-		dp.client.Close()
 		dp.subRoundEvent.Unsubscribe()
 		dp.subSymbolsEvent.Unsubscribe()
+		dp.subDebugEvent.Unsubscribe()
 
 		// rebuild the connection with autonity L1 node.
-		err = dp.buildConnection()
+		err := dp.buildConnection()
 		if err != nil {
 			dp.logger.Info("rebuilding connectivity with autonity L1 node", "error", err)
 		}
+		return
+	}
+
+	h, err := dp.client.BlockNumber(context.Background())
+	if err != nil {
 		return
 	}
 
@@ -208,26 +232,44 @@ func (dp *DataReporter) isVoter() (bool, error) {
 	return false, nil
 }
 
-func (dp *DataReporter) handleNewRoundEvent(newRound uint64) error {
+func (dp *DataReporter) printLatestRoundData(newRound uint64) {
 	for _, s := range dp.currentSymbols {
 		roundPrice, err := dp.oracleContract.GetRoundData(nil, new(big.Int).SetUint64(newRound-1), s)
 		if err != nil {
 			dp.logger.Error("GetRoundData", "error", err.Error())
 		}
 
-		dp.logger.Info("GetLastRoundPrice", "round", newRound-1, "symbol", s, "Price in big int", roundPrice.Price.String())
+		dp.logger.Info("GetRoundPrice", "round", newRound-1, "symbol", s, "Price", roundPrice.Price.String(), "status", roundPrice.Status.String())
 	}
 
-	dp.currentRound = newRound
+	for _, s := range dp.currentSymbols {
+		latestRoundPrice, err := dp.oracleContract.LatestRoundData(nil, s)
+		if err != nil {
+			dp.logger.Error("GetLatestRoundData", "error", err.Error())
+		}
+		dp.logger.Info("GetLatestRoundData", "round", latestRoundPrice.Round.Uint64(), "symbol", s, "Price", latestRoundPrice.Price.String(), "status", latestRoundPrice.Status.String())
+	}
+}
 
+func (dp *DataReporter) handleNewRoundEvent(newRound uint64) error {
 	// if the autonity node is on peer synchronization state, just skip the reporting.
 	sync, err := dp.client.SyncProgress(context.Background())
 	if err != nil {
 		return err
 	}
+
 	if sync != nil {
 		return ErrPeerOnSync
 	}
+
+	// get latest symbols from oracle.
+	dp.currentSymbols, err = dp.oracleContract.GetSymbols(nil)
+	if err != nil {
+		return err
+	}
+	dp.currentRound = newRound
+
+	dp.printLatestRoundData(newRound)
 
 	// if client is not a voter, just skip reporting.
 	isVoter, err := dp.isVoter()
@@ -377,7 +419,7 @@ func (dp *DataReporter) buildRoundData(round uint64) (*types.RoundData, error) {
 
 func (dp *DataReporter) handleNewSymbolsEvent(symbols []string) {
 	dp.logger.Info("handleNewSymbolsEvent", "symbols", symbols)
-	dp.currentSymbols = symbols
+	// just add symbols to oracle service's symbol pool, thus the oracle service can start to prepare the data.
 	dp.oracleService.UpdateSymbols(symbols)
 }
 
@@ -385,5 +427,6 @@ func (dp *DataReporter) Stop() {
 	dp.client.Close()
 	dp.subRoundEvent.Unsubscribe()
 	dp.subSymbolsEvent.Unsubscribe()
+	dp.subDebugEvent.Unsubscribe()
 	dp.liveTicker.Stop()
 }
