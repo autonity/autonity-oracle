@@ -18,7 +18,8 @@ import (
 )
 
 var (
-	ValidDataAge            = 3 * 60 * 1000 // 3 minutes, data fetched within 3 minutes are valid to update the price.
+	//ValidDataAge            = 3 * 60 * 1000 // 3 minutes, data fetched within 3 minutes are valid to update the price.
+	ValidDataAge            = 1 * 60 * 1000 // 1 minutes, data fetched within 3 minutes are valid to update the price.
 	Version                 = "v0.0.1"
 	UpdateInterval          = 10 * time.Second // 10s, the data fetching interval for the oracle server's jobTicker job.
 	PluginDiscoveryInterval = 2 * time.Second  // 2s, the plugin discovery interval.
@@ -160,7 +161,7 @@ func (os *OracleServer) UpdatePrices(symbols []string) {
 	}
 	err := wg.Wait()
 	if err != nil {
-		os.logger.Error("fetching prices from plugins error", err.Error())
+		os.logger.Error("fetching prices from plugin error", err.Error())
 	}
 
 	now := time.Now().UnixMilli()
