@@ -168,7 +168,7 @@ func (dp *DataReporter) Start() {
 			dp.logger.Info("handle new round", "round", round.Round.Uint64())
 			err := dp.handleNewRoundEvent(round.Round.Uint64())
 			if err != nil {
-				dp.logger.Error("Handling round change event", "err", err.Error())
+				dp.logger.Warn("Handling round change event", "err", err.Error())
 			}
 		case symbols := <-dp.chSymbolsEvent:
 			dp.logger.Info("handle new symbols", "symbols", symbols.Symbols, "activated at round", symbols.Round)
@@ -255,7 +255,7 @@ func (dp *DataReporter) printLatestRoundData(newRound uint64) {
 	for _, s := range dp.currentSymbols {
 		rd, err := dp.oracleContract.LatestRoundData(nil, s)
 		if err != nil {
-			dp.logger.Error("GetLatestRoundData", "error", err.Error())
+			dp.logger.Error("GetLatestRoundPrice", "error", err.Error())
 		}
 
 		price, err := decimal.NewFromString(rd.Price.String())
@@ -263,7 +263,7 @@ func (dp *DataReporter) printLatestRoundData(newRound uint64) {
 			continue
 		}
 
-		dp.logger.Info("OnChainRoundData", "round", rd.Round.Uint64(), "symbol", s, "price",
+		dp.logger.Info("OnChainRoundPrice", "round", rd.Round.Uint64(), "symbol", s, "price",
 			price.Div(PricePrecision).String(), "status", rd.Status.String())
 	}
 }
