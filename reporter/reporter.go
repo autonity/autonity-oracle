@@ -257,8 +257,14 @@ func (dp *DataReporter) printLatestRoundData(newRound uint64) {
 		if err != nil {
 			dp.logger.Error("GetLatestRoundData", "error", err.Error())
 		}
-		dp.logger.Info("GetLatestRoundData", "round", rd.Round.Uint64(), "symbol", s, "Price",
-			rd.Price.String(), "status", rd.Status.String())
+
+		price, err := decimal.NewFromString(rd.Price.String())
+		if err != nil {
+			continue
+		}
+
+		dp.logger.Info("OnChainRoundData", "round", rd.Round.Uint64(), "symbol", s, "price",
+			price.Div(PricePrecision).String(), "status", rd.Status.String())
 	}
 }
 
@@ -403,6 +409,8 @@ func (dp *DataReporter) buildRoundData(round uint64) (*types.RoundData, error) {
 	if len(prices) == 0 {
 		return nil, ErrNoAvailablePrice
 	}
+
+	dp.logger.Info("sampled prices", "round", round, "prices", prices)
 
 	seed := time.Now().UnixNano()
 	var roundData = &types.RoundData{

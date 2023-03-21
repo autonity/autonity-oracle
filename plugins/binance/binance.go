@@ -17,7 +17,8 @@ var version = "v0.0.1"
 // BinanceMarketDataURL using namespace .us rather than .com since the data legal issue in different regions.
 // refer to legal issue: https://dev.binance.vision/t/api-error-451-unavailable-for-legal-reasons/13828/4, once we list
 // our token in Binance, we need their customer service to resolve it.
-const BinanceMarketDataURL = "https://api.binance.us/api/v3/ticker/price"
+// const BinanceMarketDataURL = "https://api.binance.us/api/v3/ticker/price"
+const BinanceMarketDataURL = "http://127.0.0.1:50991/api/v3/ticker/price"
 const UnknownErr = "Unknown Error"
 const DataLegalErr = "StatusUnavailableForLegalReasons"
 
@@ -42,7 +43,7 @@ type Binance struct {
 }
 
 func (g *Binance) FetchPrices(symbols []string) (types.PluginPriceReport, error) {
-	g.logger.Debug("fetching price for symbols: ", symbols)
+	//g.logger.Debug("fetching price for symbols: ", symbols)
 	var report types.PluginPriceReport
 
 	if FetchCounter%SyncSymbolsInterval == 0 {
@@ -77,7 +78,7 @@ func (g *Binance) FetchPrices(symbols []string) (types.PluginPriceReport, error)
 		return report, err
 	}
 
-	g.logger.Debug("Get HTTP response status code: ", resp.StatusCode)
+	//g.logger.Debug("Get HTTP response status code: ", resp.StatusCode)
 	if resp.StatusCode != http.StatusOK {
 		msg := UnknownErr
 		if resp.StatusCode == http.StatusUnavailableForLegalReasons {
@@ -94,7 +95,7 @@ func (g *Binance) FetchPrices(symbols []string) (types.PluginPriceReport, error)
 	if err != nil {
 		return report, err
 	}
-	g.logger.Debug("data points: ", prices)
+	//g.logger.Debug("sampled data points: ", prices)
 
 	now := time.Now().UnixMilli()
 	for _, v := range prices {
@@ -146,7 +147,7 @@ func (g *Binance) FetchPricesWithSymbolSync(symbols []string) (report types.Plug
 		return report, err
 	}
 
-	g.logger.Debug("Get HTTP response status code: ", resp.StatusCode)
+	//g.logger.Debug("Get HTTP response status code: ", resp.StatusCode)
 	if resp.StatusCode != http.StatusOK {
 		msg := "unknown error"
 		if resp.StatusCode == http.StatusUnavailableForLegalReasons {
