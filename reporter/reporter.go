@@ -174,7 +174,7 @@ func (dp *DataReporter) Start() {
 			dp.logger.Info("handle new symbols", "symbols", symbols.Symbols, "activated at round", symbols.Round)
 			dp.handleNewSymbolsEvent(symbols.Symbols)
 		case debugMsg := <-dp.chDebugEvent:
-			dp.logger.Info("****Debug event", "msg", debugMsg.Arg0)
+			dp.logger.Info("**** Oracle Contract Debug Event", "msg", debugMsg.Arg0)
 		case <-dp.liveTicker.C:
 			dp.checkHealth()
 			dp.gcRoundData()
@@ -241,15 +241,16 @@ func (dp *DataReporter) isVoter() (bool, error) {
 }
 
 func (dp *DataReporter) printLatestRoundData(newRound uint64) {
-	for _, s := range dp.currentSymbols {
-		rd, err := dp.oracleContract.GetRoundData(nil, new(big.Int).SetUint64(newRound-1), s)
-		if err != nil {
-			dp.logger.Error("GetRoundData", "error", err.Error())
-		}
+	/*
+		for _, s := range dp.currentSymbols {
+			rd, err := dp.oracleContract.GetRoundData(nil, new(big.Int).SetUint64(newRound-1), s)
+			if err != nil {
+				dp.logger.Error("GetRoundData", "error", err.Error())
+			}
 
-		dp.logger.Info("GetRoundPrice", "round", rd.Round.Uint64(), "symbol", s, "Price",
-			rd.Price.String(), "status", rd.Status.String())
-	}
+			dp.logger.Info("GetRoundPrice", "round", rd.Round.Uint64(), "symbol", s, "Price",
+				rd.Price.String(), "status", rd.Status.String())
+		}*/
 
 	for _, s := range dp.currentSymbols {
 		rd, err := dp.oracleContract.LatestRoundData(nil, s)
@@ -290,7 +291,7 @@ func (dp *DataReporter) handleNewRoundEvent(newRound uint64) error {
 	// query last round's prices, its random salt which will reveal last round's report.
 	lastRoundData, ok := dp.roundData[newRound-1]
 	if !ok {
-		dp.logger.Info("Cannot find last round's data, oracle will just report current round commitment hash.")
+		dp.logger.Info("Cannot find last round's data, reports with commitment hash and no data")
 	}
 
 	// if node is no longer a validator, and it doesn't have last round data, skip reporting.
