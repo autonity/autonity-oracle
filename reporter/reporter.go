@@ -443,7 +443,9 @@ func (dp *DataReporter) handleNewSymbolsEvent(symbols []string) {
 }
 
 func (dp *DataReporter) Stop() {
-	dp.client.Close()
+	if dp.client != nil {
+		dp.client.Close()
+	}
 	dp.subRoundEvent.Unsubscribe()
 	dp.subSymbolsEvent.Unsubscribe()
 	dp.subDebugEvent.Unsubscribe()
