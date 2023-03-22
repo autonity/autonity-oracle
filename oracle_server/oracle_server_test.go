@@ -8,7 +8,7 @@ import (
 )
 
 func TestOracleServer(t *testing.T) {
-	var symbols = []string{"NTNETH", "NTNBTC", "NTNUSDC"}
+	var symbols = []string{"NTNUSD", "NTNAUD", "NTNCAD", "NTNEUR", "NTNGBP", "NTNJPY", "NTNSEK"}
 	t.Run("oracle service getters", func(t *testing.T) {
 		os := NewOracleServer(symbols, ".")
 		version := os.Version()
@@ -20,14 +20,14 @@ func TestOracleServer(t *testing.T) {
 	})
 
 	t.Run("oracle service setters", func(t *testing.T) {
-		newSymbols := []string{"NTNRMB", "NTNUSD", "NTNGBP"}
+		newSymbols := []string{"NTNUSD", "NTNAUD", "NTNCAD", "NTNEUR", "NTNGBP", "NTNJPY", "NTNSEK", "NTNRMB"}
 		os := NewOracleServer(symbols, ".")
 		os.UpdateSymbols(newSymbols)
 		require.Equal(t, newSymbols, os.Symbols())
 
-		NTNRMBRate := types.Price{
+		NTNEURRate := types.Price{
 			Timestamp: 0,
-			Symbol:    "NTNRMB",
+			Symbol:    "NTNEUR",
 			Price:     decimal.RequireFromString("999.99"),
 		}
 		NTNUSDRate := types.Price{
@@ -40,19 +40,28 @@ func TestOracleServer(t *testing.T) {
 			Symbol:    "NTNGBP",
 			Price:     decimal.RequireFromString("111.11"),
 		}
-		os.UpdatePrice(NTNRMBRate)
+		NTNRMBRate := types.Price{
+			Timestamp: 0,
+			Symbol:    "NTNRMB",
+			Price:     decimal.RequireFromString("12.12"),
+		}
+		os.UpdatePrice(NTNEURRate)
 		os.UpdatePrice(NTNUSDRate)
 		os.UpdatePrice(NTNGBPRate)
+		os.UpdatePrice(NTNRMBRate)
 
-		require.Equal(t, 3, len(os.GetPrices()))
+		require.Equal(t, 4, len(os.GetPrices()))
 		actualPrices := os.GetPrices()
 		require.Equal(t, true, NTNUSDRate.Price.Equals(actualPrices["NTNUSD"].Price))
 		require.Equal(t, NTNUSDRate.Symbol, actualPrices["NTNUSD"].Symbol)
 
-		require.Equal(t, true, NTNRMBRate.Price.Equals(actualPrices["NTNRMB"].Price))
-		require.Equal(t, NTNRMBRate.Symbol, actualPrices["NTNRMB"].Symbol)
+		require.Equal(t, true, NTNEURRate.Price.Equals(actualPrices["NTNEUR"].Price))
+		require.Equal(t, NTNEURRate.Symbol, actualPrices["NTNEUR"].Symbol)
 
 		require.Equal(t, true, NTNGBPRate.Price.Equals(actualPrices["NTNGBP"].Price))
 		require.Equal(t, NTNGBPRate.Symbol, actualPrices["NTNGBP"].Symbol)
+
+		require.Equal(t, true, NTNRMBRate.Price.Equals(actualPrices["NTNRMB"].Price))
+		require.Equal(t, NTNRMBRate.Symbol, actualPrices["NTNRMB"].Symbol)
 	})
 }
