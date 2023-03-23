@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"autonity-oracle/types"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
@@ -27,4 +28,19 @@ func TestParsePlaybookHeader(t *testing.T) {
 	require.Equal(t, "NTNEUR", symbols[1])
 	require.Equal(t, "NTNAUD", symbols[2])
 	require.Equal(t, "NTNJPY", symbols[3])
+}
+
+func TestResolveSimulatedPrice(t *testing.T) {
+	symbol := "BTCETH"
+	price := ResolveSimulatedPrice(symbol)
+	require.Equal(t, true, types.SimulatedPrice.Equal(price))
+
+	symbol = "NTNUSD"
+	p := ResolveSimulatedPrice(symbol)
+	require.Equal(t, true, pNTNUSD.Equal(p))
+
+	symbol = "NTNSEK"
+	p = ResolveSimulatedPrice(symbol)
+	require.Equal(t, true, pNTNSEK.Equal(p))
+
 }

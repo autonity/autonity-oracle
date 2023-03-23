@@ -1,12 +1,45 @@
 package helpers
 
 import (
+	"autonity-oracle/types"
 	"encoding/csv"
 	"fmt"
+	"github.com/shopspring/decimal"
 	"io"
 	"os"
 	"strings"
 )
+
+var (
+	pNTNUSD = decimal.RequireFromString("7.0")
+	pNTNAUD = decimal.RequireFromString("9.856")
+	pNTNCAD = decimal.RequireFromString("9.331")
+	pNTNEUR = decimal.RequireFromString("6.8369")
+	pNTNGBP = decimal.RequireFromString("5.691")
+	pNTNJPY = decimal.RequireFromString("897.435")
+	pNTNSEK = decimal.RequireFromString("72.163")
+)
+
+func ResolveSimulatedPrice(s string) decimal.Decimal {
+	defaultPrice := types.SimulatedPrice
+	switch s {
+	case "NTNUSD":
+		defaultPrice = pNTNUSD
+	case "NTNAUD":
+		defaultPrice = pNTNAUD
+	case "NTNCAD":
+		defaultPrice = pNTNCAD
+	case "NTNEUR":
+		defaultPrice = pNTNEUR
+	case "NTNGBP":
+		defaultPrice = pNTNGBP
+	case "NTNJPY":
+		defaultPrice = pNTNJPY
+	case "NTNSEK":
+		defaultPrice = pNTNSEK
+	}
+	return defaultPrice
+}
 
 func ParseSymbols(symbols string) []string {
 	var symbolArray []string

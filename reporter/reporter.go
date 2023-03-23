@@ -241,16 +241,15 @@ func (dp *DataReporter) isVoter() (bool, error) {
 }
 
 func (dp *DataReporter) printLatestRoundData(newRound uint64) {
-	/*
-		for _, s := range dp.currentSymbols {
-			rd, err := dp.oracleContract.GetRoundData(nil, new(big.Int).SetUint64(newRound-1), s)
-			if err != nil {
-				dp.logger.Error("GetRoundData", "error", err.Error())
-			}
+	for _, s := range dp.currentSymbols {
+		rd, err := dp.oracleContract.GetRoundData(nil, new(big.Int).SetUint64(newRound-1), s)
+		if err != nil {
+			dp.logger.Error("GetRoundData", "error", err.Error())
+		}
 
-			dp.logger.Info("GetRoundPrice", "round", rd.Round.Uint64(), "symbol", s, "Price",
-				rd.Price.String(), "status", rd.Status.String())
-		}*/
+		dp.logger.Info("GetRoundPrice", "round", rd.Round.Uint64(), "symbol", s, "Price",
+			rd.Price.String(), "status", rd.Status.String())
+	}
 
 	for _, s := range dp.currentSymbols {
 		rd, err := dp.oracleContract.LatestRoundData(nil, s)
@@ -263,7 +262,7 @@ func (dp *DataReporter) printLatestRoundData(newRound uint64) {
 			continue
 		}
 
-		dp.logger.Info("OnChainRoundPrice", "round", rd.Round.Uint64(), "symbol", s, "price",
+		dp.logger.Info("LatestRoundPrice", "round", rd.Round.Uint64(), "symbol", s, "price",
 			price.Div(PricePrecision).String(), "status", rd.Status.String())
 	}
 }

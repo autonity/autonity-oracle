@@ -1,7 +1,8 @@
-package main_test
+package e2e_test_test
 
 import (
 	"autonity-oracle/config"
+	"autonity-oracle/helpers"
 	"autonity-oracle/http_server"
 	"autonity-oracle/oracle_server"
 	"autonity-oracle/types"
@@ -24,12 +25,12 @@ func TestE2EAutonityOracleServer(t *testing.T) {
 	require.NoError(t, err)
 	err = os.Unsetenv("ORACLE_CRYPTO_SYMBOLS")
 	require.NoError(t, err)
-	err = os.Setenv(types.EnvKeyFile, "./test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe")
+	err = os.Setenv(types.EnvKeyFile, "../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe")
 	require.NoError(t, err)
 	err = os.Setenv(types.EnvKeyFilePASS, "123")
 	require.NoError(t, err)
 	conf := config.MakeConfig()
-	conf.PluginDIR = "./plugins/fakeplugin/bin"
+	conf.PluginDIR = "../plugins/fakeplugin/bin"
 	// create oracle service and start the ticker job.
 	oracle := oracleserver.NewOracleServer(conf.Symbols, conf.PluginDIR)
 	go oracle.Start()
@@ -131,7 +132,7 @@ func testGetPrices(t *testing.T, port int) {
 	require.Equal(t, strings.Split(config.DefaultSymbols, ","), ps.Symbols)
 	for _, s := range ps.Symbols {
 		require.Equal(t, s, ps.Prices[s].Symbol)
-		require.Equal(t, true, ps.Prices[s].Price.Equal(types.SimulatedPrice))
+		require.Equal(t, true, ps.Prices[s].Price.Equal(helpers.ResolveSimulatedPrice(s)))
 	}
 }
 
