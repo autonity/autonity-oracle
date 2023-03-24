@@ -24,6 +24,16 @@ import (
 	"time"
 )
 
+var (
+	numberOfValidators        = 4
+	numberOfPortsForBindNodes = 3
+	numberOfKeys              = 10
+	defaultPlugDir            = "../build/bin/plugins"
+	defaultHost               = "127.0.0.1"
+	defaultDataDirRoot        = "../test_data/autonity_l1_net_config/nodes/"
+	defaultBondedStake        = new(big.Int).SetUint64(1000)
+)
+
 type AutonityContractGenesis struct {
 	Bytecode         string         `json:"bytecode,omitempty" toml:",omitempty"`
 	ABI              string         `json:"abi,omitempty" toml:",omitempty"`
@@ -74,7 +84,173 @@ type Validator struct {
 	BondedStake *big.Int       `json:"bondedStake"`
 }
 
-func makeGenesisConfig(srcTemplate string, dstFile string, vals []*Validator) error {
+type Oracle struct {
+	Key       *Key
+	PluginDir string
+	Host      string
+	HTTPPort  int
+	ProcessID int
+}
+
+// todo: start the oracle client process.
+func (o *Oracle) Start() {
+	o.ProcessID = 1
+}
+
+// todo: stop the oracle client process.
+func (o *Oracle) Stop() {
+	o.ProcessID = -1
+}
+
+type Key struct {
+	KeyFile  string
+	Password string
+	Key      *keystore.Key
+}
+
+type Node struct {
+	DataDir      string
+	NodeKey      *Key
+	Host         string
+	P2PPort      int
+	WSPort       int
+	ProcessID    int
+	OracleClient *Oracle
+	Validator    *Validator
+}
+
+func (n *Node) genConfigs() error {
+	// todo: gen configs for autonity client,
+
+	// todo: gen configs for the corresponding oracle client.
+
+	return nil
+}
+
+// todo: start the autontiy client process
+func (n *Node) Start() {
+	n.ProcessID = 2
+}
+
+// todo: stop the autonity client process
+func (n *Node) Stop() {
+	n.ProcessID = -1
+}
+
+type Network struct {
+	OperatorKey *Key
+	TreasuryKey *Key
+	Nodes       []*Node
+}
+
+// todo: generate the genesis file for the network.
+func (net *Network) genGenesisFile() error {
+	return nil
+}
+
+// prepare configurations for autonity l1 node and oracle client node
+func (net *Network) genConfigs() error {
+	if err := net.genGenesisFile(); err != nil {
+		return err
+	}
+
+	for _, n := range net.Nodes {
+		if err := n.genConfigs(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// todo: start the network
+func (net *Network) Start() error {
+	return nil
+}
+
+// todo: stop the network
+func (net *Network) Stop() {
+
+}
+
+// create with a four-nodes autonity l1 network for the integration of oracle service, with each of validator bind with
+// an oracle node.
+func createNetwork(keystore string, password string) (*Network, error) {
+	keys, err := loadKeys(keystore, password)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(keys) != numberOfKeys {
+		panic("keystore does not contains enough key for testbed")
+	}
+
+	var network = &Network{
+		OperatorKey: keys[0],
+		TreasuryKey: keys[1],
+	}
+
+	freePorts, err := getFreePost(numberOfValidators * numberOfPortsForBindNodes)
+	if err != nil {
+		return nil, err
+	}
+
+	//plan the network with number of validators, allocate configs for L1 node and the corresponding oracle client.
+	network, err = prepareResource(network, keys[2:], freePorts, numberOfValidators)
+	if err != nil {
+		return nil, err
+	}
+
+	err = network.genConfigs()
+	if err != nil {
+		return nil, err
+	}
+
+	err = network.Start()
+	if err != nil {
+		return nil, err
+	}
+
+	return network, nil
+}
+
+func prepareResource(network *Network, freeKeys []*Key, freePorts []int, nodes int) (*Network, error) {
+
+	for i := 0; i < nodes; i++ {
+		// allocate a key and a port for oracle client,
+		var oracle = &Oracle{
+			Key:       freeKeys[i*2],
+			PluginDir: defaultPlugDir,
+			Host:      defaultHost,
+			HTTPPort:  freePorts[i*3],
+			ProcessID: -1,
+		}
+
+		// allocate a key and 2 ports for validator client,
+		var aut = &Node{
+			DataDir:      fmt.Sprintf("%s/node_%d/data", defaultDataDirRoot, i),
+			NodeKey:      freeKeys[i*2+1],
+			Host:         defaultHost,
+			P2PPort:      freePorts[i*3+1],
+			WSPort:       freePorts[i*3+2],
+			OracleClient: oracle,
+		}
+
+		var validator = &Validator{
+			Treasury:    aut.NodeKey.Key.Address,
+			Enode:       genEnode(&aut.NodeKey.Key.PrivateKey.PublicKey, aut.Host, aut.P2PPort),
+			Voter:       crypto.PubkeyToAddress(oracle.Key.Key.PrivateKey.PublicKey),
+			BondedStake: defaultBondedStake,
+		}
+
+		aut.OracleClient = oracle
+		aut.Validator = validator
+
+		network.Nodes = append(network.Nodes, aut)
+	}
+	return network, nil
+}
+
+func makeGenesisConfig(srcTemplate string, dstFile string, vals []*Validator, treasury common.Address, operator common.Address) error {
 	file, err := os.Open(srcTemplate)
 	if err != nil {
 		return err
@@ -86,7 +262,8 @@ func makeGenesisConfig(srcTemplate string, dstFile string, vals []*Validator) er
 	if err = json.NewDecoder(file).Decode(genesis); err != nil {
 		return err
 	}
-
+	genesis.Config.Autonity.Operator = operator
+	genesis.Config.Autonity.Treasury = treasury
 	genesis.Config.Autonity.Validators = append(genesis.Config.Autonity.Validators, vals...)
 
 	jsonData, err := json.MarshalIndent(genesis, "", " ")
@@ -102,15 +279,16 @@ func makeGenesisConfig(srcTemplate string, dstFile string, vals []*Validator) er
 }
 
 // load all keys from keystore with the corresponding password.
-func loadKeys(kStore string, password string) ([]*keystore.Key, error) {
+func loadKeys(kStore string, password string) ([]*Key, error) {
 	files, err := listDir(kStore)
 	if err != nil {
 		return nil, err
 	}
 
-	var keys []*keystore.Key
+	var keys []*Key
 	for _, f := range files {
-		keyJson, err := ioutil.ReadFile(fmt.Sprintf("%s/%s", kStore, f))
+		keyFile := fmt.Sprintf(fmt.Sprintf("%s/%s", kStore, f))
+		keyJson, err := ioutil.ReadFile(keyFile)
 		if err != nil {
 			return nil, err
 		}
@@ -119,7 +297,9 @@ func loadKeys(kStore string, password string) ([]*keystore.Key, error) {
 		if err != nil {
 			return nil, err
 		}
-		keys = append(keys, key)
+
+		var k = &Key{Key: key, KeyFile: keyFile, Password: password}
+		keys = append(keys, k)
 	}
 
 	return keys, nil
