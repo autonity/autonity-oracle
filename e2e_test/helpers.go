@@ -6,12 +6,15 @@ import (
 	oracleserver "autonity-oracle/oracle_server"
 	"autonity-oracle/types"
 	"bytes"
+	"context"
 	"crypto/ecdsa"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/phayes/freeport"
 	"github.com/stretchr/testify/require"
 	"io/fs"
@@ -19,6 +22,7 @@ import (
 	"math/big"
 	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -31,6 +35,12 @@ var (
 	defaultPlugDir            = "../build/bin/plugins"
 	defaultHost               = "127.0.0.1"
 	defaultDataDirRoot        = "../test_data/autonity_l1_net_config/nodes/"
+	defaultGenesis            = "../test_data/autonity_l1_net_config/genesis_template.json"
+	generatedGenesis          = "../test_data/autonity_l1_net_config/genesis_gen.json"
+	keyStoreDir               = "../test_data/autonity_l1_net_config/keystore"
+	nodeKeyDir                = "../test_data/autonity_l1_net_config/nodekeys"
+	defaultOracleBin          = "../build/bin/autoracle"
+	defaultAutonityBin        = "../test_data/autonity_l1_net_config/autonity"
 	defaultBondedStake        = new(big.Int).SetUint64(1000)
 )
 
@@ -90,22 +100,41 @@ type Oracle struct {
 	Host      string
 	HTTPPort  int
 	ProcessID int
+	Command   *exec.Cmd
 }
 
-// todo: start the oracle client process.
+// Start starts the process and wait until it exists, the caller should use a go routine to invoke it.
 func (o *Oracle) Start() {
-	o.ProcessID = 1
+	err := o.Command.Run()
+	if err != nil {
+		panic(err)
+	}
 }
 
-// todo: stop the oracle client process.
 func (o *Oracle) Stop() {
-	o.ProcessID = -1
+	err := o.Command.Process.Kill()
+	if err != nil {
+		log.Info("stop oracle client failed", "error", err.Error())
+	}
+}
+
+func (o *Oracle) GenCMD(wsEndpoint string) {
+	c := exec.CommandContext(context.Background(), defaultOracleBin,
+		fmt.Sprintf("-oracle_autonity_ws_url=%s", wsEndpoint),
+		fmt.Sprintf("-oracle_crypto_symbols=%s", config.DefaultSymbols),
+		fmt.Sprintf("-oracle_http_port=%d", o.HTTPPort),
+		fmt.Sprintf("-oracle_key_file=%s", o.Key.KeyFile),
+		fmt.Sprintf("-oracle_key_password=%s", o.Key.Password),
+		fmt.Sprintf("-oracle_plugin_dir=%s", o.PluginDir),
+	)
+	o.Command = c
 }
 
 type Key struct {
-	KeyFile  string
-	Password string
-	Key      *keystore.Key
+	KeyFile    string
+	RawKeyFile string
+	Password   string
+	Key        *keystore.Key
 }
 
 type Node struct {
@@ -116,35 +145,63 @@ type Node struct {
 	WSPort       int
 	ProcessID    int
 	OracleClient *Oracle
+	Command      *exec.Cmd
 	Validator    *Validator
 }
 
-func (n *Node) genConfigs() error {
-	// todo: gen configs for autonity client,
-
-	// todo: gen configs for the corresponding oracle client.
-
-	return nil
+func (n *Node) GenCMD(genesisFile string) {
+	c := exec.CommandContext(context.Background(), defaultAutonityBin,
+		fmt.Sprintf("--genesis %s", genesisFile),
+		fmt.Sprintf("--datadir %s", n.DataDir),
+		fmt.Sprintf("--nodekey %s", n.NodeKey.RawKeyFile),
+		"--ws ",
+		fmt.Sprintf("--ws.addr %s", n.Host),
+		fmt.Sprintf("--ws.port %d", n.WSPort),
+		fmt.Sprintf("--ws.api tendermint,eth,web3,admin,debug,miner,personal,txpool,net"),
+		"--syncmode full",
+		"--miner.gaslimit 100000000",
+		"--miner.threads 1",
+	)
+	n.Command = c
+	n.OracleClient.GenCMD(fmt.Sprintf("ws://%s:%d", n.Host, n.WSPort))
 }
 
-// todo: start the autontiy client process
+// Start starts the process and wait until it exists, the caller should use a go routine to invoke it.
 func (n *Node) Start() {
-	n.ProcessID = 2
+	err := n.Command.Run()
+	if err != nil {
+		panic(err)
+	}
 }
 
-// todo: stop the autonity client process
 func (n *Node) Stop() {
-	n.ProcessID = -1
+	err := n.Command.Process.Kill()
+	if err != nil {
+		log.Info("stop autonity client failed", "error", err.Error())
+	}
 }
 
 type Network struct {
+	GenesisFile string
 	OperatorKey *Key
 	TreasuryKey *Key
 	Nodes       []*Node
 }
 
-// todo: generate the genesis file for the network.
 func (net *Network) genGenesisFile() error {
+	srcGenesis := defaultGenesis
+	dstGenesis := generatedGenesis
+
+	var vals []*Validator
+	for _, n := range net.Nodes {
+		vals = append(vals, n.Validator)
+	}
+
+	err := makeGenesisConfig(srcGenesis, dstGenesis, vals, net.TreasuryKey.Key.Address, net.OperatorKey.Key.Address)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -155,21 +212,23 @@ func (net *Network) genConfigs() error {
 	}
 
 	for _, n := range net.Nodes {
-		if err := n.genConfigs(); err != nil {
-			return err
-		}
+		n.GenCMD(net.GenesisFile)
 	}
 	return nil
 }
 
-// todo: start the network
-func (net *Network) Start() error {
-	return nil
+func (net *Network) Start() {
+	for _, n := range net.Nodes {
+		go n.Start()
+		go n.OracleClient.Start()
+	}
 }
 
-// todo: stop the network
 func (net *Network) Stop() {
-
+	for _, n := range net.Nodes {
+		n.OracleClient.Stop()
+		n.Stop()
+	}
 }
 
 // create with a four-nodes autonity l1 network for the integration of oracle service, with each of validator bind with
@@ -205,10 +264,7 @@ func createNetwork(keystore string, password string) (*Network, error) {
 		return nil, err
 	}
 
-	err = network.Start()
-	if err != nil {
-		return nil, err
-	}
+	network.Start()
 
 	return network, nil
 }
@@ -298,7 +354,13 @@ func loadKeys(kStore string, password string) ([]*Key, error) {
 			return nil, err
 		}
 
-		var k = &Key{Key: key, KeyFile: keyFile, Password: password}
+		strKey := hex.EncodeToString(crypto.FromECDSA(key.PrivateKey))
+		rawKeyFile := fmt.Sprintf("%s/%s", nodeKeyDir, key.Address)
+		if err := os.WriteFile(rawKeyFile, []byte(strKey), 0666); err != nil {
+			return nil, err
+		}
+
+		var k = &Key{Key: key, KeyFile: keyFile, Password: password, RawKeyFile: rawKeyFile}
 		keys = append(keys, k)
 	}
 

@@ -23,7 +23,7 @@ var (
 func ResolveSimulatedPrice(s string) decimal.Decimal {
 	defaultPrice := types.SimulatedPrice
 	switch s {
-	case "NTNUSD":
+	case "NTNUSD": //nolint
 		defaultPrice = pNTNUSD
 	case "NTNAUD":
 		defaultPrice = pNTNAUD
@@ -35,7 +35,7 @@ func ResolveSimulatedPrice(s string) decimal.Decimal {
 		defaultPrice = pNTNGBP
 	case "NTNJPY":
 		defaultPrice = pNTNJPY
-	case "NTNSEK":
+	case "NTNSEK": //nolint
 		defaultPrice = pNTNSEK
 	}
 	return defaultPrice

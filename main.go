@@ -17,8 +17,8 @@ import (
 func main() { //nolint
 	// create config from system environment variables or from console flags.
 	conf := config.MakeConfig()
-	log.Printf("\n\n\n \tRunning autonity oracle node at port: %d, with symbols: %s and plugin diretory: %s\n\n\n",
-		conf.HTTPPort, strings.Join(conf.Symbols, ","), conf.PluginDIR)
+	log.Printf("\n\n\n \tRunning autonity oracle node at port: %d, with symbols: %s and plugin diretory: %s by connnecting to L1 node: %s \n\n\n",
+		conf.HTTPPort, strings.Join(conf.Symbols, ","), conf.PluginDIR, conf.AutonityWSUrl)
 
 	// create oracle service and start the ticker job.
 	oracle := oracleserver.NewOracleServer(conf.Symbols, conf.PluginDIR)

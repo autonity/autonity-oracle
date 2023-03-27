@@ -5,8 +5,8 @@ run:
   # default is true. Enables skipping of directories:
   #   vendor$, third_party$, testdata$, examples$, Godeps$, builtin$
   skip-dirs-use-default: true
-  skip-files:
-    - e2e_test.go
+  skip-dirs:
+    - e2e_test
 
 modules-download-mode: readonly
 
@@ -45,4 +45,3 @@ issues:
     - path: '(.+)_test\.go'
       linters:
         - deadcode
-
