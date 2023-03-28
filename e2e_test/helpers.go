@@ -38,6 +38,7 @@ var (
 	defaultGenesis            = "../test_data/autonity_l1_net_config/genesis_template.json"
 	generatedGenesis          = "../test_data/autonity_l1_net_config/genesis_gen.json"
 	keyStoreDir               = "../test_data/autonity_l1_net_config/keystore"
+	defaultPassword           = "test"
 	nodeKeyDir                = "../test_data/autonity_l1_net_config/nodekeys"
 	defaultOracleBin          = "../build/bin/autoracle"
 	defaultAutonityBin        = "../test_data/autonity_l1_net_config/autonity"
@@ -233,8 +234,8 @@ func (net *Network) Stop() {
 
 // create with a four-nodes autonity l1 network for the integration of oracle service, with each of validator bind with
 // an oracle node.
-func createNetwork(keystore string, password string) (*Network, error) {
-	keys, err := loadKeys(keystore, password)
+func createNetwork() (*Network, error) {
+	keys, err := loadKeys(keyStoreDir, defaultPassword)
 	if err != nil {
 		return nil, err
 	}
@@ -343,7 +344,7 @@ func loadKeys(kStore string, password string) ([]*Key, error) {
 
 	var keys []*Key
 	for _, f := range files {
-		keyFile := fmt.Sprintf(fmt.Sprintf("%s/%s", kStore, f))
+		keyFile := fmt.Sprintf(fmt.Sprintf("%s/%s", kStore, f.Name()))
 		keyJson, err := ioutil.ReadFile(keyFile)
 		if err != nil {
 			return nil, err
