@@ -48,7 +48,7 @@ clean:
 	go clean -cache
 	rm -rf build/_workspace/pkg $(BINDIR)/*
 
-test:
+test: autoracle
 	go test ./...
 
 test-coverage:
