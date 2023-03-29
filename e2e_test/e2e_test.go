@@ -56,7 +56,7 @@ func TestOracleServerPluginTest(t *testing.T) {
 
 // integration with l1 network, the reported data should be presented at l1 oracle contract.
 func TestDataReportingHappyCase(t *testing.T) {
-	network, err := createNetwork(true)
+	network, err := createNetwork(false)
 	require.NoError(t, err)
 	defer network.Stop()
 
@@ -124,4 +124,3 @@ func TestRemoveValidator(t *testing.T) {
 func TestOmissionVoter(t *testing.T) {
 
 }
-
