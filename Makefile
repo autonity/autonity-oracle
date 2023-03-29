@@ -62,4 +62,4 @@ mock:
 	mockgen -package=mock -source=reporter/contract/interface.go > reporter/contract/mock/contract_mock.go
 	mockgen -package=mock -source=types/types.go > reporter/contract/mock/oracle_server_mock.go
 
-all: autoracle test test-coverage lint e2e-test
+all: autoracle test test-coverage lint

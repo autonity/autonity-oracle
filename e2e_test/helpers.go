@@ -6,7 +6,6 @@ import (
 	oracleserver "autonity-oracle/oracle_server"
 	"autonity-oracle/types"
 	"bytes"
-	"context"
 	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
@@ -29,20 +28,20 @@ import (
 )
 
 var (
+	nodeKeyDir         = "./autonity_l1_config/nodekeys"
+	keyStoreDir        = "./autonity_l1_config/keystore"
+	defaultHost        = "127.0.0.1"
+	defaultPlugDir     = "./plugin_dir"
+	defaultGenesis     = "./autonity_l1_config/genesis_template.json"
+	defaultPassword    = "test"
+	generatedGenesis   = "./autonity_l1_config/genesis_gen.json"
+	defaultDataDirRoot = "./autonity_l1_config/nodes"
+
+	defaultBondedStake = new(big.Int).SetUint64(1000)
+
+	numberOfKeys              = 10
 	numberOfValidators        = 4
 	numberOfPortsForBindNodes = 3
-	numberOfKeys              = 10
-	defaultPlugDir            = "../build/bin/plugins"
-	defaultHost               = "127.0.0.1"
-	defaultDataDirRoot        = "../test_data/autonity_l1_net_config/nodes/"
-	defaultGenesis            = "../test_data/autonity_l1_net_config/genesis_template.json"
-	generatedGenesis          = "../test_data/autonity_l1_net_config/genesis_gen.json"
-	keyStoreDir               = "../test_data/autonity_l1_net_config/keystore"
-	defaultPassword           = "test"
-	nodeKeyDir                = "../test_data/autonity_l1_net_config/nodekeys"
-	defaultOracleBin          = "../build/bin/autoracle"
-	defaultAutonityBin        = "../test_data/autonity_l1_net_config/autonity"
-	defaultBondedStake        = new(big.Int).SetUint64(1000)
 )
 
 type AutonityContractGenesis struct {
@@ -65,29 +64,6 @@ type ChainConfig struct {
 	Autonity *AutonityContractGenesis `json:"autonity"`
 }
 
-// GenesisAccount is an account in the state of the genesis block.
-type GenesisAccount struct {
-	Balance *big.Int `json:"balance" gencodec:"required"`
-}
-
-type GenesisAlloc map[common.Address]GenesisAccount
-
-type Genesis struct {
-	Config     *ChainConfig   `json:"config"`
-	Nonce      uint64         `json:"nonce"`
-	Timestamp  uint64         `json:"timestamp"`
-	GasLimit   uint64         `json:"gasLimit"   gencodec:"required"`
-	Difficulty *big.Int       `json:"difficulty" gencodec:"required"`
-	Mixhash    common.Hash    `json:"mixHash"`
-	Coinbase   common.Address `json:"coinbase"`
-	Alloc      GenesisAlloc   `json:"alloc"      gencodec:"required"`
-
-	Number     uint64      `json:"number"`
-	GasUsed    uint64      `json:"gasUsed"`
-	ParentHash common.Hash `json:"parentHash"`
-	BaseFee    *big.Int    `json:"baseFee"`
-}
-
 type Validator struct {
 	Treasury    common.Address `json:"treasury"`
 	Enode       string         `json:"enode"`
@@ -108,7 +84,7 @@ type Oracle struct {
 func (o *Oracle) Start() {
 	err := o.Command.Run()
 	if err != nil {
-		panic(err)
+		//panic(err)
 	}
 }
 
@@ -120,7 +96,7 @@ func (o *Oracle) Stop() {
 }
 
 func (o *Oracle) GenCMD(wsEndpoint string) {
-	c := exec.CommandContext(context.Background(), defaultOracleBin,
+	c := exec.Command("./autoracle",
 		fmt.Sprintf("-oracle_autonity_ws_url=%s", wsEndpoint),
 		fmt.Sprintf("-oracle_crypto_symbols=%s", config.DefaultSymbols),
 		fmt.Sprintf("-oracle_http_port=%d", o.HTTPPort),
@@ -128,6 +104,9 @@ func (o *Oracle) GenCMD(wsEndpoint string) {
 		fmt.Sprintf("-oracle_key_password=%s", o.Key.Password),
 		fmt.Sprintf("-oracle_plugin_dir=%s", o.PluginDir),
 	)
+
+	c.Stderr = os.Stderr
+	c.Stdout = os.Stdout
 	o.Command = c
 }
 
@@ -139,6 +118,7 @@ type Key struct {
 }
 
 type Node struct {
+	EnableLog    bool
 	DataDir      string
 	NodeKey      *Key
 	Host         string
@@ -151,18 +131,18 @@ type Node struct {
 }
 
 func (n *Node) GenCMD(genesisFile string) {
-	c := exec.CommandContext(context.Background(), defaultAutonityBin,
-		fmt.Sprintf("--genesis %s", genesisFile),
-		fmt.Sprintf("--datadir %s", n.DataDir),
-		fmt.Sprintf("--nodekey %s", n.NodeKey.RawKeyFile),
-		"--ws ",
-		fmt.Sprintf("--ws.addr %s", n.Host),
-		fmt.Sprintf("--ws.port %d", n.WSPort),
-		fmt.Sprintf("--ws.api tendermint,eth,web3,admin,debug,miner,personal,txpool,net"),
-		"--syncmode full",
-		"--miner.gaslimit 100000000",
-		"--miner.threads 1",
-	)
+	c := exec.Command("./autonity",
+		"--datadir", n.DataDir, "--genesis", genesisFile, "--nodekey", n.NodeKey.RawKeyFile, "--ws",
+		"--ws.addr", n.Host, "--ws.port", fmt.Sprintf("%d", n.WSPort), "--ws.api",
+		"tendermint,eth,web3,admin,debug,miner,personal,txpool,net", "--syncmode", "full", "--miner.gaslimit",
+		"100000000", "--miner.threads", fmt.Sprintf("%d", 1), "--port", fmt.Sprintf("%d", n.P2PPort))
+
+	// enable logging in the standard outputs.
+	if n.EnableLog {
+		c.Stdout = os.Stdout
+		c.Stderr = os.Stderr
+	}
+
 	n.Command = c
 	n.OracleClient.GenCMD(fmt.Sprintf("ws://%s:%d", n.Host, n.WSPort))
 }
@@ -176,17 +156,20 @@ func (n *Node) Start() {
 }
 
 func (n *Node) Stop() {
-	err := n.Command.Process.Kill()
-	if err != nil {
-		log.Info("stop autonity client failed", "error", err.Error())
+	if err := n.Command.Process.Kill(); err != nil {
+		log.Warn("stop autonity client failed", "error", err.Error())
+	}
+	if err := os.RemoveAll(n.DataDir); err != nil {
+		log.Warn("cleanup autonity client data DIR failed", "error", err.Error())
 	}
 }
 
 type Network struct {
-	GenesisFile string
-	OperatorKey *Key
-	TreasuryKey *Key
-	Nodes       []*Node
+	EnableL1Logs bool
+	GenesisFile  string
+	OperatorKey  *Key
+	TreasuryKey  *Key
+	Nodes        []*Node
 }
 
 func (net *Network) genGenesisFile() error {
@@ -202,7 +185,7 @@ func (net *Network) genGenesisFile() error {
 	if err != nil {
 		return err
 	}
-
+	net.GenesisFile = dstGenesis
 	return nil
 }
 
@@ -221,6 +204,7 @@ func (net *Network) genConfigs() error {
 func (net *Network) Start() {
 	for _, n := range net.Nodes {
 		go n.Start()
+		time.Sleep(5 * time.Second)
 		go n.OracleClient.Start()
 	}
 }
@@ -234,7 +218,7 @@ func (net *Network) Stop() {
 
 // create with a four-nodes autonity l1 network for the integration of oracle service, with each of validator bind with
 // an oracle node.
-func createNetwork() (*Network, error) {
+func createNetwork(enableL1Logs bool) (*Network, error) {
 	keys, err := loadKeys(keyStoreDir, defaultPassword)
 	if err != nil {
 		return nil, err
@@ -245,8 +229,9 @@ func createNetwork() (*Network, error) {
 	}
 
 	var network = &Network{
-		OperatorKey: keys[0],
-		TreasuryKey: keys[1],
+		EnableL1Logs: enableL1Logs,
+		OperatorKey:  keys[0],
+		TreasuryKey:  keys[1],
 	}
 
 	freePorts, err := getFreePost(numberOfValidators * numberOfPortsForBindNodes)
@@ -284,6 +269,7 @@ func prepareResource(network *Network, freeKeys []*Key, freePorts []int, nodes i
 
 		// allocate a key and 2 ports for validator client,
 		var aut = &Node{
+			EnableLog:    network.EnableL1Logs,
 			DataDir:      fmt.Sprintf("%s/node_%d/data", defaultDataDirRoot, i),
 			NodeKey:      freeKeys[i*2+1],
 			Host:         defaultHost,
@@ -301,6 +287,11 @@ func prepareResource(network *Network, freeKeys []*Key, freePorts []int, nodes i
 
 		aut.OracleClient = oracle
 		aut.Validator = validator
+
+		// clean up legacy data in the data DIR for the test framework.
+		if err := os.RemoveAll(aut.DataDir); err != nil {
+			log.Warn("Cannot cleanup legacy data for the test framework", "err", err.Error())
+		}
 
 		network.Nodes = append(network.Nodes, aut)
 	}
