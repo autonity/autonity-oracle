@@ -99,3 +99,29 @@ func TestDataReportingHappyCase(t *testing.T) {
 		break
 	}
 }
+
+// todo: add new symbols
+func TestAddNewSymbols(t *testing.T) {
+
+}
+
+// todo: remove symbols
+func TestRemoveSymbols(t *testing.T) {
+
+}
+
+// todo: test add new validators in committee
+func TestAddNewValidator(t *testing.T) {
+
+}
+
+// todo: test remove validators from committee.
+func TestRemoveValidator(t *testing.T) {
+
+}
+
+// todo: missing report by omission voter
+func TestOmissionVoter(t *testing.T) {
+
+}
+
