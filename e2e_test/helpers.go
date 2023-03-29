@@ -132,7 +132,7 @@ type Node struct {
 
 func (n *Node) GenCMD(genesisFile string) {
 	c := exec.Command("./autonity",
-		"--datadir", n.DataDir, "--genesis", genesisFile, "--nodekey", n.NodeKey.RawKeyFile, "--ws",
+		"--ipcdisable", "--datadir", n.DataDir, "--genesis", genesisFile, "--nodekey", n.NodeKey.RawKeyFile, "--ws",
 		"--ws.addr", n.Host, "--ws.port", fmt.Sprintf("%d", n.WSPort), "--ws.api",
 		"tendermint,eth,web3,admin,debug,miner,personal,txpool,net", "--syncmode", "full", "--miner.gaslimit",
 		"100000000", "--miner.threads", fmt.Sprintf("%d", 1), "--port", fmt.Sprintf("%d", n.P2PPort))
