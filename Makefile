@@ -6,6 +6,7 @@
 
 SOLC_VERSION = 0.8.2
 BINDIR = ./build/bin
+E2ETESTDIR = ./e2e_test
 SOLC_BINARY = $(BINDIR)/solc_static_linux_v$(SOLC_VERSION)
 PLUGINDIR = ./build/bin/plugins
 SIMULATORBINDIR = ./data_source_simulator/build/bin
@@ -22,11 +23,13 @@ autoracle:
 	mkdir -p $(PLUGINDIR)
 	go build -o $(BINDIR)/autoracle
 	chmod +x $(BINDIR)/autoracle
+	cp $(BINDIR)/autoracle $(E2ETESTDIR)
 	go build -o $(PLUGINDIR)/binance $(PLUGINSRCDIR)/binance/binance.go
 	chmod +x $(PLUGINDIR)/*
 	mkdir -p $(PLUGINSRCDIR)/fakeplugin/bin
 	go build -o $(PLUGINSRCDIR)/fakeplugin/bin/fakeplugin $(PLUGINSRCDIR)/fakeplugin/fakeplugin.go
 	chmod +x $(PLUGINSRCDIR)/fakeplugin/bin/fakeplugin
+	cp $(PLUGINSRCDIR)/fakeplugin/bin/fakeplugin $(E2ETESTDIR)/plugin_dir
 	@echo "Done building."
 	@echo "Run \"$(BINDIR)/autoracle\" to launch autonity oracle."
 
@@ -50,6 +53,8 @@ test-coverage:
 	go test ./... -coverprofile=coverage.out
 
 e2e-test: autoracle
+	cp $(BINDIR)/autoracle $(E2ETESTDIR)
+	cp $(PLUGINSRCDIR)/fakeplugin/bin/fakeplugin $(E2ETESTDIR)/plugin_dir
 	go test ./e2e_test/
 
 dep:
