@@ -21,7 +21,6 @@ import (
 )
 
 func TestOracleServerPluginTest(t *testing.T) {
-	t.Skip("for test")
 	err := os.Unsetenv("ORACLE_HTTP_PORT")
 	require.NoError(t, err)
 	err = os.Unsetenv("ORACLE_CRYPTO_SYMBOLS")
@@ -59,7 +58,7 @@ func TestOracleServerPluginTest(t *testing.T) {
 
 // integration with l1 network, the reported data should be presented at l1 oracle contract.
 func TestDataReporting(t *testing.T) {
-	network, err := createNetwork(false)
+	network, err := createNetwork(true)
 	require.NoError(t, err)
 	defer network.Stop()
 
