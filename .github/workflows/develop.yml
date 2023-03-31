@@ -72,4 +72,7 @@ jobs:
           key: ${{ runner.os }}-gocache-${{ env.GO_VERSION }}${{ hashFiles('go.mod', 'go.sum') }}
 
       - name: all tests
-        run: make all
+        run: | 
+          make autoracle
+          make lint
+          go test ./... -coverprofile=coverage.out
