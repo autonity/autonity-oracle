@@ -114,6 +114,21 @@ func (mr *MockContractAPIMockRecorder) LatestRoundData(opts, _symbol interface{}
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LatestRoundData", reflect.TypeOf((*MockContractAPI)(nil).LatestRoundData), opts, _symbol)
 }
 
+// SetSymbols mocks base method.
+func (m *MockContractAPI) SetSymbols(opts *bind.TransactOpts, _symbols []string) (*types.Transaction, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetSymbols", opts, _symbols)
+	ret0, _ := ret[0].(*types.Transaction)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SetSymbols indicates an expected call of SetSymbols.
+func (mr *MockContractAPIMockRecorder) SetSymbols(opts, _symbols interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetSymbols", reflect.TypeOf((*MockContractAPI)(nil).SetSymbols), opts, _symbols)
+}
+
 // Vote mocks base method.
 func (m *MockContractAPI) Vote(opts *bind.TransactOpts, _commit *big.Int, _prevotes []*big.Int, _salt *big.Int) (*types.Transaction, error) {
 	m.ctrl.T.Helper()

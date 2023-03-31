@@ -9,6 +9,7 @@ import (
 )
 
 type ContractAPI interface {
+	SetSymbols(opts *bind.TransactOpts, _symbols []string) (*types.Transaction, error)
 	GetSymbols(opts *bind.CallOpts) ([]string, error)
 	Vote(opts *bind.TransactOpts, _commit *big.Int, _prevotes []*big.Int, _salt *big.Int) (*types.Transaction, error)
 	GetVoters(opts *bind.CallOpts) ([]common.Address, error)

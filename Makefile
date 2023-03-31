@@ -49,9 +49,6 @@ clean:
 	rm -rf build/_workspace/pkg $(BINDIR)/*
 
 test: autoracle
-	go test ./...
-
-test-coverage:
 	go test ./... -coverprofile=coverage.out
 
 e2e-test: autoracle
@@ -67,4 +64,4 @@ mock:
 	mockgen -package=mock -source=reporter/contract/interface.go > reporter/contract/mock/contract_mock.go
 	mockgen -package=mock -source=types/types.go > reporter/contract/mock/oracle_server_mock.go
 
-all: autoracle test test-coverage lint
+all: autoracle lint test
