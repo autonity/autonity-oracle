@@ -26,7 +26,8 @@ import (
 )
 
 var Deployer = common.Address{}
-var ContractAddress = crypto.CreateAddress(Deployer, 1)
+var AutonityContractAddress = crypto.CreateAddress(Deployer, 0)
+var OracleContractAddress = crypto.CreateAddress(Deployer, 1)
 var PricePrecision = decimal.RequireFromString("10000000")
 
 var ErrPeerOnSync = errors.New("l1 node is on peer sync")
@@ -89,8 +90,8 @@ func (dp *DataReporter) buildConnection() error {
 	}
 
 	// bind client with oracle contract address
-	dp.logger.Info("binding with oracle contract", "address", ContractAddress.String())
-	dp.oracleContract, err = contract.NewOracle(ContractAddress, dp.client)
+	dp.logger.Info("binding with oracle contract", "address", OracleContractAddress.String())
+	dp.oracleContract, err = contract.NewOracle(OracleContractAddress, dp.client)
 	if err != nil {
 		return err
 	}
