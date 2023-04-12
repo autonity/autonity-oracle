@@ -34,9 +34,7 @@ From the block being prepared by miner to the round event comes to oracle networ
 - [block propogation] The committed block propogation to the edge node which serves L1 connectivity to oracle client.
 
 ##### Coordinate the data sampling
-- option1 using RoundID and TS to estimate the time slot for the next sampling
-Schduel a sampling job with (roundID, TS, estimatedTS) to update price, the price sampled by this job is used for next round data reporting.
-- option2
+
 
 ## Configuration 
 Values that can be configured by using environment variables:    
