@@ -19,7 +19,27 @@ required data for its stabilisation protocol.
 
 ![Screenshot from 2023-03-20 14-17-38](https://user-images.githubusercontent.com/54585152/226368249-eb05eb9b-be48-4714-9bdc-104d56073716.png)
 
+## Data sampling
+### oracle service 10s ticker job
+The oracle client starts a 10s ticker job to update the prices for each configured symbols on every 10s.
 
+### Coordinated data sampling
+Although we update prices for each 10s, but due to the clock drifting in the oracle network, we want to coordinate the
+data sampling thus the L1 network can observe a set of data point which has less deviation.
+
+#### Round Event(RoundID, BlockTimeStamp)
+We introduced a round event emitted by the oracle contract which is tuple (RoundID, BlockTimeStamp) carries the logical
+round ID and a timestamp of current round's last block at when this block is starting being prepared by a miner. Thus,
+the oracle network can get a consistent time reference from the L1 network to coordinate the data sampling.
+##### Delays
+From the block being prepared by miner to the round event comes to oracle network, there are delays listed as below:
+- [miner] packing the TXs into the block
+- [proposal propogation] Gossip in between committee member
+- [proposal verification] re-execute the proposal by validator
+- [BFT consensus coordination] 2-phase coordination to commit block.
+- [block propogation] The committed block propogation to the edge node which serves L1 connectivity to oracle client.
+
+##### Coordinate the data sampling
 
 ## Configuration 
 Values that can be configured by using environment variables:    
