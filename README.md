@@ -8,10 +8,18 @@ This project assumes the following:
 * Linux / MacOS operating system
 
 ## Product introduction
-This component works as the bridge that brings data points from different data provider and unifies the data into the standard format that can be pushed to Autonity L1 network. To support the runtime adaptations with different data providers, the adapters are implemented in plugins mechanism thus it maintains high availability of the autonity oracle service. 
-As the component starts ticker jobs that fetch data points from providers on every 10s timely, it also scans the plugin directory on every 2s to launch new plugins or to replace runtime plugins with newly modified one to adapt with data provider. The data aggregation at this level is base on taking the median value out from the data set. By providing unified data and pushing the data samples on a round base intervals to L1 oracle contract, thus, the autonity layer1 network can get the requried data for its stabilisation protocol.
+This component works as the bridge that brings data points from different data provider and unifies the data into the
+standard format that can be pushed to Autonity L1 network. To support the runtime adaptations with different data providers,
+the adapters are implemented in plugins mechanism thus it maintains high availability of the Autonity oracle service.
+As the component starts ticker jobs that fetch data points from providers on every 10s timely, it also scans the plugin
+directory on every 2s to launch new plugins or to replace runtime plugins with newly modified one to adapt with data provider.
+The data aggregation at this level is base on taking the median value out from the data set. By providing unified data and
+pushing the data samples on a round base intervals to L1 oracle contract, thus, the autonity layer1 network can get the
+required data for its stabilisation protocol.
 
 ![Screenshot from 2023-03-20 14-17-38](https://user-images.githubusercontent.com/54585152/226368249-eb05eb9b-be48-4714-9bdc-104d56073716.png)
+
+
 
 ## Configuration 
 Values that can be configured by using environment variables:    

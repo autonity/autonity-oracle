@@ -28,7 +28,6 @@ import (
 var Deployer = common.Address{}
 var AutonityContractAddress = crypto.CreateAddress(Deployer, 0)
 var OracleContractAddress = crypto.CreateAddress(Deployer, 1)
-var PricePrecision = decimal.RequireFromString("10000000")
 
 var ErrPeerOnSync = errors.New("l1 node is on peer sync")
 var ErrNoAvailablePrice = errors.New("no available prices collected yet")
@@ -45,6 +44,7 @@ type DataReporter struct {
 	autonityWSUrl   string
 	currentRound    uint64
 	currentSymbols  []string
+	pricePrecision  decimal.Decimal
 	roundData       map[uint64]*types.RoundData
 	key             *keystore.Key
 	oracleService   types.OracleService
@@ -52,8 +52,6 @@ type DataReporter struct {
 	subRoundEvent   event.Subscription
 	chSymbolsEvent  chan *contract.OracleNewSymbols
 	subSymbolsEvent event.Subscription
-	chDebugEvent    chan *contract.OracleDebugEvent
-	subDebugEvent   event.Subscription
 
 	liveTicker *time.Ticker
 }
@@ -97,7 +95,7 @@ func (dp *DataReporter) buildConnection() error {
 	}
 
 	// get initial states from on-chain oracle contract.
-	dp.currentRound, dp.currentSymbols, err = getStartingStates(dp.oracleContract)
+	dp.currentRound, dp.currentSymbols, dp.pricePrecision, err = getStartingStates(dp.oracleContract)
 	if err != nil {
 		return err
 	}
@@ -121,29 +119,28 @@ func (dp *DataReporter) buildConnection() error {
 		return err
 	}
 
-	// subscribe on-chain debug event
-	dp.chDebugEvent = make(chan *contract.OracleDebugEvent)
-	dp.subDebugEvent, err = dp.oracleContract.WatchDebugEvent(new(bind.WatchOpts), dp.chDebugEvent)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
 // getStartingStates returns round id, symbols and committees on current chain, it is called on the startup of client.
-func getStartingStates(oc contract.ContractAPI) (uint64, []string, error) {
+func getStartingStates(oc contract.ContractAPI) (uint64, []string, decimal.Decimal, error) {
+	var precision decimal.Decimal
 	// on the startup, we need to sync the round id, symbols and committees from contract.
 	currentRound, err := oc.GetRound(nil)
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, precision, err
 	}
 
 	symbols, err := oc.GetSymbols(nil)
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, precision, err
 	}
-	return currentRound.Uint64(), symbols, nil
+
+	p, err := oc.GetPrecision(nil)
+	if err != nil {
+		return 0, nil, precision, err
+	}
+	return currentRound.Uint64(), symbols, decimal.NewFromInt(p.Int64()), nil
 }
 
 // Start starts the event loop to handle the on-chain events, we have 3 events to be processed.
@@ -160,11 +157,6 @@ func (dp *DataReporter) Start() {
 				dp.logger.Info("subscription error of new round event", err)
 				dp.handleConnectivityError()
 			}
-		case err := <-dp.subDebugEvent.Err():
-			if err != nil {
-				dp.handleConnectivityError()
-				dp.logger.Info("subscription error of debug msg event", err)
-			}
 		case round := <-dp.chRoundEvent:
 			dp.logger.Info("handle new round", "round", round.Round.Uint64())
 			err := dp.handleNewRoundEvent(round.Round.Uint64())
@@ -174,8 +166,6 @@ func (dp *DataReporter) Start() {
 		case symbols := <-dp.chSymbolsEvent:
 			dp.logger.Info("handle new symbols", "symbols", symbols.Symbols, "activated at round", symbols.Round)
 			dp.handleNewSymbolsEvent(symbols.Symbols)
-		case debugMsg := <-dp.chDebugEvent:
-			dp.logger.Info("**** Oracle Contract Debug Event", "msg", debugMsg.Arg0)
 		case <-dp.liveTicker.C:
 			dp.checkHealth()
 			dp.gcRoundData()
@@ -201,7 +191,6 @@ func (dp *DataReporter) handleConnectivityError() {
 	}
 	dp.subRoundEvent.Unsubscribe()
 	dp.subSymbolsEvent.Unsubscribe()
-	dp.subDebugEvent.Unsubscribe()
 }
 
 func (dp *DataReporter) checkHealth() {
@@ -248,7 +237,7 @@ func (dp *DataReporter) printLatestRoundData(newRound uint64) {
 			dp.logger.Error("GetRoundData", "error", err.Error())
 		}
 
-		dp.logger.Info("GetRoundPrice", "round", rd.Round.Uint64(), "symbol", s, "Price",
+		dp.logger.Info("GetRoundPrice", "round", newRound-1, "symbol", s, "Price",
 			rd.Price.String(), "status", rd.Status.String())
 	}
 
@@ -264,7 +253,7 @@ func (dp *DataReporter) printLatestRoundData(newRound uint64) {
 		}
 
 		dp.logger.Info("LatestRoundPrice", "round", rd.Round.Uint64(), "symbol", s, "price",
-			price.Div(PricePrecision).String(), "status", rd.Status.String())
+			price.Div(dp.pricePrecision).String(), "status", rd.Status.String())
 	}
 }
 
@@ -386,7 +375,7 @@ func (dp *DataReporter) doReport(curRndCommitHash common.Hash, lastRoundData *ty
 		if !ok {
 			votes = append(votes, types.InvalidPrice)
 		} else {
-			price := lastRoundData.Prices[s].Price.Mul(PricePrecision).BigInt()
+			price := lastRoundData.Prices[s].Price.Mul(dp.pricePrecision).BigInt()
 			votes = append(votes, price)
 		}
 	}
@@ -424,7 +413,7 @@ func (dp *DataReporter) buildRoundData(round uint64) (*types.RoundData, error) {
 	var source []byte
 	for _, s := range symbols {
 		if pr, ok := roundData.Prices[s]; ok {
-			source = append(source, common.LeftPadBytes(pr.Price.Mul(PricePrecision).BigInt().Bytes(), 32)...)
+			source = append(source, common.LeftPadBytes(pr.Price.Mul(dp.pricePrecision).BigInt().Bytes(), 32)...)
 		} else {
 			source = append(source, common.LeftPadBytes(types.InvalidPrice.Bytes(), 32)...)
 		}
@@ -448,6 +437,5 @@ func (dp *DataReporter) Stop() {
 	}
 	dp.subRoundEvent.Unsubscribe()
 	dp.subSymbolsEvent.Unsubscribe()
-	dp.subDebugEvent.Unsubscribe()
 	dp.liveTicker.Stop()
 }

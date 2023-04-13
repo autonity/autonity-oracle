@@ -39,6 +39,21 @@ func (m *MockContractAPI) EXPECT() *MockContractAPIMockRecorder {
 	return m.recorder
 }
 
+// GetPrecision mocks base method.
+func (m *MockContractAPI) GetPrecision(opts *bind.CallOpts) (*big.Int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetPrecision", opts)
+	ret0, _ := ret[0].(*big.Int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetPrecision indicates an expected call of GetPrecision.
+func (mr *MockContractAPIMockRecorder) GetPrecision(opts interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPrecision", reflect.TypeOf((*MockContractAPI)(nil).GetPrecision), opts)
+}
+
 // GetRound mocks base method.
 func (m *MockContractAPI) GetRound(opts *bind.CallOpts) (*big.Int, error) {
 	m.ctrl.T.Helper()
@@ -142,21 +157,6 @@ func (m *MockContractAPI) Vote(opts *bind.TransactOpts, _commit *big.Int, _prevo
 func (mr *MockContractAPIMockRecorder) Vote(opts, _commit, _prevotes, _salt interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Vote", reflect.TypeOf((*MockContractAPI)(nil).Vote), opts, _commit, _prevotes, _salt)
-}
-
-// WatchDebugEvent mocks base method.
-func (m *MockContractAPI) WatchDebugEvent(opts *bind.WatchOpts, sink chan<- *oracle.OracleDebugEvent) (event.Subscription, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WatchDebugEvent", opts, sink)
-	ret0, _ := ret[0].(event.Subscription)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// WatchDebugEvent indicates an expected call of WatchDebugEvent.
-func (mr *MockContractAPIMockRecorder) WatchDebugEvent(opts, sink interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchDebugEvent", reflect.TypeOf((*MockContractAPI)(nil).WatchDebugEvent), opts, sink)
 }
 
 // WatchNewRound mocks base method.

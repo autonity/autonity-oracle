@@ -38,7 +38,7 @@ type IOracleRoundData struct {
 
 // OracleMetaData contains all meta data concerning the Oracle contract.
 var OracleMetaData = &bind.MetaData{
-	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"name\":\"DebugEvent\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"round\",\"type\":\"uint256\"}],\"name\":\"NewRound\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"string[]\",\"name\":\"_symbols\",\"type\":\"string[]\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"round\",\"type\":\"uint256\"}],\"name\":\"NewSymbols\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"_voter\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"int256[]\",\"name\":\"_votes\",\"type\":\"int256[]\"}],\"name\":\"Voted\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"getRound\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_round\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"_symbol\",\"type\":\"string\"}],\"name\":\"getRoundData\",\"outputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"round\",\"type\":\"uint256\"},{\"internalType\":\"int256\",\"name\":\"price\",\"type\":\"int256\"},{\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"status\",\"type\":\"uint256\"}],\"internalType\":\"structIOracle.RoundData\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getSymbols\",\"outputs\":[{\"internalType\":\"string[]\",\"name\":\"_symbols\",\"type\":\"string[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getVoters\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"\",\"type\":\"address[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"_symbol\",\"type\":\"string\"}],\"name\":\"latestRoundData\",\"outputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"round\",\"type\":\"uint256\"},{\"internalType\":\"int256\",\"name\":\"price\",\"type\":\"int256\"},{\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"status\",\"type\":\"uint256\"}],\"internalType\":\"structIOracle.RoundData\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string[]\",\"name\":\"_symbols\",\"type\":\"string[]\"}],\"name\":\"setSymbols\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_commit\",\"type\":\"uint256\"},{\"internalType\":\"int256[]\",\"name\":\"_reports\",\"type\":\"int256[]\"},{\"internalType\":\"uint256\",\"name\":\"_salt\",\"type\":\"uint256\"}],\"name\":\"vote\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"round\",\"type\":\"uint256\"}],\"name\":\"NewRound\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"string[]\",\"name\":\"_symbols\",\"type\":\"string[]\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"round\",\"type\":\"uint256\"}],\"name\":\"NewSymbols\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"_voter\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"int256[]\",\"name\":\"_votes\",\"type\":\"int256[]\"}],\"name\":\"Voted\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"getPrecision\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getRound\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_round\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"_symbol\",\"type\":\"string\"}],\"name\":\"getRoundData\",\"outputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"round\",\"type\":\"uint256\"},{\"internalType\":\"int256\",\"name\":\"price\",\"type\":\"int256\"},{\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"status\",\"type\":\"uint256\"}],\"internalType\":\"structIOracle.RoundData\",\"name\":\"data\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getSymbols\",\"outputs\":[{\"internalType\":\"string[]\",\"name\":\"_symbols\",\"type\":\"string[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getVoters\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"\",\"type\":\"address[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"_symbol\",\"type\":\"string\"}],\"name\":\"latestRoundData\",\"outputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"round\",\"type\":\"uint256\"},{\"internalType\":\"int256\",\"name\":\"price\",\"type\":\"int256\"},{\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"status\",\"type\":\"uint256\"}],\"internalType\":\"structIOracle.RoundData\",\"name\":\"data\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string[]\",\"name\":\"_symbols\",\"type\":\"string[]\"}],\"name\":\"setSymbols\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_commit\",\"type\":\"uint256\"},{\"internalType\":\"int256[]\",\"name\":\"_reports\",\"type\":\"int256[]\"},{\"internalType\":\"uint256\",\"name\":\"_salt\",\"type\":\"uint256\"}],\"name\":\"vote\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
 }
 
 // OracleABI is the input ABI used to generate the binding from.
@@ -187,6 +187,37 @@ func (_Oracle *OracleTransactorRaw) Transact(opts *bind.TransactOpts, method str
 	return _Oracle.Contract.contract.Transact(opts, method, params...)
 }
 
+// GetPrecision is a free data retrieval call binding the contract method 0x9670c0bc.
+//
+// Solidity: function getPrecision() view returns(uint256)
+func (_Oracle *OracleCaller) GetPrecision(opts *bind.CallOpts) (*big.Int, error) {
+	var out []interface{}
+	err := _Oracle.contract.Call(opts, &out, "getPrecision")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetPrecision is a free data retrieval call binding the contract method 0x9670c0bc.
+//
+// Solidity: function getPrecision() view returns(uint256)
+func (_Oracle *OracleSession) GetPrecision() (*big.Int, error) {
+	return _Oracle.Contract.GetPrecision(&_Oracle.CallOpts)
+}
+
+// GetPrecision is a free data retrieval call binding the contract method 0x9670c0bc.
+//
+// Solidity: function getPrecision() view returns(uint256)
+func (_Oracle *OracleCallerSession) GetPrecision() (*big.Int, error) {
+	return _Oracle.Contract.GetPrecision(&_Oracle.CallOpts)
+}
+
 // GetRound is a free data retrieval call binding the contract method 0x9f8743f7.
 //
 // Solidity: function getRound() view returns(uint256)
@@ -220,7 +251,7 @@ func (_Oracle *OracleCallerSession) GetRound() (*big.Int, error) {
 
 // GetRoundData is a free data retrieval call binding the contract method 0x3c8510fd.
 //
-// Solidity: function getRoundData(uint256 _round, string _symbol) view returns((uint256,int256,uint256,uint256))
+// Solidity: function getRoundData(uint256 _round, string _symbol) view returns((uint256,int256,uint256,uint256) data)
 func (_Oracle *OracleCaller) GetRoundData(opts *bind.CallOpts, _round *big.Int, _symbol string) (IOracleRoundData, error) {
 	var out []interface{}
 	err := _Oracle.contract.Call(opts, &out, "getRoundData", _round, _symbol)
@@ -237,14 +268,14 @@ func (_Oracle *OracleCaller) GetRoundData(opts *bind.CallOpts, _round *big.Int, 
 
 // GetRoundData is a free data retrieval call binding the contract method 0x3c8510fd.
 //
-// Solidity: function getRoundData(uint256 _round, string _symbol) view returns((uint256,int256,uint256,uint256))
+// Solidity: function getRoundData(uint256 _round, string _symbol) view returns((uint256,int256,uint256,uint256) data)
 func (_Oracle *OracleSession) GetRoundData(_round *big.Int, _symbol string) (IOracleRoundData, error) {
 	return _Oracle.Contract.GetRoundData(&_Oracle.CallOpts, _round, _symbol)
 }
 
 // GetRoundData is a free data retrieval call binding the contract method 0x3c8510fd.
 //
-// Solidity: function getRoundData(uint256 _round, string _symbol) view returns((uint256,int256,uint256,uint256))
+// Solidity: function getRoundData(uint256 _round, string _symbol) view returns((uint256,int256,uint256,uint256) data)
 func (_Oracle *OracleCallerSession) GetRoundData(_round *big.Int, _symbol string) (IOracleRoundData, error) {
 	return _Oracle.Contract.GetRoundData(&_Oracle.CallOpts, _round, _symbol)
 }
@@ -313,7 +344,7 @@ func (_Oracle *OracleCallerSession) GetVoters() ([]common.Address, error) {
 
 // LatestRoundData is a free data retrieval call binding the contract method 0x33f98c77.
 //
-// Solidity: function latestRoundData(string _symbol) view returns((uint256,int256,uint256,uint256))
+// Solidity: function latestRoundData(string _symbol) view returns((uint256,int256,uint256,uint256) data)
 func (_Oracle *OracleCaller) LatestRoundData(opts *bind.CallOpts, _symbol string) (IOracleRoundData, error) {
 	var out []interface{}
 	err := _Oracle.contract.Call(opts, &out, "latestRoundData", _symbol)
@@ -330,14 +361,14 @@ func (_Oracle *OracleCaller) LatestRoundData(opts *bind.CallOpts, _symbol string
 
 // LatestRoundData is a free data retrieval call binding the contract method 0x33f98c77.
 //
-// Solidity: function latestRoundData(string _symbol) view returns((uint256,int256,uint256,uint256))
+// Solidity: function latestRoundData(string _symbol) view returns((uint256,int256,uint256,uint256) data)
 func (_Oracle *OracleSession) LatestRoundData(_symbol string) (IOracleRoundData, error) {
 	return _Oracle.Contract.LatestRoundData(&_Oracle.CallOpts, _symbol)
 }
 
 // LatestRoundData is a free data retrieval call binding the contract method 0x33f98c77.
 //
-// Solidity: function latestRoundData(string _symbol) view returns((uint256,int256,uint256,uint256))
+// Solidity: function latestRoundData(string _symbol) view returns((uint256,int256,uint256,uint256) data)
 func (_Oracle *OracleCallerSession) LatestRoundData(_symbol string) (IOracleRoundData, error) {
 	return _Oracle.Contract.LatestRoundData(&_Oracle.CallOpts, _symbol)
 }
@@ -382,140 +413,6 @@ func (_Oracle *OracleSession) Vote(_commit *big.Int, _reports []*big.Int, _salt 
 // Solidity: function vote(uint256 _commit, int256[] _reports, uint256 _salt) returns()
 func (_Oracle *OracleTransactorSession) Vote(_commit *big.Int, _reports []*big.Int, _salt *big.Int) (*types.Transaction, error) {
 	return _Oracle.Contract.Vote(&_Oracle.TransactOpts, _commit, _reports, _salt)
-}
-
-// OracleDebugEventIterator is returned from FilterDebugEvent and is used to iterate over the raw logs and unpacked data for DebugEvent events raised by the Oracle contract.
-type OracleDebugEventIterator struct {
-	Event *OracleDebugEvent // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *OracleDebugEventIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(OracleDebugEvent)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(OracleDebugEvent)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *OracleDebugEventIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *OracleDebugEventIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// OracleDebugEvent represents a DebugEvent event raised by the Oracle contract.
-type OracleDebugEvent struct {
-	Arg0 string
-	Raw  types.Log // Blockchain specific contextual infos
-}
-
-// FilterDebugEvent is a free log retrieval operation binding the contract event 0x56f074d292557f2e3c567d982816e0fb5b72100ff196892f8fbd23b8a9073679.
-//
-// Solidity: event DebugEvent(string arg0)
-func (_Oracle *OracleFilterer) FilterDebugEvent(opts *bind.FilterOpts) (*OracleDebugEventIterator, error) {
-
-	logs, sub, err := _Oracle.contract.FilterLogs(opts, "DebugEvent")
-	if err != nil {
-		return nil, err
-	}
-	return &OracleDebugEventIterator{contract: _Oracle.contract, event: "DebugEvent", logs: logs, sub: sub}, nil
-}
-
-// WatchDebugEvent is a free log subscription operation binding the contract event 0x56f074d292557f2e3c567d982816e0fb5b72100ff196892f8fbd23b8a9073679.
-//
-// Solidity: event DebugEvent(string arg0)
-func (_Oracle *OracleFilterer) WatchDebugEvent(opts *bind.WatchOpts, sink chan<- *OracleDebugEvent) (event.Subscription, error) {
-
-	logs, sub, err := _Oracle.contract.WatchLogs(opts, "DebugEvent")
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(OracleDebugEvent)
-				if err := _Oracle.contract.UnpackLog(event, "DebugEvent", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseDebugEvent is a log parse operation binding the contract event 0x56f074d292557f2e3c567d982816e0fb5b72100ff196892f8fbd23b8a9073679.
-//
-// Solidity: event DebugEvent(string arg0)
-func (_Oracle *OracleFilterer) ParseDebugEvent(log types.Log) (*OracleDebugEvent, error) {
-	event := new(OracleDebugEvent)
-	if err := _Oracle.contract.UnpackLog(event, "DebugEvent", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
 }
 
 // OracleNewRoundIterator is returned from FilterNewRound and is used to iterate over the raw logs and unpacked data for NewRound events raised by the Oracle contract.

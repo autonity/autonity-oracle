@@ -4,13 +4,14 @@ pragma solidity >=0.8.2 < 0.9.0;
  * @dev Interface of the Oracle Contract
  */
 interface IOracle {
-    // A structure contains the round data that helps gomock to mock the oracle contract interfaces.
+
     struct RoundData {
-        uint round;
+        uint256 round;
         int256 price;
         uint timestamp;
         uint status;
     }
+
     /**
      * @notice Update the symbols to be requested.
      * Only effective at the next round.
@@ -37,16 +38,14 @@ interface IOracle {
     function vote(uint256 _commit, int256[] memory _reports, uint256 _salt ) external;
     /**
      * @notice Get data about a specific round, using the roundId.
-     *
-     * @return the round data include round, price, timestamp and status.
      */
-    function getRoundData(uint256 _round, string memory _symbol) external view returns (RoundData memory);
+    function getRoundData(uint256 _round, string memory _symbol) external
+    view returns (RoundData memory data);
     /**
      * @notice  Get data about the last round
-     *
-     * @return the round data include round, price, timestamp and status.
      */
-    function latestRoundData(string memory _symbol) external view returns (RoundData memory);
+    function latestRoundData(string memory _symbol) external view
+    returns (RoundData memory data);
     /**
     * @notice Retrieve the current voters in the committee.
     */
@@ -55,23 +54,19 @@ interface IOracle {
      * @notice Retrieve the current round ID.
     */
     function getRound() external view returns (uint256);
-
+    /**
+    * @notice Precision to be used with price reports
+    */
+    function getPrecision() external view returns (uint256);
     /**
      * @dev Emitted when a vote has been succesfully accounted after a {vote} call.
      */
     event Voted(address indexed _voter, int[] _votes);
-
-    /**
-     * @dev Emitted with a debug msg for oracle contract debugging.
-     */
-    event DebugEvent(string);
-
     /**
      * @dev Emitted when a vote has been succesfully accounted after a {vote} call.
      * round - the round at which new symbols are effective
      */
     event NewSymbols(string[] _symbols, uint256 round);
-
     /**
      * @dev Emitted when a new voting round is started.
      */

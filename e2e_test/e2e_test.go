@@ -75,28 +75,32 @@ func TestDataReporting(t *testing.T) {
 	aut, err := autonity.NewAutonity(reporter.AutonityContractAddress, client)
 	require.NoError(t, err)
 
+	p, err := o.GetPrecision(nil)
+	require.NoError(t, err)
+	pricePrecision := decimal.NewFromInt(p.Int64())
+
 	// first test happy case.
 	testHappyCaseEndRound := uint64(5)
-	testHappyCase(t, o, testHappyCaseEndRound)
+	testHappyCase(t, o, testHappyCaseEndRound, pricePrecision)
 
 	// test to add new symbols.
 	testAddSymbolEndRound := testHappyCaseEndRound + 4
-	testAddNewSymbols(t, network, client, o, testAddSymbolEndRound)
+	testAddNewSymbols(t, network, client, o, testAddSymbolEndRound, pricePrecision)
 
 	// test to remove symbols.
 	testRMSymbolsEndRound := testAddSymbolEndRound + 4
-	testRMSymbols(t, network, client, o, testRMSymbolsEndRound)
+	testRMSymbols(t, network, client, o, testRMSymbolsEndRound, pricePrecision)
 
 	// test to remove validator from current committee.
 	testRMValidatorEndRound := testRMSymbolsEndRound + 10
-	testRMValidatorFromCommittee(t, network, client, o, aut, testRMValidatorEndRound)
+	testRMValidatorFromCommittee(t, network, client, o, aut, testRMValidatorEndRound, pricePrecision)
 
 	// test to add validator into current committee.
 	testNewValidatorAddedEndRound := testRMValidatorEndRound + 10
-	testNewValidatorJoinToCommittee(t, network, client, o, aut, testNewValidatorAddedEndRound)
+	testNewValidatorJoinToCommittee(t, network, client, o, aut, testNewValidatorAddedEndRound, pricePrecision)
 }
 
-func testHappyCase(t *testing.T, o *contract.Oracle, beforeRound uint64) {
+func testHappyCase(t *testing.T, o *contract.Oracle, beforeRound uint64, pricePrecision decimal.Decimal) {
 	for {
 		time.Sleep(1 * time.Minute)
 		round, err := o.GetRound(nil)
@@ -122,14 +126,15 @@ func testHappyCase(t *testing.T, o *contract.Oracle, beforeRound uint64) {
 		for i, s := range symbols {
 			price, err := decimal.NewFromString(rd[i].Price.String())
 			require.NoError(t, err)
-			require.True(t, true, price.Div(reporter.PricePrecision).Equal(helpers.ResolveSimulatedPrice(s)))
+			require.True(t, true, price.Div(pricePrecision).Equal(helpers.ResolveSimulatedPrice(s)))
 			require.Equal(t, uint64(0), rd[i].Status.Uint64())
 		}
 		break
 	}
 }
 
-func testAddNewSymbols(t *testing.T, network *Network, client *ethclient.Client, o *contract.Oracle, beforeRound uint64) {
+func testAddNewSymbols(t *testing.T, network *Network, client *ethclient.Client, o *contract.Oracle, beforeRound uint64,
+	pricePrecision decimal.Decimal) {
 	from := network.OperatorKey.Key.Address
 
 	nonce, err := client.PendingNonceAt(context.Background(), from)
@@ -184,14 +189,15 @@ func testAddNewSymbols(t *testing.T, network *Network, client *ethclient.Client,
 		for i, s := range symbols {
 			price, err := decimal.NewFromString(rd[i].Price.String())
 			require.NoError(t, err)
-			require.True(t, true, price.Div(reporter.PricePrecision).Equal(helpers.ResolveSimulatedPrice(s)))
+			require.True(t, true, price.Div(pricePrecision).Equal(helpers.ResolveSimulatedPrice(s)))
 			require.Equal(t, uint64(0), rd[i].Status.Uint64())
 		}
 		break
 	}
 }
 
-func testRMSymbols(t *testing.T, network *Network, client *ethclient.Client, o *contract.Oracle, beforeRound uint64) {
+func testRMSymbols(t *testing.T, network *Network, client *ethclient.Client, o *contract.Oracle, beforeRound uint64,
+	pricePrecision decimal.Decimal) {
 	from := network.OperatorKey.Key.Address
 
 	nonce, err := client.PendingNonceAt(context.Background(), from)
@@ -246,14 +252,15 @@ func testRMSymbols(t *testing.T, network *Network, client *ethclient.Client, o *
 		for i, s := range symbols {
 			price, err := decimal.NewFromString(rd[i].Price.String())
 			require.NoError(t, err)
-			require.True(t, true, price.Div(reporter.PricePrecision).Equal(helpers.ResolveSimulatedPrice(s)))
+			require.True(t, true, price.Div(pricePrecision).Equal(helpers.ResolveSimulatedPrice(s)))
 			require.Equal(t, uint64(0), rd[i].Status.Uint64())
 		}
 		break
 	}
 }
 
-func testRMValidatorFromCommittee(t *testing.T, network *Network, client *ethclient.Client, o *contract.Oracle, aut *autonity.Autonity, beforeRound uint64) {
+func testRMValidatorFromCommittee(t *testing.T, network *Network, client *ethclient.Client, o *contract.Oracle,
+	aut *autonity.Autonity, beforeRound uint64, pricePrecision decimal.Decimal) {
 	from := network.OperatorKey.Key.Address
 
 	nonce, err := client.PendingNonceAt(context.Background(), from)
@@ -302,7 +309,7 @@ func testRMValidatorFromCommittee(t *testing.T, network *Network, client *ethcli
 		for i, s := range symbols {
 			price, err := decimal.NewFromString(rd[i].Price.String())
 			require.NoError(t, err)
-			require.True(t, true, price.Div(reporter.PricePrecision).Equal(helpers.ResolveSimulatedPrice(s)))
+			require.True(t, true, price.Div(pricePrecision).Equal(helpers.ResolveSimulatedPrice(s)))
 			require.Equal(t, uint64(0), rd[i].Status.Uint64())
 		}
 
@@ -311,7 +318,8 @@ func testRMValidatorFromCommittee(t *testing.T, network *Network, client *ethcli
 	}
 }
 
-func testNewValidatorJoinToCommittee(t *testing.T, network *Network, client *ethclient.Client, o *contract.Oracle, aut *autonity.Autonity, beforeRound uint64) {
+func testNewValidatorJoinToCommittee(t *testing.T, network *Network, client *ethclient.Client, o *contract.Oracle,
+	aut *autonity.Autonity, beforeRound uint64, pricePrecision decimal.Decimal) {
 	from := network.OperatorKey.Key.Address
 
 	nonce, err := client.PendingNonceAt(context.Background(), from)
@@ -360,7 +368,7 @@ func testNewValidatorJoinToCommittee(t *testing.T, network *Network, client *eth
 		for i, s := range symbols {
 			price, err := decimal.NewFromString(rd[i].Price.String())
 			require.NoError(t, err)
-			require.True(t, true, price.Div(reporter.PricePrecision).Equal(helpers.ResolveSimulatedPrice(s)))
+			require.True(t, true, price.Div(pricePrecision).Equal(helpers.ResolveSimulatedPrice(s)))
 			require.Equal(t, uint64(0), rd[i].Status.Uint64())
 		}
 

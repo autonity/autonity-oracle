@@ -59,16 +59,29 @@ type AutonityContractGenesis struct {
 	Validators       []*Validator   `json:"validators"`
 }
 
+// Autonity contract config. It'is used for deployment.
+type OracleContractGenesis struct {
+	// Bytecode of validators contract
+	// would like this type to be []byte but the unmarshalling is not working
+	Bytecode string `json:"bytecode,omitempty" toml:",omitempty"`
+	// Json ABI of the contract
+	ABI        string         `json:"abi,omitempty" toml:",omitempty"`
+	Operator   common.Address `json:"operator"`
+	Symbols    []string       `json:"symbols"`
+	VotePeriod uint64         `json:"votePeriod"`
+}
+
 type ChainConfig struct {
-	ChainID  *big.Int                 `json:"chainId"` // chainId identifies the current chain and is used for replay protection
-	Autonity *AutonityContractGenesis `json:"autonity"`
+	ChainID              *big.Int                 `json:"chainId"` // chainId identifies the current chain and is used for replay protection
+	Autonity             *AutonityContractGenesis `json:"autonity"`
+	OracleContractConfig *OracleContractGenesis   `json:"oracle,omitempty"`
 }
 
 type Validator struct {
-	Treasury    common.Address `json:"treasury"`
-	Enode       string         `json:"enode"`
-	Voter       common.Address `json:"voter"`
-	BondedStake *big.Int       `json:"bondedStake"`
+	Treasury      common.Address `json:"treasury"`
+	Enode         string         `json:"enode"`
+	OracleAddress common.Address `json:"oracleAddress"`
+	BondedStake   *big.Int       `json:"bondedStake"`
 }
 
 type Oracle struct {
@@ -279,10 +292,10 @@ func prepareResource(network *Network, freeKeys []*Key, freePorts []int, nodes i
 		}
 
 		var validator = &Validator{
-			Treasury:    aut.NodeKey.Key.Address,
-			Enode:       genEnode(&aut.NodeKey.Key.PrivateKey.PublicKey, aut.Host, aut.P2PPort),
-			Voter:       crypto.PubkeyToAddress(oracle.Key.Key.PrivateKey.PublicKey),
-			BondedStake: defaultBondedStake,
+			Treasury:      aut.NodeKey.Key.Address,
+			Enode:         genEnode(&aut.NodeKey.Key.PrivateKey.PublicKey, aut.Host, aut.P2PPort),
+			OracleAddress: crypto.PubkeyToAddress(oracle.Key.Key.PrivateKey.PublicKey),
+			BondedStake:   defaultBondedStake,
 		}
 
 		aut.OracleClient = oracle
@@ -313,6 +326,8 @@ func makeGenesisConfig(srcTemplate string, dstFile string, vals []*Validator, tr
 	genesis.Config.Autonity.Operator = operator
 	genesis.Config.Autonity.Treasury = treasury
 	genesis.Config.Autonity.Validators = append(genesis.Config.Autonity.Validators, vals...)
+	genesis.Config.OracleContractConfig.VotePeriod = 30
+	genesis.Config.OracleContractConfig.Operator = operator
 
 	jsonData, err := json.MarshalIndent(genesis, "", " ")
 	if err != nil {
