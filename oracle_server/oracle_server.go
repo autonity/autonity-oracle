@@ -25,12 +25,10 @@ import (
 )
 
 var (
-	ValidDataAge     = 30 // 30 seconds, data fetched within 30s are valid to update the price.
 	Version          = "v0.0.1"
 	TenSecsInterval  = 10 * time.Second // 10s ticker job to check health with l1, plugin discovery and regular data sampling.
 	OneSecInterval   = 1 * time.Second  // 1s ticker job to check if we need to do pre-sampling.
 	PreSamplingRange = 15               // pre-sampling starts in 15blocks in advance.
-	Timeout          = 5 * time.Second  // the timeout for fetching prices from plugin.
 )
 
 type OracleServer struct {
@@ -527,6 +525,7 @@ func (os *OracleServer) samplePrice(symbols []string, ts int64) {
 	os.pluginLock.RUnlock()
 	for _, p := range os.pluginSet {
 		plugin := p
+		// todo: check num of go routine are pending before we launch new one to fetch price from a certain plugin/provider.
 		go func() {
 			err := plugin.FetchPrices(symbols, ts)
 			if err != nil {
