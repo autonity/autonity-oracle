@@ -7,6 +7,7 @@ import (
 	"github.com/shopspring/decimal"
 	"io"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -70,4 +71,26 @@ func ParsePlaybookHeader(playbook string) ([]string, error) {
 	}
 
 	return rec, nil
+}
+
+// Median return the median value in the provided data set
+func Median(prices []decimal.Decimal) (decimal.Decimal, error) {
+	l := len(prices)
+	if l == 0 {
+		return decimal.Decimal{}, fmt.Errorf("empty data set")
+	}
+
+	if l == 1 {
+		return prices[0], nil
+	}
+
+	sort.SliceStable(prices, func(i, j int) bool {
+		return prices[i].Cmp(prices[j]) == -1
+	})
+
+	if len(prices)%2 == 0 {
+		return prices[l/2-1].Add(prices[l/2]).Div(decimal.RequireFromString("2.0")), nil
+	}
+
+	return prices[l/2], nil
 }

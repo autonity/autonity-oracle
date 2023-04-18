@@ -10,52 +10,26 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/shopspring/decimal"
 	"math/big"
-	"time"
 )
 
 var (
-	EnvCryptoSymbols = "ORACLE_CRYPTO_SYMBOLS"
-	EnvPluginDIR     = "ORACLE_PLUGIN_DIR"
-	EnvKeyFile       = "ORACLE_KEY_FILE"
-	EnvKeyFilePASS   = "ORACLE_KEY_PASSWORD"
-	SimulatedPrice   = decimal.RequireFromString("11.11")
-	InvalidPrice     = new(big.Int).Sub(math.BigPow(2, 255), big.NewInt(1))
-	InvalidSalt      = big.NewInt(0)
+	EnvCryptoSymbols        = "ORACLE_CRYPTO_SYMBOLS"
+	EnvPluginDIR            = "ORACLE_PLUGIN_DIR"
+	EnvKeyFile              = "ORACLE_KEY_FILE"
+	EnvKeyFilePASS          = "ORACLE_KEY_PASSWORD"
+	SimulatedPrice          = decimal.RequireFromString("11.11")
+	InvalidPrice            = new(big.Int).Sub(math.BigPow(2, 255), big.NewInt(1))
+	InvalidSalt             = big.NewInt(0)
+	Deployer                = common.Address{}
+	AutonityContractAddress = crypto.CreateAddress(Deployer, 0)
+	OracleContractAddress   = crypto.CreateAddress(Deployer, 1)
+
+	ErrPeerOnSync        = errors.New("l1 node is on peer sync")
+	ErrNoAvailablePrice  = errors.New("no available prices collected yet")
+	ErrNoSymbolsObserved = errors.New("no symbols observed from oracle contract")
 )
 
-var Deployer = common.Address{}
-var AutonityContractAddress = crypto.CreateAddress(Deployer, 0)
-var OracleContractAddress = crypto.CreateAddress(Deployer, 1)
-
-var ErrPeerOnSync = errors.New("l1 node is on peer sync")
-var ErrNoAvailablePrice = errors.New("no available prices collected yet")
-var ErrNoSymbolsObserved = errors.New("no symbols observed from oracle contract")
-
 const MaxBufferedRounds = 10
-
-type Aggregator interface {
-	Mean(prices []decimal.Decimal) (decimal.Decimal, error)
-	Median(prices []decimal.Decimal) (decimal.Decimal, error)
-}
-
-type DataPool interface {
-	AddSample(prices []Price, ts int64)
-	GCSamples()
-}
-
-type PluginWrapper interface {
-	Name() string
-	Version() string
-	FetchPrices(symbols []string, ts int64) error
-	GCSamples()
-	Close()
-	StartTime() time.Time
-}
-
-type PluginPriceReport struct {
-	Prices     []Price
-	BadSymbols []string
-}
 
 type Price struct {
 	Timestamp int64 // TS on when the data is being sampled in time's seconds since Jan 1 1970 (Unix time).
@@ -73,15 +47,6 @@ type RoundData struct {
 	Prices  PriceBySymbol
 	Symbols []string
 }
-
-// Plugin list the information of the running plugins in oracle service.
-type Plugin struct {
-	Version string
-	Name    string
-	StartAt time.Time
-}
-
-type PluginByName map[string]Plugin
 
 type OracleServiceConfig struct {
 	Key           *keystore.Key

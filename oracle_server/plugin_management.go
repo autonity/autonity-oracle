@@ -1,7 +1,7 @@
 package oracleserver
 
 import (
-	cryptoprovider "autonity-oracle/plugin_wrapper"
+	pWrapper "autonity-oracle/plugin_wrapper"
 	"io/fs"
 	"io/ioutil"
 )
@@ -10,34 +10,33 @@ func (os *OracleServer) PluginRuntimeDiscovery() {
 	binaries := os.listPluginDIR()
 
 	for _, file := range binaries {
-		plugin, ok := os.pluginSet[file.Name()]
-		if !ok {
-			os.logger.Info("** New plugin discovered, going to setup it: ", file.Name(), file.Mode().String())
-			os.createPlugin(file.Name())
-			os.logger.Info("** New plugin on ready: ", file.Name())
-			continue
-		}
-
-		if file.ModTime().After(plugin.StartTime()) {
-			os.logger.Info("*** Replacing legacy plugin with new one: ", file.Name(), file.Mode().String())
-			// stop the legacy plugins process, disconnect rpc connection and release memory.
-			plugin.Close()
-			delete(os.pluginSet, file.Name())
-			os.createPlugin(file.Name())
-			os.logger.Info("*** Finnish the replacement of plugin: ", file.Name())
-		}
+		os.createPlugin(file)
 	}
 }
 
-func (os *OracleServer) createPlugin(name string) {
-	pool := os.dataSet.GetDataCache(name)
-	if pool == nil {
-		pool = os.dataSet.AddDataCache(name)
+func (os *OracleServer) createPlugin(f fs.FileInfo) {
+	os.pluginLock.Lock()
+	defer os.pluginLock.Unlock()
+	plugin, ok := os.pluginSet[f.Name()]
+	if !ok {
+		os.logger.Info("** New pWrapper discovered, going to setup it: ", f.Name(), f.Mode().String())
+		pluginWrapper := pWrapper.NewPluginWrapper(f.Name(), os.pluginDIR)
+		pluginWrapper.Initialize()
+		os.pluginSet[f.Name()] = pluginWrapper
+		os.logger.Info("** New pWrapper on ready: ", f.Name())
+		return
 	}
 
-	pluginWrapper := cryptoprovider.NewPluginWrapper(name, os.pluginDIR, pool)
-	pluginWrapper.Initialize()
-	os.pluginSet[name] = pluginWrapper
+	if f.ModTime().After(plugin.StartTime()) {
+		os.logger.Info("*** Replacing legacy pWrapper with new one: ", f.Name(), f.Mode().String())
+		// stop the legacy plugins process, disconnect rpc connection and release memory.
+		plugin.Close()
+		delete(os.pluginSet, f.Name())
+		pluginWrapper := pWrapper.NewPluginWrapper(f.Name(), os.pluginDIR)
+		pluginWrapper.Initialize()
+		os.pluginSet[f.Name()] = pluginWrapper
+		os.logger.Info("*** Finnish the replacement of pWrapper: ", f.Name())
+	}
 }
 
 func (os *OracleServer) listPluginDIR() []fs.FileInfo {
@@ -45,7 +44,7 @@ func (os *OracleServer) listPluginDIR() []fs.FileInfo {
 
 	files, err := ioutil.ReadDir(os.pluginDIR)
 	if err != nil {
-		os.logger.Error("cannot read from plugin store, please double check plugins are saved in the directory: ",
+		os.logger.Error("cannot read from pWrapper store, please double check plugins are saved in the directory: ",
 			os.pluginDIR, err.Error())
 		return nil
 	}

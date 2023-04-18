@@ -18,6 +18,11 @@ var HandshakeConfig = plugin.HandshakeConfig{
 	MagicCookieValue: "hello",
 }
 
+type PluginPriceReport struct {
+	Prices     []Price
+	BadSymbols []string
+}
+
 // Adapter is the interface that we're exposing as a plugin.
 type Adapter interface {
 	FetchPrices(symbols []string) (PluginPriceReport, error)

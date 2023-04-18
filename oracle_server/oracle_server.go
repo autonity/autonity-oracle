@@ -1,16 +1,15 @@
 package oracleserver
 
 import (
-	"autonity-oracle/aggregator"
 	contract "autonity-oracle/contract_binder/contract"
-	pricepool "autonity-oracle/plugin_wrapper"
+	"autonity-oracle/helpers"
+	pWrapper "autonity-oracle/plugin_wrapper"
 	"autonity-oracle/types"
 	"context"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/math"
 	tp "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -18,7 +17,6 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/modern-go/reflect2"
 	"github.com/shopspring/decimal"
-	"golang.org/x/sync/errgroup"
 	"math/big"
 	"math/rand"
 	o "os"
@@ -41,18 +39,16 @@ type OracleServer struct {
 	regularTicker *time.Ticker // the clock source to trigger the 10s interval job.
 	psTicker      *time.Ticker // the pre-sampling ticker in 1s.
 
-	pluginDIR string                         // the dir saves the plugins.
-	pluginSet map[string]types.PluginWrapper // the plugin clients that connect with different adapters.
+	pluginDIR  string                             // the dir saves the plugins.
+	pluginLock sync.RWMutex                       // to prevent from race condition of pluginSet.
+	pluginSet  map[string]*pWrapper.PluginWrapper // the plugin clients that connect with different adapters.
 
-	symbols      []string                          // the symbols for data fetching in oracle service.
-	aggregator   types.Aggregator                  // the price aggregator once we have multiple data providers.
-	dataSet      *pricepool.DataCacheSet           // the price pool organized by plugin_wrapper and by symbols
-	priceSamples map[string]map[int64]*types.Price // save the data point pre-sampled for round, reset on round rotation.
+	symbols []string // the symbols for data fetching in oracle service.
 
 	// the reporting staffs
 	oracleContract contract.ContractAPI
 	client         *ethclient.Client
-	autonityWSUrl  string
+	l1WSUrl        string
 
 	curRound        uint64 //round ID.
 	votePeriod      uint64 //vote period.
@@ -73,18 +69,15 @@ type OracleServer struct {
 
 func NewOracleServer(symbols []string, pluginDir string, ws string, key *keystore.Key) *OracleServer {
 	os := &OracleServer{
-		autonityWSUrl: ws,
+		l1WSUrl:       ws,
 		roundData:     make(map[uint64]*types.RoundData),
-		priceSamples:  make(map[string]map[int64]*types.Price),
 		key:           key,
 		symbols:       symbols,
 		pluginDIR:     pluginDir,
-		pluginSet:     make(map[string]types.PluginWrapper),
+		pluginSet:     make(map[string]*pWrapper.PluginWrapper),
 		doneCh:        make(chan struct{}),
 		regularTicker: time.NewTicker(TenSecsInterval),
 		psTicker:      time.NewTicker(OneSecInterval),
-		aggregator:    aggregator.NewAggregator(),
-		dataSet:       pricepool.NewDataCacheSet(),
 	}
 
 	os.logger = hclog.New(&hclog.LoggerOptions{
@@ -100,7 +93,7 @@ func NewOracleServer(symbols []string, pluginDir string, ws string, key *keystor
 		panic(fmt.Sprintf("No plugins at plugin dir: %s, please build the plugins", os.pluginDIR))
 	}
 	for _, file := range binaries {
-		os.createPlugin(file.Name())
+		os.createPlugin(file)
 	}
 
 	os.logger.Info("Running data contract_binder", "rpc: ", ws, "voter", key.Address.String())
@@ -115,7 +108,7 @@ func NewOracleServer(symbols []string, pluginDir string, ws string, key *keystor
 func (os *OracleServer) buildConnection() error {
 	// connect to autonity node via web socket
 	var err error
-	os.client, err = ethclient.Dial(os.autonityWSUrl)
+	os.client, err = ethclient.Dial(os.l1WSUrl)
 	if err != nil {
 		return err
 	}
@@ -182,49 +175,11 @@ func initStates(oc contract.ContractAPI) (uint64, []string, decimal.Decimal, uin
 	return currentRound.Uint64(), symbols, decimal.NewFromInt(p.Int64()), votePeriod.Uint64(), nil
 }
 
-func (os *OracleServer) addSample(price *types.Price) {
-	ts, ok := os.priceSamples[price.Symbol]
-	if !ok {
-		ts = make(map[int64]*types.Price)
-		ts[price.Timestamp] = price
-		os.priceSamples[price.Symbol] = ts
-		return
-	}
-	ts[price.Timestamp] = price
-}
-
-func (os *OracleServer) getSample(symbol string, target int64) (*types.Price, error) {
-	prices, ok := os.priceSamples[symbol]
-	if !ok {
-		return nil, types.ErrNoAvailablePrice
-	}
-
-	if p, ok := prices[target]; ok {
-		return p, nil
-	}
-
-	// find return the nearest sampled price to the timestamp.
-	var nearestKey int64
-	var minDistance int64
-	minDistance = math.MaxInt64
-	for ts := range prices {
-		distance := target - ts
-		if distance < minDistance {
-			nearestKey = ts
-			minDistance = distance
-		}
-	}
-
-	return prices[nearestKey], nil
-}
-
-func (os *OracleServer) gcSamples() {
-	for k := range os.priceSamples {
-		delete(os.priceSamples, k)
-	}
-
+func (os *OracleServer) gcDataSamples() {
+	os.pluginLock.RLock()
+	defer os.pluginLock.RUnlock()
 	for _, plugin := range os.pluginSet {
-		os.dataSet.GetDataCache(plugin.Name()).GCSamples()
+		plugin.GCSamples()
 	}
 }
 
@@ -331,7 +286,6 @@ func (os *OracleServer) handlePreSampling(preSampleTS int64) error {
 		return nil
 	}
 
-	// todo: think about to launch go routine to run the sampling.
 	// do the data pre-sampling.
 	os.samplePrice(os.symbols, preSampleTS)
 
@@ -489,7 +443,7 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 
 	var prices types.PriceBySymbol
 	for _, s := range symbols {
-		p, err := os.getSample(s, int64(os.curSampleTS))
+		p, err := os.aggregatePrice(s, int64(os.curSampleTS))
 		if err != nil {
 			os.logger.Warn("get sample", "error", err.Error())
 			continue
@@ -533,76 +487,53 @@ func (os *OracleServer) handleNewSymbolsEvent(symbols []string) {
 	os.UpdateSymbols(symbols)
 }
 
-func (os *OracleServer) sampling(symbols []string, ts int64) {
-	// start sampling prices, all the data points are going to be saved in the plugin wrappers.
-	ctx, cancel := context.WithTimeout(context.Background(), Timeout)
-	defer cancel()
+func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, error) {
+	var prices []decimal.Decimal
 
-	var wg sync.WaitGroup
-	g, _ := errgroup.WithContext(ctx)
-	for _, p := range os.pluginSet {
-		plugin := p
-		wg.Add(1)
-		g.Go(func() error {
-			defer wg.Done()
-			return plugin.FetchPrices(symbols, ts)
-		})
+	os.pluginLock.RLock()
+	os.pluginLock.RUnlock()
+	for _, plugin := range os.pluginSet {
+		p, err := plugin.GetSample(s, target)
+		if err != nil {
+			continue
+		}
+		prices = append(prices, p.Price)
 	}
-	// Wait for all goroutines to complete or the context to be cancelled
-	go func() {
-		wg.Wait()
-		cancel()
-	}()
 
-	// Wait for all goroutines to complete or the timeout to be exceeded
-	err := g.Wait()
-	if err != nil {
-		os.logger.Error("fetching prices from plugin error", err.Error())
-		return
+	if len(prices) == 0 {
+		return nil, types.ErrNoAvailablePrice
 	}
-	os.logger.Info("All sampling goroutines completed successfully")
+
+	price := &types.Price{
+		Timestamp: target,
+		Price:     prices[0],
+		Symbol:    s,
+	}
+
+	// we have multiple provider provide prices for this symbol, we have to aggregate it.
+	if len(prices) > 1 {
+		p, err := helpers.Median(prices)
+		if err != nil {
+			return nil, err
+		}
+		price.Price = p
+	}
+
+	return price, nil
 }
 
 func (os *OracleServer) samplePrice(symbols []string, ts int64) {
-
-	// do sampling first.
-	os.sampling(symbols, ts)
-
-	// after sampling, we do the data aggregation by querying data from plugin wrappers.
-	now := time.Now().Unix()
-	for _, s := range symbols {
-		var prices []decimal.Decimal
-		for _, plugin := range os.pluginSet {
-			p, err := os.dataSet.GetDataCache(plugin.Name()).GetSample(s, ts)
+	os.pluginLock.RLock()
+	os.pluginLock.RUnlock()
+	for _, p := range os.pluginSet {
+		plugin := p
+		go func() {
+			err := plugin.FetchPrices(symbols, ts)
 			if err != nil {
-				continue
+				os.logger.Warn("FetchPrices routine error", "error", err.Error())
 			}
-			// only those price collected within 30s are valid.
-			if now-p.Timestamp < int64(ValidDataAge) && now >= p.Timestamp {
-				prices = append(prices, p.Price)
-			}
-		}
-
-		if len(prices) == 0 {
-			continue
-		}
-
-		price := &types.Price{
-			Timestamp: ts,
-			Price:     prices[0],
-			Symbol:    s,
-		}
-
-		// we have multiple provider provide prices for this symbol, we have to aggregate it.
-		if len(prices) > 1 {
-			p, err := os.aggregator.Median(prices)
-			if err != nil {
-				continue
-			}
-			price.Price = p
-		}
-
-		os.addSample(price)
+			os.logger.Debug("FetchPrices routine done successfully")
+		}()
 	}
 }
 
@@ -645,7 +576,7 @@ func (os *OracleServer) Start() {
 			if err != nil {
 				os.logger.Warn("Handling round vote", "err", err.Error())
 			}
-			os.gcSamples()
+			os.gcDataSamples()
 		case symbols := <-os.chSymbolsEvent:
 			os.logger.Info("handle new symbols", "symbols", symbols.Symbols, "activated at rEvent", symbols.Round)
 			os.handleNewSymbolsEvent(symbols.Symbols)
@@ -667,6 +598,8 @@ func (os *OracleServer) Stop() {
 	os.subSymbolsEvent.Unsubscribe()
 
 	os.doneCh <- struct{}{}
+	os.pluginLock.RLock()
+	defer os.pluginLock.RUnlock()
 	for _, c := range os.pluginSet {
 		p := c
 		p.Close()

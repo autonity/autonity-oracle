@@ -4,10 +4,12 @@ import (
 	"autonity-oracle/types"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"os"
 	"os/exec"
+	"sync"
 	"time"
 )
 
@@ -15,7 +17,9 @@ var errConnectionNotEstablished = errors.New("connection not established yet")
 
 type PluginWrapper struct {
 	version        string
-	dataPool       types.DataPool
+	lockService    sync.RWMutex
+	lockSamples    sync.RWMutex
+	samples        map[string]map[int64]types.Price
 	client         *plugin.Client
 	clientProtocol plugin.ClientProtocol
 	name           string
@@ -23,7 +27,7 @@ type PluginWrapper struct {
 	logger         hclog.Logger
 }
 
-func NewPluginWrapper(name string, pluginDir string, pricePool types.DataPool) *PluginWrapper {
+func NewPluginWrapper(name string, pluginDir string) *PluginWrapper {
 	// Create an hclog.Logger
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   name,
@@ -45,96 +49,150 @@ func NewPluginWrapper(name string, pluginDir string, pricePool types.DataPool) *
 	})
 
 	return &PluginWrapper{
-		name:     name,
-		client:   rpcClient,
-		startAt:  time.Now(),
-		dataPool: pricePool,
-		logger:   logger,
+		name:    name,
+		client:  rpcClient,
+		startAt: time.Now(),
+		samples: make(map[string]map[int64]types.Price),
+		logger:  logger,
 	}
 }
 
-func (ba *PluginWrapper) Name() string {
-	return ba.name
+func (pw *PluginWrapper) AddSample(prices []types.Price, ts int64) {
+	pw.lockSamples.Lock()
+	defer pw.lockSamples.Unlock()
+	for _, p := range prices {
+		tsMap, ok := pw.samples[p.Symbol]
+		if !ok {
+			tsMap = make(map[int64]types.Price)
+			tsMap[ts] = p
+			pw.samples[p.Symbol] = tsMap
+			return
+		}
+		tsMap[ts] = p
+	}
 }
 
-func (ba *PluginWrapper) Version() string {
-	return ba.version
+func (pw *PluginWrapper) GetSample(symbol string, target int64) (types.Price, error) {
+	pw.lockSamples.RLock()
+	defer pw.lockSamples.RUnlock()
+	tsMap, ok := pw.samples[symbol]
+	if !ok {
+		return types.Price{}, types.ErrNoAvailablePrice
+	}
+
+	if p, ok := tsMap[target]; ok {
+		return p, nil
+	}
+
+	// find return the nearest sampled price to the timestamp.
+	var nearestKey int64
+	var minDistance int64
+	minDistance = math.MaxInt64
+	for ts := range tsMap {
+		distance := target - ts
+		if distance < minDistance {
+			nearestKey = ts
+			minDistance = distance
+		}
+	}
+
+	return tsMap[nearestKey], nil
 }
 
-func (ba *PluginWrapper) StartTime() time.Time {
-	return ba.startAt
+func (pw *PluginWrapper) GCSamples() {
+	pw.lockSamples.Lock()
+	defer pw.lockSamples.Unlock()
+	for k := range pw.samples {
+		delete(pw.samples, k)
+	}
 }
 
-func (ba *PluginWrapper) Initialize() {
+func (pw *PluginWrapper) Name() string {
+	return pw.name
+}
+
+func (pw *PluginWrapper) Version() string {
+	return pw.version
+}
+
+func (pw *PluginWrapper) StartTime() time.Time {
+	return pw.startAt
+}
+
+func (pw *PluginWrapper) Initialize() {
 	// connect to remote rpc plugin
-	rpcClient, err := ba.client.Client()
+	rpcClient, err := pw.client.Client()
 	if err != nil {
-		ba.logger.Error("cannot connect remote plugin", err.Error())
+		pw.logger.Error("cannot connect remote plugin", err.Error())
 		return
 	}
-	ba.clientProtocol = rpcClient
+	pw.clientProtocol = rpcClient
 	// load plugin's version
-	version, err := ba.GetVersion()
+	version, err := pw.GetVersion()
 	if err != nil {
-		ba.logger.Warn("cannot get plugin's version")
+		pw.logger.Warn("cannot get plugin's version")
 		return
 	}
-	ba.logger.Info("plugin initialized", ba.name, version)
+	pw.logger.Info("plugin initialized", pw.name, version)
 }
 
-func (ba *PluginWrapper) GetVersion() (string, error) {
-	if ba.clientProtocol == nil {
+func (pw *PluginWrapper) GetVersion() (string, error) {
+	if pw.clientProtocol == nil {
 		// try to reconnect during the runtime.
-		err := ba.connect()
+		err := pw.connect()
 		if err != nil {
 			return "", err
 		}
 	}
-	err := ba.clientProtocol.Ping()
+	err := pw.clientProtocol.Ping()
 	if err != nil {
-		ba.clientProtocol.Close() // no lint
-		ba.clientProtocol = nil
+		pw.clientProtocol.Close() // no lint
+		pw.clientProtocol = nil
 		// try to reconnect during the runtime.
-		err = ba.connect()
+		err = pw.connect()
 		if err != nil {
 			return "", err
 		}
 	}
 
-	raw, err := ba.clientProtocol.Dispense("adapter")
+	raw, err := pw.clientProtocol.Dispense("adapter")
 	if err != nil {
 		return "", err
 	}
 
 	adapter := raw.(types.Adapter)
-	ba.version, err = adapter.GetVersion()
+	pw.version, err = adapter.GetVersion()
 	if err != nil {
-		return ba.version, err
+		return pw.version, err
 	}
 
-	return ba.version, nil
+	return pw.version, nil
 }
 
-func (ba *PluginWrapper) FetchPrices(symbols []string, ts int64) error {
-	if ba.clientProtocol == nil {
+func (pw *PluginWrapper) FetchPrices(symbols []string, ts int64) error {
+	// prevent race condition throughout data sampling routines in case of waiting for timeout.
+	pw.lockService.Lock()
+	defer pw.lockService.Unlock()
+
+	if pw.clientProtocol == nil {
 		// try to reconnect during the runtime.
-		err := ba.connect()
+		err := pw.connect()
 		if err != nil {
 			return err
 		}
 	}
-	err := ba.clientProtocol.Ping()
+	err := pw.clientProtocol.Ping()
 	if err != nil {
-		ba.clientProtocol.Close() // no lint
-		ba.clientProtocol = nil
+		pw.clientProtocol.Close() // no lint
+		pw.clientProtocol = nil
 		// try to reconnect during the runtime.
-		err = ba.connect()
+		err = pw.connect()
 		if err != nil {
 			return err
 		}
 	}
 
-	raw, err := ba.clientProtocol.Dispense("adapter")
+	raw, err := pw.clientProtocol.Dispense("adapter")
 	if err != nil {
 		return err
 	}
@@ -142,36 +200,32 @@ func (ba *PluginWrapper) FetchPrices(symbols []string, ts int64) error {
 	adapter := raw.(types.Adapter)
 	report, err := adapter.FetchPrices(symbols)
 	if len(report.BadSymbols) != 0 {
-		ba.logger.Warn("find bad symbols: ", report.BadSymbols)
+		pw.logger.Warn("find bad symbols: ", report.BadSymbols)
 	}
 	if err != nil {
 		return err
 	}
 
 	if len(report.Prices) > 0 {
-		ba.dataPool.AddSample(report.Prices, ts)
+		pw.AddSample(report.Prices, ts)
 	}
 	return nil
 }
 
-func (ba *PluginWrapper) GCSamples() {
-	ba.dataPool.GCSamples()
-}
-
-func (ba *PluginWrapper) Close() {
-	ba.client.Kill()
-	if ba.clientProtocol != nil {
-		ba.clientProtocol.Close() // no lint
+func (pw *PluginWrapper) Close() {
+	pw.client.Kill()
+	if pw.clientProtocol != nil {
+		pw.clientProtocol.Close() // no lint
 	}
 }
 
-func (ba *PluginWrapper) connect() error {
+func (pw *PluginWrapper) connect() error {
 	// connect to remote rpc plugin
-	rpcClient, err := ba.client.Client()
+	rpcClient, err := pw.client.Client()
 	if err != nil {
-		ba.logger.Error("cannot connect remote plugin", err.Error())
+		pw.logger.Error("cannot connect remote plugin", err.Error())
 		return errConnectionNotEstablished
 	}
-	ba.clientProtocol = rpcClient
+	pw.clientProtocol = rpcClient
 	return nil
 }
