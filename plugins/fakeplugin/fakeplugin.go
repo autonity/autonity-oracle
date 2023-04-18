@@ -24,7 +24,7 @@ func (g *FakePlugin) FetchPrices(symbols []string) (types.PluginPriceReport, err
 
 		price := helpers.ResolveSimulatedPrice(s)
 		p := types.Price{
-			Timestamp: time.Now().UnixMilli(),
+			Timestamp: time.Now().Unix(),
 			Symbol:    s,
 			Price:     price,
 		}

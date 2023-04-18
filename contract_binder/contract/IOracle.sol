@@ -46,6 +46,11 @@ interface IOracle {
      */
     function latestRoundData(string memory _symbol) external view
     returns (RoundData memory data);
+
+    /**
+    * @notice Retrieve the vote period.
+    */
+    function getVotePeriod() external view returns (uint);
     /**
     * @notice Retrieve the current voters in the committee.
     */
@@ -66,11 +71,15 @@ interface IOracle {
      * @dev Emitted when a vote has been succesfully accounted after a {vote} call.
      * round - the round at which new symbols are effective
      */
-    event NewSymbols(string[] _symbols, uint256 round);
+    event NewSymbols(string[] _symbols, uint256 _round);
     /**
      * @dev Emitted when a new voting round is started.
+     * round - the new round ID
+     * height - the height of the current block being executed in the EVM context.
+     * timestamp - the TS in time's seconds since Jan 1 1970 (Unix time) that the block been mined by protocol
+     * votePeriod - the round period in blocks for the price voting and aggregation.
      */
-    event NewRound(uint256 round);
+    event NewRound(uint256 _round, uint256 _height, uint256 _timestamp, uint _votePeriod);
     //         [9] - [10] - [11]                -     [12]         - [13]
     // NewRound(3) -        NewSymbols(AUTUSD)  -    NewRound(4)   -Vote(AUTUSD)
     // Note : at init phase of the Oracle Server, you need to need to wait for NewRound

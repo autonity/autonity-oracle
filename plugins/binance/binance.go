@@ -26,6 +26,7 @@ var (
 	FetchCounter         uint64
 	SyncSymbolsInterval  = uint64(6) // on every 6 fetches, a symbol synchronization will be triggered.
 	LatestBinanceSymbols = make(map[string]types.Price)
+	Timeout              = time.Second * 5
 )
 
 // Price is the basic data structure returned by Binance.
@@ -59,6 +60,7 @@ func (g *Binance) FetchPrices(symbols []string) (types.PluginPriceReport, error)
 
 	if g.client == nil {
 		g.client = &http.Client{}
+		g.client.Timeout = Timeout
 	}
 
 	req, err := http.NewRequest(http.MethodGet, BinanceMarketDataURL, nil)
@@ -97,7 +99,7 @@ func (g *Binance) FetchPrices(symbols []string) (types.PluginPriceReport, error)
 	}
 	//g.logger.Debug("sampled data points: ", prices)
 
-	now := time.Now().UnixMilli()
+	now := time.Now().Unix()
 	for _, v := range prices {
 		dec, err := decimal.NewFromString(v.Price)
 		if err != nil {
@@ -133,6 +135,7 @@ func resolveSymbols(symbols []string) ([]string, []string) {
 func (g *Binance) FetchPricesWithSymbolSync(symbols []string) (report types.PluginPriceReport, e error) {
 	if g.client == nil {
 		g.client = &http.Client{}
+		g.client.Timeout = Timeout
 	}
 
 	// without specifying the query parameter, binance will return all its symbols' price.
@@ -162,7 +165,7 @@ func (g *Binance) FetchPricesWithSymbolSync(symbols []string) (report types.Plug
 		return report, err
 	}
 
-	now := time.Now().UnixMilli()
+	now := time.Now().Unix()
 	LatestBinanceSymbols = make(map[string]types.Price)
 	for _, v := range prices {
 		dec, err := decimal.NewFromString(v.Price)

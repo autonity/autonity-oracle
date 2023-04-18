@@ -15,18 +15,15 @@ var (
 	DefaultKeyPassword   = "123"
 	DefaultPluginDir     = "./build/bin/plugins"
 	DefaultSymbols       = "NTNUSD,NTNAUD,NTNCAD,NTNEUR,NTNGBP,NTNJPY,NTNSEK"
-	DefaultPort          = 30311
 )
 
 func MakeConfig() *types.OracleServiceConfig {
-	var port int
 	var keyFile string
 	var symbols string
 	var pluginDir string
 	var keyPassword string
 	var autonityWSUrl string
 
-	flag.IntVar(&port, "oracle_http_port", DefaultPort, "The HTTP service port to be bind for oracle service")
 	flag.StringVar(&pluginDir, "oracle_plugin_dir", DefaultPluginDir, "The DIR where the adapter plugins are stored")
 	flag.StringVar(&symbols, "oracle_crypto_symbols", DefaultSymbols, "The symbols string separated by comma")
 	flag.StringVar(&keyFile, "oracle_key_file", DefaultKeyFile, "The file that save the private key of the oracle client")
@@ -50,7 +47,6 @@ func MakeConfig() *types.OracleServiceConfig {
 		Key:           key,
 		AutonityWSUrl: autonityWSUrl,
 		Symbols:       symbolArray,
-		HTTPPort:      port,
 		PluginDIR:     pluginDir,
 	}
 }

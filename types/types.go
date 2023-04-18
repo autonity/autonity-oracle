@@ -2,17 +2,18 @@ package types
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/shopspring/decimal"
 	"math/big"
 	"time"
 )
 
 var (
-	EnvHTTPPort      = "ORACLE_HTTP_PORT"
 	EnvCryptoSymbols = "ORACLE_CRYPTO_SYMBOLS"
 	EnvPluginDIR     = "ORACLE_PLUGIN_DIR"
 	EnvKeyFile       = "ORACLE_KEY_FILE"
@@ -21,6 +22,16 @@ var (
 	InvalidPrice     = new(big.Int).Sub(math.BigPow(2, 255), big.NewInt(1))
 	InvalidSalt      = big.NewInt(0)
 )
+
+var Deployer = common.Address{}
+var AutonityContractAddress = crypto.CreateAddress(Deployer, 0)
+var OracleContractAddress = crypto.CreateAddress(Deployer, 1)
+
+var ErrPeerOnSync = errors.New("l1 node is on peer sync")
+var ErrNoAvailablePrice = errors.New("no available prices collected yet")
+var ErrNoSymbolsObserved = errors.New("no symbols observed from oracle contract")
+
+const MaxBufferedRounds = 10
 
 type Aggregator interface {
 	Mean(prices []decimal.Decimal) (decimal.Decimal, error)
@@ -39,19 +50,13 @@ type PluginWrapper interface {
 	StartTime() time.Time
 }
 
-type OracleService interface {
-	UpdateSymbols([]string)
-	GetPrices() PriceBySymbol
-	GetPricesBySymbols(symbols []string) PriceBySymbol
-}
-
 type PluginPriceReport struct {
 	Prices     []Price
 	BadSymbols []string
 }
 
 type Price struct {
-	Timestamp int64
+	Timestamp int64 // TS on when the data is being sampled in time's seconds since Jan 1 1970 (Unix time).
 	Symbol    string
 	Price     decimal.Decimal
 }
@@ -80,7 +85,6 @@ type OracleServiceConfig struct {
 	Key           *keystore.Key
 	AutonityWSUrl string
 	Symbols       []string
-	HTTPPort      int
 	PluginDIR     string
 }
 
