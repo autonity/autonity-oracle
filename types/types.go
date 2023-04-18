@@ -38,14 +38,16 @@ type Aggregator interface {
 	Median(prices []decimal.Decimal) (decimal.Decimal, error)
 }
 
-type PricePool interface {
-	AddPrices(prices []Price)
+type DataPool interface {
+	AddSample(prices []Price, ts int64)
+	GCSamples()
 }
 
 type PluginWrapper interface {
 	Name() string
 	Version() string
-	FetchPrices(symbols []string) error
+	FetchPrices(symbols []string, ts int64) error
+	GCSamples()
 	Close()
 	StartTime() time.Time
 }

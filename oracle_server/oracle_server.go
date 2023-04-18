@@ -3,7 +3,7 @@ package oracleserver
 import (
 	"autonity-oracle/aggregator"
 	contract "autonity-oracle/contract_binder/contract"
-	pricepool "autonity-oracle/price_pool"
+	pricepool "autonity-oracle/plugin_wrapper"
 	"autonity-oracle/types"
 	"context"
 	"fmt"
@@ -41,13 +41,13 @@ type OracleServer struct {
 	regularTicker *time.Ticker // the clock source to trigger the 10s interval job.
 	psTicker      *time.Ticker // the pre-sampling ticker in 1s.
 
-	pluginDIR      string                         // the dir saves the plugins.
-	pluginWrappers map[string]types.PluginWrapper // the plugin clients that connect with different adapters.
+	pluginDIR string                         // the dir saves the plugins.
+	pluginSet map[string]types.PluginWrapper // the plugin clients that connect with different adapters.
 
-	symbols           []string                          // the symbols for data fetching in oracle service.
-	aggregator        types.Aggregator                  // the price aggregator once we have multiple data providers.
-	priceProviderPool *pricepool.PriceProviderPool      // the price pool organized by plugin_wrapper and by symbols
-	priceSamples      map[string]map[int64]*types.Price // save the data point pre-sampled for round, reset on round rotation.
+	symbols      []string                          // the symbols for data fetching in oracle service.
+	aggregator   types.Aggregator                  // the price aggregator once we have multiple data providers.
+	dataSet      *pricepool.DataCacheSet           // the price pool organized by plugin_wrapper and by symbols
+	priceSamples map[string]map[int64]*types.Price // save the data point pre-sampled for round, reset on round rotation.
 
 	// the reporting staffs
 	oracleContract contract.ContractAPI
@@ -56,7 +56,7 @@ type OracleServer struct {
 
 	curRound        uint64 //round ID.
 	votePeriod      uint64 //vote period.
-	curSampleTS     uint64 //TS required for the data sampling of the current round.
+	curSampleTS     uint64 //the data sample TS of the current round.
 	curSampleHeight uint64 //The block height on which the round rotation happens.
 
 	currentSymbols []string
@@ -73,18 +73,18 @@ type OracleServer struct {
 
 func NewOracleServer(symbols []string, pluginDir string, ws string, key *keystore.Key) *OracleServer {
 	os := &OracleServer{
-		autonityWSUrl:     ws,
-		roundData:         make(map[uint64]*types.RoundData),
-		priceSamples:      make(map[string]map[int64]*types.Price),
-		key:               key,
-		symbols:           symbols,
-		pluginDIR:         pluginDir,
-		pluginWrappers:    make(map[string]types.PluginWrapper),
-		doneCh:            make(chan struct{}),
-		regularTicker:     time.NewTicker(TenSecsInterval),
-		psTicker:          time.NewTicker(OneSecInterval),
-		aggregator:        aggregator.NewAggregator(),
-		priceProviderPool: pricepool.NewPriceProviderPool(),
+		autonityWSUrl: ws,
+		roundData:     make(map[uint64]*types.RoundData),
+		priceSamples:  make(map[string]map[int64]*types.Price),
+		key:           key,
+		symbols:       symbols,
+		pluginDIR:     pluginDir,
+		pluginSet:     make(map[string]types.PluginWrapper),
+		doneCh:        make(chan struct{}),
+		regularTicker: time.NewTicker(TenSecsInterval),
+		psTicker:      time.NewTicker(OneSecInterval),
+		aggregator:    aggregator.NewAggregator(),
+		dataSet:       pricepool.NewDataCacheSet(),
 	}
 
 	os.logger = hclog.New(&hclog.LoggerOptions{
@@ -222,6 +222,10 @@ func (os *OracleServer) gcSamples() {
 	for k := range os.priceSamples {
 		delete(os.priceSamples, k)
 	}
+
+	for _, plugin := range os.pluginSet {
+		os.dataSet.GetDataCache(plugin.Name()).GCSamples()
+	}
 }
 
 func (os *OracleServer) gcRoundData() {
@@ -336,12 +340,12 @@ func (os *OracleServer) handlePreSampling(preSampleTS int64) error {
 
 func (os *OracleServer) handleRoundVote() error {
 	// if the autonity node is on peer synchronization state, just skip the reporting.
-	sync, err := os.client.SyncProgress(context.Background())
+	syncing, err := os.client.SyncProgress(context.Background())
 	if err != nil {
 		return err
 	}
 
-	if sync != nil {
+	if syncing != nil {
 		return types.ErrPeerOnSync
 	}
 
@@ -529,19 +533,19 @@ func (os *OracleServer) handleNewSymbolsEvent(symbols []string) {
 	os.UpdateSymbols(symbols)
 }
 
-func (os *OracleServer) sampling(symbols []string) {
+func (os *OracleServer) sampling(symbols []string, ts int64) {
 	// start sampling prices, all the data points are going to be saved in the plugin wrappers.
 	ctx, cancel := context.WithTimeout(context.Background(), Timeout)
 	defer cancel()
 
 	var wg sync.WaitGroup
 	g, _ := errgroup.WithContext(ctx)
-	for _, p := range os.pluginWrappers {
+	for _, p := range os.pluginSet {
 		plugin := p
 		wg.Add(1)
 		g.Go(func() error {
 			defer wg.Done()
-			return plugin.FetchPrices(symbols)
+			return plugin.FetchPrices(symbols, ts)
 		})
 	}
 	// Wait for all goroutines to complete or the context to be cancelled
@@ -562,14 +566,14 @@ func (os *OracleServer) sampling(symbols []string) {
 func (os *OracleServer) samplePrice(symbols []string, ts int64) {
 
 	// do sampling first.
-	os.sampling(symbols)
+	os.sampling(symbols, ts)
 
 	// after sampling, we do the data aggregation by querying data from plugin wrappers.
 	now := time.Now().Unix()
 	for _, s := range symbols {
 		var prices []decimal.Decimal
-		for _, plugin := range os.pluginWrappers {
-			p, err := os.priceProviderPool.GetPriceProvider(plugin.Name()).GetPrice(s)
+		for _, plugin := range os.pluginSet {
+			p, err := os.dataSet.GetDataCache(plugin.Name()).GetSample(s, ts)
 			if err != nil {
 				continue
 			}
@@ -663,7 +667,7 @@ func (os *OracleServer) Stop() {
 	os.subSymbolsEvent.Unsubscribe()
 
 	os.doneCh <- struct{}{}
-	for _, c := range os.pluginWrappers {
+	for _, c := range os.pluginSet {
 		p := c
 		p.Close()
 	}

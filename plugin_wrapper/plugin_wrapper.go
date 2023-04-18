@@ -15,7 +15,7 @@ var errConnectionNotEstablished = errors.New("connection not established yet")
 
 type PluginWrapper struct {
 	version        string
-	pricePool      types.PricePool
+	dataPool       types.DataPool
 	client         *plugin.Client
 	clientProtocol plugin.ClientProtocol
 	name           string
@@ -23,7 +23,7 @@ type PluginWrapper struct {
 	logger         hclog.Logger
 }
 
-func NewPluginWrapper(name string, pluginDir string, pricePool types.PricePool) *PluginWrapper {
+func NewPluginWrapper(name string, pluginDir string, pricePool types.DataPool) *PluginWrapper {
 	// Create an hclog.Logger
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   name,
@@ -45,11 +45,11 @@ func NewPluginWrapper(name string, pluginDir string, pricePool types.PricePool) 
 	})
 
 	return &PluginWrapper{
-		name:      name,
-		client:    rpcClient,
-		startAt:   time.Now(),
-		pricePool: pricePool,
-		logger:    logger,
+		name:     name,
+		client:   rpcClient,
+		startAt:  time.Now(),
+		dataPool: pricePool,
+		logger:   logger,
 	}
 }
 
@@ -115,7 +115,7 @@ func (ba *PluginWrapper) GetVersion() (string, error) {
 	return ba.version, nil
 }
 
-func (ba *PluginWrapper) FetchPrices(symbols []string) error {
+func (ba *PluginWrapper) FetchPrices(symbols []string, ts int64) error {
 	if ba.clientProtocol == nil {
 		// try to reconnect during the runtime.
 		err := ba.connect()
@@ -149,9 +149,13 @@ func (ba *PluginWrapper) FetchPrices(symbols []string) error {
 	}
 
 	if len(report.Prices) > 0 {
-		ba.pricePool.AddPrices(report.Prices)
+		ba.dataPool.AddSample(report.Prices, ts)
 	}
 	return nil
+}
+
+func (ba *PluginWrapper) GCSamples() {
+	ba.dataPool.GCSamples()
 }
 
 func (ba *PluginWrapper) Close() {
