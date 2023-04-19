@@ -12,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	tp "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/hashicorp/go-hclog"
 	"github.com/modern-go/reflect2"
@@ -25,7 +24,6 @@ import (
 )
 
 var (
-	Version          = "v0.0.1"
 	TenSecsInterval  = 10 * time.Second // 10s ticker job to check health with l1, plugin discovery and regular data sampling.
 	OneSecInterval   = 1 * time.Second  // 1s ticker job to check if we need to do pre-sampling.
 	PreSamplingRange = 15               // pre-sampling starts in 15blocks in advance.
@@ -44,8 +42,9 @@ type OracleServer struct {
 	symbols []string // the symbols for data fetching in oracle service.
 
 	// the reporting staffs
+	dialer         types.Dialer
 	oracleContract contract.ContractAPI
-	client         *ethclient.Client
+	client         types.Blockchain
 	l1WSUrl        string
 
 	curRound        uint64 //round ID.
@@ -65,17 +64,21 @@ type OracleServer struct {
 	subSymbolsEvent event.Subscription
 }
 
-func NewOracleServer(symbols []string, pluginDir string, ws string, key *keystore.Key) *OracleServer {
+func NewOracleServer(symbols []string, pluginDir string, ws string, key *keystore.Key, dialer types.Dialer,
+	client types.Blockchain, oc contract.ContractAPI) *OracleServer {
 	os := &OracleServer{
-		l1WSUrl:       ws,
-		roundData:     make(map[uint64]*types.RoundData),
-		key:           key,
-		symbols:       symbols,
-		pluginDIR:     pluginDir,
-		pluginSet:     make(map[string]*pWrapper.PluginWrapper),
-		doneCh:        make(chan struct{}),
-		regularTicker: time.NewTicker(TenSecsInterval),
-		psTicker:      time.NewTicker(OneSecInterval),
+		dialer:         dialer,
+		client:         client,
+		oracleContract: oc,
+		l1WSUrl:        ws,
+		roundData:      make(map[uint64]*types.RoundData),
+		key:            key,
+		symbols:        symbols,
+		pluginDIR:      pluginDir,
+		pluginSet:      make(map[string]*pWrapper.PluginWrapper),
+		doneCh:         make(chan struct{}),
+		regularTicker:  time.NewTicker(TenSecsInterval),
+		psTicker:       time.NewTicker(OneSecInterval),
 	}
 
 	os.logger = hclog.New(&hclog.LoggerOptions{
@@ -95,7 +98,7 @@ func NewOracleServer(symbols []string, pluginDir string, ws string, key *keystor
 	}
 
 	os.logger.Info("Running data contract_binder", "rpc: ", ws, "voter", key.Address.String())
-	err := os.buildConnection()
+	err := os.syncStates()
 	if err != nil {
 		// stop the client on start up once the remote endpoint of autonity L1 network is not ready.
 		panic(err)
@@ -103,28 +106,15 @@ func NewOracleServer(symbols []string, pluginDir string, ws string, key *keystor
 	return os
 }
 
-func (os *OracleServer) buildConnection() error {
-	// connect to autonity node via web socket
+func (os *OracleServer) syncStates() error {
 	var err error
-	os.client, err = ethclient.Dial(os.l1WSUrl)
-	if err != nil {
-		return err
-	}
-
-	// bind client with oracle contract address
-	os.logger.Info("binding with oracle contract", "address", types.OracleContractAddress.String())
-	os.oracleContract, err = contract.NewOracle(types.OracleContractAddress, os.client)
-	if err != nil {
-		return err
-	}
-
 	// get initial states from on-chain oracle contract.
-	os.curRound, os.currentSymbols, os.pricePrecision, os.votePeriod, err = initStates(os.oracleContract)
+	os.curRound, os.currentSymbols, os.pricePrecision, os.votePeriod, err = os.initStates()
 	if err != nil {
 		return err
 	}
 
-	os.logger.Info("buildConnection", "CurrentRound", os.curRound, "Num of Symbols", len(os.currentSymbols), "CurrentSymbols", os.currentSymbols)
+	os.logger.Info("syncStates", "CurrentRound", os.curRound, "Num of Symbols", len(os.currentSymbols), "CurrentSymbols", os.currentSymbols)
 	if len(os.currentSymbols) > 0 {
 		os.UpdateSymbols(os.currentSymbols)
 	}
@@ -147,25 +137,25 @@ func (os *OracleServer) buildConnection() error {
 }
 
 // initStates returns round id, symbols and committees on current chain, it is called on the startup of client.
-func initStates(oc contract.ContractAPI) (uint64, []string, decimal.Decimal, uint64, error) {
+func (os *OracleServer) initStates() (uint64, []string, decimal.Decimal, uint64, error) {
 	var precision decimal.Decimal
 	// on the startup, we need to sync the round id, symbols and committees from contract.
-	currentRound, err := oc.GetRound(nil)
+	currentRound, err := os.oracleContract.GetRound(nil)
 	if err != nil {
 		return 0, nil, precision, 0, err
 	}
 
-	symbols, err := oc.GetSymbols(nil)
+	symbols, err := os.oracleContract.GetSymbols(nil)
 	if err != nil {
 		return 0, nil, precision, 0, err
 	}
 
-	p, err := oc.GetPrecision(nil)
+	p, err := os.oracleContract.GetPrecision(nil)
 	if err != nil {
 		return 0, nil, precision, 0, err
 	}
 
-	votePeriod, err := oc.GetVotePeriod(nil)
+	votePeriod, err := os.oracleContract.GetVotePeriod(nil)
 	if err != nil {
 		return 0, nil, precision, 0, nil
 	}
@@ -205,7 +195,22 @@ func (os *OracleServer) checkHealth() {
 	// if the web socket was drops my remote peer, the client will be reset into nil.
 	if os.client == nil {
 		// rebuild the connection with autonity L1 node.
-		err := os.buildConnection()
+		// connect to autonity node via web socket
+		var err error
+		os.client, err = os.dialer.Dial(os.l1WSUrl)
+		if err != nil {
+			os.logger.Info("dail L1 node", "error", err.Error())
+			return
+		}
+
+		// bind client with oracle contract address
+		os.logger.Info("binding with oracle contract", "address", types.OracleContractAddress.String())
+		os.oracleContract, err = contract.NewOracle(types.OracleContractAddress, os.client)
+		if err != nil {
+			os.logger.Info("binding oracle contract", "error", err.Error())
+		}
+
+		err = os.syncStates()
 		if err != nil {
 			os.logger.Info("rebuilding connectivity with autonity L1 node", "error", err)
 		}

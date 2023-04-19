@@ -2,7 +2,9 @@ package main
 
 import (
 	"autonity-oracle/config"
+	contract "autonity-oracle/contract_binder/contract"
 	"autonity-oracle/oracle_server"
+	"autonity-oracle/types"
 	"log"
 	"os"
 	"os/signal"
@@ -15,7 +17,18 @@ func main() { //nolint
 	log.Printf("\n\n\n \tRunning autonity oracle node with symbols: %s and plugin diretory: %s by connnecting to L1 node: %s \n\n\n",
 		strings.Join(conf.Symbols, ","), conf.PluginDIR, conf.AutonityWSUrl)
 
-	oracle := oracleserver.NewOracleServer(conf.Symbols, conf.PluginDIR, conf.AutonityWSUrl, conf.Key)
+	dialer := &types.L1Dialer{}
+	client, err := dialer.Dial(conf.AutonityWSUrl)
+	if err != nil {
+		panic(err)
+	}
+
+	oc, err := contract.NewOracle(types.OracleContractAddress, client)
+	if err != nil {
+		panic(err)
+	}
+
+	oracle := oracleserver.NewOracleServer(conf.Symbols, conf.PluginDIR, conf.AutonityWSUrl, conf.Key, dialer, client, oc)
 	go oracle.Start()
 	defer oracle.Stop()
 

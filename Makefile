@@ -61,6 +61,6 @@ lint:
 	@./.github/tools/golangci-lint run --config ./.golangci.yml
 
 mock:
-	mockgen -package=mock -source=reporter/contract/interface.go > reporter/contract/mock/contract_mock.go
-
+	mockgen -package=mock -source=contract_binder/contract/interface.go > contract_binder/contract/mock/contract_mock.go
+	mockgen -package=mock -source=types/interface.go > types/mock/l1_mock.go
 all: autoracle lint test

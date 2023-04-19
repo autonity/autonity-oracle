@@ -99,6 +99,21 @@ func (mr *MockContractAPIMockRecorder) GetSymbols(opts interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSymbols", reflect.TypeOf((*MockContractAPI)(nil).GetSymbols), opts)
 }
 
+// GetVotePeriod mocks base method.
+func (m *MockContractAPI) GetVotePeriod(opts *bind.CallOpts) (*big.Int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetVotePeriod", opts)
+	ret0, _ := ret[0].(*big.Int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetVotePeriod indicates an expected call of GetVotePeriod.
+func (mr *MockContractAPIMockRecorder) GetVotePeriod(opts interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVotePeriod", reflect.TypeOf((*MockContractAPI)(nil).GetVotePeriod), opts)
+}
+
 // GetVoters mocks base method.
 func (m *MockContractAPI) GetVoters(opts *bind.CallOpts) ([]common.Address, error) {
 	m.ctrl.T.Helper()
