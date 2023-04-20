@@ -18,7 +18,7 @@ import (
 
 // integration with l1 network, the reported data should be presented at l1 oracle contract.
 func TestDataReporting(t *testing.T) {
-	network, err := createNetwork(true)
+	network, err := createNetwork(false)
 	require.NoError(t, err)
 	defer network.Stop()
 
@@ -51,11 +51,11 @@ func TestDataReporting(t *testing.T) {
 	testRMSymbols(t, network, client, o, testRMSymbolsEndRound, pricePrecision)
 
 	// test to remove validator from current committee.
-	testRMValidatorEndRound := testRMSymbolsEndRound + 10
+	testRMValidatorEndRound := testRMSymbolsEndRound + 40
 	testRMValidatorFromCommittee(t, network, client, o, aut, testRMValidatorEndRound, pricePrecision)
 
 	// test to add validator into current committee.
-	testNewValidatorAddedEndRound := testRMValidatorEndRound + 10
+	testNewValidatorAddedEndRound := testRMValidatorEndRound + 40
 	testNewValidatorJoinToCommittee(t, network, client, o, aut, testNewValidatorAddedEndRound, pricePrecision)
 }
 

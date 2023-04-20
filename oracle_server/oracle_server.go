@@ -275,7 +275,6 @@ func (os *OracleServer) handlePreSampling(preSampleTS int64) error {
 	// taking the 1st round and the round after a node recover from a disaster as a special case, to skip the
 	// pre-sampling. In this special case, the regular 10s samples will be used for data reporting.
 	if os.curSampleTS == 0 || os.curSampleHeight == 0 {
-		os.logger.Info("skip pre-sampling on start up round")
 		return nil
 	}
 
@@ -286,11 +285,11 @@ func (os *OracleServer) handlePreSampling(preSampleTS int64) error {
 		return err
 	}
 	if nSampleHeight-curHeight > uint64(PreSamplingRange) {
-		os.logger.Info("pre-sampling window does not approach yet")
 		return nil
 	}
 
 	// do the data pre-sampling.
+	os.logger.Debug("Data pre-sampling", "on height", curHeight)
 	os.samplePrice(os.symbols, preSampleTS)
 
 	return nil
@@ -449,7 +448,7 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 	for _, s := range symbols {
 		p, err := os.aggregatePrice(s, int64(os.curSampleTS))
 		if err != nil {
-			os.logger.Warn("get sample", "error", err.Error())
+			os.logger.Warn("get sample", "error", err.Error(), "symbol", s)
 			continue
 		}
 		prices[s] = *p
@@ -571,8 +570,8 @@ func (os *OracleServer) Start() {
 				os.logger.Warn("handle pre-sampling", "error", err.Error())
 			}
 		case rEvent := <-os.chRoundEvent:
-			os.logger.Info("handle new round", "round", rEvent.Round.Uint64(), "current sampling TS",
-				rEvent.Timestamp.Uint64(), "vote period", rEvent.VotePeriod.Uint64())
+			os.logger.Info("handle new round", "round", rEvent.Round.Uint64(), "required sampling TS",
+				rEvent.Timestamp.Uint64(), "height", rEvent.Height.Uint64(), "vote period", rEvent.VotePeriod.Uint64())
 
 			// save the round rotation info to coordinate the pre-sampling.
 			os.curRound = rEvent.Round.Uint64()
@@ -590,7 +589,9 @@ func (os *OracleServer) Start() {
 			os.handleNewSymbolsEvent(symbols.Symbols)
 		case <-os.regularTicker.C:
 			// start the regular price sampling for oracle service on each 10s.
-			os.samplePrice(os.symbols, time.Now().Unix())
+			now := time.Now().Unix()
+			os.logger.Debug("regular 10s data sampling", "ts", now)
+			os.samplePrice(os.symbols, now)
 			os.checkHealth()
 			os.PluginRuntimeDiscovery()
 			os.gcRoundData()

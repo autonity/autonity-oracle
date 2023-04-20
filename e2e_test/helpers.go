@@ -33,7 +33,7 @@ var (
 
 	numberOfKeys              = 10
 	numberOfValidators        = 4
-	numberOfPortsForBindNodes = 3
+	numberOfPortsForBindNodes = 2
 )
 
 type AutonityContractGenesis struct {
@@ -80,7 +80,6 @@ type Oracle struct {
 	Key       *Key
 	PluginDir string
 	Host      string
-	HTTPPort  int
 	ProcessID int
 	Command   *exec.Cmd
 }
@@ -104,7 +103,6 @@ func (o *Oracle) GenCMD(wsEndpoint string) {
 	c := exec.Command("./autoracle",
 		fmt.Sprintf("-oracle_autonity_ws_url=%s", wsEndpoint),
 		fmt.Sprintf("-oracle_crypto_symbols=%s", config.DefaultSymbols),
-		fmt.Sprintf("-oracle_http_port=%d", o.HTTPPort),
 		fmt.Sprintf("-oracle_key_file=%s", o.Key.KeyFile),
 		fmt.Sprintf("-oracle_key_password=%s", o.Key.Password),
 		fmt.Sprintf("-oracle_plugin_dir=%s", o.PluginDir),
@@ -268,7 +266,6 @@ func prepareResource(network *Network, freeKeys []*Key, freePorts []int, nodes i
 			Key:       freeKeys[i*2],
 			PluginDir: defaultPlugDir,
 			Host:      defaultHost,
-			HTTPPort:  freePorts[i*3],
 			ProcessID: -1,
 		}
 
@@ -278,8 +275,8 @@ func prepareResource(network *Network, freeKeys []*Key, freePorts []int, nodes i
 			DataDir:      fmt.Sprintf("%s/node_%d/data", defaultDataDirRoot, i),
 			NodeKey:      freeKeys[i*2+1],
 			Host:         defaultHost,
-			P2PPort:      freePorts[i*3+1],
-			WSPort:       freePorts[i*3+2],
+			P2PPort:      freePorts[i*2],
+			WSPort:       freePorts[i*2+1],
 			OracleClient: oracle,
 		}
 
