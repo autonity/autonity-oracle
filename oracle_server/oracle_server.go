@@ -25,6 +25,7 @@ import (
 )
 
 var (
+	Version          = "V0.0.1"
 	TenSecsInterval  = 10 * time.Second // 10s ticker job to check health with l1, plugin discovery and regular data sampling.
 	OneSecInterval   = 1 * time.Second  // 1s ticker job to check if we need to do pre-sampling.
 	PreSamplingRange = 15               // pre-sampling starts in 15blocks in advance.
