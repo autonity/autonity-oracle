@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/modern-go/reflect2"
 	"github.com/shopspring/decimal"
+	"io/fs"
 	"math/big"
 	"math/rand"
 	o "os"
@@ -38,8 +39,7 @@ type OracleServer struct {
 	pluginDIR  string                             // the dir saves the plugins.
 	pluginLock sync.RWMutex                       // to prevent from race condition of pluginSet.
 	pluginSet  map[string]*pWrapper.PluginWrapper // the plugin clients that connect with different adapters.
-
-	symbols []string // the symbols for data fetching in oracle service.
+	symbols    []string                           // the symbols for data fetching in oracle service.
 
 	// the reporting staffs
 	dialer         types.Dialer
@@ -52,10 +52,10 @@ type OracleServer struct {
 	curSampleTS     uint64 //the data sample TS of the current round.
 	curSampleHeight uint64 //The block height on which the round rotation happens.
 
-	currentSymbols []string
-	pricePrecision decimal.Decimal
-	roundData      map[uint64]*types.RoundData
-	key            *keystore.Key
+	protocolSymbols []string //symbols required for the voting on the oracle contract protocol.
+	pricePrecision  decimal.Decimal
+	roundData       map[uint64]*types.RoundData
+	key             *keystore.Key
 
 	chRoundEvent  chan *contract.OracleNewRound
 	subRoundEvent event.Subscription
@@ -88,17 +88,17 @@ func NewOracleServer(symbols []string, pluginDir string, ws string, key *keystor
 	})
 
 	// discover plugins from plugin dir at startup.
-	binaries := os.listPluginDIR()
-	if len(binaries) == 0 {
+	binaries, err := helpers.ListPlugins(pluginDir)
+	if len(binaries) == 0 || err != nil {
 		// to stop the service on the start once there is no plugin in the db.
 		panic(fmt.Sprintf("No plugins at plugin dir: %s, please build the plugins", os.pluginDIR))
 	}
 	for _, file := range binaries {
-		os.createPlugin(file)
+		os.tryLoadingNewPlugin(file)
 	}
 
 	os.logger.Info("Running data contract_binder", "rpc: ", ws, "voter", key.Address.String())
-	err := os.syncStates()
+	err = os.syncStates()
 	if err != nil {
 		// stop the client on start up once the remote endpoint of autonity L1 network is not ready.
 		panic(err)
@@ -109,14 +109,14 @@ func NewOracleServer(symbols []string, pluginDir string, ws string, key *keystor
 func (os *OracleServer) syncStates() error {
 	var err error
 	// get initial states from on-chain oracle contract.
-	os.curRound, os.currentSymbols, os.pricePrecision, os.votePeriod, err = os.initStates()
+	os.curRound, os.protocolSymbols, os.pricePrecision, os.votePeriod, err = os.initStates()
 	if err != nil {
 		return err
 	}
 
-	os.logger.Info("syncStates", "CurrentRound", os.curRound, "Num of Symbols", len(os.currentSymbols), "CurrentSymbols", os.currentSymbols)
-	if len(os.currentSymbols) > 0 {
-		os.UpdateSymbols(os.currentSymbols)
+	os.logger.Info("syncStates", "CurrentRound", os.curRound, "Num of Symbols", len(os.protocolSymbols), "CurrentSymbols", os.protocolSymbols)
+	if len(os.protocolSymbols) > 0 {
+		os.UpdateSymbols(os.protocolSymbols)
 	}
 
 	// subscribe on-chain round rotation event
@@ -244,7 +244,7 @@ func (os *OracleServer) isVoter() (bool, error) {
 }
 
 func (os *OracleServer) printLatestRoundData(newRound uint64) {
-	for _, s := range os.currentSymbols {
+	for _, s := range os.protocolSymbols {
 		rd, err := os.oracleContract.GetRoundData(nil, new(big.Int).SetUint64(newRound-1), s)
 		if err != nil {
 			os.logger.Error("GetRoundData", "error", err.Error())
@@ -254,7 +254,7 @@ func (os *OracleServer) printLatestRoundData(newRound uint64) {
 			rd.Price.String(), "status", rd.Status.String())
 	}
 
-	for _, s := range os.currentSymbols {
+	for _, s := range os.protocolSymbols {
 		rd, err := os.oracleContract.LatestRoundData(nil, s)
 		if err != nil {
 			os.logger.Error("GetLatestRoundPrice", "error", err.Error())
@@ -307,7 +307,7 @@ func (os *OracleServer) handleRoundVote() error {
 	}
 
 	// get latest symbols from oracle.
-	os.currentSymbols, err = os.oracleContract.GetSymbols(nil)
+	os.protocolSymbols, err = os.oracleContract.GetSymbols(nil)
 	if err != nil {
 		return err
 	}
@@ -414,7 +414,7 @@ func (os *OracleServer) doReport(curRndCommitHash common.Hash, lastRoundData *ty
 	// if there is no last round data, then we just submit the curRndCommitHash hash of current round.
 	var votes []*big.Int
 	if lastRoundData == nil {
-		for i := 0; i < len(os.currentSymbols); i++ {
+		for i := 0; i < len(os.protocolSymbols); i++ {
 			votes = append(votes, types.InvalidPrice)
 		}
 		return os.oracleContract.Vote(auth, new(big.Int).SetBytes(curRndCommitHash.Bytes()), votes, types.InvalidSalt)
@@ -444,7 +444,7 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 		return nil, types.ErrNoSymbolsObserved
 	}
 
-	var prices types.PriceBySymbol
+	prices := make(types.PriceBySymbol)
 	for _, s := range symbols {
 		p, err := os.aggregatePrice(s, int64(os.curSampleTS))
 		if err != nil {
@@ -468,7 +468,12 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 		Hash:    common.Hash{},
 		Prices:  prices,
 	}
+	roundData.Hash = os.commitmentHash(roundData, symbols)
+	os.logger.Info("build round data", "current round", round, "commitment hash", roundData.Hash.String())
+	return roundData, nil
+}
 
+func (os *OracleServer) commitmentHash(roundData *types.RoundData, symbols []string) common.Hash {
 	var source []byte
 	for _, s := range symbols {
 		if pr, ok := roundData.Prices[s]; ok {
@@ -479,9 +484,7 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 	}
 	// append the salt at the tail of votes
 	source = append(source, common.LeftPadBytes(roundData.Salt.Bytes(), 32)...)
-	roundData.Hash = crypto.Keccak256Hash(source)
-	os.logger.Info("build round data", "current round", round, "commitment hash", roundData.Hash.String())
-	return roundData, nil
+	return crypto.Keccak256Hash(source)
 }
 
 func (os *OracleServer) handleNewSymbolsEvent(symbols []string) {
@@ -494,7 +497,7 @@ func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, er
 	var prices []decimal.Decimal
 
 	os.pluginLock.RLock()
-	os.pluginLock.RUnlock()
+	defer os.pluginLock.RUnlock()
 	for _, plugin := range os.pluginSet {
 		p, err := plugin.GetSample(s, target)
 		if err != nil {
@@ -527,7 +530,7 @@ func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, er
 
 func (os *OracleServer) samplePrice(symbols []string, ts int64) {
 	os.pluginLock.RLock()
-	os.pluginLock.RUnlock()
+	defer os.pluginLock.RUnlock()
 	for _, p := range os.pluginSet {
 		plugin := p
 		// todo: check num of go routine are pending before we launch new one to fetch price from a certain plugin/provider.
@@ -607,5 +610,41 @@ func (os *OracleServer) Stop() {
 	for _, c := range os.pluginSet {
 		p := c
 		p.Close()
+	}
+}
+
+func (os *OracleServer) PluginRuntimeDiscovery() {
+	binaries, err := helpers.ListPlugins(os.pluginDIR)
+	if err != nil {
+		os.logger.Warn("PluginRuntimeDiscovery", "error", err.Error())
+		return
+	}
+	for _, file := range binaries {
+		os.tryLoadingNewPlugin(file)
+	}
+}
+
+func (os *OracleServer) tryLoadingNewPlugin(f fs.FileInfo) {
+	os.pluginLock.Lock()
+	defer os.pluginLock.Unlock()
+	plugin, ok := os.pluginSet[f.Name()]
+	if !ok {
+		os.logger.Info("** New plugin discovered, going to setup it: ", f.Name(), f.Mode().String())
+		pluginWrapper := pWrapper.NewPluginWrapper(f.Name(), os.pluginDIR)
+		pluginWrapper.Initialize()
+		os.pluginSet[f.Name()] = pluginWrapper
+		os.logger.Info("** New plugin on ready: ", f.Name())
+		return
+	}
+
+	if f.ModTime().After(plugin.StartTime()) {
+		os.logger.Info("*** Replacing legacy plugin with new one: ", f.Name(), f.Mode().String())
+		// stop the legacy plugins process, disconnect rpc connection and release memory.
+		plugin.Close()
+		delete(os.pluginSet, f.Name())
+		pluginWrapper := pWrapper.NewPluginWrapper(f.Name(), os.pluginDIR)
+		pluginWrapper.Initialize()
+		os.pluginSet[f.Name()] = pluginWrapper
+		os.logger.Info("*** Finnish the replacement of plugin: ", f.Name())
 	}
 }

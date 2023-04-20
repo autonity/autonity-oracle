@@ -2,15 +2,25 @@ package oracleserver
 
 import (
 	"autonity-oracle/config"
+	contract "autonity-oracle/contract_binder/contract"
 	cMock "autonity-oracle/contract_binder/contract/mock"
+	"autonity-oracle/helpers"
+	"autonity-oracle/types"
 	"autonity-oracle/types/mock"
+	"fmt"
+	"github.com/ethereum/go-ethereum/common"
+	tp "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/golang/mock/gomock"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
+	"io/ioutil" //nolint
 	"math/big"
+	"math/rand"
 	"os"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestOracleServer(t *testing.T) {
@@ -19,16 +29,14 @@ func TestOracleServer(t *testing.T) {
 	votePeriod := new(big.Int).SetUint64(30)
 	var subRoundEvent event.Subscription
 	var subSymbolsEvent event.Subscription
-	err := os.Setenv("ORACLE_KEY_FILE", "../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe")
-	require.NoError(t, err)
-	err = os.Setenv("ORACLE_PLUGIN_DIR", "..//build/bin/plugins")
-	require.NoError(t, err)
+	os.Setenv("ORACLE_KEY_FILE", "../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe") //nolint
+	os.Setenv("ORACLE_PLUGIN_DIR", "../plugins/fakeplugin/bin")                                                                         //nolint
 	defer os.Clearenv()
+	conf := config.MakeConfig()
 
 	t.Run("test init oracle server with oracle contract states", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		conf := config.MakeConfig()
 
 		dialerMock := mock.NewMockDialer(ctrl)
 		contractMock := cMock.NewMockContractAPI(ctrl)
@@ -41,115 +49,312 @@ func TestOracleServer(t *testing.T) {
 		l1Mock := mock.NewMockBlockchain(ctrl)
 
 		srv := NewOracleServer(conf.Symbols, conf.PluginDIR, conf.AutonityWSUrl, conf.Key, dialerMock, l1Mock, contractMock)
-
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
 		require.Equal(t, conf.Symbols, srv.symbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromInt(precision.Int64())))
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
+		require.Equal(t, 1, len(srv.pluginSet))
+		require.Equal(t, "fakeplugin", srv.pluginSet["fakeplugin"].Name())
+		srv.pluginSet["fakeplugin"].Close()
+	})
+
+	t.Run("test pre-sampling happy case", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		chainHeight := uint64(46)
+		dialerMock := mock.NewMockDialer(ctrl)
+		contractMock := cMock.NewMockContractAPI(ctrl)
+		contractMock.EXPECT().GetRound(nil).Return(currentRound, nil)
+		contractMock.EXPECT().GetSymbols(nil).Return(conf.Symbols, nil)
+		contractMock.EXPECT().GetPrecision(nil).Return(precision, nil)
+		contractMock.EXPECT().GetVotePeriod(nil).Return(votePeriod, nil)
+		contractMock.EXPECT().WatchNewRound(gomock.Any(), gomock.Any()).Return(subRoundEvent, nil)
+		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
+		l1Mock := mock.NewMockBlockchain(ctrl)
+		l1Mock.EXPECT().BlockNumber(gomock.Any()).AnyTimes().Return(chainHeight, nil)
+
+		srv := NewOracleServer(conf.Symbols, conf.PluginDIR, conf.AutonityWSUrl, conf.Key, dialerMock, l1Mock, contractMock)
+
+		ts := time.Now().Unix()
+		srv.curSampleTS = uint64(ts)
+		srv.curSampleHeight = uint64(30)
+
+		for sec := ts; sec < ts+15; sec++ {
+			err := srv.handlePreSampling(sec)
+			require.NoError(t, err)
+			time.Sleep(time.Second)
+		}
+
+		target := ts + 15
+		for _, s := range conf.Symbols {
+			p, err := srv.aggregatePrice(s, target)
+			require.NoError(t, err)
+			require.Equal(t, true, p.Price.Equal(helpers.ResolveSimulatedPrice(s)))
+		}
+
+		// gc data samples
+		srv.gcDataSamples()
+		for _, s := range conf.Symbols {
+			_, err := srv.aggregatePrice(s, target)
+			require.Error(t, err)
+		}
+
+		srv.pluginSet["fakeplugin"].Close()
+	})
+
+	t.Run("test round vote happy case, with commitment and round data", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		chainHeight := uint64(45)
+
+		var voters []common.Address
+		voters = append(voters, conf.Key.Address)
+		price := contract.IOracleRoundData{
+			Round:     currentRound,
+			Price:     new(big.Int).SetUint64(0),
+			Timestamp: new(big.Int).SetUint64(10000),
+			Status:    new(big.Int).SetUint64(0),
+		}
+
+		dialerMock := mock.NewMockDialer(ctrl)
+		contractMock := cMock.NewMockContractAPI(ctrl)
+		contractMock.EXPECT().GetRound(nil).Return(currentRound, nil)
+		contractMock.EXPECT().GetSymbols(nil).AnyTimes().Return(conf.Symbols, nil)
+		contractMock.EXPECT().GetPrecision(nil).Return(precision, nil)
+		contractMock.EXPECT().GetVotePeriod(nil).Return(votePeriod, nil)
+		contractMock.EXPECT().WatchNewRound(gomock.Any(), gomock.Any()).Return(subRoundEvent, nil)
+		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
+		contractMock.EXPECT().GetVoters(nil).Return(voters, nil)
+		contractMock.EXPECT().GetRoundData(nil, new(big.Int).SetUint64(1), gomock.Any()).AnyTimes().Return(price, nil)
+		contractMock.EXPECT().LatestRoundData(nil, gomock.Any()).AnyTimes().Return(price, nil)
+
+		txdata := &tp.DynamicFeeTx{ChainID: new(big.Int).SetUint64(1000), Nonce: 1}
+		tx := tp.NewTx(txdata)
+		contractMock.EXPECT().Vote(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(tx, nil)
+
+		l1Mock := mock.NewMockBlockchain(ctrl)
+		l1Mock.EXPECT().BlockNumber(gomock.Any()).AnyTimes().Return(chainHeight, nil)
+		l1Mock.EXPECT().SyncProgress(gomock.Any()).Return(nil, nil)
+		l1Mock.EXPECT().PendingNonceAt(gomock.Any(), conf.Key.Address).Return(uint64(1), nil)
+		l1Mock.EXPECT().SuggestGasPrice(gomock.Any()).Return(new(big.Int).SetUint64(5000), nil)
+		l1Mock.EXPECT().ChainID(gomock.Any()).Return(new(big.Int).SetUint64(1000), nil)
+		srv := NewOracleServer(conf.Symbols, conf.PluginDIR, conf.AutonityWSUrl, conf.Key, dialerMock, l1Mock, contractMock)
+
+		// prepare last round data.
+		prices := make(types.PriceBySymbol)
+		for _, s := range conf.Symbols {
+			prices[s] = types.Price{
+				Timestamp: 0,
+				Symbol:    s,
+				Price:     helpers.ResolveSimulatedPrice(s),
+			}
+		}
+		seed := time.Now().UnixNano()
+		roundData := &types.RoundData{
+			RoundID: srv.curRound,
+			Symbols: conf.Symbols,
+			Salt:    new(big.Int).SetUint64(rand.New(rand.NewSource(seed)).Uint64()), // nolint
+			Hash:    common.Hash{},
+			Prices:  prices,
+		}
+		srv.roundData[srv.curRound] = roundData
+
+		// pre-sampling with data.
+		ts := time.Now().Unix()
+		srv.curSampleTS = uint64(ts)
+		srv.curSampleHeight = uint64(30)
+		for sec := ts; sec < ts+15; sec++ {
+			err := srv.handlePreSampling(time.Now().Unix())
+			require.NoError(t, err)
+			time.Sleep(time.Second)
+		}
+
+		// handle vote event that change to next round with
+		srv.curRound = srv.curRound + 1
+		srv.curSampleHeight = 60
+		srv.curSampleTS = uint64(time.Now().Unix())
+
+		err := srv.handleRoundVote()
+		require.NoError(t, err)
+
+		require.Equal(t, 2, len(srv.roundData))
+		require.Equal(t, srv.curRound, srv.roundData[srv.curRound].RoundID)
+		require.Equal(t, tx.Hash(), srv.roundData[srv.curRound].Tx.Hash())
+		require.Equal(t, conf.Symbols, srv.roundData[srv.curRound].Symbols)
+		require.Equal(t, srv.commitmentHash(srv.roundData[srv.curRound], conf.Symbols), srv.roundData[srv.curRound].Hash)
+
+		srv.pluginSet["fakeplugin"].Close()
+	})
+
+	t.Run("test handle new symbol event", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dialerMock := mock.NewMockDialer(ctrl)
+		contractMock := cMock.NewMockContractAPI(ctrl)
+		contractMock.EXPECT().GetRound(nil).Return(currentRound, nil)
+		contractMock.EXPECT().GetSymbols(nil).Return(conf.Symbols, nil)
+		contractMock.EXPECT().GetPrecision(nil).Return(precision, nil)
+		contractMock.EXPECT().GetVotePeriod(nil).Return(votePeriod, nil)
+		contractMock.EXPECT().WatchNewRound(gomock.Any(), gomock.Any()).Return(subRoundEvent, nil)
+		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
+		l1Mock := mock.NewMockBlockchain(ctrl)
+
+		srv := NewOracleServer(conf.Symbols, conf.PluginDIR, conf.AutonityWSUrl, conf.Key, dialerMock, l1Mock, contractMock)
+		require.Equal(t, currentRound.Uint64(), srv.curRound)
+		require.Equal(t, conf.Symbols, srv.symbols)
+		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromInt(precision.Int64())))
+		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
+		require.Equal(t, 1, len(srv.pluginSet))
+
+		nSymbols := append(conf.Symbols, "NTNETH", "NTNBTC", "NTNCNY")
+		srv.handleNewSymbolsEvent(nSymbols)
+		require.Equal(t, len(nSymbols), len(srv.symbols))
+		require.Equal(t, nSymbols, srv.symbols)
+		srv.pluginSet["fakeplugin"].Close()
+	})
+
+	t.Run("test plugin runtime discovery, add new plugin", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dialerMock := mock.NewMockDialer(ctrl)
+		contractMock := cMock.NewMockContractAPI(ctrl)
+		contractMock.EXPECT().GetRound(nil).Return(currentRound, nil)
+		contractMock.EXPECT().GetSymbols(nil).Return(conf.Symbols, nil)
+		contractMock.EXPECT().GetPrecision(nil).Return(precision, nil)
+		contractMock.EXPECT().GetVotePeriod(nil).Return(votePeriod, nil)
+		contractMock.EXPECT().WatchNewRound(gomock.Any(), gomock.Any()).Return(subRoundEvent, nil)
+		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
+		l1Mock := mock.NewMockBlockchain(ctrl)
+
+		srv := NewOracleServer(conf.Symbols, conf.PluginDIR, conf.AutonityWSUrl, conf.Key, dialerMock, l1Mock, contractMock)
+		require.Equal(t, currentRound.Uint64(), srv.curRound)
+		require.Equal(t, conf.Symbols, srv.symbols)
+		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromInt(precision.Int64())))
+		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
+		require.Equal(t, 1, len(srv.pluginSet))
+
+		// add a new plugin into the plugin directory.
+		clones, err := clonePlugins(srv.pluginDIR, "cloned", srv.pluginDIR)
+		require.NoError(t, err)
+		defer func() {
+			for _, f := range clones {
+				err := os.Remove(f)
+				require.NoError(t, err)
+			}
+		}()
+
+		srv.PluginRuntimeDiscovery()
+		require.Equal(t, 2, len(srv.pluginSet))
+		require.Equal(t, "fakeplugin", srv.pluginSet["fakeplugin"].Name())
+		require.Equal(t, "clonedfakeplugin", srv.pluginSet["clonedfakeplugin"].Name())
+		srv.pluginSet["fakeplugin"].Close()
+		srv.pluginSet["clonedfakeplugin"].Close()
+	})
+
+	t.Run("test plugin runtime discovery, upgrade plugin", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dialerMock := mock.NewMockDialer(ctrl)
+		contractMock := cMock.NewMockContractAPI(ctrl)
+		contractMock.EXPECT().GetRound(nil).Return(currentRound, nil)
+		contractMock.EXPECT().GetSymbols(nil).Return(conf.Symbols, nil)
+		contractMock.EXPECT().GetPrecision(nil).Return(precision, nil)
+		contractMock.EXPECT().GetVotePeriod(nil).Return(votePeriod, nil)
+		contractMock.EXPECT().WatchNewRound(gomock.Any(), gomock.Any()).Return(subRoundEvent, nil)
+		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
+		l1Mock := mock.NewMockBlockchain(ctrl)
+
+		srv := NewOracleServer(conf.Symbols, conf.PluginDIR, conf.AutonityWSUrl, conf.Key, dialerMock, l1Mock, contractMock)
+		require.Equal(t, currentRound.Uint64(), srv.curRound)
+		require.Equal(t, conf.Symbols, srv.symbols)
+		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromInt(precision.Int64())))
+		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
+		require.Equal(t, 1, len(srv.pluginSet))
+		firstStart := srv.pluginSet["fakeplugin"].StartTime()
+
+		// cpy and replace the legacy plugins
+		err := replacePlugins(srv.pluginDIR)
+		require.NoError(t, err)
+
+		srv.PluginRuntimeDiscovery()
+
+		require.Equal(t, 1, len(srv.pluginSet))
+		require.Equal(t, "fakeplugin", srv.pluginSet["fakeplugin"].Name())
+		require.Greater(t, srv.pluginSet["fakeplugin"].StartTime(), firstStart)
+		srv.pluginSet["fakeplugin"].Close()
+	})
+
+	t.Run("gcRounddata", func(t *testing.T) {
+		os := &OracleServer{
+			roundData: make(map[uint64]*types.RoundData),
+			curRound:  100,
+		}
+
+		for rd := uint64(1); rd <= 100; rd++ {
+			os.roundData[rd] = &types.RoundData{
+				RoundID: rd,
+			}
+		}
+
+		os.gcRoundData()
+		require.Equal(t, types.MaxBufferedRounds, len(os.roundData))
+
 	})
 }
 
-func TestDataReporter(t *testing.T) {
-	/*
-		t.Run("gc round data", func(t *testing.T) {
-			dp := &DataReporter{
-				roundData: make(map[uint64]*types.RoundData),
-			}
-			for r := 0; r < 100; r++ {
-				dp.currentRound = uint64(r)
-				var roundData = &types.RoundData{}
-				dp.roundData[uint64(r)] = roundData
-			}
-			require.Equal(t, 100, len(dp.roundData))
-			dp.gcRoundData()
-			require.Equal(t, MaxBufferedRounds, len(dp.roundData))
-		})
+// clone plugins from a src directory to new directory by adding prefix in the name of each binary, and return the cloned
+// new file names and an error.
+func clonePlugins(pluginDIR string, clonePrefix string, destDir string) ([]string, error) {
 
-		t.Run("get starting states", func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			currentRound := new(big.Int).SetUint64(100)
-			symbols := []string{"NTNUSD", "NTNEUR"}
-			contractMock := orcMock.NewMockContractAPI(ctrl)
-			contractMock.EXPECT().GetRound(nil).AnyTimes().Return(currentRound, nil)
-			contractMock.EXPECT().GetSymbols(nil).AnyTimes().Return(symbols, nil)
+	var clonedPlugins []string
+	files, err := helpers.ListPlugins(pluginDIR)
+	if err != nil {
+		return nil, err
+	}
 
-			retRnd, retSymbols, err := getStartingStates(contractMock)
-			require.Equal(t, currentRound.Uint64(), retRnd)
-			require.Equal(t, symbols, retSymbols)
-			require.NoError(t, err)
-		})
+	for _, file := range files {
+		// read srcFile
+		srcContent, err := ioutil.ReadFile(fmt.Sprintf("%s/%s", pluginDIR, file.Name()))
+		if err != nil {
+			return clonedPlugins, err
+		}
 
-		t.Run("is committee member", func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			validatorAddr := common.Address{}
-			committee := []common.Address{validatorAddr}
-			contractMock := orcMock.NewMockContractAPI(ctrl)
-			contractMock.EXPECT().GetVoters(nil).AnyTimes().Return(committee, nil)
+		// create dstFile and copy the content
+		newPlugin := fmt.Sprintf("%s/%s%s", destDir, clonePrefix, file.Name())
+		err = ioutil.WriteFile(newPlugin, srcContent, file.Mode())
+		if err != nil {
+			return clonedPlugins, err
+		}
+		clonedPlugins = append(clonedPlugins, newPlugin)
+	}
+	return clonedPlugins, nil
+}
 
-			dp := &DataReporter{key: &keystore.Key{Address: common.Address{}},
-				oracleContract: contractMock}
+func replacePlugins(pluginDir string) error {
+	rawPlugins, err := helpers.ListPlugins(pluginDir)
+	if err != nil {
+		return err
+	}
 
-			isCommittee, err := dp.isVoter()
-			require.Equal(t, true, isCommittee)
-			require.NoError(t, err)
-		})
+	clonePrefix := "clone"
+	clonedPlugins, err := clonePlugins(pluginDir, clonePrefix, fmt.Sprintf("%s/..", pluginDir))
+	if err != nil {
+		return err
+	}
 
-		t.Run("test build round data", func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-
-			now := time.Now()
-			symbols := []string{"NTNUSD", "NTNEUR", "NTNAUD"}
-			prices := make(types.PriceBySymbol)
-			for _, s := range symbols {
-				prices[s] = types.Price{
-					Timestamp: now.UnixMilli(),
-					Symbol:    s,
-					Price:     decimal.RequireFromString("11.11"),
+	for _, file := range clonedPlugins {
+		for _, info := range rawPlugins {
+			if strings.Contains(file, info.Name()) {
+				err := os.Rename(file, fmt.Sprintf("%s/%s", pluginDir, info.Name()))
+				if err != nil {
+					return err
 				}
 			}
-			contractMock := orcMock.NewMockContractAPI(ctrl)
-			contractMock.EXPECT().GetSymbols(nil).AnyTimes().Return(symbols, nil)
-			oracleMock := orcMock.NewMockOracleService(ctrl)
-			oracleMock.EXPECT().GetPricesBySymbols(symbols).Return(prices)
+		}
+	}
 
-			dp := &DataReporter{oracleContract: contractMock, oracleService: oracleMock,
-				roundData: make(map[uint64]*types.RoundData), logger: hclog.New(&hclog.LoggerOptions{
-					Name:   "data contract_binder",
-					Output: os.Stdout,
-					Level:  hclog.Debug,
-				})}
-			roundData, err := dp.buildRoundData(uint64(100))
-			require.NoError(t, err)
-			require.Equal(t, symbols, roundData.Symbols)
-			require.Equal(t, prices, roundData.Prices)
-
-			var sourceBytes []byte
-			for _, s := range symbols {
-				sourceBytes = append(sourceBytes, common.LeftPadBytes(prices[s].Price.Mul(PricePrecision).BigInt().Bytes(), 32)...)
-			}
-
-			sourceBytes = append(sourceBytes, common.LeftPadBytes(roundData.Salt.Bytes(), 32)...)
-			expectedHash := crypto.Keccak256Hash(sourceBytes)
-			require.Equal(t, expectedHash, roundData.Hash)
-		})
-
-		t.Run("handle new symbol event", func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			symbols := []string{"NTNUSD", "NTNEUR", "NTNAUD"}
-			oracleMock := orcMock.NewMockOracleService(ctrl)
-			oracleMock.EXPECT().UpdateSymbols(symbols)
-
-			dp := &DataReporter{oracleService: oracleMock, logger: hclog.New(&hclog.LoggerOptions{
-				Name:   "data contract_binder",
-				Output: os.Stdout,
-				Level:  hclog.Debug,
-			})}
-
-			dp.handleNewSymbolsEvent(symbols)
-		})
-	*/
+	return nil
 }

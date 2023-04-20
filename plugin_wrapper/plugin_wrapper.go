@@ -90,6 +90,10 @@ func (pw *PluginWrapper) GetSample(symbol string, target int64) (types.Price, er
 	minDistance = math.MaxInt64
 	for ts := range tsMap {
 		distance := target - ts
+		if distance < 0 {
+			distance = ts - target
+		}
+
 		if distance < minDistance {
 			nearestKey = ts
 			minDistance = distance

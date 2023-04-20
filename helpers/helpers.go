@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"github.com/shopspring/decimal"
 	"io"
+	"io/fs"
+	"io/ioutil" //nolint
 	"os"
 	"sort"
 	"strings"
@@ -93,4 +95,21 @@ func Median(prices []decimal.Decimal) (decimal.Decimal, error) {
 	}
 
 	return prices[l/2], nil
+}
+
+func ListPlugins(path string) ([]fs.FileInfo, error) {
+	var plugins []fs.FileInfo
+
+	files, err := ioutil.ReadDir(path)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		plugins = append(plugins, file)
+	}
+	return plugins, nil
 }
