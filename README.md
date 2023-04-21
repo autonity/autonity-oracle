@@ -1,59 +1,38 @@
-# Autonity Oracle Component 
+# Autonity Oracle Network 
 
 ## Assumptions 
 
 This project assumes the following:
 
 * Go 1.19.3 
-* Linux / MacOS operating system
+* Linux operating system
 
-## Product introduction
-This component works as the bridge that brings data points from different data provider and unifies the data into the
-standard format that can be pushed to Autonity L1 network. To support the runtime adaptations with different data providers,
-the adapters are implemented in plugins mechanism thus it maintains high availability of the Autonity oracle service.
-As the component starts ticker jobs that fetch data points from providers on every 10s timely, it also scans the plugin
-directory on every 2s to launch new plugins or to replace runtime plugins with newly modified one to adapt with data provider.
-The data aggregation at this level is base on taking the median value out from the data set. By providing unified data and
-pushing the data samples on a round base intervals to L1 oracle contract, thus, the autonity layer1 network can get the
-required data for its stabilisation protocol.
+## The overview
+Autonity oracle network brings exchange rate of currency pair from different data providers and unifies the data points into the
+standard format that can be pushed onto the oracle contract deployed at Autonity L1 network. Thus on the Autonity L1 network, 
+those DApps can consume those extenal data points aggregated by the oracle contract via oracle contract interfaces.  
 
-![Screenshot from 2023-03-20 14-17-38](https://user-images.githubusercontent.com/54585152/226368249-eb05eb9b-be48-4714-9bdc-104d56073716.png)
+## The oracle client operator
+Oracle client is to be operated and maintained by the autonity validator node operator who requires to provide the oracle client ownership proof when a validator is being registered on the autonity contract. Thus the oracle client and the validator client participate in the oracle protocol and the autonity protocol to provide the oracle data service and the L1 block validation service.
 
-## Data sampling
-### oracle service 10s ticker job
-The oracle client starts a 10s ticker job to update the prices for each configured symbols on every 10s.
+## The data adaptation
+Autonity oracle client unified the interface between itself and the plugins which adapted data from different data providers, for example Binance and Coingecko, etc. Any party can build plugins to adapt any data source on demand. The oracle client will scan and load plugin from the plugin directory during the runtime without shutdown of the client.
 
-### Coordinated data sampling
-Although we update prices for each 10s, but due to the clock drifting in the oracle network, we want to coordinate the
-data sampling thus the L1 network can observe a set of data point which has less deviation.
+## The coordinated data sampling
+To coordinate the data sampling in the oracle network, the L1 oracle contract issues a round event on every vote period (60 blocks). The round event carries a tuple `(RoundID, SampleTS, Height, VotePeriod)` which tell the oracle clients that on round with ID `RoundID`, a sample with timestamp `SampleTS` is required for the data submission, the `Height` stand for the start height of the new round, while the `VotePeriod` stand for the round length of the new round, thus the oracle client can estimate and manage the data pre-samplings for the new round and then pick up the nearest sample refering to the required `SampleTS`. 
 
-#### Round Event(RoundID, BlockTimeStamp)
-We introduced a round event emitted by the oracle contract which is tuple (RoundID, BlockTimeStamp) carries the logical
-round ID and a timestamp of current round's last block at when this block is starting being prepared by a miner. Thus,
-the oracle network can get a consistent time reference from the L1 network to coordinate the data sampling.
-##### Delays
-From the block being prepared by miner to the round event comes to oracle network, there are delays listed as below:
-- [miner] packing the TXs into the block
-- [proposal propogation] Gossip in between committee member
-- [proposal verification] re-execute the proposal by validator
-- [BFT consensus coordination] 2-phase coordination to commit block.
-- [block propogation] The committed block propogation to the edge node which serves L1 connectivity to oracle client.
-
-##### Coordinate the data sampling
+![Screenshot from 2023-04-21 04-19-10](https://user-images.githubusercontent.com/54585152/233533092-29b65a39-eb87-496f-9a1e-0741bc7fbd45.png)
 
 ## Configuration 
 Values that can be configured by using environment variables:    
 
 | **Env Variable**           | **Required?** | **Meaning**                                                                                 | **Default Value**                   | **Valid Options**                                       |
 |----------------------------|---------------|---------------------------------------------------------------------------------------------|-------------------------------------|---------------------------------------------------------|
-| `ORACLE_HTTP_PORT`         | No            | The port that the HTTP service endpoint bind to                                             | `30311`                             | any free port number on the host                        |
-| `ORACLE_CRYPTO_SYMBOLS`    | No            | The symbols that the oracle component collect data point for                                | "ETHUSDC,ETHUSDT,ETHBTC"            | symbols seperated by ','                                |
-| `ORACLE_PLUGIN_DIR`        | No            | The directory that stores the plugins                                                       | "./plugins"                         | any directory that saves plugins                        |
-| `ORACLE_KEY_FILE`          | Yes           | The encrypted key file path that contains the private key of the oracle client.             | "a path to your encrypted key file" | any key file that saves the private key                 |
+| `ORACLE_CRYPTO_SYMBOLS`    | No            | The symbols that the oracle component collect data point for                                | "NTNUSD,NTNAUD,NTNCAD,NTNEUR,NTNGBP,NTNJPY,NTNSEK"            | symbols seperated by ','                                |
+| `ORACLE_PLUGIN_DIR`        | No            | The directory that stores the plugins                                                       | "./build/bin/plugins"                         | any directory that saves plugins                        |
+| `ORACLE_KEY_FILE`          | Yes           | The encrypted key file path that contains the private key of the oracle client.             | "./test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" | any key file that saves the private key                 |
 | `ORACLE_KEY_PASSWORD`      | Yes           | The password of the key file that contains the private key of the oracle client.            | "123"                               | any password that encrypted the private key             |
-| `ORACLE_VALIDATOR_ACCOUNT` | Yes           | The validator account in hex string that the client served for data reporting.              | "0x"                                | an account address of a your validator.                 |
 | `ORACLE_AUTONITY_WS_URL`   | Yes           | The web socket RPC URL of your Autonity L1 Node that the oracle client communicated with.   | "ws://127.0.0.1:8000"               | the web socket rpc endpoint url of the Autonity client. |
-| `GIN_MODE`                 | No            | The mode running by the HTTP service                                                        | "debug"                             | release or debug                                        |
 
 or by using console flags:
 
@@ -61,18 +40,24 @@ or by using console flags:
     Usage of ./autoracle:
     -oracle_autonity_ws_url="ws://127.0.0.1:7000": The websocket URL of autonity client
     -oracle_crypto_symbols="ETHUSDC,ETHUSDT,ETHBTC": The symbols string separated by comma
-    -oracle_http_port=30311: The HTTP service port to be bind for oracle service
     -oracle_key_file="a path to your key file": The file that save the private key of the oracle client
     -oracle_key_password="key-password": The password to decode your oracle account's key file
     -oracle_plugin_dir="./plugins": The DIR where the adapter plugins are stored
-    -oracle_validator_account="0x": The account address in HEX string of the validator that this oracle client served for
 
 
 example to run the autonity oracle service with console flags:
     
-    $./autoracle -oracle_crypto_symbols="ETHUSDC,ETHUSDT,ETHBTC" -oracle_http_port=30311 -oracle_plugin_dir="./plugins" -oracle_key_file="../../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" -oracle_key_password="123" -oracle_validator_account="0xabcbd3d83376276ab4cdfe3d9300fb5ce70cd192" -oracle_autonity_ws_url="ws://127.0.0.1:800"
+    $./autoracle -oracle_crypto_symbols="ETHUSDC,ETHUSDT,ETHBTC" -oracle_plugin_dir="./plugins" -oracle_key_file="../../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" -oracle_key_password="123" -oracle_autonity_ws_url="ws://127.0.0.1:8000"
 
 ## Developing
+
+To build the project run
+
+    make autoracle
+
+To build the data source simulator run
+
+    make simulator
 
 To run e2e test use
 
@@ -82,21 +67,15 @@ To run all tests use
     
     make test
 
-To generate code coverage reports run
-
-    make test-coverage
-
 To lint code run
 
     make lint
 
-To build the data source simulator run
+To generate mocks for unit test
+    
+    make mock
 
-    make simulator
 
-To build the project run
-
-    make autoracle
 
 The built binaries are presented at: ./build/bin under which there is a plugins directory saves the built plugins as well.
 
@@ -124,19 +103,18 @@ key file path will display, and remember the password that encrypted the key fil
 Prepare the plugin binaries, and save them into the plugin directory, then start the service:
 Set the system environment variables and run the binary:
 
-    $export ORACLE_HTTP_PORT=63306
     $export ORACLE_CRYPTO_SYMBOLS="ETHUSDC,ETHUSDT,ETHBTC"
     $export ORACLE_PLUGIN_DIR="./plugins"
     $export ORACLE_KEY_FILE="./test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"
     $export ORACLE_KEY_PASSWORD="your passord to the key file"
-    $export ORACLE_VALIDATOR_ACCOUNT="0xabcbd3d83376276ab4cdfe3d9300fb5ce70cd192"
+    $export ORACLE_AUTONITY_WS_URL="ws://127.0.0.1:8645"
     $.~/src/autonity-oracle/build/bin/autoracle
 
 or configure by using console flags and run the binary:
 
-    $./autoracle -oracle_crypto_symbols="ETHUSDC,ETHUSDT,ETHBTC" -oracle_http_port=30311 -oracle_plugin_dir="./plugins" -oracle_key_file="../../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" -oracle_key_password="123" -oracle_validator_account="0xabcbd3d83376276ab4cdfe3d9300fb5ce70cd192" -oracle_autonity_ws_url="ws://127.0.0.1:800"
+    $./autoracle -oracle_crypto_symbols="ETHUSDC,ETHUSDT,ETHBTC" -oracle_plugin_dir="./plugins" -oracle_key_file="../../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" -oracle_key_password="123" -oracle_autonity_ws_url="ws://127.0.0.1:800"
 
-### An elegant way base on linux system daemon
+### Deploy via linux system daemon
 #### Preparations
 Prepare the configurations via system environment variables and the corresponding plugin binaries. Create a service registration file under your service discovery DIR of the system daemon, for example "/etc/systemd/system/" in Ubuntu Linux.
 Here I create a service registration file called "/etc/systemd/system/autoracle.service" with content:
@@ -235,41 +213,3 @@ Jan 19 02:43:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:43:
 For new adaptations with newly added plugins, just put the new plugins into the service's plugin directory, the service auto discovery it and manage it. There is no other operations are required from operator.
 #### Replace running plugins
 To replace running plugins with new ones, just replace the binary under the plugin directory, the service auto discovery it by checking the modification time of the binary and do the plugin replacement itself, there is no other operations are required from operator.
-
-## API specifications
-The HTTP request message and response message are defined in json object JSONRPCMessage, it is carried by the HTTP body in both the request or response message, all the APIs are access with POST method by specifying the method and the corresponding method's params in params field, and the ID help the client to identify the requests and response pairing.
-```go
-    type JSONRPCMessage struct {
-        ID     json.RawMessage `json:"id,omitempty"`
-        Method string          `json:"method,omitempty"`
-        Params json.RawMessage `json:"params,omitempty"`
-        Result json.RawMessage `json:"result,omitempty"`
-        Error  string          `json:"error,omitempty"`
-    }
-```
-
-### get_version
-This method return the oracle service version.
-
-    curl -X POST -H "Content-Type: application/json" http://127.0.0.1:63306 --data '{"id":1, "method":"get_version", "params": []}'
-
-```json
-{"id":1,"result":{"Version":"0.0.1"}}
-```    
-### get_prices
-This method returns all the symbols corresponding prices, and also the current symbols that is used by the oracle service.
-
-    curl -X POST -H "Content-Type: application/json" http://127.0.0.1:63306 --data '{"id":1, "method":"get_prices", "params": []}'
-
-```json
-{"id":1,"result":{"Prices":{"NTNBTC":{"Timestamp":1672836542504,"Symbol":"NTNBTC","Price":"11.11"},"NTNETH":{"Timestamp":1672836542504,"Symbol":"NTNETH","Price":"11.11"},"NTNRMB":{"Timestamp":1672836542504,"Symbol":"NTNRMB","Price":"11.11"}},"Symbols":["NTNBTC","NTNETH","NTNRMB"]}}
-```
-
-### list_plugins
-This method list all the running plugins on the oracle service.
-
-    curl -X POST -H "Content-Type: application/json" http://127.0.0.1:30311 --data '{"id":1, "method":"list_plugins", "params": []}'
-
-```json
-{"id":1,"result":{"binance":{"Version":"v0.0.1","Name":"binance","StartAt":"2023-01-12T11:43:10.32010817Z"},"fakeplugin":{"Version":"v0.0.1","Name":"fakeplugin","StartAt":"2023-01-12T11:43:10.325786993Z"}}}
-```
