@@ -57,10 +57,9 @@ type OracleContractGenesis struct {
 	// would like this type to be []byte but the unmarshalling is not working
 	Bytecode string `json:"bytecode,omitempty" toml:",omitempty"`
 	// Json ABI of the contract
-	ABI        string         `json:"abi,omitempty" toml:",omitempty"`
-	Operator   common.Address `json:"operator"`
-	Symbols    []string       `json:"symbols"`
-	VotePeriod uint64         `json:"votePeriod"`
+	ABI        string   `json:"abi,omitempty" toml:",omitempty"`
+	Symbols    []string `json:"symbols"`
+	VotePeriod uint64   `json:"votePeriod"`
 }
 
 type ChainConfig struct {
@@ -316,7 +315,6 @@ func makeGenesisConfig(srcTemplate string, dstFile string, vals []*Validator, tr
 	genesis.Config.Autonity.Treasury = treasury
 	genesis.Config.Autonity.Validators = append(genesis.Config.Autonity.Validators, vals...)
 	genesis.Config.OracleContractConfig.VotePeriod = 30
-	genesis.Config.OracleContractConfig.Operator = operator
 
 	jsonData, err := json.MarshalIndent(genesis, "", " ")
 	if err != nil {

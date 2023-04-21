@@ -16,7 +16,6 @@
       "validators": []
     },
     "oracle": {
-      "operator": "0x4b07239bd581d21aefcdee0c6db38070f9a5fd2d",
       "bytecode": "",
       "abi": "",
       "votePeriod": 30
