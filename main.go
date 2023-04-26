@@ -28,7 +28,7 @@ func main() { //nolint
 		panic(err)
 	}
 
-	oracle := oracleserver.NewOracleServer(conf., dialer, client, oc)
+	oracle := oracleserver.NewOracleServer(conf, dialer, client, oc)
 	go oracle.Start()
 	defer oracle.Stop()
 
