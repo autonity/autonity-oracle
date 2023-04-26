@@ -53,7 +53,7 @@ jobs:
           go mod download -x
           make autoracle
 
-  all_tests:
+  lint:
     needs: prepare-cache
     runs-on: ubuntu-latest
     steps:
@@ -71,8 +71,56 @@ jobs:
             ${{ env.GO_MODULES_CACHE }}
           key: ${{ runner.os }}-gocache-${{ env.GO_VERSION }}${{ hashFiles('go.mod', 'go.sum') }}
 
-      - name: all tests
-        run: | 
+      - name: Run lint
+        run: |
           make autoracle
           make lint
-          go test ./... -coverprofile=coverage.out
+
+  unit_tests:
+    needs: prepare-cache
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v1
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/checkout@v2
+
+      - name: Go cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ${{ env.GO_CACHE }}
+            ${{ env.GO_MODULES_CACHE }}
+          key: ${{ runner.os }}-gocache-${{ env.GO_VERSION }}${{ hashFiles('go.mod', 'go.sum') }}
+
+      - name: unit tests
+        run: | 
+          make autoracle
+          go test ./config/... -coverprofile=coverage.out
+          go test ./helpers/... -coverprofile=coverage.out
+          go test ./oracle_server/... -coverprofile=coverage.out
+          go test ./plugin_wrapper/... -coverprofile=coverage.out
+
+  # todo: fix e2e test in ci context, it is runnable in local PC.
+  e2e_test:
+    needs: prepare-cache
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v1
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/checkout@v2
+
+      - name: Go cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ${{ env.GO_CACHE }}
+            ${{ env.GO_MODULES_CACHE }}
+          key: ${{ runner.os }}-gocache-${{ env.GO_VERSION }}${{ hashFiles('go.mod', 'go.sum') }}
+
+      - name: e2e tests
+        run: |
+          make autoracle

@@ -17,8 +17,8 @@ var version = "v0.0.1"
 // BinanceMarketDataURL using namespace .us rather than .com since the data legal issue in different regions.
 // refer to legal issue: https://dev.binance.vision/t/api-error-451-unavailable-for-legal-reasons/13828/4, once we list
 // our token in Binance, we need their customer service to resolve it.
-// const BinanceMarketDataURL = "https://api.binance.us/api/v3/ticker/price"
-const BinanceMarketDataURL = "http://127.0.0.1:50991/api/v3/ticker/price"
+// const BinanceMarketDataURL = "http://127.0.0.1:50991/api/v3/ticker/price"
+const BinanceMarketDataURL = "https://api.binance.us/api/v3/ticker/price"
 const UnknownErr = "Unknown Error"
 const DataLegalErr = "StatusUnavailableForLegalReasons"
 
