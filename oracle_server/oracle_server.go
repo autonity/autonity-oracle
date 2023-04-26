@@ -112,6 +112,7 @@ func (os *OracleServer) syncStates() error {
 	// get initial states from on-chain oracle contract.
 	os.curRound, os.protocolSymbols, os.pricePrecision, os.votePeriod, err = os.initStates()
 	if err != nil {
+		os.logger.Error("init state", "error", err.Error())
 		return err
 	}
 
@@ -124,6 +125,7 @@ func (os *OracleServer) syncStates() error {
 	os.chRoundEvent = make(chan *contract.OracleNewRound)
 	os.subRoundEvent, err = os.oracleContract.WatchNewRound(new(bind.WatchOpts), os.chRoundEvent)
 	if err != nil {
+		os.logger.Error("WatchNewRound", "error", err.Error())
 		return err
 	}
 
@@ -131,6 +133,7 @@ func (os *OracleServer) syncStates() error {
 	os.chSymbolsEvent = make(chan *contract.OracleNewSymbols)
 	os.subSymbolsEvent, err = os.oracleContract.WatchNewSymbols(new(bind.WatchOpts), os.chSymbolsEvent)
 	if err != nil {
+		os.logger.Error("WatchNewSymbols", "error", err.Error())
 		return err
 	}
 
@@ -208,7 +211,7 @@ func (os *OracleServer) checkHealth() {
 		os.logger.Info("binding with oracle contract", "address", types.OracleContractAddress.String())
 		os.oracleContract, err = contract.NewOracle(types.OracleContractAddress, os.client)
 		if err != nil {
-			os.logger.Info("binding oracle contract", "error", err.Error())
+			os.logger.Error("binding oracle contract", "error", err.Error())
 			return
 		}
 
@@ -225,11 +228,13 @@ func (os *OracleServer) checkHealth() {
 
 	h, err := os.client.BlockNumber(context.Background())
 	if err != nil {
+		os.logger.Error("get block number", "error", err.Error())
 		return
 	}
 
 	r, err := os.oracleContract.GetRound(nil)
 	if err != nil {
+		os.logger.Error("get round", "error", err.Error())
 		return
 	}
 	os.logger.Info("checking heart beat", "current height", h, "current round", r.Uint64())
