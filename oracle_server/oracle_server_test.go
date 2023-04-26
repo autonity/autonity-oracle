@@ -48,7 +48,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
 		l1Mock := mock.NewMockBlockchain(ctrl)
 
-		srv := NewOracleServer(conf.Symbols, conf.PluginDIR, conf.AutonityWSUrl, conf.Key, dialerMock, l1Mock, contractMock)
+		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
 		require.Equal(t, conf.Symbols, srv.symbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromInt(precision.Int64())))
@@ -73,7 +73,7 @@ func TestOracleServer(t *testing.T) {
 		l1Mock := mock.NewMockBlockchain(ctrl)
 		l1Mock.EXPECT().BlockNumber(gomock.Any()).AnyTimes().Return(chainHeight, nil)
 
-		srv := NewOracleServer(conf.Symbols, conf.PluginDIR, conf.AutonityWSUrl, conf.Key, dialerMock, l1Mock, contractMock)
+		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 
 		ts := time.Now().Unix()
 		srv.curSampleTS = uint64(ts)
@@ -136,7 +136,7 @@ func TestOracleServer(t *testing.T) {
 		l1Mock.EXPECT().BlockNumber(gomock.Any()).AnyTimes().Return(chainHeight, nil)
 		l1Mock.EXPECT().SyncProgress(gomock.Any()).Return(nil, nil)
 		l1Mock.EXPECT().ChainID(gomock.Any()).Return(new(big.Int).SetUint64(1000), nil)
-		srv := NewOracleServer(conf.Symbols, conf.PluginDIR, conf.AutonityWSUrl, conf.Key, dialerMock, l1Mock, contractMock)
+		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 
 		// prepare last round data.
 		prices := make(types.PriceBySymbol)
@@ -198,7 +198,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
 		l1Mock := mock.NewMockBlockchain(ctrl)
 
-		srv := NewOracleServer(conf.Symbols, conf.PluginDIR, conf.AutonityWSUrl, conf.Key, dialerMock, l1Mock, contractMock)
+		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
 		require.Equal(t, conf.Symbols, srv.symbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromInt(precision.Int64())))
@@ -226,7 +226,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
 		l1Mock := mock.NewMockBlockchain(ctrl)
 
-		srv := NewOracleServer(conf.Symbols, conf.PluginDIR, conf.AutonityWSUrl, conf.Key, dialerMock, l1Mock, contractMock)
+		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
 		require.Equal(t, conf.Symbols, srv.symbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromInt(precision.Int64())))
@@ -265,7 +265,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
 		l1Mock := mock.NewMockBlockchain(ctrl)
 
-		srv := NewOracleServer(conf.Symbols, conf.PluginDIR, conf.AutonityWSUrl, conf.Key, dialerMock, l1Mock, contractMock)
+		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
 		require.Equal(t, conf.Symbols, srv.symbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromInt(precision.Int64())))

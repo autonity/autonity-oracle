@@ -65,17 +65,17 @@ type OracleServer struct {
 	subSymbolsEvent event.Subscription
 }
 
-func NewOracleServer(symbols []string, pluginDir string, ws string, key *keystore.Key, dialer types.Dialer,
-	client types.Blockchain, oc contract.ContractAPI) *OracleServer {
+func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, client types.Blockchain,
+	oc contract.ContractAPI) *OracleServer {
 	os := &OracleServer{
 		dialer:         dialer,
 		client:         client,
 		oracleContract: oc,
-		l1WSUrl:        ws,
+		l1WSUrl:        conf.AutonityWSUrl,
 		roundData:      make(map[uint64]*types.RoundData),
-		key:            key,
-		symbols:        symbols,
-		pluginDIR:      pluginDir,
+		key:            conf.Key,
+		symbols:        conf.Symbols,
+		pluginDIR:      conf.PluginDIR,
 		pluginSet:      make(map[string]*pWrapper.PluginWrapper),
 		doneCh:         make(chan struct{}),
 		regularTicker:  time.NewTicker(TenSecsInterval),
@@ -89,7 +89,7 @@ func NewOracleServer(symbols []string, pluginDir string, ws string, key *keystor
 	})
 
 	// discover plugins from plugin dir at startup.
-	binaries, err := helpers.ListPlugins(pluginDir)
+	binaries, err := helpers.ListPlugins(conf.PluginDIR)
 	if len(binaries) == 0 || err != nil {
 		// to stop the service on the start once there is no plugin in the db.
 		panic(fmt.Sprintf("No plugins at plugin dir: %s, please build the plugins", os.pluginDIR))
@@ -98,7 +98,7 @@ func NewOracleServer(symbols []string, pluginDir string, ws string, key *keystor
 		os.tryLoadingNewPlugin(file)
 	}
 
-	os.logger.Info("Running data contract_binder", "rpc: ", ws, "voter", key.Address.String())
+	os.logger.Info("Running data contract_binder", "rpc: ", conf.AutonityWSUrl, "voter", conf.Key.Address.String())
 	err = os.syncStates()
 	if err != nil {
 		// stop the client on start up once the remote endpoint of autonity L1 network is not ready.
