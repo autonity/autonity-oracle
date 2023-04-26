@@ -135,8 +135,6 @@ func TestOracleServer(t *testing.T) {
 		l1Mock := mock.NewMockBlockchain(ctrl)
 		l1Mock.EXPECT().BlockNumber(gomock.Any()).AnyTimes().Return(chainHeight, nil)
 		l1Mock.EXPECT().SyncProgress(gomock.Any()).Return(nil, nil)
-		l1Mock.EXPECT().PendingNonceAt(gomock.Any(), conf.Key.Address).Return(uint64(1), nil)
-		l1Mock.EXPECT().SuggestGasPrice(gomock.Any()).Return(new(big.Int).SetUint64(5000), nil)
 		l1Mock.EXPECT().ChainID(gomock.Any()).Return(new(big.Int).SetUint64(1000), nil)
 		srv := NewOracleServer(conf.Symbols, conf.PluginDIR, conf.AutonityWSUrl, conf.Key, dialerMock, l1Mock, contractMock)
 
