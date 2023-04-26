@@ -314,7 +314,7 @@ func makeGenesisConfig(srcTemplate string, dstFile string, vals []*Validator, tr
 	genesis.Config.Autonity.Operator = operator
 	genesis.Config.Autonity.Treasury = treasury
 	genesis.Config.Autonity.Validators = append(genesis.Config.Autonity.Validators, vals...)
-	genesis.Config.OracleContractConfig.VotePeriod = 30
+	genesis.Config.OracleContractConfig.VotePeriod = 60
 
 	jsonData, err := json.MarshalIndent(genesis, "", " ")
 	if err != nil {

@@ -384,17 +384,12 @@ func (os *OracleServer) UpdateSymbols(newSymbols []string) {
 }
 
 func (os *OracleServer) doReport(curRndCommitHash common.Hash, lastRoundData *types.RoundData) (*tp.Transaction, error) {
-	from := os.key.Address
-
-	nonce, err := os.client.PendingNonceAt(context.Background(), from)
-	if err != nil {
-		return nil, err
-	}
-
-	gasPrice, err := os.client.SuggestGasPrice(context.Background())
-	if err != nil {
-		return nil, err
-	}
+	//from := os.key.Address
+	/*
+		nonce, err := os.client.PendingNonceAt(context.Background(), from)
+		if err != nil {
+			return nil, err
+		}*/
 
 	chainID, err := os.client.ChainID(context.Background())
 	if err != nil {
@@ -406,10 +401,10 @@ func (os *OracleServer) doReport(curRndCommitHash common.Hash, lastRoundData *ty
 		return nil, err
 	}
 
-	auth.Nonce = big.NewInt(int64(nonce))
+	//auth.Nonce = big.NewInt(int64(nonce))
 	auth.Value = big.NewInt(0)
+	auth.GasTipCap = big.NewInt(0)
 	auth.GasLimit = uint64(3000000)
-	auth.GasPrice = gasPrice
 
 	// if there is no last round data, then we just submit the curRndCommitHash hash of current round.
 	var votes []*big.Int
