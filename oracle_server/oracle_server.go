@@ -449,7 +449,7 @@ func (os *OracleServer) doReport(curRndCommitHash common.Hash, lastRoundData *ty
 }
 
 func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
-	// get symbols of the latest round.
+
 	symbols, err := os.oracleContract.GetSymbols(nil)
 	if err != nil {
 		os.logger.Error("get symbols", "error", err.Error())
@@ -461,8 +461,9 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 	}
 
 	prices := make(types.PriceBySymbol)
+	var p *types.Price
 	for _, s := range symbols {
-		p, err := os.aggregatePrice(s, int64(os.curSampleTS))
+		p, err = os.aggregatePrice(s, int64(os.curSampleTS))
 		if err != nil {
 			os.logger.Error("aggregatePrice", "error", err.Error(), "symbol", s)
 			continue
