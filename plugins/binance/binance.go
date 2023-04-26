@@ -55,6 +55,7 @@ func (g *Binance) FetchPrices(symbols []string) (types.PluginPriceReport, error)
 	goodSym, badSym := resolveSymbols(symbols)
 	parameters, err := json.Marshal(goodSym)
 	if err != nil {
+		g.logger.Error("json marshal symbols", "error", err.Error())
 		return report, err
 	}
 
@@ -65,6 +66,7 @@ func (g *Binance) FetchPrices(symbols []string) (types.PluginPriceReport, error)
 
 	req, err := http.NewRequest(http.MethodGet, BinanceMarketDataURL, nil)
 	if err != nil {
+		g.logger.Error("http new request", "error", err.Error())
 		return report, err
 	}
 
@@ -77,6 +79,7 @@ func (g *Binance) FetchPrices(symbols []string) (types.PluginPriceReport, error)
 
 	resp, err := g.client.Do(req)
 	if err != nil {
+		g.logger.Error("send http request", "error", err.Error())
 		return report, err
 	}
 
@@ -95,6 +98,7 @@ func (g *Binance) FetchPrices(symbols []string) (types.PluginPriceReport, error)
 	var prices Prices
 	err = json.NewDecoder(resp.Body).Decode(&prices)
 	if err != nil {
+		g.logger.Error("decode http body", "err", err.Error())
 		return report, err
 	}
 	//g.logger.Debug("sampled data points: ", prices)
@@ -141,12 +145,14 @@ func (g *Binance) FetchPricesWithSymbolSync(symbols []string) (report types.Plug
 	// without specifying the query parameter, binance will return all its symbols' price.
 	req, err := http.NewRequest(http.MethodGet, BinanceMarketDataURL, nil)
 	if err != nil {
+		g.logger.Error("http new request", "error", err.Error())
 		return report, err
 	}
 	req.Header.Set("accept", "application/json")
 
 	resp, err := g.client.Do(req)
 	if err != nil {
+		g.logger.Error("send http request", "error", err.Error())
 		return report, err
 	}
 
@@ -162,6 +168,7 @@ func (g *Binance) FetchPricesWithSymbolSync(symbols []string) (report types.Plug
 	var prices Prices
 	err = json.NewDecoder(resp.Body).Decode(&prices)
 	if err != nil {
+		g.logger.Error("decode http body", "error", err.Error())
 		return report, err
 	}
 
@@ -215,7 +222,7 @@ func main() {
 
 	_, err := adapter.FetchPricesWithSymbolSync(nil)
 	if err != nil {
-		logger.Warn("Init symbols failed: ", err)
+		logger.Error("Init symbols failed: ", err)
 	}
 
 	defer adapter.Close()

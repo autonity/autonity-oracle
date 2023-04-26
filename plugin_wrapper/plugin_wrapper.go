@@ -134,7 +134,7 @@ func (pw *PluginWrapper) Initialize() {
 	// load plugin's version
 	version, err := pw.GetVersion()
 	if err != nil {
-		pw.logger.Warn("cannot get plugin's version")
+		pw.logger.Error("cannot get plugin's version")
 		return
 	}
 	pw.logger.Info("plugin initialized", pw.name, version)
@@ -182,6 +182,7 @@ func (pw *PluginWrapper) FetchPrices(symbols []string, ts int64) error {
 		// try to reconnect during the runtime.
 		err := pw.connect()
 		if err != nil {
+			pw.logger.Error("connect to plugin", "error", err.Error())
 			return err
 		}
 	}
@@ -192,22 +193,26 @@ func (pw *PluginWrapper) FetchPrices(symbols []string, ts int64) error {
 		// try to reconnect during the runtime.
 		err = pw.connect()
 		if err != nil {
+			pw.logger.Error("connect to plugin", "error", err.Error())
 			return err
 		}
 	}
 
 	raw, err := pw.clientProtocol.Dispense("adapter")
 	if err != nil {
+		pw.logger.Error("Dispense a plugin", "error", err.Error())
 		return err
 	}
 
 	adapter := raw.(types.Adapter)
 	report, err := adapter.FetchPrices(symbols)
+	if err != nil {
+		pw.logger.Error("Fetch prices", "error", err.Error())
+		return err
+	}
+
 	if len(report.BadSymbols) != 0 {
 		pw.logger.Warn("find bad symbols: ", report.BadSymbols)
-	}
-	if err != nil {
-		return err
 	}
 
 	if len(report.Prices) > 0 {

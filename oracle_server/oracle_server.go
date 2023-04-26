@@ -6,6 +6,7 @@ import (
 	pWrapper "autonity-oracle/plugin_wrapper"
 	"autonity-oracle/types"
 	"context"
+	"crypto/rand"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -17,8 +18,8 @@ import (
 	"github.com/modern-go/reflect2"
 	"github.com/shopspring/decimal"
 	"io/fs"
+	"math"
 	"math/big"
-	"math/rand"
 	o "os"
 	"sync"
 	"time"
@@ -29,6 +30,7 @@ var (
 	TenSecsInterval  = 10 * time.Second // 10s ticker job to check health with l1, plugin discovery and regular data sampling.
 	OneSecInterval   = 1 * time.Second  // 1s ticker job to check if we need to do pre-sampling.
 	PreSamplingRange = 15               // pre-sampling starts in 15blocks in advance.
+	SaltRange        = new(big.Int).SetUint64(math.MaxInt64)
 )
 
 type OracleServer struct {
@@ -146,21 +148,25 @@ func (os *OracleServer) initStates() (uint64, []string, decimal.Decimal, uint64,
 	// on the startup, we need to sync the round id, symbols and committees from contract.
 	currentRound, err := os.oracleContract.GetRound(nil)
 	if err != nil {
+		os.logger.Error("Get round", "error", err.Error())
 		return 0, nil, precision, 0, err
 	}
 
 	symbols, err := os.oracleContract.GetSymbols(nil)
 	if err != nil {
+		os.logger.Error("Get symbols", "error", err.Error())
 		return 0, nil, precision, 0, err
 	}
 
 	p, err := os.oracleContract.GetPrecision(nil)
 	if err != nil {
+		os.logger.Error("Get precision", "error", err.Error())
 		return 0, nil, precision, 0, err
 	}
 
 	votePeriod, err := os.oracleContract.GetVotePeriod(nil)
 	if err != nil {
+		os.logger.Error("Get vote period", "error", err.Error())
 		return 0, nil, precision, 0, nil
 	}
 
@@ -203,7 +209,7 @@ func (os *OracleServer) checkHealth() {
 		var err error
 		os.client, err = os.dialer.Dial(os.l1WSUrl)
 		if err != nil {
-			os.logger.Info("dail L1 node", "error", err.Error())
+			os.logger.Error("dail L1 node", "error", err.Error())
 			return
 		}
 
@@ -243,6 +249,7 @@ func (os *OracleServer) checkHealth() {
 func (os *OracleServer) isVoter() (bool, error) {
 	voters, err := os.oracleContract.GetVoters(nil)
 	if err != nil {
+		os.logger.Error("Get voters", "error", err.Error())
 		return false, err
 	}
 
@@ -259,6 +266,7 @@ func (os *OracleServer) printLatestRoundData(newRound uint64) {
 		rd, err := os.oracleContract.GetRoundData(nil, new(big.Int).SetUint64(newRound-1), s)
 		if err != nil {
 			os.logger.Error("GetRoundData", "error", err.Error())
+			return
 		}
 
 		os.logger.Info("GetRoundPrice", "round", newRound-1, "symbol", s, "Price",
@@ -269,6 +277,7 @@ func (os *OracleServer) printLatestRoundData(newRound uint64) {
 		rd, err := os.oracleContract.LatestRoundData(nil, s)
 		if err != nil {
 			os.logger.Error("GetLatestRoundPrice", "error", err.Error())
+			return
 		}
 
 		price, err := decimal.NewFromString(rd.Price.String())
@@ -292,6 +301,7 @@ func (os *OracleServer) handlePreSampling(preSampleTS int64) error {
 	nSampleHeight := os.curSampleHeight + os.votePeriod
 	curHeight, err := os.client.BlockNumber(context.Background())
 	if err != nil {
+		os.logger.Error("handle pre-sampling", "error", err.Error())
 		return err
 	}
 	if nSampleHeight-curHeight > uint64(PreSamplingRange) {
@@ -309,6 +319,7 @@ func (os *OracleServer) handleRoundVote() error {
 	// if the autonity node is on peer synchronization state, just skip the reporting.
 	syncing, err := os.client.SyncProgress(context.Background())
 	if err != nil {
+		os.logger.Error("handleRoundVote get SyncProgress", "error", err.Error())
 		return err
 	}
 
@@ -319,6 +330,7 @@ func (os *OracleServer) handleRoundVote() error {
 	// get latest symbols from oracle.
 	os.protocolSymbols, err = os.oracleContract.GetSymbols(nil)
 	if err != nil {
+		os.logger.Error("handleRoundVote get symbols", "error", err.Error())
 		return err
 	}
 
@@ -327,6 +339,7 @@ func (os *OracleServer) handleRoundVote() error {
 	// if client is not a voter, just skip reporting.
 	isVoter, err := os.isVoter()
 	if err != nil {
+		os.logger.Error("handleRoundVote isVoter", "error", err.Error())
 		return err
 	}
 
@@ -354,12 +367,14 @@ func (os *OracleServer) handleRoundVote() error {
 func (os *OracleServer) reportWithCommitment(newRound uint64, lastRoundData *types.RoundData) error {
 	curRoundData, err := os.buildRoundData(newRound)
 	if err != nil {
+		os.logger.Error("build round data", "error", err)
 		return err
 	}
 
 	// prepare the transaction which carry current round's commitment, and last round's data.
 	curRoundData.Tx, err = os.doReport(curRoundData.Hash, lastRoundData)
 	if err != nil {
+		os.logger.Error("do report", "error", err.Error())
 		return err
 	}
 
@@ -374,6 +389,7 @@ func (os *OracleServer) reportWithoutCommitment(lastRoundData *types.RoundData) 
 
 	tx, err := os.doReport(common.Hash{}, lastRoundData)
 	if err != nil {
+		os.logger.Error("do report", "error", err.Error())
 		return err
 	}
 	os.logger.Info("report without commitment", "TX hash", tx.Hash(), "Nonce", tx.Nonce())
@@ -394,24 +410,18 @@ func (os *OracleServer) UpdateSymbols(newSymbols []string) {
 }
 
 func (os *OracleServer) doReport(curRndCommitHash common.Hash, lastRoundData *types.RoundData) (*tp.Transaction, error) {
-	//from := os.key.Address
-	/*
-		nonce, err := os.client.PendingNonceAt(context.Background(), from)
-		if err != nil {
-			return nil, err
-		}*/
-
 	chainID, err := os.client.ChainID(context.Background())
 	if err != nil {
+		os.logger.Error("get chain id", "error", err.Error())
 		return nil, err
 	}
 
 	auth, err := bind.NewKeyedTransactorWithChainID(os.key.PrivateKey, chainID)
 	if err != nil {
+		os.logger.Error("NewKeyedTransactorWithChainID", "error", err)
 		return nil, err
 	}
 
-	//auth.Nonce = big.NewInt(int64(nonce))
 	auth.Value = big.NewInt(0)
 	auth.GasTipCap = big.NewInt(0)
 	auth.GasLimit = uint64(3000000)
@@ -442,6 +452,7 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 	// get symbols of the latest round.
 	symbols, err := os.oracleContract.GetSymbols(nil)
 	if err != nil {
+		os.logger.Error("get symbols", "error", err.Error())
 		return nil, err
 	}
 
@@ -453,7 +464,7 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 	for _, s := range symbols {
 		p, err := os.aggregatePrice(s, int64(os.curSampleTS))
 		if err != nil {
-			os.logger.Warn("get sample", "error", err.Error(), "symbol", s)
+			os.logger.Error("aggregatePrice", "error", err.Error(), "symbol", s)
 			continue
 		}
 		prices[s] = *p
@@ -465,11 +476,16 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 
 	os.logger.Info("sampled prices", "round", round, "prices", prices)
 
-	seed := time.Now().UnixNano()
+	salt, err := rand.Int(rand.Reader, SaltRange)
+	if err != nil {
+		os.logger.Error("generate rand salt", "error", err.Error())
+		return nil, err
+	}
+
 	var roundData = &types.RoundData{
 		RoundID: round,
 		Symbols: symbols,
-		Salt:    new(big.Int).SetUint64(rand.New(rand.NewSource(seed)).Uint64()), // nolint
+		Salt:    salt,
 		Hash:    common.Hash{},
 		Prices:  prices,
 	}
@@ -538,13 +554,11 @@ func (os *OracleServer) samplePrice(symbols []string, ts int64) {
 	defer os.pluginLock.RUnlock()
 	for _, p := range os.pluginSet {
 		plugin := p
-		// todo: check num of go routine are pending before we launch new one to fetch price from a certain plugin/provider.
 		go func() {
 			err := plugin.FetchPrices(symbols, ts)
 			if err != nil {
-				os.logger.Warn("FetchPrices routine error", "error", err.Error())
+				os.logger.Error("FetchPrices error", "error", err.Error(), "plugin", plugin.Name(), "TS", ts)
 			}
-			os.logger.Debug("FetchPrices routine done successfully")
 		}()
 	}
 }
@@ -572,7 +586,7 @@ func (os *OracleServer) Start() {
 			preSampleTS := time.Now().Unix()
 			err := os.handlePreSampling(preSampleTS)
 			if err != nil {
-				os.logger.Warn("handle pre-sampling", "error", err.Error())
+				os.logger.Error("handle pre-sampling", "error", err.Error())
 			}
 		case rEvent := <-os.chRoundEvent:
 			os.logger.Info("handle new round", "round", rEvent.Round.Uint64(), "required sampling TS",
@@ -586,7 +600,7 @@ func (os *OracleServer) Start() {
 
 			err := os.handleRoundVote()
 			if err != nil {
-				os.logger.Warn("Handling round vote", "err", err.Error())
+				os.logger.Error("Handling round vote", "err", err.Error())
 			}
 			os.gcDataSamples()
 		case symbols := <-os.chSymbolsEvent:
@@ -623,7 +637,7 @@ func (os *OracleServer) Stop() {
 func (os *OracleServer) PluginRuntimeDiscovery() {
 	binaries, err := helpers.ListPlugins(os.pluginDIR)
 	if err != nil {
-		os.logger.Warn("PluginRuntimeDiscovery", "error", err.Error())
+		os.logger.Error("PluginRuntimeDiscovery", "error", err.Error())
 		return
 	}
 	for _, file := range binaries {
