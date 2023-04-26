@@ -209,6 +209,7 @@ func (os *OracleServer) checkHealth() {
 		os.oracleContract, err = contract.NewOracle(types.OracleContractAddress, os.client)
 		if err != nil {
 			os.logger.Info("binding oracle contract", "error", err.Error())
+			return
 		}
 
 		err = os.syncStates()
