@@ -214,6 +214,10 @@ func (os *OracleServer) checkHealth() {
 
 		err = os.syncStates()
 		if err != nil {
+			if os.client != nil {
+				os.client.Close()
+				os.client = nil
+			}
 			os.logger.Info("rebuilding connectivity with autonity L1 node", "error", err)
 		}
 		return
