@@ -44,7 +44,6 @@ type Binance struct {
 }
 
 func (g *Binance) FetchPrices(symbols []string) (types.PluginPriceReport, error) {
-	//g.logger.Debug("fetching price for symbols: ", symbols)
 	var report types.PluginPriceReport
 
 	if FetchCounter%SyncSymbolsInterval == 0 {

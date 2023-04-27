@@ -1,7 +1,6 @@
 package test
 
 import (
-	"autonity-oracle/config"
 	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
@@ -16,6 +15,7 @@ import (
 	"math/big"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 )
 
@@ -23,7 +23,8 @@ var (
 	nodeKeyDir         = "./autonity_l1_config/nodekeys"
 	keyStoreDir        = "./autonity_l1_config/keystore"
 	defaultHost        = "127.0.0.1"
-	defaultPlugDir     = "./plugin_dir"
+	defaultPlugDir     = "./fake_plugin_dir"
+	binancePlugDir     = "./binance_plugin_dir"
 	defaultGenesis     = "./autonity_l1_config/genesis_template.json"
 	defaultPassword    = "test"
 	generatedGenesis   = "./autonity_l1_config/genesis_gen.json"
@@ -59,7 +60,7 @@ type OracleContractGenesis struct {
 	// Json ABI of the contract
 	ABI        string   `json:"abi,omitempty" toml:",omitempty"`
 	Symbols    []string `json:"symbols"`
-	VotePeriod uint64   `json:"votePeriod"`
+	VotePeriod uint64   `json:"defaultVotePeriod"`
 }
 
 type ChainConfig struct {
@@ -81,6 +82,7 @@ type Oracle struct {
 	Host      string
 	ProcessID int
 	Command   *exec.Cmd
+	Symbols   string
 }
 
 // Start starts the process and wait until it exists, the caller should use a go routine to invoke it.
@@ -101,7 +103,7 @@ func (o *Oracle) Stop() {
 func (o *Oracle) GenCMD(wsEndpoint string) {
 	c := exec.Command("./autoracle",
 		fmt.Sprintf("-oracle_autonity_ws_url=%s", wsEndpoint),
-		fmt.Sprintf("-oracle_crypto_symbols=%s", config.DefaultSymbols),
+		fmt.Sprintf("-oracle_crypto_symbols=%s", o.Symbols),
 		fmt.Sprintf("-oracle_key_file=%s", o.Key.KeyFile),
 		fmt.Sprintf("-oracle_key_password=%s", o.Key.Password),
 		fmt.Sprintf("-oracle_plugin_dir=%s", o.PluginDir),
@@ -172,6 +174,9 @@ type Network struct {
 	OperatorKey  *Key
 	TreasuryKey  *Key
 	Nodes        []*Node
+	Symbols      string
+	VotePeriod   uint64
+	PluginDir    string
 }
 
 func (net *Network) genGenesisFile() error {
@@ -183,7 +188,7 @@ func (net *Network) genGenesisFile() error {
 		vals = append(vals, n.Validator)
 	}
 
-	err := makeGenesisConfig(srcGenesis, dstGenesis, vals, net.TreasuryKey.Key.Address, net.OperatorKey.Key.Address)
+	err := makeGenesisConfig(srcGenesis, dstGenesis, vals, net)
 	if err != nil {
 		return err
 	}
@@ -220,7 +225,7 @@ func (net *Network) Stop() {
 
 // create with a four-nodes autonity l1 network for the integration of oracle service, with each of validator bind with
 // an oracle node.
-func createNetwork(enableL1Logs bool) (*Network, error) {
+func createNetwork(enableL1Logs bool, symbols string, votePeriod uint64, pluginDir string) (*Network, error) {
 	keys, err := loadKeys(keyStoreDir, defaultPassword)
 	if err != nil {
 		return nil, err
@@ -234,6 +239,9 @@ func createNetwork(enableL1Logs bool) (*Network, error) {
 		EnableL1Logs: enableL1Logs,
 		OperatorKey:  keys[0],
 		TreasuryKey:  keys[1],
+		Symbols:      symbols,
+		VotePeriod:   votePeriod,
+		PluginDir:    pluginDir,
 	}
 
 	freePorts, err := getFreePost(numberOfValidators * numberOfPortsForBindNodes)
@@ -263,9 +271,10 @@ func prepareResource(network *Network, freeKeys []*Key, freePorts []int, nodes i
 		// allocate a key and a port for oracle client,
 		var oracle = &Oracle{
 			Key:       freeKeys[i*2],
-			PluginDir: defaultPlugDir,
+			PluginDir: network.PluginDir,
 			Host:      defaultHost,
 			ProcessID: -1,
+			Symbols:   network.Symbols,
 		}
 
 		// allocate a key and 2 ports for validator client,
@@ -299,7 +308,7 @@ func prepareResource(network *Network, freeKeys []*Key, freePorts []int, nodes i
 	return network, nil
 }
 
-func makeGenesisConfig(srcTemplate string, dstFile string, vals []*Validator, treasury common.Address, operator common.Address) error {
+func makeGenesisConfig(srcTemplate string, dstFile string, vals []*Validator, net *Network) error {
 	file, err := os.Open(srcTemplate)
 	if err != nil {
 		return err
@@ -311,10 +320,12 @@ func makeGenesisConfig(srcTemplate string, dstFile string, vals []*Validator, tr
 	if err = json.NewDecoder(file).Decode(genesis); err != nil {
 		return err
 	}
-	genesis.Config.Autonity.Operator = operator
-	genesis.Config.Autonity.Treasury = treasury
+	genesis.Config.Autonity.Operator = net.OperatorKey.Key.Address
+	genesis.Config.Autonity.Treasury = net.TreasuryKey.Key.Address
 	genesis.Config.Autonity.Validators = append(genesis.Config.Autonity.Validators, vals...)
-	genesis.Config.OracleContractConfig.VotePeriod = 60
+
+	genesis.Config.OracleContractConfig.Symbols = strings.Split(net.Symbols, ",")
+	genesis.Config.OracleContractConfig.VotePeriod = net.VotePeriod
 
 	jsonData, err := json.MarshalIndent(genesis, "", " ")
 	if err != nil {

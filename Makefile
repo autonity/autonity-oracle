@@ -30,6 +30,7 @@ autoracle:
 	mkdir -p $(PLUGINSRCDIR)/fakeplugin/bin
 	go build -o $(PLUGINSRCDIR)/fakeplugin/bin/fakeplugin $(PLUGINSRCDIR)/fakeplugin/fakeplugin.go
 	go build -o $(E2ETESTDIR)/plugin_dir/fakeplugin $(PLUGINSRCDIR)/fakeplugin/fakeplugin.go
+	go build -o $(E2ETESTDIR)/binance_plugin_dir/binance $(PLUGINSRCDIR)/binance/binance.go
 	chmod +x $(PLUGINSRCDIR)/fakeplugin/bin/fakeplugin
 	chmod +x $(E2ETESTDIR)/plugin_dir/fakeplugin
 	@echo "Done building."

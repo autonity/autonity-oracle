@@ -1,6 +1,7 @@
 package test
 
 import (
+	"autonity-oracle/config"
 	contract "autonity-oracle/contract_binder/contract"
 	autonity "autonity-oracle/e2e_test/contracts"
 	"autonity-oracle/helpers"
@@ -16,8 +17,10 @@ import (
 	"time"
 )
 
+var defaultVotePeriod = uint64(60)
+
 func TestHappyCase(t *testing.T) {
-	network, err := createNetwork(false)
+	network, err := createNetwork(false, config.DefaultSymbols, defaultVotePeriod, defaultPlugDir)
 	require.NoError(t, err)
 	defer network.Stop()
 
@@ -39,7 +42,7 @@ func TestHappyCase(t *testing.T) {
 }
 
 func TestAddNewSymbol(t *testing.T) {
-	network, err := createNetwork(false)
+	network, err := createNetwork(false, config.DefaultSymbols, defaultVotePeriod, defaultPlugDir)
 	require.NoError(t, err)
 	defer network.Stop()
 
@@ -61,7 +64,7 @@ func TestAddNewSymbol(t *testing.T) {
 }
 
 func TestRMSymbol(t *testing.T) {
-	network, err := createNetwork(false)
+	network, err := createNetwork(false, config.DefaultSymbols, defaultVotePeriod, defaultPlugDir)
 	require.NoError(t, err)
 	defer network.Stop()
 
@@ -83,7 +86,7 @@ func TestRMSymbol(t *testing.T) {
 }
 
 func TestRMCommitteeMember(t *testing.T) {
-	network, err := createNetwork(false)
+	network, err := createNetwork(false, config.DefaultSymbols, defaultVotePeriod, defaultPlugDir)
 	require.NoError(t, err)
 	defer network.Stop()
 
@@ -109,7 +112,7 @@ func TestRMCommitteeMember(t *testing.T) {
 }
 
 func TestAddCommitteeMember(t *testing.T) {
-	network, err := createNetwork(false)
+	network, err := createNetwork(false, config.DefaultSymbols, defaultVotePeriod, defaultPlugDir)
 	require.NoError(t, err)
 	defer network.Stop()
 
@@ -132,6 +135,29 @@ func TestAddCommitteeMember(t *testing.T) {
 	// test to add validator into current committee.
 	endRound := uint64(10)
 	testNewValidatorJoinToCommittee(t, network, client, o, aut, endRound, pricePrecision)
+}
+
+func TestHappyCaseWithBinanceDataService(t *testing.T) {
+	symbols := "BTCUSD,BTCUSDC,BTCUSDT,BTCUSD4"
+	network, err := createNetwork(false, symbols, defaultVotePeriod, binancePlugDir)
+	require.NoError(t, err)
+	defer network.Stop()
+
+	client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d", network.Nodes[0].Host, network.Nodes[0].WSPort))
+	require.NoError(t, err)
+	defer client.Close()
+
+	// bind client with oracle contract address
+	o, err := contract.NewOracle(types.OracleContractAddress, client)
+	require.NoError(t, err)
+
+	p, err := o.GetPrecision(nil)
+	require.NoError(t, err)
+	pricePrecision := decimal.NewFromInt(p.Int64())
+
+	// first test happy case.
+	endRound := uint64(10)
+	testHappyCase(t, o, endRound, pricePrecision)
 }
 
 func testHappyCase(t *testing.T, o *contract.Oracle, beforeRound uint64, pricePrecision decimal.Decimal) {
