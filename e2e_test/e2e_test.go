@@ -16,8 +16,73 @@ import (
 	"time"
 )
 
-// integration with l1 network, the reported data should be presented at l1 oracle contract.
-func TestDataReporting(t *testing.T) {
+func TestHappyCase(t *testing.T) {
+	network, err := createNetwork(false)
+	require.NoError(t, err)
+	defer network.Stop()
+
+	client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d", network.Nodes[0].Host, network.Nodes[0].WSPort))
+	require.NoError(t, err)
+	defer client.Close()
+
+	// bind client with oracle contract address
+	o, err := contract.NewOracle(types.OracleContractAddress, client)
+	require.NoError(t, err)
+
+	p, err := o.GetPrecision(nil)
+	require.NoError(t, err)
+	pricePrecision := decimal.NewFromInt(p.Int64())
+
+	// first test happy case.
+	endRound := uint64(5)
+	testHappyCase(t, o, endRound, pricePrecision)
+}
+
+func TestAddNewSymbol(t *testing.T) {
+	network, err := createNetwork(false)
+	require.NoError(t, err)
+	defer network.Stop()
+
+	client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d", network.Nodes[0].Host, network.Nodes[0].WSPort))
+	require.NoError(t, err)
+	defer client.Close()
+
+	// bind client with oracle contract address
+	o, err := contract.NewOracle(types.OracleContractAddress, client)
+	require.NoError(t, err)
+
+	p, err := o.GetPrecision(nil)
+	require.NoError(t, err)
+	pricePrecision := decimal.NewFromInt(p.Int64())
+
+	// test to add new symbols.
+	endRound := uint64(5)
+	testAddNewSymbols(t, network, client, o, endRound, pricePrecision)
+}
+
+func TestRMSymbol(t *testing.T) {
+	network, err := createNetwork(false)
+	require.NoError(t, err)
+	defer network.Stop()
+
+	client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d", network.Nodes[0].Host, network.Nodes[0].WSPort))
+	require.NoError(t, err)
+	defer client.Close()
+
+	// bind client with oracle contract address
+	o, err := contract.NewOracle(types.OracleContractAddress, client)
+	require.NoError(t, err)
+
+	p, err := o.GetPrecision(nil)
+	require.NoError(t, err)
+	pricePrecision := decimal.NewFromInt(p.Int64())
+
+	// test to remove symbols.
+	endRound := uint64(5)
+	testRMSymbols(t, network, client, o, endRound, pricePrecision)
+}
+
+func TestRMCommitteeMember(t *testing.T) {
 	network, err := createNetwork(false)
 	require.NoError(t, err)
 	defer network.Stop()
@@ -38,25 +103,35 @@ func TestDataReporting(t *testing.T) {
 	require.NoError(t, err)
 	pricePrecision := decimal.NewFromInt(p.Int64())
 
-	// first test happy case.
-	testHappyCaseEndRound := uint64(5)
-	testHappyCase(t, o, testHappyCaseEndRound, pricePrecision)
-
-	// test to add new symbols.
-	testAddSymbolEndRound := testHappyCaseEndRound + 4
-	testAddNewSymbols(t, network, client, o, testAddSymbolEndRound, pricePrecision)
-
-	// test to remove symbols.
-	testRMSymbolsEndRound := testAddSymbolEndRound + 4
-	testRMSymbols(t, network, client, o, testRMSymbolsEndRound, pricePrecision)
-
 	// test to remove validator from current committee.
-	testRMValidatorEndRound := testRMSymbolsEndRound + 40
-	testRMValidatorFromCommittee(t, network, client, o, aut, testRMValidatorEndRound, pricePrecision)
+	endRound := uint64(10)
+	testRMValidatorFromCommittee(t, network, client, o, aut, endRound, pricePrecision)
+}
+
+func TestAddCommitteeMember(t *testing.T) {
+	network, err := createNetwork(false)
+	require.NoError(t, err)
+	defer network.Stop()
+
+	client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d", network.Nodes[0].Host, network.Nodes[0].WSPort))
+	require.NoError(t, err)
+	defer client.Close()
+
+	// bind client with oracle contract address
+	o, err := contract.NewOracle(types.OracleContractAddress, client)
+	require.NoError(t, err)
+
+	// bind client with autonity contract address
+	aut, err := autonity.NewAutonity(types.AutonityContractAddress, client)
+	require.NoError(t, err)
+
+	p, err := o.GetPrecision(nil)
+	require.NoError(t, err)
+	pricePrecision := decimal.NewFromInt(p.Int64())
 
 	// test to add validator into current committee.
-	testNewValidatorAddedEndRound := testRMValidatorEndRound + 40
-	testNewValidatorJoinToCommittee(t, network, client, o, aut, testNewValidatorAddedEndRound, pricePrecision)
+	endRound := uint64(10)
+	testNewValidatorJoinToCommittee(t, network, client, o, aut, endRound, pricePrecision)
 }
 
 func testHappyCase(t *testing.T, o *contract.Oracle, beforeRound uint64, pricePrecision decimal.Decimal) {
@@ -94,24 +169,15 @@ func testHappyCase(t *testing.T, o *contract.Oracle, beforeRound uint64, pricePr
 
 func testAddNewSymbols(t *testing.T, network *Network, client *ethclient.Client, o *contract.Oracle, beforeRound uint64,
 	pricePrecision decimal.Decimal) {
-	from := network.OperatorKey.Key.Address
-
-	nonce, err := client.PendingNonceAt(context.Background(), from)
-	require.NoError(t, err)
-
-	gasPrice, err := client.SuggestGasPrice(context.Background())
-	require.NoError(t, err)
-
 	chainID, err := client.ChainID(context.Background())
 	require.NoError(t, err)
 
 	auth, err := bind.NewKeyedTransactorWithChainID(network.OperatorKey.Key.PrivateKey, chainID)
 	require.NoError(t, err)
 
-	auth.Nonce = big.NewInt(int64(nonce))
 	auth.Value = big.NewInt(0)
+	auth.GasTipCap = big.NewInt(0)
 	auth.GasLimit = uint64(3000000)
-	auth.GasPrice = gasPrice
 
 	legacySymbols, err := o.GetSymbols(nil)
 	require.NoError(t, err)

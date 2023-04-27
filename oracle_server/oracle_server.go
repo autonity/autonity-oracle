@@ -311,7 +311,7 @@ func (os *OracleServer) handlePreSampling(preSampleTS int64) error {
 	}
 
 	// do the data pre-sampling.
-	os.logger.Debug("Data pre-sampling", "on height", curHeight)
+	os.logger.Debug("Data pre-sampling", "on height", curHeight, "TS", preSampleTS)
 	os.samplePrice(os.symbols, preSampleTS)
 
 	return nil
@@ -616,7 +616,7 @@ func (os *OracleServer) Start() {
 			// after vote finished, gc useless symbols by protocol required symbols.
 			os.symbols = os.protocolSymbols
 		case symbols := <-os.chSymbolsEvent:
-			os.logger.Info("handle new symbols", "symbols", symbols.Symbols, "activated at rEvent", symbols.Round)
+			os.logger.Info("handle new symbols", "symbols", symbols.Symbols, "activate at round", symbols.Round)
 			os.handleNewSymbolsEvent(symbols.Symbols)
 		case <-os.regularTicker.C:
 			// start the regular price sampling for oracle service on each 10s.
