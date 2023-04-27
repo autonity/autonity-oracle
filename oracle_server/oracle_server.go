@@ -33,6 +33,7 @@ var (
 	SaltRange        = new(big.Int).SetUint64(math.MaxInt64)
 )
 
+// OracleServer coordinates the plugin discovery, the data sampling, and do the health checking with L1 connectivity.
 type OracleServer struct {
 	logger        hclog.Logger
 	doneCh        chan struct{}
@@ -65,6 +66,7 @@ type OracleServer struct {
 
 	chSymbolsEvent  chan *contract.OracleNewSymbols
 	subSymbolsEvent event.Subscription
+	lastSampledTS   int64
 }
 
 func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, client types.Blockchain,
@@ -372,7 +374,7 @@ func (os *OracleServer) reportWithCommitment(newRound uint64, lastRoundData *typ
 	}
 
 	// prepare the transaction which carry current round's commitment, and last round's data.
-	curRoundData.Tx, err = os.doReport(curRoundData.Hash, lastRoundData)
+	curRoundData.Tx, err = os.doReport(curRoundData.CommitmentHash, lastRoundData)
 	if err != nil {
 		os.logger.Error("do report", "error", err.Error())
 		return err
@@ -484,14 +486,14 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 	}
 
 	var roundData = &types.RoundData{
-		RoundID: round,
-		Symbols: symbols,
-		Salt:    salt,
-		Hash:    common.Hash{},
-		Prices:  prices,
+		RoundID:        round,
+		Symbols:        symbols,
+		Salt:           salt,
+		CommitmentHash: common.Hash{},
+		Prices:         prices,
 	}
-	roundData.Hash = os.commitmentHash(roundData, symbols)
-	os.logger.Info("build round data", "current round", round, "commitment hash", roundData.Hash.String())
+	roundData.CommitmentHash = os.commitmentHash(roundData, symbols)
+	os.logger.Info("build round data", "current round", round, "commitment hash", roundData.CommitmentHash.String())
 	return roundData, nil
 }
 
@@ -553,6 +555,11 @@ func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, er
 func (os *OracleServer) samplePrice(symbols []string, ts int64) {
 	os.pluginLock.RLock()
 	defer os.pluginLock.RUnlock()
+
+	if os.lastSampledTS == ts {
+		return
+	}
+
 	for _, p := range os.pluginSet {
 		plugin := p
 		go func() {
@@ -589,6 +596,7 @@ func (os *OracleServer) Start() {
 			if err != nil {
 				os.logger.Error("handle pre-sampling", "error", err.Error())
 			}
+			os.lastSampledTS = preSampleTS
 		case rEvent := <-os.chRoundEvent:
 			os.logger.Info("handle new round", "round", rEvent.Round.Uint64(), "required sampling TS",
 				rEvent.Timestamp.Uint64(), "height", rEvent.Height.Uint64(), "vote period", rEvent.VotePeriod.Uint64())
@@ -602,8 +610,11 @@ func (os *OracleServer) Start() {
 			err := os.handleRoundVote()
 			if err != nil {
 				os.logger.Error("Handling round vote", "err", err.Error())
+				continue
 			}
 			os.gcDataSamples()
+			// after vote finished, gc useless symbols by protocol required symbols.
+			os.symbols = os.protocolSymbols
 		case symbols := <-os.chSymbolsEvent:
 			os.logger.Info("handle new symbols", "symbols", symbols.Symbols, "activated at rEvent", symbols.Round)
 			os.handleNewSymbolsEvent(symbols.Symbols)
@@ -612,6 +623,7 @@ func (os *OracleServer) Start() {
 			now := time.Now().Unix()
 			os.logger.Debug("regular 10s data sampling", "ts", now)
 			os.samplePrice(os.symbols, now)
+			os.lastSampledTS = now
 			os.checkHealth()
 			os.PluginRuntimeDiscovery()
 			os.gcRoundData()

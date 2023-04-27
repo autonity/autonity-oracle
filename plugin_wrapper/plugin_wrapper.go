@@ -15,6 +15,8 @@ import (
 
 var errConnectionNotEstablished = errors.New("connection not established yet")
 
+// PluginWrapper is the unified wrapper for the interface client of a plugin, it contains metadata of a corresponding
+// plugin, buffers recent data samples measured from the corresponding plugin.
 type PluginWrapper struct {
 	version        string
 	lockService    sync.RWMutex

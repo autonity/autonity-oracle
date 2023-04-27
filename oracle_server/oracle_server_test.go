@@ -149,11 +149,11 @@ func TestOracleServer(t *testing.T) {
 		}
 		seed := time.Now().UnixNano()
 		roundData := &types.RoundData{
-			RoundID: srv.curRound,
-			Symbols: conf.Symbols,
-			Salt:    new(big.Int).SetUint64(rand.New(rand.NewSource(seed)).Uint64()), // nolint
-			Hash:    common.Hash{},
-			Prices:  prices,
+			RoundID:        srv.curRound,
+			Symbols:        conf.Symbols,
+			Salt:           new(big.Int).SetUint64(rand.New(rand.NewSource(seed)).Uint64()), // nolint
+			CommitmentHash: common.Hash{},
+			Prices:         prices,
 		}
 		srv.roundData[srv.curRound] = roundData
 
@@ -179,7 +179,7 @@ func TestOracleServer(t *testing.T) {
 		require.Equal(t, srv.curRound, srv.roundData[srv.curRound].RoundID)
 		require.Equal(t, tx.Hash(), srv.roundData[srv.curRound].Tx.Hash())
 		require.Equal(t, conf.Symbols, srv.roundData[srv.curRound].Symbols)
-		require.Equal(t, srv.commitmentHash(srv.roundData[srv.curRound], conf.Symbols), srv.roundData[srv.curRound].Hash)
+		require.Equal(t, srv.commitmentHash(srv.roundData[srv.curRound], conf.Symbols), srv.roundData[srv.curRound].CommitmentHash)
 
 		srv.pluginSet["fakeplugin"].Close()
 	})

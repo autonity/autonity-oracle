@@ -68,7 +68,7 @@ interface IOracle {
      */
     event Voted(address indexed _voter, int[] _votes);
     /**
-     * @dev Emitted when a vote has been succesfully accounted after a {vote} call.
+     * @dev Emitted when new symbols are set by system operator.
      * round - the round at which new symbols are effective
      */
     event NewSymbols(string[] _symbols, uint256 _round);

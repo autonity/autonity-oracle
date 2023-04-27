@@ -20,6 +20,7 @@ func (ws *L1Dialer) Dial(rawurl string) (*ethclient.Client, error) {
 	return ethclient.Dial(rawurl)
 }
 
+// Blockchain is the L1 interface to help to mock the L1 for the unit test in oracle server.
 type Blockchain interface {
 	// CodeAt returns the code of the given account. This is needed to differentiate
 	// between contract internal errors and the local chain being out of sync.

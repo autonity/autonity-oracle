@@ -29,25 +29,31 @@ var (
 	ErrNoSymbolsObserved = errors.New("no symbols observed from oracle contract")
 )
 
+// MaxBufferedRounds is the number of round data to be buffered.
 const MaxBufferedRounds = 10
 
+// Price is the structure contains the exchange rate of a symbol with a timestamp at which the sampling happens.
 type Price struct {
 	Timestamp int64 // TS on when the data is being sampled in time's seconds since Jan 1 1970 (Unix time).
 	Symbol    string
 	Price     decimal.Decimal
 }
 
+// PriceBySymbol group the price by symbols.
 type PriceBySymbol map[string]Price
 
+// RoundData contains the aggregated price by symbols for a round with those ordered symbols and a corresponding salt to
+// compute the round commitment hash.
 type RoundData struct {
-	RoundID uint64
-	Tx      *types.Transaction
-	Salt    *big.Int
-	Hash    common.Hash
-	Prices  PriceBySymbol
-	Symbols []string
+	RoundID        uint64
+	Tx             *types.Transaction
+	Salt           *big.Int
+	CommitmentHash common.Hash
+	Prices         PriceBySymbol
+	Symbols        []string
 }
 
+// OracleServiceConfig is the configuration of the oracle client.
 type OracleServiceConfig struct {
 	Key           *keystore.Key
 	AutonityWSUrl string
@@ -55,6 +61,7 @@ type OracleServiceConfig struct {
 	PluginDIR     string
 }
 
+// JSONRPCMessage is the JSON spec to carry those data response from the binance data simulator.
 type JSONRPCMessage struct {
 	ID     json.RawMessage `json:"id,omitempty"`
 	Method string          `json:"method,omitempty"`
