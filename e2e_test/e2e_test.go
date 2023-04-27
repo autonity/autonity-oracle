@@ -37,7 +37,7 @@ func TestHappyCase(t *testing.T) {
 	pricePrecision := decimal.NewFromInt(p.Int64())
 
 	// first test happy case.
-	endRound := uint64(5)
+	endRound := uint64(10)
 	testHappyCase(t, o, endRound, pricePrecision)
 }
 

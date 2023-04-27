@@ -23,7 +23,7 @@ var (
 	nodeKeyDir         = "./autonity_l1_config/nodekeys"
 	keyStoreDir        = "./autonity_l1_config/keystore"
 	defaultHost        = "127.0.0.1"
-	defaultPlugDir     = "./fake_plugin_dir"
+	defaultPlugDir     = "./plugin_dir"
 	binancePlugDir     = "./binance_plugin_dir"
 	defaultGenesis     = "./autonity_l1_config/genesis_template.json"
 	defaultPassword    = "test"
