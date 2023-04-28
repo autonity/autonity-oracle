@@ -555,10 +555,12 @@ func (os *OracleServer) samplePrice(symbols []string, ts int64) {
 		return
 	}
 
+	cpSymbols := make([]string, len(symbols))
+	copy(cpSymbols, symbols)
 	for _, p := range os.pluginSet {
 		plugin := p
 		go func() {
-			err := plugin.FetchPrices(symbols, ts)
+			err := plugin.FetchPrices(cpSymbols, ts)
 			if err != nil {
 				os.logger.Error("FetchPrices error", "error", err.Error(), "plugin", plugin.Name(), "TS", ts)
 			}
