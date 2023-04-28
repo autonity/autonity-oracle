@@ -69,3 +69,9 @@ type JSONRPCMessage struct {
 	Result json.RawMessage `json:"result,omitempty"`
 	Error  string          `json:"error,omitempty"`
 }
+
+// SampleEvent carry the symbols and TS for the data sampling.
+type SampleEvent struct {
+	Symbols []string
+	TS      int64
+}

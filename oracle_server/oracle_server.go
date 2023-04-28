@@ -21,7 +21,6 @@ import (
 	"math"
 	"math/big"
 	o "os"
-	"sync"
 	"time"
 )
 
@@ -40,10 +39,9 @@ type OracleServer struct {
 	regularTicker *time.Ticker // the clock source to trigger the 10s interval job.
 	psTicker      *time.Ticker // the pre-sampling ticker in 1s.
 
-	pluginDIR  string                             // the dir saves the plugins.
-	pluginLock sync.RWMutex                       // to prevent from race condition of pluginSet.
-	pluginSet  map[string]*pWrapper.PluginWrapper // the plugin clients that connect with different adapters.
-	symbols    []string                           // the symbols for data fetching in oracle service.
+	pluginDIR string                             // the dir saves the plugins.
+	pluginSet map[string]*pWrapper.PluginWrapper // the plugin clients that connect with different adapters.
+	symbols   []string                           // the symbols for data fetching in oracle service.
 
 	// the reporting staffs
 	dialer         types.Dialer
@@ -67,6 +65,8 @@ type OracleServer struct {
 	chSymbolsEvent  chan *contract.OracleNewSymbols
 	subSymbolsEvent event.Subscription
 	lastSampledTS   int64
+
+	sampleEventFee event.Feed
 }
 
 func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, client types.Blockchain,
@@ -179,8 +179,6 @@ func (os *OracleServer) initStates() (uint64, []string, decimal.Decimal, uint64,
 }
 
 func (os *OracleServer) gcDataSamples() {
-	os.pluginLock.RLock()
-	defer os.pluginLock.RUnlock()
 	for _, plugin := range os.pluginSet {
 		plugin.GCSamples()
 	}
@@ -515,8 +513,6 @@ func (os *OracleServer) handleNewSymbolsEvent(symbols []string) {
 func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, error) {
 	var prices []decimal.Decimal
 
-	os.pluginLock.RLock()
-	defer os.pluginLock.RUnlock()
 	for _, plugin := range os.pluginSet {
 		p, err := plugin.GetSample(s, target)
 		if err != nil {
@@ -548,24 +544,17 @@ func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, er
 }
 
 func (os *OracleServer) samplePrice(symbols []string, ts int64) {
-	os.pluginLock.RLock()
-	defer os.pluginLock.RUnlock()
-
 	if os.lastSampledTS == ts {
 		return
 	}
-
 	cpSymbols := make([]string, len(symbols))
 	copy(cpSymbols, symbols)
-	for _, p := range os.pluginSet {
-		plugin := p
-		go func() {
-			err := plugin.FetchPrices(cpSymbols, ts)
-			if err != nil {
-				os.logger.Error("FetchPrices error", "error", err.Error(), "plugin", plugin.Name(), "TS", ts)
-			}
-		}()
+	e := &types.SampleEvent{
+		Symbols: cpSymbols,
+		TS:      ts,
 	}
+	nListener := os.sampleEventFee.Send(e)
+	os.logger.Debug("sample event is sent to", "num of plugins", nListener)
 }
 
 func (os *OracleServer) Start() {
@@ -636,8 +625,6 @@ func (os *OracleServer) Stop() {
 	os.subSymbolsEvent.Unsubscribe()
 
 	os.doneCh <- struct{}{}
-	os.pluginLock.RLock()
-	defer os.pluginLock.RUnlock()
 	for _, c := range os.pluginSet {
 		p := c
 		p.Close()
@@ -656,12 +643,10 @@ func (os *OracleServer) PluginRuntimeDiscovery() {
 }
 
 func (os *OracleServer) tryLoadingNewPlugin(f fs.FileInfo) {
-	os.pluginLock.Lock()
-	defer os.pluginLock.Unlock()
 	plugin, ok := os.pluginSet[f.Name()]
 	if !ok {
 		os.logger.Info("** New plugin discovered, going to setup it: ", f.Name(), f.Mode().String())
-		pluginWrapper := pWrapper.NewPluginWrapper(f.Name(), os.pluginDIR)
+		pluginWrapper := pWrapper.NewPluginWrapper(f.Name(), os.pluginDIR, os)
 		pluginWrapper.Initialize()
 		os.pluginSet[f.Name()] = pluginWrapper
 		os.logger.Info("** New plugin on ready: ", f.Name())
@@ -673,9 +658,13 @@ func (os *OracleServer) tryLoadingNewPlugin(f fs.FileInfo) {
 		// stop the legacy plugins process, disconnect rpc connection and release memory.
 		plugin.Close()
 		delete(os.pluginSet, f.Name())
-		pluginWrapper := pWrapper.NewPluginWrapper(f.Name(), os.pluginDIR)
+		pluginWrapper := pWrapper.NewPluginWrapper(f.Name(), os.pluginDIR, os)
 		pluginWrapper.Initialize()
 		os.pluginSet[f.Name()] = pluginWrapper
 		os.logger.Info("*** Finnish the replacement of plugin: ", f.Name())
 	}
+}
+
+func (os *OracleServer) WatchSampleEvent(sink chan<- *types.SampleEvent) event.Subscription {
+	return os.sampleEventFee.Subscribe(sink)
 }

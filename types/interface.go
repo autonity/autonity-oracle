@@ -6,6 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/event"
 	"math/big"
 )
 
@@ -68,4 +69,9 @@ type Blockchain interface {
 	Close()
 	ChainID(ctx context.Context) (*big.Int, error)
 	SyncProgress(ctx context.Context) (*ethereum.SyncProgress, error)
+}
+
+// SampleEventSubscriber is the interface to watch the sampling event
+type SampleEventSubscriber interface {
+	WatchSampleEvent(sink chan<- *SampleEvent) event.Subscription
 }
