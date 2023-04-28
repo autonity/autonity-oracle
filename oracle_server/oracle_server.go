@@ -121,9 +121,7 @@ func (os *OracleServer) syncStates() error {
 	}
 
 	os.logger.Info("syncStates", "CurrentRound", os.curRound, "Num of Symbols", len(os.protocolSymbols), "CurrentSymbols", os.protocolSymbols)
-	if len(os.protocolSymbols) > 0 {
-		os.UpdateSymbols(os.protocolSymbols)
-	}
+	os.UpdateSymbols(os.protocolSymbols)
 
 	// subscribe on-chain round rotation event
 	os.chRoundEvent = make(chan *contract.OracleNewRound)
@@ -170,6 +168,11 @@ func (os *OracleServer) initStates() (uint64, []string, decimal.Decimal, uint64,
 	if err != nil {
 		os.logger.Error("Get vote period", "error", err.Error())
 		return 0, nil, precision, 0, nil
+	}
+
+	if len(symbols) == 0 {
+		os.logger.Error("No symbols set by operator")
+		return currentRound.Uint64(), symbols, decimal.NewFromInt(p.Int64()), votePeriod.Uint64(), types.ErrNoSymbolsObserved
 	}
 
 	return currentRound.Uint64(), symbols, decimal.NewFromInt(p.Int64()), votePeriod.Uint64(), nil
@@ -224,7 +227,7 @@ func (os *OracleServer) checkHealth() {
 		}
 
 		err = os.syncStates()
-		if err != nil {
+		if err != nil && err != types.ErrNoSymbolsObserved {
 			if os.client != nil {
 				os.client.Close()
 				os.client = nil
@@ -451,21 +454,13 @@ func (os *OracleServer) doReport(curRndCommitHash common.Hash, lastRoundData *ty
 }
 
 func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
-
-	symbols, err := os.oracleContract.GetSymbols(nil)
-	if err != nil {
-		os.logger.Error("get symbols", "error", err.Error())
-		return nil, err
-	}
-
-	if len(symbols) == 0 {
+	if len(os.protocolSymbols) == 0 {
 		return nil, types.ErrNoSymbolsObserved
 	}
 
 	prices := make(types.PriceBySymbol)
-	var p *types.Price
-	for _, s := range symbols {
-		p, err = os.aggregatePrice(s, int64(os.curSampleTS))
+	for _, s := range os.protocolSymbols {
+		p, err := os.aggregatePrice(s, int64(os.curSampleTS))
 		if err != nil {
 			os.logger.Error("aggregatePrice", "error", err.Error(), "symbol", s)
 			continue
@@ -487,12 +482,12 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 
 	var roundData = &types.RoundData{
 		RoundID:        round,
-		Symbols:        symbols,
+		Symbols:        os.protocolSymbols,
 		Salt:           salt,
 		CommitmentHash: common.Hash{},
 		Prices:         prices,
 	}
-	roundData.CommitmentHash = os.commitmentHash(roundData, symbols)
+	roundData.CommitmentHash = os.commitmentHash(roundData, os.protocolSymbols)
 	os.logger.Info("build round data", "current round", round, "commitment hash", roundData.CommitmentHash.String())
 	return roundData, nil
 }
