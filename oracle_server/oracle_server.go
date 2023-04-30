@@ -501,6 +501,8 @@ func (os *OracleServer) commitmentHash(roundData *types.RoundData, symbols []str
 	}
 	// append the salt at the tail of votes
 	source = append(source, common.LeftPadBytes(roundData.Salt.Bytes(), 32)...)
+	// todo: append the account address at the tail, this should be done at the oracle contract as well.
+	//source = append(source, common.LeftPadBytes(os.key.Address.Bytes(), 32)...)
 	return crypto.Keccak256Hash(source)
 }
 

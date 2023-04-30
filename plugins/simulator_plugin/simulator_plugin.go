@@ -12,12 +12,11 @@ import (
 	"time"
 )
 
+// todo: refine the plugins code structures, some of them share duplicated code.
+
 var version = "v0.0.1"
 
-// BinanceMarketDataURL using namespace .us rather than .com since the data legal issue in different regions.
-// refer to legal issue: https://dev.binance.vision/t/api-error-451-unavailable-for-legal-reasons/13828/4, once we list
-// our token in Binance, we need their customer service to resolve it.
-const BinanceMarketDataURL = "https://api.binance.us/api/v3/ticker/price"
+const SimulatorDataURL = "http://127.0.0.1:50991/api/v3/ticker/price"
 const UnknownErr = "Unknown Error"
 const DataLegalErr = "StatusUnavailableForLegalReasons"
 
@@ -28,7 +27,7 @@ var (
 	Timeout              = time.Second * 5
 )
 
-// Price is the basic data structure returned by Binance.
+// Price is the basic data structure returned by SimulatorPlugin.
 type Price struct {
 	Symbol string `json:"symbol,omitempty"`
 	Price  string `json:"price,omitempty"`
@@ -36,13 +35,13 @@ type Price struct {
 
 type Prices []Price
 
-// Binance Here is an implementation of a fake plugin which returns simulated data points.
-type Binance struct {
+// SimulatorPlugin Here is an implementation of a fake plugin which returns simulated data points.
+type SimulatorPlugin struct {
 	logger hclog.Logger
 	client *http.Client
 }
 
-func (g *Binance) FetchPrices(symbols []string) (types.PluginPriceReport, error) {
+func (g *SimulatorPlugin) FetchPrices(symbols []string) (types.PluginPriceReport, error) {
 	var report types.PluginPriceReport
 
 	if FetchCounter%SyncSymbolsInterval == 0 {
@@ -62,7 +61,7 @@ func (g *Binance) FetchPrices(symbols []string) (types.PluginPriceReport, error)
 		g.client.Timeout = Timeout
 	}
 
-	req, err := http.NewRequest(http.MethodGet, BinanceMarketDataURL, nil)
+	req, err := http.NewRequest(http.MethodGet, SimulatorDataURL, nil)
 	if err != nil {
 		g.logger.Error("http new request", "error", err.Error())
 		return report, err
@@ -134,14 +133,14 @@ func resolveSymbols(symbols []string) ([]string, []string) {
 }
 
 // FetchPricesWithSymbolSync fetch all prices of supported symbols from binance, and filter out invalid symbols.
-func (g *Binance) FetchPricesWithSymbolSync(symbols []string) (report types.PluginPriceReport, e error) {
+func (g *SimulatorPlugin) FetchPricesWithSymbolSync(symbols []string) (report types.PluginPriceReport, e error) {
 	if g.client == nil {
 		g.client = &http.Client{}
 		g.client.Timeout = Timeout
 	}
 
 	// without specifying the query parameter, binance will return all its symbols' price.
-	req, err := http.NewRequest(http.MethodGet, BinanceMarketDataURL, nil)
+	req, err := http.NewRequest(http.MethodGet, SimulatorDataURL, nil)
 	if err != nil {
 		g.logger.Error("http new request", "error", err.Error())
 		return report, err
@@ -197,11 +196,11 @@ func (g *Binance) FetchPricesWithSymbolSync(symbols []string) (report types.Plug
 	return report, nil
 }
 
-func (g *Binance) GetVersion() (string, error) {
+func (g *SimulatorPlugin) GetVersion() (string, error) {
 	return version, nil
 }
 
-func (g *Binance) Close() {
+func (g *SimulatorPlugin) Close() {
 	if g.client != nil {
 		g.client.CloseIdleConnections()
 	}
@@ -214,7 +213,7 @@ func main() {
 		JSONFormat: true,
 	})
 
-	adapter := &Binance{
+	adapter := &SimulatorPlugin{
 		logger: logger,
 	}
 
