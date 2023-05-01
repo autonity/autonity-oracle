@@ -79,13 +79,14 @@ type Validator struct {
 }
 
 type DataSimulator struct {
-	Command *exec.Cmd
+	Command    *exec.Cmd
+	SimulateTM int
 }
 
 func (s *DataSimulator) Start() {
 	err := s.Command.Run()
 	if err != nil {
-		panic(err)
+		log.Error("start data simulator failed", "error", err.Error())
 	}
 }
 
@@ -97,7 +98,7 @@ func (s *DataSimulator) Stop() {
 }
 
 func (s *DataSimulator) GenCMD() {
-	c := exec.Command("./simulator")
+	c := exec.Command("./simulator", fmt.Sprintf("-sim_timeout=%d", s.SimulateTM))
 	c.Stderr = os.Stderr
 	c.Stdout = os.Stdout
 	s.Command = c
@@ -192,10 +193,11 @@ func (n *L1Node) Stop() {
 }
 
 type NetworkConfig struct {
-	EnableL1Logs bool
-	Symbols      string
-	VotePeriod   uint64
-	PluginDIRs   []string // different oracle can have different plugins configured.
+	EnableL1Logs    bool
+	Symbols         string
+	VotePeriod      uint64
+	PluginDIRs      []string // different oracle can have different plugins configured.
+	SimulateTimeout int      // to simulate timeout in seconds at data source simulator when processing http request.
 }
 
 type Network struct {
@@ -282,7 +284,7 @@ func createNetwork(netConf *NetworkConfig) (*Network, error) {
 		if len(d) != 0 {
 			pluginDIRs[i] = d
 			if (d == simulatorPlugDir || d == mixPluginDir) && simulator == nil {
-				simulator = &DataSimulator{}
+				simulator = &DataSimulator{SimulateTM: netConf.SimulateTimeout}
 			}
 		}
 	}

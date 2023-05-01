@@ -30,7 +30,7 @@ func main() { //nolint
 	go genManager.Start()
 	defer genManager.Stop()
 	// create http service.
-	srv := httpsrv.NewHttpServer(genManager, conf.Port)
+	srv := httpsrv.NewHttpServer(genManager, conf.Port, conf.SimulateTimeOut)
 	srv.StartHTTPServer()
 
 	// Wait for interrupt signal to gracefully shut down the server with

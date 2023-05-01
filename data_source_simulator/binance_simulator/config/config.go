@@ -18,6 +18,7 @@ var (
 	DefDataPointMagnificationFactor             = 7.0   // the default starting points are multiplied by this factor for increasing or decreasing.
 	DefDataDistributionRangeMagnificationFactor = 2.0   // the default data distribution rate range is multiplied by this factor for increasing or decreasing.
 	DefPlaybook                                 = ""    // the default playbook file used to replay data points in the generator.
+	DefTimeout                                  = 0     // the default timeout simulated when processing a http request.
 )
 
 type RandGeneratorConfig struct {
@@ -26,16 +27,19 @@ type RandGeneratorConfig struct {
 }
 
 type SimulatorConfig struct {
-	Port          int
-	Playbook      string
-	SimulatorConf map[string]*RandGeneratorConfig
+	Port            int
+	Playbook        string
+	SimulatorConf   map[string]*RandGeneratorConfig
+	SimulateTimeOut int
 }
 
 func MakeSimulatorConfig() *SimulatorConfig {
+	var simulateTimeOut int
 	var port int
 	var simulatorConf string
 	var playbook string
 
+	flag.IntVar(&simulateTimeOut, "sim_timeout", DefTimeout, "The timeout in seconds to be simulated in processing http request")
 	flag.IntVar(&port, "sim_http_port", DefSimulatorPort, "The HTTP rpc port to be bind for binance_simulator simulator")
 	flag.StringVar(&playbook, "sim_playbook_file", DefPlaybook, "The .csv file which contains datapoint for symbols.")
 	flag.StringVar(&simulatorConf, "sim_symbol_config", DefSimulatorConf,
@@ -57,9 +61,10 @@ func MakeSimulatorConfig() *SimulatorConfig {
 	println("\tRunning simulator only with playbook if playbook is configured: ", playbook)
 
 	return &SimulatorConfig{
-		Port:          port,
-		Playbook:      playbook,
-		SimulatorConf: conf,
+		Port:            port,
+		Playbook:        playbook,
+		SimulatorConf:   conf,
+		SimulateTimeOut: simulateTimeOut,
 	}
 }
 

@@ -12,19 +12,24 @@ import (
 	"github.com/modern-go/reflect2"
 	"net/http"
 	o "os"
+	"time"
 )
+
+var HttpRequestCounter = 0
 
 type BinanceSimulatorHTTPServer struct {
 	logger hclog.Logger
 	http.Server
 	generators data_source_simulator.GeneratorManager
 	port       int
+	timeout    int
 }
 
-func NewHttpServer(gen data_source_simulator.GeneratorManager, port int) *BinanceSimulatorHTTPServer {
+func NewHttpServer(gen data_source_simulator.GeneratorManager, port int, timeout int) *BinanceSimulatorHTTPServer {
 	hs := &BinanceSimulatorHTTPServer{
 		generators: gen,
 		port:       port,
+		timeout:    timeout,
 	}
 	router := hs.createRouter()
 	hs.logger = hclog.New(&hclog.LoggerOptions{
@@ -54,6 +59,15 @@ func (bs *BinanceSimulatorHTTPServer) createRouter() *gin.Engine {
 
 	// data reader handler
 	router.GET("/api/v3/ticker/price", func(c *gin.Context) {
+
+		// if the simulator is configured to simulate timeout.
+		if bs.timeout != 0 {
+			HttpRequestCounter++
+			if HttpRequestCounter%5 == 0 {
+				time.Sleep(time.Second * time.Duration(bs.timeout))
+			}
+		}
+
 		s := c.Query("symbols")
 		var symbols []string
 

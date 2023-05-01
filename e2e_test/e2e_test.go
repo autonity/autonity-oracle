@@ -191,21 +191,81 @@ func TestHappyCaseWithBinanceDataService(t *testing.T) {
 	testBinanceDataHappyCase(t, o, endRound)
 }
 
-func TestHappyCaseWithBinanceSimulator(t *testing.T) {
+func TestWithBinanceSimulatorOff(t *testing.T) {
 	var netConf = &NetworkConfig{
 		EnableL1Logs: false,
 		Symbols:      config.DefaultSymbols,
 		VotePeriod:   defaultVotePeriod,
-		PluginDIRs:   []string{simulatorPlugDir, simulatorPlugDir},
+		PluginDIRs:   []string{simulatorPlugDir, mixPluginDir, mixPluginDir, mixPluginDir},
 	}
 	network, err := createNetwork(netConf)
 	require.NoError(t, err)
 	defer network.Stop()
 
-	// todo: simulate timeout and errors on the data source simulator, the oracle node should detect these failures and
-	//  keep working.
 	for i := 0; i < 300; i++ {
 		time.Sleep(time.Second)
+		network.Simulator.Stop()
+	}
+
+	client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d", network.L1Nodes[0].Host, network.L1Nodes[0].WSPort))
+	require.NoError(t, err)
+	defer client.Close()
+
+	// bind client with oracle contract address
+	o, err := contract.NewOracle(types.OracleContractAddress, client)
+	require.NoError(t, err)
+
+	symbols, err := o.GetSymbols(nil)
+	require.NoError(t, err)
+
+	pre, err := o.GetPrecision(nil)
+	require.NoError(t, err)
+	pricePrecision := decimal.NewFromInt(pre.Int64())
+
+	for _, s := range symbols {
+		d, err := o.LatestRoundData(nil, s)
+		require.NoError(t, err)
+		require.NotEqual(t, uint64(0), d.Price.Uint64())
+		require.Equal(t, uint64(0), d.Status.Uint64())
+
+		price, err := decimal.NewFromString(d.Price.String())
+		require.NoError(t, err)
+		require.True(t, true, price.Div(pricePrecision).Equal(helpers.ResolveSimulatedPrice(s)))
+	}
+}
+
+func TestWithBinanceSimulatorTimeout(t *testing.T) {
+	var netConf = &NetworkConfig{
+		EnableL1Logs:    false,
+		Symbols:         config.DefaultSymbols,
+		VotePeriod:      defaultVotePeriod,
+		PluginDIRs:      []string{simulatorPlugDir, mixPluginDir, mixPluginDir, mixPluginDir},
+		SimulateTimeout: 10,
+	}
+	network, err := createNetwork(netConf)
+	require.NoError(t, err)
+	defer network.Stop()
+
+	for i := 0; i < 300; i++ {
+		time.Sleep(time.Second)
+	}
+
+	client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d", network.L1Nodes[0].Host, network.L1Nodes[0].WSPort))
+	require.NoError(t, err)
+	defer client.Close()
+
+	// bind client with oracle contract address
+	o, err := contract.NewOracle(types.OracleContractAddress, client)
+	require.NoError(t, err)
+
+	symbols, err := o.GetSymbols(nil)
+	require.NoError(t, err)
+
+	for _, s := range symbols {
+		d, err := o.LatestRoundData(nil, s)
+		require.NoError(t, err)
+		require.NotEqual(t, uint64(0), d.Price.Uint64())
+		require.Equal(t, uint64(0), d.Status.Uint64())
 	}
 }
 
