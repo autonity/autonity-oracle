@@ -502,7 +502,7 @@ func (os *OracleServer) commitmentHash(roundData *types.RoundData, symbols []str
 	// append the salt at the tail of votes
 	source = append(source, common.LeftPadBytes(roundData.Salt.Bytes(), 32)...)
 	// append the sender address at the tail for commitment hash computing as well
-	source = append(source, common.LeftPadBytes(os.key.Address.Bytes(), 32)...)
+	source = append(source, os.key.Address.Bytes()...)
 	return crypto.Keccak256Hash(source)
 }
 
