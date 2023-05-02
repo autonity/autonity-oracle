@@ -1,0 +1,126 @@
+name: develop
+on:
+  # workflow_dispatch adds a manual trigger button in the github UI that allows
+  # you to trigger builds on specific branches when you are in the page for
+  # this workflow.
+  workflow_dispatch:
+  # pull_request triggers this workflow on both internal and forked pull
+  # requests.
+  pull_request:
+
+env:
+  # We don't have access to the HOME environment variable here since we are not
+  # inside a runner at this point, so we just have to hardcode '/home/runner',
+  # if we instead defined these environment variables when we did have access
+  # to HOME we would need to define them for each job, which would defeat the
+  # purpose of defining them here.
+  GO_CACHE: /home/runner/.cache/go-build # This is the location of the go build cache.
+  GO_MODULES_CACHE: /home/runner/go/pkg # This is where module source code is stored.
+  GO_VERSION: 1.19
+
+jobs:
+
+  # prepare-cache fills the gocache with the source code for all modules and
+  # attempts to fill the build cache with as much as possible intermediately
+  # compiled source. Most other jobs depend on this job and so this serves to
+  # speed up all other jobs. Since the cache only changes when the go modules
+  # change, actually filling the cache happens quite infrequently. So most runs
+  # should not be impacted by the time taken to fill the cache.
+  prepare-cache:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v1
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/checkout@v2
+
+      - name: Go cache
+        uses: actions/cache@v2
+        id: gocache
+        with:
+          path: |
+            ${{ env.GO_CACHE }}
+            ${{ env.GO_MODULES_CACHE }}
+          key: ${{ runner.os }}-gocache-${{ env.GO_VERSION }}${{ hashFiles('go.mod', 'go.sum') }}
+
+        # We want to make sure that we download all the modules and compile
+        # everything that may be needed so that they fill the go modules cache
+        # and go-build dir.
+      - name: Fill cache
+        if: steps.gocache.outputs.cache-hit != 'true'
+        run: |
+          go mod download -x
+          make autoracle
+
+  lint:
+    needs: prepare-cache
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v1
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/checkout@v2
+
+      - name: Go cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ${{ env.GO_CACHE }}
+            ${{ env.GO_MODULES_CACHE }}
+          key: ${{ runner.os }}-gocache-${{ env.GO_VERSION }}${{ hashFiles('go.mod', 'go.sum') }}
+
+      - name: Run lint
+        run: |
+          make autoracle
+          make lint
+
+  unit_tests:
+    needs: prepare-cache
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v1
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/checkout@v2
+
+      - name: Go cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ${{ env.GO_CACHE }}
+            ${{ env.GO_MODULES_CACHE }}
+          key: ${{ runner.os }}-gocache-${{ env.GO_VERSION }}${{ hashFiles('go.mod', 'go.sum') }}
+
+      - name: unit tests
+        run: | 
+          make autoracle
+          go test ./config/... -coverprofile=coverage.out
+          go test ./helpers/... -coverprofile=coverage.out
+          go test ./oracle_server/... -coverprofile=coverage.out
+          go test ./plugin_wrapper/... -coverprofile=coverage.out
+
+  # todo: fix e2e test in ci context, it is runnable in local PC.
+  e2e_test:
+    needs: prepare-cache
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v1
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/checkout@v2
+
+      - name: Go cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ${{ env.GO_CACHE }}
+            ${{ env.GO_MODULES_CACHE }}
+          key: ${{ runner.os }}-gocache-${{ env.GO_VERSION }}${{ hashFiles('go.mod', 'go.sum') }}
+
+      - name: e2e tests
+        run: |
+          make autoracle

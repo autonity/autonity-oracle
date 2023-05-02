@@ -1,0 +1,47 @@
+run:
+  deadline: 20m
+  timeout: 2m
+  tests: true
+  # default is true. Enables skipping of directories:
+  #   vendor$, third_party$, testdata$, examples$, Godeps$, builtin$
+  skip-dirs-use-default: true
+  skip-dirs:
+    - e2e_test
+
+modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck
+    - goconst
+    - gofmt
+    - deadcode
+    - govet
+    - misspell
+    - megacheck
+    - unconvert
+    - varcheck
+    - nakedret
+    - gosec
+    - ineffassign
+    - depguard
+    - typecheck
+
+  disable-all: true
+
+linters-settings:
+  goconst:
+    min-len: 2
+    min-occurrences: 2
+  gofmt:
+    auto-fix: false
+  govet:
+    check-shadowing: true
+    min-len: 3 # minimum length of string constant
+    min-occurrences: 6 # minimum number of occurrences
+
+issues:
+  exclude-rules:
+    - path: '(.+)_test\.go'
+      linters:
+        - deadcode
