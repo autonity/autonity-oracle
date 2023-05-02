@@ -136,6 +136,7 @@ func TestOracleServer(t *testing.T) {
 		l1Mock.EXPECT().BlockNumber(gomock.Any()).AnyTimes().Return(chainHeight, nil)
 		l1Mock.EXPECT().SyncProgress(gomock.Any()).Return(nil, nil)
 		l1Mock.EXPECT().ChainID(gomock.Any()).Return(new(big.Int).SetUint64(1000), nil)
+		l1Mock.EXPECT().BalanceAt(gomock.Any(), gomock.Any(), gomock.Any()).Return(AlertBalance, nil)
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 
 		// prepare last round data.

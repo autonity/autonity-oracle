@@ -30,6 +30,7 @@ var (
 	OneSecInterval   = 1 * time.Second  // 1s ticker job to check if we need to do pre-sampling.
 	PreSamplingRange = 15               // pre-sampling starts in 15blocks in advance.
 	SaltRange        = new(big.Int).SetUint64(math.MaxInt64)
+	AlertBalance     = new(big.Int).SetUint64(2000000000000) // 2000 Gwei, 0.000002 Ether
 )
 
 // OracleServer coordinates the plugin discovery, the data sampling, and do the health checking with L1 connectivity.
@@ -383,7 +384,20 @@ func (os *OracleServer) reportWithCommitment(newRound uint64, lastRoundData *typ
 
 	// save current round data.
 	os.roundData[newRound] = curRoundData
-	os.logger.Info("report with commitment", "TX hash", curRoundData.Tx.Hash(), "Nonce", curRoundData.Tx.Nonce())
+	os.logger.Info("report with commitment", "TX hash", curRoundData.Tx.Hash(), "Nonce", curRoundData.Tx.Nonce(), "Cost", curRoundData.Tx.Cost())
+
+	// alert in case of balance reach the warning value.
+	balance, err := os.client.BalanceAt(context.Background(), os.key.Address, nil)
+	if err != nil {
+		os.logger.Error("cannot get account balance", "error", err.Error())
+		return err
+	}
+
+	os.logger.Info("oracle client left fund", "balance", balance.Uint64())
+	if balance.Cmp(AlertBalance) <= 0 {
+		os.logger.Warn("oracle account has too less balance left for data reporting", "balance", balance.Uint64())
+	}
+
 	return nil
 }
 

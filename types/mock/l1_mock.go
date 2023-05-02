@@ -5,14 +5,16 @@
 package mock
 
 import (
+	types "autonity-oracle/types"
 	context "context"
 	big "math/big"
 	reflect "reflect"
 
 	ethereum "github.com/ethereum/go-ethereum"
 	common "github.com/ethereum/go-ethereum/common"
-	types "github.com/ethereum/go-ethereum/core/types"
+	types0 "github.com/ethereum/go-ethereum/core/types"
 	ethclient "github.com/ethereum/go-ethereum/ethclient"
+	event "github.com/ethereum/go-ethereum/event"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -75,6 +77,21 @@ func NewMockBlockchain(ctrl *gomock.Controller) *MockBlockchain {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockBlockchain) EXPECT() *MockBlockchainMockRecorder {
 	return m.recorder
+}
+
+// BalanceAt mocks base method.
+func (m *MockBlockchain) BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BalanceAt", ctx, account, blockNumber)
+	ret0, _ := ret[0].(*big.Int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BalanceAt indicates an expected call of BalanceAt.
+func (mr *MockBlockchainMockRecorder) BalanceAt(ctx, account, blockNumber interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BalanceAt", reflect.TypeOf((*MockBlockchain)(nil).BalanceAt), ctx, account, blockNumber)
 }
 
 // BlockNumber mocks base method.
@@ -165,10 +182,10 @@ func (mr *MockBlockchainMockRecorder) EstimateGas(ctx, call interface{}) *gomock
 }
 
 // FilterLogs mocks base method.
-func (m *MockBlockchain) FilterLogs(ctx context.Context, query ethereum.FilterQuery) ([]types.Log, error) {
+func (m *MockBlockchain) FilterLogs(ctx context.Context, query ethereum.FilterQuery) ([]types0.Log, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FilterLogs", ctx, query)
-	ret0, _ := ret[0].([]types.Log)
+	ret0, _ := ret[0].([]types0.Log)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -180,10 +197,10 @@ func (mr *MockBlockchainMockRecorder) FilterLogs(ctx, query interface{}) *gomock
 }
 
 // HeaderByNumber mocks base method.
-func (m *MockBlockchain) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
+func (m *MockBlockchain) HeaderByNumber(ctx context.Context, number *big.Int) (*types0.Header, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HeaderByNumber", ctx, number)
-	ret0, _ := ret[0].(*types.Header)
+	ret0, _ := ret[0].(*types0.Header)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -240,7 +257,7 @@ func (mr *MockBlockchainMockRecorder) PendingNonceAt(ctx, account interface{}) *
 }
 
 // SendTransaction mocks base method.
-func (m *MockBlockchain) SendTransaction(ctx context.Context, tx *types.Transaction) error {
+func (m *MockBlockchain) SendTransaction(ctx context.Context, tx *types0.Transaction) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SendTransaction", ctx, tx)
 	ret0, _ := ret[0].(error)
@@ -254,7 +271,7 @@ func (mr *MockBlockchainMockRecorder) SendTransaction(ctx, tx interface{}) *gomo
 }
 
 // SubscribeFilterLogs mocks base method.
-func (m *MockBlockchain) SubscribeFilterLogs(ctx context.Context, query ethereum.FilterQuery, ch chan<- types.Log) (ethereum.Subscription, error) {
+func (m *MockBlockchain) SubscribeFilterLogs(ctx context.Context, query ethereum.FilterQuery, ch chan<- types0.Log) (ethereum.Subscription, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SubscribeFilterLogs", ctx, query, ch)
 	ret0, _ := ret[0].(ethereum.Subscription)
@@ -269,7 +286,7 @@ func (mr *MockBlockchainMockRecorder) SubscribeFilterLogs(ctx, query, ch interfa
 }
 
 // SubscribeNewHead mocks base method.
-func (m *MockBlockchain) SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error) {
+func (m *MockBlockchain) SubscribeNewHead(ctx context.Context, ch chan<- *types0.Header) (ethereum.Subscription, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SubscribeNewHead", ctx, ch)
 	ret0, _ := ret[0].(ethereum.Subscription)
@@ -329,10 +346,10 @@ func (mr *MockBlockchainMockRecorder) SyncProgress(ctx interface{}) *gomock.Call
 }
 
 // TransactionByHash mocks base method.
-func (m *MockBlockchain) TransactionByHash(ctx context.Context, txHash common.Hash) (*types.Transaction, bool, error) {
+func (m *MockBlockchain) TransactionByHash(ctx context.Context, txHash common.Hash) (*types0.Transaction, bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "TransactionByHash", ctx, txHash)
-	ret0, _ := ret[0].(*types.Transaction)
+	ret0, _ := ret[0].(*types0.Transaction)
 	ret1, _ := ret[1].(bool)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
@@ -345,10 +362,10 @@ func (mr *MockBlockchainMockRecorder) TransactionByHash(ctx, txHash interface{})
 }
 
 // TransactionReceipt mocks base method.
-func (m *MockBlockchain) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
+func (m *MockBlockchain) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types0.Receipt, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "TransactionReceipt", ctx, txHash)
-	ret0, _ := ret[0].(*types.Receipt)
+	ret0, _ := ret[0].(*types0.Receipt)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -357,4 +374,41 @@ func (m *MockBlockchain) TransactionReceipt(ctx context.Context, txHash common.H
 func (mr *MockBlockchainMockRecorder) TransactionReceipt(ctx, txHash interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TransactionReceipt", reflect.TypeOf((*MockBlockchain)(nil).TransactionReceipt), ctx, txHash)
+}
+
+// MockSampleEventSubscriber is a mock of SampleEventSubscriber interface.
+type MockSampleEventSubscriber struct {
+	ctrl     *gomock.Controller
+	recorder *MockSampleEventSubscriberMockRecorder
+}
+
+// MockSampleEventSubscriberMockRecorder is the mock recorder for MockSampleEventSubscriber.
+type MockSampleEventSubscriberMockRecorder struct {
+	mock *MockSampleEventSubscriber
+}
+
+// NewMockSampleEventSubscriber creates a new mock instance.
+func NewMockSampleEventSubscriber(ctrl *gomock.Controller) *MockSampleEventSubscriber {
+	mock := &MockSampleEventSubscriber{ctrl: ctrl}
+	mock.recorder = &MockSampleEventSubscriberMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockSampleEventSubscriber) EXPECT() *MockSampleEventSubscriberMockRecorder {
+	return m.recorder
+}
+
+// WatchSampleEvent mocks base method.
+func (m *MockSampleEventSubscriber) WatchSampleEvent(sink chan<- *types.SampleEvent) event.Subscription {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WatchSampleEvent", sink)
+	ret0, _ := ret[0].(event.Subscription)
+	return ret0
+}
+
+// WatchSampleEvent indicates an expected call of WatchSampleEvent.
+func (mr *MockSampleEventSubscriberMockRecorder) WatchSampleEvent(sink interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchSampleEvent", reflect.TypeOf((*MockSampleEventSubscriber)(nil).WatchSampleEvent), sink)
 }
