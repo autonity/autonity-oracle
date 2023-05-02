@@ -23,8 +23,10 @@ var (
 	nodeKeyDir         = "./autonity_l1_config/nodekeys"
 	keyStoreDir        = "./autonity_l1_config/keystore"
 	defaultHost        = "127.0.0.1"
-	defaultPlugDir     = "./plugin_dir"
-	binancePlugDir     = "./binance_plugin_dir"
+	defaultPlugDir     = "./plugins/fake_plugins"
+	binancePlugDir     = "./plugins/production_plugins"
+	simulatorPlugDir   = "./plugins/simulator_plugins"
+	mixPluginDir       = "./plugins/mix_plugins"
 	defaultGenesis     = "./autonity_l1_config/genesis_template.json"
 	defaultPassword    = "test"
 	generatedGenesis   = "./autonity_l1_config/genesis_gen.json"
@@ -52,7 +54,7 @@ type AutonityContractGenesis struct {
 	Validators       []*Validator   `json:"validators"`
 }
 
-// Autonity contract config. It'is used for deployment.
+// OracleContractGenesis contract config. It'is used for deployment.
 type OracleContractGenesis struct {
 	// Bytecode of validators contract
 	// would like this type to be []byte but the unmarshalling is not working
@@ -76,11 +78,36 @@ type Validator struct {
 	BondedStake   *big.Int       `json:"bondedStake"`
 }
 
+type DataSimulator struct {
+	Command    *exec.Cmd
+	SimulateTM int
+}
+
+func (s *DataSimulator) Start() {
+	err := s.Command.Run()
+	if err != nil {
+		log.Error("start data simulator failed", "error", err.Error())
+	}
+}
+
+func (s *DataSimulator) Stop() {
+	err := s.Command.Process.Kill()
+	if err != nil {
+		log.Error("stop data simulator failed", "error", err.Error())
+	}
+}
+
+func (s *DataSimulator) GenCMD() {
+	c := exec.Command("./simulator", fmt.Sprintf("-sim_timeout=%d", s.SimulateTM))
+	c.Stderr = os.Stderr
+	c.Stdout = os.Stdout
+	s.Command = c
+}
+
 type Oracle struct {
 	Key       *Key
 	PluginDir string
 	Host      string
-	ProcessID int
 	Command   *exec.Cmd
 	Symbols   string
 }
@@ -89,14 +116,14 @@ type Oracle struct {
 func (o *Oracle) Start() {
 	err := o.Command.Run()
 	if err != nil {
-		//panic(err)
+		panic(err)
 	}
 }
 
 func (o *Oracle) Stop() {
 	err := o.Command.Process.Kill()
 	if err != nil {
-		log.Info("stop oracle client failed", "error", err.Error())
+		log.Error("stop oracle client failed", "error", err.Error())
 	}
 }
 
@@ -121,20 +148,18 @@ type Key struct {
 	Key        *keystore.Key
 }
 
-type Node struct {
-	EnableLog    bool
-	DataDir      string
-	NodeKey      *Key
-	Host         string
-	P2PPort      int
-	WSPort       int
-	ProcessID    int
-	OracleClient *Oracle
-	Command      *exec.Cmd
-	Validator    *Validator
+type L1Node struct {
+	EnableLog bool
+	DataDir   string
+	NodeKey   *Key
+	Host      string
+	P2PPort   int
+	WSPort    int
+	Command   *exec.Cmd
+	Validator *Validator
 }
 
-func (n *Node) GenCMD(genesisFile string) {
+func (n *L1Node) GenCMD(genesisFile string) {
 	c := exec.Command("./autonity",
 		"--ipcdisable", "--datadir", n.DataDir, "--genesis", genesisFile, "--nodekey", n.NodeKey.RawKeyFile, "--ws",
 		"--ws.addr", n.Host, "--ws.port", fmt.Sprintf("%d", n.WSPort), "--ws.api",
@@ -148,18 +173,17 @@ func (n *Node) GenCMD(genesisFile string) {
 	}
 
 	n.Command = c
-	n.OracleClient.GenCMD(fmt.Sprintf("ws://%s:%d", n.Host, n.WSPort))
 }
 
 // Start starts the process and wait until it exists, the caller should use a go routine to invoke it.
-func (n *Node) Start() {
+func (n *L1Node) Start() {
 	err := n.Command.Run()
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (n *Node) Stop() {
+func (n *L1Node) Stop() {
 	if err := n.Command.Process.Kill(); err != nil {
 		log.Warn("stop autonity client failed", "error", err.Error())
 	}
@@ -168,15 +192,25 @@ func (n *Node) Stop() {
 	}
 }
 
+type NetworkConfig struct {
+	EnableL1Logs    bool
+	Symbols         string
+	VotePeriod      uint64
+	PluginDIRs      []string // different oracle can have different plugins configured.
+	SimulateTimeout int      // to simulate timeout in seconds at data source simulator when processing http request.
+}
+
 type Network struct {
 	EnableL1Logs bool
 	GenesisFile  string
 	OperatorKey  *Key
 	TreasuryKey  *Key
-	Nodes        []*Node
+	L1Nodes      []*L1Node
+	L2Nodes      []*Oracle
+	Simulator    *DataSimulator
 	Symbols      string
 	VotePeriod   uint64
-	PluginDir    string
+	PluginDirs   []string // different oracle can have different plugins configured.
 }
 
 func (net *Network) genGenesisFile() error {
@@ -184,7 +218,7 @@ func (net *Network) genGenesisFile() error {
 	dstGenesis := generatedGenesis
 
 	var vals []*Validator
-	for _, n := range net.Nodes {
+	for _, n := range net.L1Nodes {
 		vals = append(vals, n.Validator)
 	}
 
@@ -196,36 +230,42 @@ func (net *Network) genGenesisFile() error {
 	return nil
 }
 
-// prepare configurations for autonity l1 node and oracle client node
-func (net *Network) genConfigs() error {
-	if err := net.genGenesisFile(); err != nil {
-		return err
-	}
-
-	for _, n := range net.Nodes {
-		n.GenCMD(net.GenesisFile)
-	}
-	return nil
-}
-
 func (net *Network) Start() {
-	for _, n := range net.Nodes {
+	if net.Simulator != nil {
+		net.Simulator.GenCMD()
+		go net.Simulator.Start()
+	}
+
+	for _, n := range net.L1Nodes {
+		n.GenCMD(net.GenesisFile)
 		go n.Start()
-		time.Sleep(5 * time.Second)
-		go n.OracleClient.Start()
+	}
+
+	time.Sleep(5 * time.Second)
+
+	for i, n := range net.L2Nodes {
+		n.GenCMD(fmt.Sprintf("ws://%s:%d", net.L1Nodes[i].Host, net.L1Nodes[i].WSPort))
+		go n.Start()
 	}
 }
 
 func (net *Network) Stop() {
-	for _, n := range net.Nodes {
-		n.OracleClient.Stop()
+	for _, n := range net.L1Nodes {
 		n.Stop()
+	}
+
+	for _, n := range net.L2Nodes {
+		n.Stop()
+	}
+
+	if net.Simulator != nil {
+		net.Simulator.Stop()
 	}
 }
 
 // create with a four-nodes autonity l1 network for the integration of oracle service, with each of validator bind with
 // an oracle node.
-func createNetwork(enableL1Logs bool, symbols string, votePeriod uint64, pluginDir string) (*Network, error) {
+func createNetwork(netConf *NetworkConfig) (*Network, error) {
 	keys, err := loadKeys(keyStoreDir, defaultPassword)
 	if err != nil {
 		return nil, err
@@ -235,13 +275,28 @@ func createNetwork(enableL1Logs bool, symbols string, votePeriod uint64, pluginD
 		panic("keystore does not contains enough key for testbed")
 	}
 
+	var pluginDIRs = []string{defaultPlugDir, defaultPlugDir, defaultPlugDir, defaultPlugDir}
+	var simulator *DataSimulator
+	for i, d := range netConf.PluginDIRs {
+		if i >= numberOfValidators {
+			break
+		}
+		if len(d) != 0 {
+			pluginDIRs[i] = d
+			if (d == simulatorPlugDir || d == mixPluginDir) && simulator == nil {
+				simulator = &DataSimulator{SimulateTM: netConf.SimulateTimeout}
+			}
+		}
+	}
+
 	var network = &Network{
-		EnableL1Logs: enableL1Logs,
+		EnableL1Logs: netConf.EnableL1Logs,
 		OperatorKey:  keys[0],
 		TreasuryKey:  keys[1],
-		Symbols:      symbols,
-		VotePeriod:   votePeriod,
-		PluginDir:    pluginDir,
+		Symbols:      netConf.Symbols,
+		VotePeriod:   netConf.VotePeriod,
+		PluginDirs:   pluginDIRs,
+		Simulator:    simulator,
 	}
 
 	freePorts, err := getFreePost(numberOfValidators * numberOfPortsForBindNodes)
@@ -249,13 +304,7 @@ func createNetwork(enableL1Logs bool, symbols string, votePeriod uint64, pluginD
 		return nil, err
 	}
 
-	//plan the network with number of validators, allocate configs for L1 node and the corresponding oracle client.
-	network, err = prepareResource(network, keys[2:], freePorts, numberOfValidators)
-	if err != nil {
-		return nil, err
-	}
-
-	err = network.genConfigs()
+	network, err = configNetwork(network, keys[2:], freePorts, numberOfValidators)
 	if err != nil {
 		return nil, err
 	}
@@ -265,46 +314,49 @@ func createNetwork(enableL1Logs bool, symbols string, votePeriod uint64, pluginD
 	return network, nil
 }
 
-func prepareResource(network *Network, freeKeys []*Key, freePorts []int, nodes int) (*Network, error) {
+func configNetwork(network *Network, freeKeys []*Key, freePorts []int, nodes int) (*Network, error) {
 
 	for i := 0; i < nodes; i++ {
-		// allocate a key and a port for oracle client,
-		var oracle = &Oracle{
+		// allocate a key and a port for l2Node client,
+		var l2Node = &Oracle{
 			Key:       freeKeys[i*2],
-			PluginDir: network.PluginDir,
+			PluginDir: network.PluginDirs[i],
 			Host:      defaultHost,
-			ProcessID: -1,
 			Symbols:   network.Symbols,
 		}
 
-		// allocate a key and 2 ports for validator client,
-		var aut = &Node{
-			EnableLog:    network.EnableL1Logs,
-			DataDir:      fmt.Sprintf("%s/node_%d/data", defaultDataDirRoot, i),
-			NodeKey:      freeKeys[i*2+1],
-			Host:         defaultHost,
-			P2PPort:      freePorts[i*2],
-			WSPort:       freePorts[i*2+1],
-			OracleClient: oracle,
+		// allocate a key and 2 ports for l1 validator client,
+		var l1Node = &L1Node{
+			EnableLog: network.EnableL1Logs,
+			DataDir:   fmt.Sprintf("%s/node_%d/data", defaultDataDirRoot, i),
+			NodeKey:   freeKeys[i*2+1],
+			Host:      defaultHost,
+			P2PPort:   freePorts[i*2],
+			WSPort:    freePorts[i*2+1],
 		}
 
 		var validator = &Validator{
-			Treasury:      aut.NodeKey.Key.Address,
-			Enode:         genEnode(&aut.NodeKey.Key.PrivateKey.PublicKey, aut.Host, aut.P2PPort),
-			OracleAddress: crypto.PubkeyToAddress(oracle.Key.Key.PrivateKey.PublicKey),
+			Treasury:      l1Node.NodeKey.Key.Address,
+			Enode:         genEnode(&l1Node.NodeKey.Key.PrivateKey.PublicKey, l1Node.Host, l1Node.P2PPort),
+			OracleAddress: crypto.PubkeyToAddress(l2Node.Key.Key.PrivateKey.PublicKey),
 			BondedStake:   defaultBondedStake,
 		}
 
-		aut.OracleClient = oracle
-		aut.Validator = validator
+		l1Node.Validator = validator
 
 		// clean up legacy data in the data DIR for the test framework.
-		if err := os.RemoveAll(aut.DataDir); err != nil {
+		if err := os.RemoveAll(l1Node.DataDir); err != nil {
 			log.Warn("Cannot cleanup legacy data for the test framework", "err", err.Error())
 		}
 
-		network.Nodes = append(network.Nodes, aut)
+		network.L1Nodes = append(network.L1Nodes, l1Node)
+		network.L2Nodes = append(network.L2Nodes, l2Node)
 	}
+
+	if err := network.genGenesisFile(); err != nil {
+		return nil, err
+	}
+
 	return network, nil
 }
 
