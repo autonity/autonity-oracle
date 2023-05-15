@@ -15,7 +15,8 @@ import (
 )
 
 var (
-	DataGenInterval = 5 * time.Second
+	DataGenInterval         = 5 * time.Second
+	DefaultDistributionRate = 0.01
 )
 
 type RandGeneratorManager struct {
@@ -108,6 +109,9 @@ func (gm *RandGeneratorManager) AdjustParams(params types.GeneratorParams, metho
 		}
 		gm.logger.Debug("handle method: ", method)
 		switch method {
+		case "new_simulation":
+			gm.generators[v.Symbol] = generators.NewRandDataGenerator(decimal.NewFromFloat(v.Value), decimal.NewFromFloat(DefaultDistributionRate))
+			gm.symbols = append(gm.symbols, v.Symbol)
 		case "move_to":
 			gm.generators[v.Symbol].MoveTo(decimal.NewFromFloat(v.Value))
 		case "move_by":
