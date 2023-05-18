@@ -393,9 +393,9 @@ func (os *OracleServer) reportWithCommitment(newRound uint64, lastRoundData *typ
 		return err
 	}
 
-	os.logger.Info("oracle client left fund", "balance", balance.Uint64())
+	os.logger.Info("oracle client left fund", "balance", balance.String())
 	if balance.Cmp(AlertBalance) <= 0 {
-		os.logger.Warn("oracle account has too less balance left for data reporting", "balance", balance.Uint64())
+		os.logger.Warn("oracle account has too less balance left for data reporting", "balance", balance.String())
 	}
 
 	return nil
