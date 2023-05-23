@@ -11,7 +11,7 @@ All the configuration have default values, in case of configuring the simulator,
 |-------------------------|---------------|--------------------------------------------------------------|-----------------------------|----------------------------------|
 | `SIM_HTTP_PORT`         | No            | The port that the simulator HTTP rpc endpoint bind to        | `50991`                     | any free port number on the host |
 | `SIM_PLAYBOOK_FILE`     | No            | The data point playbook that simulator replay with           | ""                          | a .csv file with symbols at header line and datapoint at the other lines|
-| `SIM_SYMBOL_CONFIG`     | No            | The string with items of patter: SYMBOL:StartingDataPoint:DataDistributionRateRange  | "NTNUSD:7.0:0.01\|NTNAUD:9.856:0.01\|NTNCAD:9.333:0.01\|NTNEUR:6.8369:0.01\|NTNGBP:5.691:0.01\|NTNJPY:128.205:0.01\|NTNSEK:72.163:0.01\|AUD/USD:0.67:0.01\|CAD/USD:0.74:0.01\|EUR/USD:1.086:0.01\|GPB/USD:1.25:0.01\|JPY/USD:0.0073:0.01\|SEK/USD:0.096:0.01\|ATN/USD:1.0:0.001\|NTN/USD:7.0:0.01\|NTN/ATN:7.0:0.01"                 | similar string in such pattern |
+| `SIM_SYMBOL_CONFIG`     | No            | The string with items of patter: SYMBOL:StartingDataPoint:DataDistributionRateRange  | "NTNUSD:7.0:0.01\|NTNAUD:9.856:0.01\|NTNCAD:9.333:0.01\|NTNEUR:6.8369:0.01\|NTNGBP:5.691:0.01\|NTNJPY:128.205:0.01\|NTNSEK:72.163:0.01\|AUD/USD:0.67:0.01\|CAD/USD:0.74:0.01\|EUR/USD:1.086:0.01\|GBP/USD:1.25:0.01\|JPY/USD:0.0073:0.01\|SEK/USD:0.096:0.01\|ATN/USD:1.0:0.001\|NTN/USD:7.0:0.01\|NTN/ATN:7.0:0.01"                 | similar string in such pattern |
 
 Or, there are 5 CLI flags as well with the same feature as the system enviroment variables:
 
