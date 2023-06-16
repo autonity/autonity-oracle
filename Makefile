@@ -64,6 +64,9 @@ autoracle:
 	@echo "Done building."
 	@echo "Run \"$(BIN_DIR)/autoracle\" to launch autonity oracle."
 
+simulator:
+	go build -o $(SIMULATOR_BIN_DIR)/simulator $(SIMULATOR_SRC_DIR)/main.go
+
 oracle-contract:
 	mkdir -p $(BIN_DIR)
 	wget -O $(SOLC_BINARY) https://github.com/ethereum/solidity/releases/download/v$(SOLC_VERSION)/solc-static-linux
