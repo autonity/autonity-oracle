@@ -191,6 +191,49 @@ func TestHappyCaseWithBinanceDataService(t *testing.T) {
 	testBinanceDataHappyCase(t, o, endRound)
 }
 
+func TestFeeRefund(t *testing.T) {
+	var netConf = &NetworkConfig{
+		EnableL1Logs: false,
+		Symbols:      config.DefaultSymbols,
+		VotePeriod:   20,
+		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir},
+	}
+	network, err := createNetwork(netConf)
+	require.NoError(t, err)
+	defer network.Stop()
+
+	client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d", network.L1Nodes[0].Host, network.L1Nodes[0].WSPort))
+	require.NoError(t, err)
+	defer client.Close()
+
+	// bind client with oracle contract address
+	oc, err := contract.NewOracle(types.OracleContractAddress, client)
+	require.NoError(t, err)
+
+	// bind client with autonity contract address
+	_, err = autonity.NewAutonity(types.AutonityContractAddress, client)
+	require.NoError(t, err)
+	// first test happy case.
+	tc := time.NewTicker(10 * time.Second)
+	lastBalance, err := client.BalanceAt(context.Background(), network.L2Nodes[0].Key.Key.Address, nil)
+	require.NoError(t, err)
+	for {
+		select {
+		// check round update after every 10 seconds
+		case <-tc.C:
+			currRound, err := oc.GetRound(nil)
+			curBalance, err := client.BalanceAt(context.Background(), network.L2Nodes[0].Key.Key.Address, nil)
+			require.NoError(t, err)
+			require.Equal(t, lastBalance, curBalance)
+			// check balance update for 5 rounds
+			if currRound.Cmp(big.NewInt(5)) == 0 {
+				return
+			}
+			lastBalance = curBalance
+		}
+	}
+}
+
 func TestWithBinanceSimulatorOff(t *testing.T) {
 	var netConf = &NetworkConfig{
 		EnableL1Logs: false,
