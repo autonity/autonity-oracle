@@ -19,7 +19,7 @@ var HandshakeConfig = plugin.HandshakeConfig{
 }
 
 // PluginPriceReport is the returned data samples from adapters which carry the prices and bad symbols if there are any
-// invalid symbols addressed from data source.
+// invalid symbols which is not recognisable by the data source.
 type PluginPriceReport struct {
 	Prices     []Price
 	BadSymbols []string

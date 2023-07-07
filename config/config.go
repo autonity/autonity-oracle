@@ -16,7 +16,7 @@ var (
 	DefaultKeyFile       = "./test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"
 	DefaultKeyPassword   = "123"
 	DefaultPluginDir     = "./build/bin/plugins"
-	DefaultSymbols       = "NTNUSD,NTNAUD,NTNCAD,NTNEUR,NTNGBP,NTNJPY,NTNSEK"
+	DefaultSymbols       = "NTN/USD,NTN/AUD,NTN/CAD,NTN/EUR,NTN/GBP,NTN/JPY,NTN/SEK"
 )
 
 const Version = "v0.1.1"
