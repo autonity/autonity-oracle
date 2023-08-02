@@ -1,0 +1,219 @@
+package main
+
+import (
+	"autonity-oracle/plugins/common"
+	"autonity-oracle/types"
+	"encoding/json"
+	"fmt"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-plugin"
+	"github.com/shopspring/decimal"
+	"io"
+	"net/url"
+	"os"
+	"strings"
+	"time"
+)
+
+const (
+	version               = "v0.0.1"
+	defaultScheme         = "https"
+	defaultHost           = "api.currencyfreaks.com"
+	defaultKey            = "5490e15565e741129788f6100e022ec5"
+	apiVersion            = "v2.0/rates/latest"
+	defaultTimeout        = 10   // 10s
+	defaultUpdateInterval = 3600 // 3600s
+	apiKey                = "apikey"
+)
+
+type CFResult struct {
+	Date  string  `json:"date"`
+	Base  string  `json:"base"`
+	Rates CFRates `json:"rates"`
+}
+
+type CFRates struct {
+	EUR string `json:"EUR"`
+	JPY string `json:"JPY"`
+	GBP string `json:"GBP"`
+	AUD string `json:"AUD"`
+	CAD string `json:"CAD"`
+	SEK string `json:"SEK"`
+}
+
+type CFClient struct {
+	conf   *types.PluginConfig
+	client *common.Client
+	logger hclog.Logger
+}
+
+func NewCFClient(conf *types.PluginConfig) *CFClient {
+	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
+	if client == nil {
+		panic("cannot create client for exchange rate api")
+	}
+
+	logger := hclog.New(&hclog.LoggerOptions{
+		Name:   conf.Name,
+		Level:  hclog.Debug,
+		Output: os.Stdout,
+	})
+
+	return &CFClient{conf: conf, client: client, logger: logger}
+}
+
+func (cf *CFClient) FetchPrice(symbols []string) (common.Prices, error) {
+	var prices common.Prices
+	u := cf.buildURL(cf.conf.Key)
+	res, err := cf.client.Conn.Request(cf.conf.Scheme, u)
+	if err != nil {
+		cf.logger.Error("https request", "error", err.Error())
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		cf.logger.Error("io read", "error", err.Error())
+		return nil, err
+	}
+
+	var result CFResult
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		cf.logger.Error("unmarshal price", "error", err.Error())
+		return nil, err
+	}
+
+	for _, s := range symbols {
+		p, err := cf.symbolsToPrice(s, &result)
+		if err != nil {
+			cf.logger.Error("symbol to price", "error", err.Error())
+			continue
+		}
+		prices = append(prices, p)
+	}
+	cf.logger.Info("currency freaks", "data", prices)
+	return prices, nil
+}
+
+// AvailableSymbols returns the adapted symbols for current data source.
+func (cf *CFClient) AvailableSymbols() ([]string, error) {
+	return common.DefaultForexSymbols, nil
+}
+
+func (cf *CFClient) Close() {
+	cf.client.Conn.Close()
+}
+
+func (cf *CFClient) symbolsToPrice(s string, res *CFResult) (common.Price, error) {
+	var price common.Price
+	codes := strings.Split(s, "/")
+	if len(codes) != 2 {
+		return price, fmt.Errorf("invalid symbol %s", s)
+	}
+
+	from := codes[0]
+	to := codes[1]
+	if to != res.Base {
+		return price, fmt.Errorf("wrong base %s", to)
+	}
+	price.Symbol = s
+	switch from {
+	case "EUR":
+		pUE, err := decimal.NewFromString(res.Rates.EUR)
+		if err != nil {
+			return price, err
+		}
+		price.Price = decimal.NewFromInt(1).Div(pUE).String()
+	case "JPY":
+		pUJ, err := decimal.NewFromString(res.Rates.JPY)
+		if err != nil {
+			return price, err
+		}
+		price.Price = decimal.NewFromInt(1).Div(pUJ).String()
+	case "GBP":
+		pUG, err := decimal.NewFromString(res.Rates.GBP)
+		if err != nil {
+			return price, err
+		}
+		price.Price = decimal.NewFromInt(1).Div(pUG).String()
+	case "AUD":
+		pUA, err := decimal.NewFromString(res.Rates.AUD)
+		if err != nil {
+			return price, err
+		}
+		price.Price = decimal.NewFromInt(1).Div(pUA).String()
+	case "CAD":
+		pUC, err := decimal.NewFromString(res.Rates.CAD)
+		if err != nil {
+			return price, err
+		}
+		price.Price = decimal.NewFromInt(1).Div(pUC).String()
+	case "SEK":
+		pUS, err := decimal.NewFromString(res.Rates.SEK)
+		if err != nil {
+			return price, err
+		}
+		price.Price = decimal.NewFromInt(1).Div(pUS).String()
+	default:
+		return price, fmt.Errorf("unknown symbol %s", from)
+	}
+	return price, nil
+}
+
+func (cf *CFClient) buildURL(key string) *url.URL {
+	endpoint := &url.URL{}
+	endpoint.Path = apiVersion
+
+	query := endpoint.Query()
+	query.Set(apiKey, key)
+	endpoint.RawQuery = query.Encode()
+	return endpoint
+}
+
+func resolveConf(conf *types.PluginConfig) {
+
+	if conf.Timeout == 0 {
+		conf.Timeout = defaultTimeout
+	}
+
+	if conf.DataUpdateInterval == 0 {
+		conf.DataUpdateInterval = defaultUpdateInterval
+	}
+
+	if len(conf.Scheme) == 0 {
+		conf.Scheme = defaultScheme
+	}
+
+	if len(conf.Endpoint) == 0 {
+		conf.Endpoint = defaultHost
+	}
+
+	if len(conf.Key) == 0 {
+		conf.Key = defaultKey
+	}
+}
+
+func main() {
+	conf, err := common.LoadPluginConf(os.Args[0])
+	if err != nil {
+		println("cannot load conf: ", err.Error(), os.Args[0])
+		os.Exit(-1)
+	}
+
+	resolveConf(&conf)
+
+	client := NewCFClient(&conf)
+	adapter := common.NewPlugin(&conf, client, version)
+	defer adapter.Close()
+
+	var pluginMap = map[string]plugin.Plugin{
+		"adapter": &types.AdapterPlugin{Impl: adapter},
+	}
+
+	plugin.Serve(&plugin.ServeConfig{
+		HandshakeConfig: types.HandshakeConfig,
+		Plugins:         pluginMap,
+	})
+}

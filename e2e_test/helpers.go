@@ -23,7 +23,8 @@ var (
 	nodeKeyDir         = "./autonity_l1_config/nodekeys"
 	keyStoreDir        = "./autonity_l1_config/keystore"
 	defaultHost        = "127.0.0.1"
-	defaultPlugDir     = "./plugins/fake_plugins"
+	defaultPlugDir     = "./plugins/template_plugins"
+	forexPlugDir       = "./plugins/forex_plugins"
 	binancePlugDir     = "./plugins/production_plugins"
 	simulatorPlugDir   = "./plugins/simulator_plugins"
 	mixPluginDir       = "./plugins/mix_plugins"
@@ -31,6 +32,7 @@ var (
 	defaultPassword    = "test"
 	generatedGenesis   = "./autonity_l1_config/genesis_gen.json"
 	defaultDataDirRoot = "./autonity_l1_config/nodes"
+	defaultPlugConf    = "./plugins/plugins-conf.yml"
 
 	defaultBondedStake = new(big.Int).SetUint64(1000)
 
@@ -105,11 +107,12 @@ func (s *DataSimulator) GenCMD() {
 }
 
 type Oracle struct {
-	Key       *Key
-	PluginDir string
-	Host      string
-	Command   *exec.Cmd
-	Symbols   string
+	Key        *Key
+	PluginDir  string
+	PluginConf string
+	Host       string
+	Command    *exec.Cmd
+	Symbols    string
 }
 
 // Start starts the process and wait until it exists, the caller should use a go routine to invoke it.
@@ -130,10 +133,11 @@ func (o *Oracle) Stop() {
 func (o *Oracle) GenCMD(wsEndpoint string) {
 	c := exec.Command("./autoracle",
 		fmt.Sprintf("-oracle_autonity_ws_url=%s", wsEndpoint),
-		fmt.Sprintf("-oracle_crypto_symbols=%s", o.Symbols),
+		fmt.Sprintf("-oracle_symbols=%s", o.Symbols),
 		fmt.Sprintf("-oracle_key_file=%s", o.Key.KeyFile),
 		fmt.Sprintf("-oracle_key_password=%s", o.Key.Password),
 		fmt.Sprintf("-oracle_plugin_dir=%s", o.PluginDir),
+		fmt.Sprintf("-oracle_plugin_conf=%s", o.PluginConf),
 	)
 
 	c.Stderr = os.Stderr
@@ -211,6 +215,7 @@ type Network struct {
 	Symbols      string
 	VotePeriod   uint64
 	PluginDirs   []string // different oracle can have different plugins configured.
+	PluginConf   []string // different oracle can have different plugin conf.
 }
 
 func (net *Network) genGenesisFile() error {
@@ -275,6 +280,7 @@ func createNetwork(netConf *NetworkConfig) (*Network, error) {
 		panic("keystore does not contains enough key for testbed")
 	}
 
+	var pluginConfs = []string{defaultPlugConf, defaultPlugConf, defaultPlugConf, defaultPlugConf}
 	var pluginDIRs = []string{defaultPlugDir, defaultPlugDir, defaultPlugDir, defaultPlugDir}
 	var simulator *DataSimulator
 	for i, d := range netConf.PluginDIRs {
@@ -296,6 +302,7 @@ func createNetwork(netConf *NetworkConfig) (*Network, error) {
 		Symbols:      netConf.Symbols,
 		VotePeriod:   netConf.VotePeriod,
 		PluginDirs:   pluginDIRs,
+		PluginConf:   pluginConfs,
 		Simulator:    simulator,
 	}
 
@@ -319,10 +326,11 @@ func configNetwork(network *Network, freeKeys []*Key, freePorts []int, nodes int
 	for i := 0; i < nodes; i++ {
 		// allocate a key and a port for l2Node client,
 		var l2Node = &Oracle{
-			Key:       freeKeys[i*2],
-			PluginDir: network.PluginDirs[i],
-			Host:      defaultHost,
-			Symbols:   network.Symbols,
+			Key:        freeKeys[i*2],
+			PluginDir:  network.PluginDirs[i],
+			PluginConf: network.PluginConf[i],
+			Host:       defaultHost,
+			Symbols:    network.Symbols,
 		}
 
 		// allocate a key and 2 ports for l1 validator client,

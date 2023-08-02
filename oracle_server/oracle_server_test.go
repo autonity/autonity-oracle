@@ -30,7 +30,8 @@ func TestOracleServer(t *testing.T) {
 	var subRoundEvent event.Subscription
 	var subSymbolsEvent event.Subscription
 	os.Setenv("ORACLE_KEY_FILE", "../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe") //nolint
-	os.Setenv("ORACLE_PLUGIN_DIR", "../plugins/fakeplugin/bin")                                                                         //nolint
+	os.Setenv("ORACLE_PLUGIN_DIR", "../plugins/template_plugin/bin")                                                                    //nolint
+	os.Setenv("ORACLE_PLUGIN_CONF", "../test_data/plugins-conf.yml")                                                                    //nolint
 	defer os.Clearenv()
 	conf := config.MakeConfig()
 
@@ -54,8 +55,8 @@ func TestOracleServer(t *testing.T) {
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromInt(precision.Int64())))
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
 		require.Equal(t, 1, len(srv.pluginSet))
-		require.Equal(t, "fakeplugin", srv.pluginSet["fakeplugin"].Name())
-		srv.pluginSet["fakeplugin"].Close()
+		require.Equal(t, "template_plugin", srv.pluginSet["template_plugin"].Name())
+		srv.pluginSet["template_plugin"].Close()
 	})
 
 	t.Run("test pre-sampling happy case", func(t *testing.T) {
@@ -99,7 +100,7 @@ func TestOracleServer(t *testing.T) {
 			require.Error(t, err)
 		}
 
-		srv.pluginSet["fakeplugin"].Close()
+		srv.pluginSet["template_plugin"].Close()
 	})
 
 	t.Run("test round vote happy case, with commitment and round data", func(t *testing.T) {
@@ -182,7 +183,7 @@ func TestOracleServer(t *testing.T) {
 		require.Equal(t, conf.Symbols, srv.roundData[srv.curRound].Symbols)
 		require.Equal(t, srv.commitmentHash(srv.roundData[srv.curRound], conf.Symbols), srv.roundData[srv.curRound].CommitmentHash)
 
-		srv.pluginSet["fakeplugin"].Close()
+		srv.pluginSet["template_plugin"].Close()
 	})
 
 	t.Run("test handle new symbol event", func(t *testing.T) {
@@ -210,7 +211,7 @@ func TestOracleServer(t *testing.T) {
 		srv.handleNewSymbolsEvent(nSymbols)
 		require.Equal(t, len(nSymbols), len(srv.symbols))
 		require.Equal(t, nSymbols, srv.symbols)
-		srv.pluginSet["fakeplugin"].Close()
+		srv.pluginSet["template_plugin"].Close()
 	})
 
 	t.Run("test plugin runtime discovery, add new plugin", func(t *testing.T) {
@@ -246,10 +247,10 @@ func TestOracleServer(t *testing.T) {
 
 		srv.PluginRuntimeDiscovery()
 		require.Equal(t, 2, len(srv.pluginSet))
-		require.Equal(t, "fakeplugin", srv.pluginSet["fakeplugin"].Name())
-		require.Equal(t, "clonedfakeplugin", srv.pluginSet["clonedfakeplugin"].Name())
-		srv.pluginSet["fakeplugin"].Close()
-		srv.pluginSet["clonedfakeplugin"].Close()
+		require.Equal(t, "template_plugin", srv.pluginSet["template_plugin"].Name())
+		require.Equal(t, "clonedtemplate_plugin", srv.pluginSet["clonedtemplate_plugin"].Name())
+		srv.pluginSet["template_plugin"].Close()
+		srv.pluginSet["clonedtemplate_plugin"].Close()
 	})
 
 	t.Run("test plugin runtime discovery, upgrade plugin", func(t *testing.T) {
@@ -272,7 +273,7 @@ func TestOracleServer(t *testing.T) {
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromInt(precision.Int64())))
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
 		require.Equal(t, 1, len(srv.pluginSet))
-		firstStart := srv.pluginSet["fakeplugin"].StartTime()
+		firstStart := srv.pluginSet["template_plugin"].StartTime()
 
 		// cpy and replace the legacy plugins
 		err := replacePlugins(srv.pluginDIR)
@@ -281,9 +282,9 @@ func TestOracleServer(t *testing.T) {
 		srv.PluginRuntimeDiscovery()
 
 		require.Equal(t, 1, len(srv.pluginSet))
-		require.Equal(t, "fakeplugin", srv.pluginSet["fakeplugin"].Name())
-		require.Greater(t, srv.pluginSet["fakeplugin"].StartTime(), firstStart)
-		srv.pluginSet["fakeplugin"].Close()
+		require.Equal(t, "template_plugin", srv.pluginSet["template_plugin"].Name())
+		require.Greater(t, srv.pluginSet["template_plugin"].StartTime(), firstStart)
+		srv.pluginSet["template_plugin"].Close()
 	})
 
 	t.Run("gcRounddata", func(t *testing.T) {

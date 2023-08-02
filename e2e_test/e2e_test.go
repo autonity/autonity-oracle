@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
@@ -170,7 +171,7 @@ func TestAddCommitteeMember(t *testing.T) {
 func TestHappyCaseWithBinanceDataService(t *testing.T) {
 	var netConf = &NetworkConfig{
 		EnableL1Logs: false,
-		Symbols:      "BTCUSD,BTCUSDC,BTCUSDT,BTCUSD4",
+		Symbols:      "BTC/USD,BTC/USDC,BTC/USDT,BTC/USD4",
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{binancePlugDir, binancePlugDir, binancePlugDir, binancePlugDir},
 	}
@@ -312,6 +313,34 @@ func TestWithBinanceSimulatorTimeout(t *testing.T) {
 	}
 }
 
+func TestForexPluginsHappyCase(t *testing.T) {
+	var netConf = &NetworkConfig{
+		EnableL1Logs: false,
+		Symbols:      "EUR/USD,JPY/USD,GBP/USD,AUD/USD,CAD/USD,SEK/USD",
+		VotePeriod:   defaultVotePeriod,
+		PluginDIRs:   []string{forexPlugDir, forexPlugDir, forexPlugDir, forexPlugDir},
+	}
+	network, err := createNetwork(netConf)
+	require.NoError(t, err)
+	defer network.Stop()
+
+	client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d", network.L1Nodes[0].Host, network.L1Nodes[0].WSPort))
+	require.NoError(t, err)
+	defer client.Close()
+
+	// bind client with oracle contract address
+	o, err := contract.NewOracle(types.OracleContractAddress, client)
+	require.NoError(t, err)
+
+	p, err := o.GetPrecision(nil)
+	require.NoError(t, err)
+	pricePrecision := decimal.NewFromInt(p.Int64())
+
+	// first test happy case.
+	endRound := uint64(10)
+	testHappyCase(t, o, endRound, pricePrecision)
+}
+
 func testHappyCase(t *testing.T, o *contract.Oracle, beforeRound uint64, pricePrecision decimal.Decimal) {
 	for {
 		time.Sleep(1 * time.Minute)
@@ -359,9 +388,9 @@ func testBinanceDataHappyCase(t *testing.T, o *contract.Oracle, beforeRound uint
 		symbols, err := o.GetSymbols(nil)
 		require.NoError(t, err)
 
-		// get round data for each symbol.
+		// get last round data for each symbol.
 		for _, s := range symbols {
-			d, err := o.GetRoundData(nil, round, s)
+			d, err := o.GetRoundData(nil, round.Sub(round, common.Big1), s)
 			require.NoError(t, err)
 			require.NotEqual(t, uint64(0), d.Price.Uint64())
 			require.Equal(t, uint64(0), d.Status.Uint64())
@@ -386,7 +415,7 @@ func testAddNewSymbols(t *testing.T, network *Network, client *ethclient.Client,
 	legacySymbols, err := o.GetSymbols(nil)
 	require.NoError(t, err)
 
-	newSymbols := append(legacySymbols, "BTCETH")
+	newSymbols := append(legacySymbols, "BTC/ETH")
 
 	_, err = o.SetSymbols(auth, newSymbols)
 	require.NoError(t, err)

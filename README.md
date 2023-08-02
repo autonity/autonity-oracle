@@ -6,7 +6,7 @@
 With the appropriate parameters, run:
 
 ``` 
-$./autoracle -oracle_key_file="./keystore/key" -oracle_key_password="123" -oracle_autonity_ws_url="ws://127.0.0.1:8000" 
+$./autoracle -oracle_key_file="./keystore/key" -oracle_key_password="123" -oracle_autonity_ws_url="ws://127.0.0.1:8546" -oracle_plugin_conf="./plugins/plugin-conf.yml"
 ```  
 
 ## Assumptions
@@ -44,29 +44,83 @@ To coordinate data sampling in the oracle network, the L1 oracle contract issues
 ## Configuration
 Values that can be configured by using environment variables:
 
-| **Env Variable** | **Required?** | **Meaning** | **Default Value** | **Valid Options** |  
-|----------------------------|---------------|---------------------------------------------------------------------------------------------|-------------------------------------|---------------------------------------------------------|  
-| `ORACLE_CRYPTO_SYMBOLS` | No | The symbols that the oracle component collects data points for | "NTNUSD,NTNAUD,NTNCAD,NTNEUR,NTNGBP,NTNJPY,NTNSEK" | symbols seperated by ',' |  
-| `ORACLE_PLUGIN_DIR` | No | The directory that stores the plugins | "./build/bin/plugins" | any directory that saves plugins |  
+| **Env Variable** | **Required?** | **Meaning** | **Default Value**                                                                                    | **Valid Options** |
+|----------------------------|---------------|---------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|---------------------------------------------------------|
+| `ORACLE_SYMBOLS` | No | The symbols that the oracle component collects data points for | "NTN/USD,ATN/USD,EUR/USD,JPY/USD,GBP/USD,AUD/USD,CAD/USD,SEK/USD"                                    | symbols seperated by ',' |
+| `ORACLE_PLUGIN_DIR` | No | The directory that stores the plugins | "./build/bin/plugins"                                                                                | any directory that saves plugins |
 | `ORACLE_KEY_FILE` | Yes | The encrypted key file path that contains the private key of the oracle client. | "./test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" | any key file that saves the private key |  
-| `ORACLE_KEY_PASSWORD` | Yes | The password of the key file that contains the private key of the oracle client. | "123" | any password that encrypted the private key |  
-| `ORACLE_AUTONITY_WS_URL` | Yes | The web socket RPC URL of your Autonity L1 Node that the oracle client communicates with. | "ws://127.0.0.1:8000" | the web socket rpc endpoint url of the Autonity client. |  
+| `ORACLE_KEY_PASSWORD` | Yes | The password of the key file that contains the private key of the oracle client. | "123"                                                                                                | any password that encrypted the private key |
+| `ORACLE_AUTONITY_WS_URL` | Yes | The web socket RPC URL of your Autonity L1 Node that the oracle client communicates with. | "ws://127.0.0.1:8546"                                                                                | the web socket rpc endpoint url of the Autonity client. |
+| `ORACLE_PLUGIN_CONF` | Yes | The plugins' configuration file in YAML. | "./build/bin/plugins/plugins-conf.yml"                                                               | the configuration file of the oracle plugins. |
 
 or by using console flags:
 
 $./autoracle -help  
 Usage of ./autoracle:  
--oracle_autonity_ws_url="ws://127.0.0.1:8000": The websocket URL of autonity client  
--oracle_crypto_symbols="ETHUSDC,ETHUSDT,ETHBTC": The symbols string separated by comma  
+-oracle_autonity_ws_url="ws://127.0.0.1:8546": The websocket URL of autonity client
+-oracle_symbols="NTN/USD,ATN/USD,EUR/USD,JPY/USD,GBP/USD,AUD/USD,CAD/USD,SEK/USD": The symbols string separated by comma  
 -oracle_key_file="a path to your key file": The file that save the private key of the oracle client  
 -oracle_key_password="key-password": The password to decode your oracle account's key file  
 -oracle_plugin_dir="./plugins": The DIR where the adapter plugins are stored
+-oracle_plugin_conf="./build/bin/plugins/plugins-conf.yml": The plugins' configuration file in YAML
 
 
 example to run the autonity oracle service with console flags:
 
-$./autoracle -oracle_crypto_symbols="ETHUSDC,ETHUSDT,ETHBTC" -oracle_plugin_dir="./plugins" -oracle_key_file="../../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" -oracle_key_password="123" -oracle_autonity_ws_url="ws://127.0.0.1:8000"
+$./autoracle -oracle_symbols="NTN/USD,ATN/USD,EUR/USD,JPY/USD,GBP/USD,AUD/USD,CAD/USD,SEK/USD" -oracle_plugin_dir="./plugins" -oracle_key_file="../../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" -oracle_key_password="123" -oracle_autonity_ws_url="ws://127.0.0.1:8546" -oracle_plugin_conf="./plugins/plugins-conf.yml"
 
+plugin configuration file:    
+
+`A yaml file to config extra data for a specific plugin nominated by its name, for example here is a plugin configuration to
+config the service key to the corresponding plugins:`
+
+```yaml
+# A list of plugins with each one's executable binary name and its corresponding API key granted by the data provider.
+# For forex data providers which provide the realtime exchange rate of EUR/USD, JPY/USD, GBP/USD, AUD/USD, CAD/USD and
+# SEK/USD, there are 4 official plugins listed below, end user can select one or more of them on-demand for the forex
+# data sourcing. Remember to config the API key in below once you subscribe the service plan from your data vendors.
+
+# Un-comment below lines to enable your configuration on demand.
+#  - name: forex_currencyfreaks              # visit https://currencyfreaks.com to apply for your key
+#    key: 5490e15565e741129788f6100e022ec5   # replace it with your own key
+
+#  - name: forex_openexchangerate            # visit https://openexchangerates.org to apply for your key
+#    key: 0be02ca33c4843ee968c4cedd2686f01   # replace it with your own key
+
+#  - name: forex_currencylayer               # visit https://currencylayer.com to apply for your key
+#    key: 705af082ac7f7d150c87303d4e2f049e   # replace it with your own key
+
+#  - name: forex_exchangerate                # visit https://www.exchangerate-api.com to apply for your key
+#    key: 411f04e4775bb86c20296530           # replace it with your own key
+
+- name: forex_currencyfreaks              # visit https://currencyfreaks.com to apply for your key
+  key: 5490e15565e741129788f6100e022ec5   # replace it with your own key
+
+- name: forex_openexchangerate            # visit https://openexchangerates.org to apply for your key
+  key: 0be02ca33c4843ee968c4cedd2686f01   # replace it with your own key
+
+- name: forex_currencylayer               # visit https://currencylayer.com to apply for your key
+  key: 705af082ac7f7d150c87303d4e2f049e   # replace it with your own key
+
+- name: forex_exchangerate                # visit https://www.exchangerate-api.com to apply for your key
+  key: 411f04e4775bb86c20296530           # replace it with your own key
+```
+
+Available configuration fields:
+
+There are multiple configuration fields can be used, it is not required to config each field of them, it depends on your plugin implementation.
+```go
+// PluginConfig carry the configuration of plugins.
+type PluginConfig struct {
+	Name               string `json:"name" yaml:"name"`         // the name of the plugin binary.
+	Key                string `json:"key" yaml:"key"`           // the API key granted by your data provider to access their data API.
+	Scheme             string `json:"scheme" yaml:"scheme"`     // the data service scheme, http or https.
+	Endpoint           string `json:"endpoint" yaml:"endpoint"` // the data service endpoint url of the data provider.
+	Timeout            int    `json:"timeout" yaml:"timeout"`   // the timeout period that an API request is lasting for.
+	DataUpdateInterval int    `json:"refresh" yaml:"refresh"`   // reserved for rate limited provider's plugin, limit the request rate.
+}
+```
+In the last configuration file, all the forex data vendors need a service key to access their data, thus a key is expected for the corresponding plugins.
 
 
 ## Deployment
@@ -93,16 +147,17 @@ Path of the secret key file: key-data/keystore/UTC--2023-02-28T11-40-15.38370976
 Prepare the plugin binaries, and save them into the `plugins` directory, then start the service:  
 Set the system environment variables and run the binary:
 
-$export ORACLE_CRYPTO_SYMBOLS="ETHUSDC,ETHUSDT,ETHBTC"  
+$export ORACLE_SYMBOLS="NTN/USD,ATN/USD,EUR/USD,JPY/USD,GBP/USD,AUD/USD,CAD/USD,SEK/USD"  
 $export ORACLE_PLUGIN_DIR="./plugins"  
 $export ORACLE_KEY_FILE="./test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"  
 $export ORACLE_KEY_PASSWORD="your passord to the key file"  
-$export ORACLE_AUTONITY_WS_URL="ws://127.0.0.1:8645"  
+$export ORACLE_AUTONITY_WS_URL="ws://127.0.0.1:8546"
+$export ORACLE_PLUGIN_CONF="./plugins/plugins-conf.yml"
 $.~/src/autonity-oracle/build/bin/autoracle
 
 or configure by using console flags and run the binary:
 
-$./autoracle -oracle_crypto_symbols="ETHUSDC,ETHUSDT,ETHBTC" -oracle_plugin_dir="./plugins" -oracle_key_file="../../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" -oracle_key_password="123" -oracle_autonity_ws_url="ws://127.0.0.1:8645"
+$./autoracle -oracle_symbols="NTN/USD,ATN/USD,EUR/USD,JPY/USD,GBP/USD,AUD/USD,CAD/USD,SEK/USD" -oracle_plugin_dir="./plugins" -oracle_key_file="../../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" -oracle_key_password="123" -oracle_autonity_ws_url="ws://127.0.0.1:8546"
 
 ### Deploy via linux system daemon
 #### Preparations
@@ -114,7 +169,7 @@ Description=Clearmatics Autonity Oracle Server
 After=syslog.target network.target  
 [Service]  
 Type=simple  
-ExecStart=/home/jason/src/autonity-oracle/build/bin/autoracle -oracle_plugin_dir="/home/jason/src/autonity-oracle/build/bin/plugins"  
+ExecStart=/home/test/src/autonity-oracle/build/bin/autoracle -oracle_plugin_dir="/home/test/src/autonity-oracle/build/bin/plugins" -oracle_plugin_conf="/home/test/src/autonity-oracle/build/bin/plugins/plugins-conf.yml"
 KillMode=process  
 KillSignal=SIGINT  
 TimeoutStopSec=5  
@@ -231,5 +286,6 @@ To generate mocks for unit test
 
 make mock
 
+To build a plugin, please refer to [How to build a plugin](plugins/README.md)
 
 Built binaries are presented at: `./build/bin` under which there is a `plugins` directory for the built plugins as well.

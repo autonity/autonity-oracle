@@ -1,12 +1,14 @@
 package oracleserver
 
 import (
+	"autonity-oracle/config"
 	contract "autonity-oracle/contract_binder/contract"
 	"autonity-oracle/helpers"
 	pWrapper "autonity-oracle/plugin_wrapper"
 	"autonity-oracle/types"
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -25,7 +27,6 @@ import (
 )
 
 var (
-	Version          = "V0.0.1"
 	TenSecsInterval  = 10 * time.Second // 10s ticker job to check health with l1, plugin discovery and regular data sampling.
 	OneSecInterval   = 1 * time.Second  // 1s ticker job to check if we need to do pre-sampling.
 	PreSamplingRange = 15               // pre-sampling starts in 15blocks in advance.
@@ -60,6 +61,8 @@ type OracleServer struct {
 	roundData       map[uint64]*types.RoundData
 	key             *keystore.Key
 
+	pluginConfFile string
+
 	chRoundEvent  chan *contract.OracleNewRound
 	subRoundEvent event.Subscription
 
@@ -79,6 +82,7 @@ func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, clien
 		l1WSUrl:        conf.AutonityWSUrl,
 		roundData:      make(map[uint64]*types.RoundData),
 		key:            conf.Key,
+		pluginConfFile: conf.PluginConfFile,
 		symbols:        conf.Symbols,
 		pluginDIR:      conf.PluginDIR,
 		pluginSet:      make(map[string]*pWrapper.PluginWrapper),
@@ -93,14 +97,24 @@ func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, clien
 		Level:  hclog.Debug,
 	})
 
+	// load plugin configs before start them.
+	plugConfs, err := config.LoadPluginsConfig(conf.PluginConfFile)
+	if err != nil {
+		os.logger.Error("cannot load plugin configuration", "error", err.Error())
+		panic(err)
+	}
+
 	// discover plugins from plugin dir at startup.
 	binaries, err := helpers.ListPlugins(conf.PluginDIR)
 	if len(binaries) == 0 || err != nil {
 		// to stop the service on the start once there is no plugin in the db.
+		os.logger.Error("No plugins at plugin dir", "plugin-dir", os.pluginDIR)
 		panic(fmt.Sprintf("No plugins at plugin dir: %s, please build the plugins", os.pluginDIR))
 	}
 	for _, file := range binaries {
-		os.tryLoadingNewPlugin(file)
+		f := file
+		pConf := plugConfs[f.Name()]
+		os.tryLoadingNewPlugin(f, pConf)
 	}
 
 	os.logger.Info("Running data contract_binder", "rpc: ", conf.AutonityWSUrl, "voter", conf.Key.Address.String())
@@ -121,7 +135,7 @@ func (os *OracleServer) syncStates() error {
 		return err
 	}
 
-	os.logger.Info("syncStates", "CurrentRound", os.curRound, "Num of Symbols", len(os.protocolSymbols), "CurrentSymbols", os.protocolSymbols)
+	os.logger.Info("syncStates", "CurrentRound", os.curRound, "Num of AvailableSymbols", len(os.protocolSymbols), "CurrentSymbols", os.protocolSymbols)
 	os.UpdateSymbols(os.protocolSymbols)
 
 	// subscribe on-chain round rotation event
@@ -648,34 +662,61 @@ func (os *OracleServer) Stop() {
 }
 
 func (os *OracleServer) PluginRuntimeDiscovery() {
+	// load plugin configs before start them.
+	plugConfs, err := config.LoadPluginsConfig(os.pluginConfFile)
+	if err != nil {
+		os.logger.Error("cannot load plugin configuration", "error", err.Error())
+		return
+	}
+
 	binaries, err := helpers.ListPlugins(os.pluginDIR)
 	if err != nil {
 		os.logger.Error("PluginRuntimeDiscovery", "error", err.Error())
 		return
 	}
 	for _, file := range binaries {
-		os.tryLoadingNewPlugin(file)
+		f := file
+		pConf := plugConfs[f.Name()]
+		os.tryLoadingNewPlugin(f, pConf)
 	}
 }
 
-func (os *OracleServer) tryLoadingNewPlugin(f fs.FileInfo) {
+func (os *OracleServer) tryLoadingNewPlugin(f fs.FileInfo, plugConf types.PluginConfig) {
 	plugin, ok := os.pluginSet[f.Name()]
 	if !ok {
 		os.logger.Info("** New plugin discovered, going to setup it: ", f.Name(), f.Mode().String())
+
+		if err := os.ApplyPluginConf(f.Name(), plugConf); err != nil {
+			os.logger.Error("Apply plugin config", "error", err.Error())
+			return
+		}
+
 		pluginWrapper := pWrapper.NewPluginWrapper(f.Name(), os.pluginDIR, os)
-		pluginWrapper.Initialize()
+		if err := pluginWrapper.Initialize(); err != nil {
+			os.logger.Error("** Cannot initialize plugin", "name", f.Name(), "error", err.Error())
+			return
+		}
 		os.pluginSet[f.Name()] = pluginWrapper
 		os.logger.Info("** New plugin on ready: ", f.Name())
 		return
 	}
 
 	if f.ModTime().After(plugin.StartTime()) {
-		os.logger.Info("*** Replacing legacy plugin with new one: ", f.Name(), f.Mode().String())
-		// stop the legacy plugins process, disconnect rpc connection and release memory.
+		if err := os.ApplyPluginConf(f.Name(), plugConf); err != nil {
+			os.logger.Error("Apply plugin config", "error", err.Error())
+			return
+		}
+
+		// stop the legacy plugin
 		plugin.Close()
 		delete(os.pluginSet, f.Name())
+
+		os.logger.Info("*** Replacing legacy plugin with new one: ", f.Name(), f.Mode().String())
 		pluginWrapper := pWrapper.NewPluginWrapper(f.Name(), os.pluginDIR, os)
-		pluginWrapper.Initialize()
+		if err := pluginWrapper.Initialize(); err != nil {
+			os.logger.Error("** Cannot initialize plugin", "name", f.Name(), "error", err.Error())
+			return
+		}
 		os.pluginSet[f.Name()] = pluginWrapper
 		os.logger.Info("*** Finnish the replacement of plugin: ", f.Name())
 	}
@@ -683,4 +724,18 @@ func (os *OracleServer) tryLoadingNewPlugin(f fs.FileInfo) {
 
 func (os *OracleServer) WatchSampleEvent(sink chan<- *types.SampleEvent) event.Subscription {
 	return os.sampleEventFee.Subscribe(sink)
+}
+
+func (os *OracleServer) ApplyPluginConf(name string, plugConf types.PluginConfig) error {
+	// set the plugin configuration via system env, thus the plugin can load it on startup.
+	conf, err := json.Marshal(plugConf)
+	if err != nil {
+		os.logger.Error("** Cannot marshal plugin's configuration", "error", err.Error())
+		return err
+	}
+	if err = o.Setenv(name, string(conf)); err != nil {
+		os.logger.Error("** Cannot set plugin configuration via system ENV")
+		return err
+	}
+	return nil
 }

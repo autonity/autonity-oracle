@@ -14,6 +14,13 @@ import (
 )
 
 var (
+	pEURUSD = decimal.RequireFromString("1.086")
+	pJPYUSD = decimal.RequireFromString("0.0073")
+	pGBPUSD = decimal.RequireFromString("1.25")
+	pAUDUSD = decimal.RequireFromString("0.67")
+	pCADUSD = decimal.RequireFromString("0.74")
+	pSEKUSD = decimal.RequireFromString("0.096")
+	pATNUSD = decimal.RequireFromString("1.0")
 	pNTNUSD = decimal.RequireFromString("7.0")
 	pNTNAUD = decimal.RequireFromString("9.856")
 	pNTNCAD = decimal.RequireFromString("9.331")
@@ -26,19 +33,33 @@ var (
 func ResolveSimulatedPrice(s string) decimal.Decimal {
 	defaultPrice := types.SimulatedPrice
 	switch s {
-	case "NTNUSD": //nolint
+	case "EUR/USD":
+		defaultPrice = pEURUSD
+	case "JPY/USD":
+		defaultPrice = pJPYUSD
+	case "GBP/USD":
+		defaultPrice = pGBPUSD
+	case "AUD/USD":
+		defaultPrice = pAUDUSD
+	case "CAD/USD":
+		defaultPrice = pCADUSD
+	case "SEK/USD":
+		defaultPrice = pSEKUSD
+	case "ATN/USD":
+		defaultPrice = pATNUSD
+	case "NTN/USD": //nolint
 		defaultPrice = pNTNUSD
-	case "NTNAUD":
+	case "NTN/AUD":
 		defaultPrice = pNTNAUD
-	case "NTNCAD":
+	case "NTN/CAD":
 		defaultPrice = pNTNCAD
-	case "NTNEUR":
+	case "NTN/EUR":
 		defaultPrice = pNTNEUR
-	case "NTNGBP":
+	case "NTN/GBP":
 		defaultPrice = pNTNGBP
-	case "NTNJPY":
+	case "NTN/JPY":
 		defaultPrice = pNTNJPY
-	case "NTNSEK": //nolint
+	case "NTN/SEK": //nolint
 		defaultPrice = pNTNSEK
 	}
 	return defaultPrice
@@ -99,17 +120,40 @@ func Median(prices []decimal.Decimal) (decimal.Decimal, error) {
 
 func ListPlugins(path string) ([]fs.FileInfo, error) {
 	var plugins []fs.FileInfo
-
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, file := range files {
-		if file.IsDir() {
+		f := file
+		if f.IsDir() {
 			continue
 		}
-		plugins = append(plugins, file)
+		// only executable binaries are returned.
+		if !IsExecOwnerGroup(f.Mode()) {
+			continue
+		}
+
+		plugins = append(plugins, f)
 	}
 	return plugins, nil
+}
+
+// IsExecOwnerGroup return if the file is executable for the owner and the group
+func IsExecOwnerGroup(mode os.FileMode) bool {
+	return mode&0110 == 0110
+}
+
+func NoneSeparatedSymbol(raw string) (string, error) {
+	codes := strings.Split(raw, "/")
+	if len(codes) == 1 {
+		return raw, nil
+	}
+
+	if len(codes) == 2 {
+		return strings.Join(codes, ""), nil
+	}
+
+	return raw, fmt.Errorf("invalid symbol")
 }

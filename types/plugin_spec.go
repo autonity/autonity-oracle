@@ -25,10 +25,23 @@ type PluginPriceReport struct {
 	BadSymbols []string
 }
 
+// PluginState is the returned data when the oracle host want to initialise the plugin with basic information: version,
+// and available symbols that the data source support.
+type PluginState struct {
+	Version          string
+	AvailableSymbols []string
+}
+
 // Adapter is the interface that we're exposing as a plugin.
 type Adapter interface {
+	// FetchPrices is called by oracle server to fetch data points of symbols required by the protocol contract, some
+	// symbols in the protocol's symbols set might not be recognisable by a data source, thus in the plugin implementation,
+	// one need to filter invalid symbols to make sure valid symbol's data be collected. The return PluginPriceReport
+	// contains the valid symbols' prices and a set of invalid symbols.
 	FetchPrices(symbols []string) (PluginPriceReport, error)
-	GetVersion() (string, error)
+	// State is called by oracle server to instantiate a plugin, it returns the plugin's version and a set of symbol that
+	// the data source support, this information is just used for logging at the bootstrap phase of a plugin.
+	State() (PluginState, error)
 }
 
 // AdapterRPCClient is an implementation that talks over RPC client
@@ -44,9 +57,9 @@ func (g *AdapterRPCClient) FetchPrices(symbols []string) (PluginPriceReport, err
 	return resp, nil
 }
 
-func (g *AdapterRPCClient) GetVersion() (string, error) {
-	var resp string
-	err := g.client.Call("Plugin.GetVersion", new(interface{}), &resp)
+func (g *AdapterRPCClient) State() (PluginState, error) {
+	var resp PluginState
+	err := g.client.Call("Plugin.State", new(interface{}), &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -66,8 +79,8 @@ func (s *AdapterRPCServer) FetchPrices(symbols []string, resp *PluginPriceReport
 	return err
 }
 
-func (s *AdapterRPCServer) GetVersion(args interface{}, resp *string) error {
-	v, err := s.Impl.GetVersion()
+func (s *AdapterRPCServer) State(args interface{}, resp *PluginState) error {
+	v, err := s.Impl.State()
 	*resp = v
 	return err
 }

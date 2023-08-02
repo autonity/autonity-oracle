@@ -47,7 +47,7 @@ func NewPluginWrapper(name string, pluginDir string, oracle types.SampleEventSub
 		"adapter": &types.AdapterPlugin{},
 	}
 
-	// We're a host! Start by launching the plugin process.
+	// We're a host! New client and prepare the cmd to start the plugin
 	rpcClient := plugin.NewClient(&plugin.ClientConfig{
 		HandshakeConfig: types.HandshakeConfig,
 		Plugins:         pluginMap,
@@ -134,23 +134,26 @@ func (pw *PluginWrapper) StartTime() time.Time {
 	return pw.startAt
 }
 
-func (pw *PluginWrapper) Initialize() {
-	// connect to remote rpc plugin
+// Initialize start the plugin, connect to it and do a handshake via state() interface.
+func (pw *PluginWrapper) Initialize() error {
+	// start the plugin and connect to it
 	rpcClient, err := pw.client.Client()
 	if err != nil {
 		pw.logger.Error("cannot connect remote plugin", err.Error())
-		return
+		return err
 	}
 	pw.clientProtocol = rpcClient
-	// load plugin's version
-	version, err := pw.GetVersion()
+	// load plugin's pluginState.
+	state, err := pw.state()
 	if err != nil {
-		pw.logger.Error("cannot get plugin's version")
-		return
+		pw.logger.Error("cannot get plugin's pluginState")
+		return err
 	}
+	pw.version = state.Version
 
 	go pw.start()
-	pw.logger.Info("plugin initialized", pw.name, version)
+	pw.logger.Info("plugin initialized", pw.name, state)
+	return nil
 }
 
 func (pw *PluginWrapper) start() {
@@ -178,12 +181,13 @@ func (pw *PluginWrapper) start() {
 	}
 }
 
-func (pw *PluginWrapper) GetVersion() (string, error) {
+func (pw *PluginWrapper) state() (types.PluginState, error) {
+	var s types.PluginState
 	if pw.clientProtocol == nil {
 		// try to reconnect during the runtime.
 		err := pw.connect()
 		if err != nil {
-			return "", err
+			return s, err
 		}
 	}
 	err := pw.clientProtocol.Ping()
@@ -193,22 +197,22 @@ func (pw *PluginWrapper) GetVersion() (string, error) {
 		// try to reconnect during the runtime.
 		err = pw.connect()
 		if err != nil {
-			return "", err
+			return s, err
 		}
 	}
 
 	raw, err := pw.clientProtocol.Dispense("adapter")
 	if err != nil {
-		return "", err
+		return s, err
 	}
 
 	adapter := raw.(types.Adapter)
-	pw.version, err = adapter.GetVersion()
+	state, err := adapter.State()
 	if err != nil {
-		return pw.version, err
+		return s, err
 	}
 
-	return pw.version, nil
+	return state, nil
 }
 
 func (pw *PluginWrapper) fetchPrices(symbols []string, ts int64) error {
