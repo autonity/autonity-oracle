@@ -286,6 +286,11 @@ To generate mocks for unit test
 
 make mock
 
+To build docker image
+
+make build-docker-image
+
 To build a plugin, please refer to [How to build a plugin](plugins/README.md)
 
 Built binaries are presented at: `./build/bin` under which there is a `plugins` directory for the built plugins as well.
+
