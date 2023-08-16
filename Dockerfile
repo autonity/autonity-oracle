@@ -14,12 +14,13 @@ ADD . /autoracle
 RUN cd /autoracle && make autoracle
 
 
-# Pull Autonity into a second stage deploy alpine container
+# Pull autoracle into a second stage deploy alpine container
 FROM alpine:latest
 
 RUN apk add --no-cache ca-certificates
 COPY --from=builder /autoracle/build/bin/autoracle /usr/local/bin/
 COPY --from=builder /autoracle/build/bin/plugins /usr/local/bin/plugins/
+# To add the simulator plugin to consume data from the self hosted Data Simulator  
 COPY --from=builder /autoracle/e2e_test/plugins/simulator_plugins/ /usr/local/bin/plugins/
 
 
