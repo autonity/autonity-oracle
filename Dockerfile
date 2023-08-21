@@ -22,7 +22,8 @@ COPY --from=builder /autoracle/build/bin/autoracle /usr/local/bin/
 COPY --from=builder /autoracle/build/bin/plugins /usr/local/bin/plugins/
 # To add the simulator plugin to consume data from the self hosted Data Simulator  
 COPY --from=builder /autoracle/e2e_test/plugins/simulator_plugins/ /usr/local/bin/plugins/
-
+# Copy plugins-conf.yml for the runtime forex plugin discovery and loading
+COPY --from=builder /autoracle/config/plugins-conf.yml /usr/local/bin/plugins/ 
 
 ENTRYPOINT ["autoracle"]
 
