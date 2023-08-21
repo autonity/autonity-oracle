@@ -454,7 +454,8 @@ func (os *OracleServer) doReport(curRndCommitHash common.Hash, lastRoundData *ty
 	}
 
 	auth.Value = big.NewInt(0)
-	auth.GasTipCap = big.NewInt(0)
+	// todo: make gas tip cap configurable, now just hard code it for test network.
+	auth.GasTipCap = big.NewInt(1)
 	auth.GasLimit = uint64(3000000)
 
 	// if there is no last round data, then we just submit the curRndCommitHash hash of current round.
