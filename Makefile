@@ -18,6 +18,7 @@ PLUGIN_DIR = ./build/bin/plugins
 SIMULATOR_BIN_DIR = ./data_source_simulator/build/bin
 SIMULATOR_SRC_DIR = ./data_source_simulator/binance_simulator
 PLUGIN_SRC_DIR = ./plugins
+DOCKER_SUDO = $(shell [ `id -u` -eq 0 ] || id -nG $(USER) | grep "\<docker\>" > /dev/null || echo sudo )
 GO ?= latest
 LATEST_COMMIT ?= $(shell git log -n 1 master --pretty=format:"%H")
 ifeq ($(LATEST_COMMIT),)
@@ -88,6 +89,13 @@ oracle-contract:
 	mkdir -p $(BIN_DIR)
 	wget -O $(SOLC_BINARY) https://github.com/ethereum/solidity/releases/download/v$(SOLC_VERSION)/solc-static-linux
 	chmod +x $(SOLC_BINARY)
+
+# Builds the docker image and checks that we can run the autonity binary inside
+# it.
+
+build-docker-image:
+	@$(DOCKER_SUDO) docker build -t autoracle .
+	@$(DOCKER_SUDO) docker run --rm autoracle -h > /dev/null
 
 clean:
 	go clean -cache
