@@ -14,8 +14,8 @@ import (
 
 func main() { //nolint
 	conf := config.MakeConfig()
-	log.Printf("\n\n\n \tRunning autonity oracle client %s\n\twith symbols: %s\n\tand plugin diretory: %s\n "+
-		"\tby connnecting to L1 node: %s\n \ton oracle contract address: %s \n\n\n",
+	log.Printf("\n\n\n \tRunning autonity oracle server %s\n\twith symbols: %s\n\tand plugin directory: %s\n "+
+		"\tby connecting to L1 node: %s\n \ton oracle contract address: %s \n\n\n",
 		config.Version, strings.Join(conf.Symbols, ","), conf.PluginDIR, conf.AutonityWSUrl, types.OracleContractAddress)
 
 	dialer := &types.L1Dialer{}
