@@ -18,7 +18,7 @@ var (
 	DefaultKeyPassword    = "123"
 	DefaultPluginDir      = "./build/bin/plugins"
 	DefaultPluginConfFile = "./build/bin/plugins/plugins-conf.yml"
-	DefaultSymbols        = "NTN/USD,NTN/AUD,NTN/CAD,NTN/EUR,NTN/GBP,NTN/JPY,NTN/SEK"
+	DefaultSymbols        = "AUD-USD,CAD-USD,EUR-USD,GBP-USD,JPY-USD,SEK-USD,ATN-USD,NTN-USD"
 )
 
 const Version = "v0.0.2"

@@ -8,13 +8,13 @@ import (
 )
 
 func TestParseSymbols(t *testing.T) {
-	defaultSymbols := "ETH/USDC,ETH/USDT,ETH/BTC"
-	symbolsWithSpace := " ETH/USDC , ETH/USDT, ETH/BTC "
+	defaultSymbols := "ETH-USDC,ETH-USDT,ETH-BTC"
+	symbolsWithSpace := " ETH-USDC , ETH-USDT, ETH-BTC "
 	outputSymbols := ParseSymbols(defaultSymbols)
 	require.Equal(t, 3, len(outputSymbols))
-	require.Equal(t, "ETH/USDC", outputSymbols[0])
-	require.Equal(t, "ETH/USDT", outputSymbols[1])
-	require.Equal(t, "ETH/BTC", outputSymbols[2])
+	require.Equal(t, "ETH-USDC", outputSymbols[0])
+	require.Equal(t, "ETH-USDT", outputSymbols[1])
+	require.Equal(t, "ETH-BTC", outputSymbols[2])
 
 	results := ParseSymbols(symbolsWithSpace)
 	require.Equal(t, outputSymbols, results)
@@ -24,26 +24,29 @@ func TestParsePlaybookHeader(t *testing.T) {
 	playbook := "../test_data/samplePlaybook.csv"
 	symbols, err := ParsePlaybookHeader(playbook)
 	require.NoError(t, err)
-	require.Equal(t, 4, len(symbols))
-	require.Equal(t, "NTN/USD", symbols[0])
-	require.Equal(t, "NTN/EUR", symbols[1])
-	require.Equal(t, "NTN/AUD", symbols[2])
-	require.Equal(t, "NTN/JPY", symbols[3])
+	require.Equal(t, 8, len(symbols))
+	require.Equal(t, "ATN-USD", symbols[0])
+	require.Equal(t, "NTN-USD", symbols[1])
+	require.Equal(t, "EUR-USD", symbols[2])
+	require.Equal(t, "JPY-USD", symbols[3])
+	require.Equal(t, "GBP-USD", symbols[4])
+	require.Equal(t, "AUD-USD", symbols[5])
+	require.Equal(t, "CAD-USD", symbols[6])
+	require.Equal(t, "SEK-USD", symbols[7])
 }
 
 func TestResolveSimulatedPrice(t *testing.T) {
-	symbol := "BTC/ETH"
+	symbol := "BTC-ETH"
 	price := ResolveSimulatedPrice(symbol)
 	require.Equal(t, true, types.SimulatedPrice.Equal(price))
 
-	symbol = "NTN/USD"
+	symbol = "NTN-USD"
 	p := ResolveSimulatedPrice(symbol)
 	require.Equal(t, true, pNTNUSD.Equal(p))
 
-	symbol = "NTN/SEK"
+	symbol = "ATN-USD"
 	p = ResolveSimulatedPrice(symbol)
-	require.Equal(t, true, pNTNSEK.Equal(p))
-
+	require.Equal(t, true, pATNUSD.Equal(p))
 }
 
 func TestMedian(t *testing.T) {

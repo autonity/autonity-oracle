@@ -47,10 +47,11 @@ which contains a go source code file template_plugin.go that can be used as a te
 type TemplatePlugin struct {
 	version          string
 	availableSymbols map[string]struct{}
-	separatedStyle   bool
+	symbolSeparator  string
 	logger           hclog.Logger
 	client           common.DataSourceClient
 	conf             *types.PluginConfig
+	cachePrices      map[string]types.Price
 }
 ```
 ### Implement the 2 interfaces for the Plugin structure
@@ -99,8 +100,9 @@ func (g *TemplatePlugin) State() (types.PluginState, error) {
 	}
 
 	if len(g.availableSymbols) != 0 {
-		for _, s := range symbols {
-			delete(g.availableSymbols, s)
+		for k := range g.availableSymbols {
+			symbol := k
+			delete(g.availableSymbols, symbol)
 		}
 	}
 
@@ -108,13 +110,11 @@ func (g *TemplatePlugin) State() (types.PluginState, error) {
 		g.availableSymbols[s] = struct{}{}
 	}
 
-	for k := range g.availableSymbols {
-		if strings.Contains(k, "/") {
-			g.separatedStyle = true
+	for _, symbol := range symbols {
+		if len(symbol) != 0 {
+			g.symbolSeparator = common.ResolveSeparator(symbol)
 			break
 		}
-		g.separatedStyle = false
-		break
 	}
 
 	state.Version = g.version
@@ -191,18 +191,19 @@ const (
 )
 
 var (
-	defaultForex  = []string{"EUR/USD", "JPY/USD", "GBP/USD", "AUD/USD", "CAD/USD", "SEK/USD"}
-	defaultCrypto = []string{"ATN/USD", "NTN/USD", "NTN/AUD", "NTN/CAD", "NTN/EUR", "NTN/GBP", "NTN/JPY", "NTN/SEK"}
+	defaultForex  = []string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"}
+	defaultCrypto = []string{"ATN-USD", "NTN-USD"}
 )
 
 // TemplatePlugin Here is an implementation of a plugin which returns simulated data points.
 type TemplatePlugin struct {
 	version          string
 	availableSymbols map[string]struct{}
-	separatedStyle   bool
+	symbolSeparator  string
 	logger           hclog.Logger
 	client           common.DataSourceClient
 	conf             *types.PluginConfig
+	cachePrices      map[string]types.Price
 }
 
 func NewTemplatePlugin(conf *types.PluginConfig, client common.DataSourceClient, version string) *TemplatePlugin {
@@ -265,8 +266,9 @@ func (g *TemplatePlugin) State() (types.PluginState, error) {
 	}
 
 	if len(g.availableSymbols) != 0 {
-		for _, s := range symbols {
-			delete(g.availableSymbols, s)
+		for k := range g.availableSymbols {
+			symbol := k
+			delete(g.availableSymbols, symbol)
 		}
 	}
 
@@ -274,13 +276,11 @@ func (g *TemplatePlugin) State() (types.PluginState, error) {
 		g.availableSymbols[s] = struct{}{}
 	}
 
-	for k := range g.availableSymbols {
-		if strings.Contains(k, "/") {
-			g.separatedStyle = true
+	for _, symbol := range symbols {
+		if len(symbol) != 0 {
+			g.symbolSeparator = common.ResolveSeparator(symbol)
 			break
 		}
-		g.separatedStyle = false
-		break
 	}
 
 	state.Version = g.version
@@ -295,39 +295,25 @@ func (g *TemplatePlugin) Close() {
 	}
 }
 
-// resolveSymbols resolve available symbols of provider, and it converts symbols from `/` separated pattern to none `/`
-// separated pattern if the provider uses the none `/` separated pattern of symbols.
-func (g *TemplatePlugin) resolveSymbols(symbols []string) ([]string, []string, map[string]string) {
-	var available []string
-	var badSymbols []string
+// resolveSymbols resolve supported symbols of provider, and it builds the mapping of symbols from `-` separated pattern to those
+// pattens supported by data providers, and filter outs those un-supported symbols.
+func (g *TemplatePlugin) resolveSymbols(askedSymbols []string) ([]string, []string, map[string]string) {
+	var supported []string
+	var unSupported []string
 
-	availableSymbolMap := make(map[string]string)
+	symbolsMapping := make(map[string]string)
 
-	for _, raw := range symbols {
+	for _, askedSym := range askedSymbols {
 
-		if g.separatedStyle {
-			if _, ok := g.availableSymbols[raw]; !ok {
-				badSymbols = append(badSymbols, raw)
-				continue
-			}
-			available = append(available, raw)
-			availableSymbolMap[raw] = raw
-		} else {
-
-			nSymbol, err := helpers.NoneSeparatedSymbol(raw)
-			if err != nil {
-				badSymbols = append(badSymbols, raw)
-			}
-
-			if _, ok := g.availableSymbols[nSymbol]; !ok {
-				badSymbols = append(badSymbols, raw)
-				continue
-			}
-			available = append(available, nSymbol)
-			availableSymbolMap[nSymbol] = raw
+		converted := common.ConvertSymbol(askedSym, g.symbolSeparator)
+		if _, ok := g.availableSymbols[converted]; !ok {
+			unSupported = append(unSupported, askedSym)
+			continue
 		}
+		supported = append(supported, converted)
+		symbolsMapping[converted] = askedSym
 	}
-	return available, badSymbols, availableSymbolMap
+	return supported, unSupported, symbolsMapping
 }
 
 func resolveConf(conf *types.PluginConfig) {

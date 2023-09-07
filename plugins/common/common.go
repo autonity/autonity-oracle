@@ -1,7 +1,6 @@
 package common
 
 import (
-	"autonity-oracle/helpers"
 	"autonity-oracle/types"
 	"encoding/json"
 	"fmt"
@@ -20,12 +19,12 @@ type Price struct {
 
 type Prices []Price
 
-var DefaultForexSymbols = []string{"EUR/USD", "JPY/USD", "GBP/USD", "AUD/USD", "CAD/USD", "SEK/USD"}
+var DefaultForexSymbols = []string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"}
 
 type Plugin struct {
 	version          string
 	availableSymbols map[string]struct{}
-	separatedStyle   bool
+	symbolSeparator  string // "|", "/", "-", ",", "." or with a no separator "".
 	logger           hclog.Logger
 	client           DataSourceClient
 	conf             *types.PluginConfig
@@ -104,8 +103,9 @@ func (p *Plugin) State() (types.PluginState, error) {
 	}
 
 	if len(p.availableSymbols) != 0 {
-		for _, s := range symbols {
-			delete(p.availableSymbols, s)
+		for k := range p.availableSymbols {
+			symbol := k
+			delete(p.availableSymbols, symbol)
 		}
 	}
 
@@ -113,13 +113,11 @@ func (p *Plugin) State() (types.PluginState, error) {
 		p.availableSymbols[s] = struct{}{}
 	}
 
-	for k := range p.availableSymbols {
-		if strings.Contains(k, "/") {
-			p.separatedStyle = true
+	for _, symbol := range symbols {
+		if len(symbol) != 0 {
+			p.symbolSeparator = ResolveSeparator(symbol)
 			break
 		}
-		p.separatedStyle = false
-		break
 	}
 
 	state.Version = p.version
@@ -134,39 +132,24 @@ func (p *Plugin) Close() {
 	}
 }
 
-// resolveSymbols resolve available symbols of provider, and it converts symbols from `/` separated pattern to none `/`
-// separated pattern if the provider uses the none `/` separated pattern of symbols.
-func (p *Plugin) resolveSymbols(symbols []string) ([]string, []string, map[string]string) {
-	var available []string
-	var badSymbols []string
+// resolveSymbols resolve supported symbols of provider, and it builds the mapping of symbols from `-` separated pattern to those
+// pattens supported by data providers, and filter outs those un-supported symbols.
+func (p *Plugin) resolveSymbols(askedSymbols []string) ([]string, []string, map[string]string) {
+	var supported []string
+	var unSupported []string
 
-	availableSymbolMap := make(map[string]string)
+	symbolsMapping := make(map[string]string)
 
-	for _, raw := range symbols {
-
-		if p.separatedStyle {
-			if _, ok := p.availableSymbols[raw]; !ok {
-				badSymbols = append(badSymbols, raw)
-				continue
-			}
-			available = append(available, raw)
-			availableSymbolMap[raw] = raw
-		} else {
-
-			nSymbol, err := helpers.NoneSeparatedSymbol(raw)
-			if err != nil {
-				badSymbols = append(badSymbols, raw)
-			}
-
-			if _, ok := p.availableSymbols[nSymbol]; !ok {
-				badSymbols = append(badSymbols, raw)
-				continue
-			}
-			available = append(available, nSymbol)
-			availableSymbolMap[nSymbol] = raw
+	for _, askedSym := range askedSymbols {
+		converted := ConvertSymbol(askedSym, p.symbolSeparator)
+		if _, ok := p.availableSymbols[converted]; !ok {
+			unSupported = append(unSupported, askedSym)
+			continue
 		}
+		supported = append(supported, converted)
+		symbolsMapping[converted] = askedSym
 	}
-	return available, badSymbols, availableSymbolMap
+	return supported, unSupported, symbolsMapping
 }
 
 func (p *Plugin) fetchPricesFromCache(availableSymbols []string) ([]types.Price, error) {
@@ -197,4 +180,23 @@ func LoadPluginConf(cmd string) (types.PluginConfig, error) {
 		return c, err
 	}
 	return c, nil
+}
+
+func ResolveSeparator(symbol string) string {
+	if i := strings.IndexAny(symbol, "|/-,."); i != -1 {
+		chars := strings.Split(symbol, "")
+		return chars[i]
+	}
+	return ""
+}
+
+// ConvertSymbol Convert source symbol to symbol with new separator, it assumes that the source symbol has one of these
+// "|/-,." separators, otherwise it returns the source symbol without converting.
+func ConvertSymbol(src string, toSep string) string {
+	srcSep := ResolveSeparator(src)
+	if srcSep == "" {
+		return src
+	}
+	subs := strings.Split(src, srcSep)
+	return strings.Join(subs, toSep)
 }

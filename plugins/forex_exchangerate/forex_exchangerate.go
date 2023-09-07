@@ -119,7 +119,8 @@ func (ex *EXClient) Close() {
 
 func (ex *EXClient) symbolsToPrice(s string, res *EXResult) (common.Price, error) {
 	var price common.Price
-	codes := strings.Split(s, "/")
+	sep := common.ResolveSeparator(s)
+	codes := strings.Split(s, sep)
 	if len(codes) != 2 {
 		return price, fmt.Errorf("invalid symbol %s", s)
 	}

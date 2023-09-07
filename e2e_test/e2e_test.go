@@ -171,7 +171,7 @@ func TestAddCommitteeMember(t *testing.T) {
 func TestHappyCaseWithBinanceDataService(t *testing.T) {
 	var netConf = &NetworkConfig{
 		EnableL1Logs: false,
-		Symbols:      "BTC/USD,BTC/USDC,BTC/USDT,BTC/USD4",
+		Symbols:      "BTC-USD,BTC-USDC,BTC-USDT,BTC-USD4",
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{binancePlugDir, binancePlugDir, binancePlugDir, binancePlugDir},
 	}
@@ -316,7 +316,7 @@ func TestWithBinanceSimulatorTimeout(t *testing.T) {
 func TestForexPluginsHappyCase(t *testing.T) {
 	var netConf = &NetworkConfig{
 		EnableL1Logs: false,
-		Symbols:      "EUR/USD,JPY/USD,GBP/USD,AUD/USD,CAD/USD,SEK/USD",
+		Symbols:      "EUR-USD,JPY-USD,GBP-USD,AUD-USD,CAD-USD,SEK-USD",
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{forexPlugDir, forexPlugDir, forexPlugDir, forexPlugDir},
 	}
@@ -415,7 +415,7 @@ func testAddNewSymbols(t *testing.T, network *Network, client *ethclient.Client,
 	legacySymbols, err := o.GetSymbols(nil)
 	require.NoError(t, err)
 
-	newSymbols := append(legacySymbols, "BTC/ETH")
+	newSymbols := append(legacySymbols, "BTC-ETH")
 
 	_, err = o.SetSymbols(auth, newSymbols)
 	require.NoError(t, err)

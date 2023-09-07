@@ -21,46 +21,28 @@ var (
 	pCADUSD = decimal.RequireFromString("0.74")
 	pSEKUSD = decimal.RequireFromString("0.096")
 	pATNUSD = decimal.RequireFromString("1.0")
-	pNTNUSD = decimal.RequireFromString("7.0")
-	pNTNAUD = decimal.RequireFromString("9.856")
-	pNTNCAD = decimal.RequireFromString("9.331")
-	pNTNEUR = decimal.RequireFromString("6.8369")
-	pNTNGBP = decimal.RequireFromString("5.691")
-	pNTNJPY = decimal.RequireFromString("897.435")
-	pNTNSEK = decimal.RequireFromString("72.163")
+	pNTNUSD = decimal.RequireFromString("10.0")
 )
 
 func ResolveSimulatedPrice(s string) decimal.Decimal {
 	defaultPrice := types.SimulatedPrice
 	switch s {
-	case "EUR/USD":
+	case "EUR-USD":
 		defaultPrice = pEURUSD
-	case "JPY/USD":
+	case "JPY-USD":
 		defaultPrice = pJPYUSD
-	case "GBP/USD":
+	case "GBP-USD":
 		defaultPrice = pGBPUSD
-	case "AUD/USD":
+	case "AUD-USD":
 		defaultPrice = pAUDUSD
-	case "CAD/USD":
+	case "CAD-USD":
 		defaultPrice = pCADUSD
-	case "SEK/USD":
+	case "SEK-USD":
 		defaultPrice = pSEKUSD
-	case "ATN/USD":
+	case "ATN-USD": //nolint
 		defaultPrice = pATNUSD
-	case "NTN/USD": //nolint
+	case "NTN-USD": //nolint
 		defaultPrice = pNTNUSD
-	case "NTN/AUD":
-		defaultPrice = pNTNAUD
-	case "NTN/CAD":
-		defaultPrice = pNTNCAD
-	case "NTN/EUR":
-		defaultPrice = pNTNEUR
-	case "NTN/GBP":
-		defaultPrice = pNTNGBP
-	case "NTN/JPY":
-		defaultPrice = pNTNJPY
-	case "NTN/SEK": //nolint
-		defaultPrice = pNTNSEK
 	}
 	return defaultPrice
 }
@@ -143,17 +125,4 @@ func ListPlugins(path string) ([]fs.FileInfo, error) {
 // IsExecOwnerGroup return if the file is executable for the owner and the group
 func IsExecOwnerGroup(mode os.FileMode) bool {
 	return mode&0110 == 0110
-}
-
-func NoneSeparatedSymbol(raw string) (string, error) {
-	codes := strings.Split(raw, "/")
-	if len(codes) == 1 {
-		return raw, nil
-	}
-
-	if len(codes) == 2 {
-		return strings.Join(codes, ""), nil
-	}
-
-	return raw, fmt.Errorf("invalid symbol")
 }

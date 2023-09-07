@@ -113,7 +113,8 @@ func (oe *OXClient) Close() {
 
 func (oe *OXClient) symbolsToPrice(s string, res *OEResult) (common.Price, error) {
 	var price common.Price
-	codes := strings.Split(s, "/")
+	sep := common.ResolveSeparator(s)
+	codes := strings.Split(s, sep)
 	if len(codes) != 2 {
 		return price, fmt.Errorf("invalid symbol %s", s)
 	}

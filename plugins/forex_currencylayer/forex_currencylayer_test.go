@@ -14,7 +14,7 @@ func TestNewCLClient(t *testing.T) {
 	resolveConf(&conf)
 
 	client := NewCLClient(&conf)
-	prices, err := client.FetchPrice([]string{"EUR/USD", "JPY/USD", "GBP/USD", "AUD/USD", "CAD/USD", "SEK/USD"})
+	prices, err := client.FetchPrice([]string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"})
 	require.NoError(t, err)
 	require.Equal(t, 6, len(prices))
 }

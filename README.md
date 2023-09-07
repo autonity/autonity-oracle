@@ -46,13 +46,14 @@ Values that can be configured by using environment variables:
 
 | **Env Variable** | **Required?** | **Meaning** | **Default Value**                                                                                    | **Valid Options** |
 |----------------------------|---------------|---------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|---------------------------------------------------------|
-| `ORACLE_SYMBOLS` | No | The symbols that the oracle component collects data points for | "NTN/USD,ATN/USD,EUR/USD,JPY/USD,GBP/USD,AUD/USD,CAD/USD,SEK/USD"                                    | symbols seperated by ',' |
+| `ORACLE_SYMBOLS` | No | The symbols that the oracle component collects data points for | "NTN-USD,ATN-USD,EUR-USD,JPY-USD,GBP-USD,AUD-USD,CAD-USD,SEK-USD"                                    | symbols separated by ',' |
 | `ORACLE_PLUGIN_DIR` | No | The directory that stores the plugins | "./build/bin/plugins"                                                                                | any directory that saves plugins |
 | `ORACLE_KEY_FILE` | Yes | The encrypted key file path that contains the private key of the oracle client. | "./test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" | any key file that saves the private key |  
 | `ORACLE_KEY_PASSWORD` | Yes | The password of the key file that contains the private key of the oracle client. | "123"                                                                                                | any password that encrypted the private key |
 | `ORACLE_AUTONITY_WS_URL` | Yes | The web socket RPC URL of your Autonity L1 Node that the oracle client communicates with. | "ws://127.0.0.1:8546"                                                                                | the web socket rpc endpoint url of the Autonity client. |
 | `ORACLE_PLUGIN_CONF` | Yes | The plugins' configuration file in YAML. | "./build/bin/plugins/plugins-conf.yml"                                                               | the configuration file of the oracle plugins. |
-| `ORACLE_GAS_TIP_CAP` | NO | The gas priority fee cap to issue the oracle data report transactions | 1                                                               | A non-zero value per gas to prioritize your data report TX to be mined. |
+| `ORACLE_GAS_TIP_CAP` | No | The gas priority fee cap to issue the oracle data report transactions | 1                                                               | A non-zero value per gas to prioritize your data report TX to be mined. |
+
 
 or by using console flags:
 ```shell
@@ -64,13 +65,13 @@ Usage of ./autoracle:
   -oracle_key_password="123": Password to the oracle server key file
   -oracle_plugin_conf="./build/bin/plugins/plugins-conf.yml": The plugins' configuration file in YAML
   -oracle_plugin_dir="./build/bin/plugins": The DIR where the adapter plugins are stored
-  -oracle_symbols="NTN/USD,NTN/AUD,NTN/CAD,NTN/EUR,NTN/GBP,NTN/JPY,NTN/SEK": The currency pair symbols the oracle returns data for. A comma-separated list
+  -oracle_symbols="NTN-USD,ATN-USD,EUR-USD,JPY-USD,GBP-USD,AUD-USD,CAD-USD,SEK-USD": The currency pair symbols the oracle returns data for. A comma-separated list
 ```
 
 
 example to run the autonity oracle service with console flags:
 ```shell
-$./autoracle -oracle_symbols="NTN/USD,ATN/USD,EUR/USD,JPY/USD,GBP/USD,AUD/USD,CAD/USD,SEK/USD" -oracle_plugin_dir="./plugins" -oracle_key_file="../../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" -oracle_key_password="123" -oracle_autonity_ws_url="ws://127.0.0.1:8546" -oracle_plugin_conf="./plugins/plugins-conf.yml"
+$./autoracle -oracle_symbols="NTN-USD,ATN-USD,EUR-USD,JPY-USD,GBP-USD,AUD-USD,CAD-USD,SEK-USD" -oracle_plugin_dir="./plugins" -oracle_key_file="../../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" -oracle_key_password="123" -oracle_autonity_ws_url="ws://127.0.0.1:8546" -oracle_plugin_conf="./plugins/plugins-conf.yml"
 ```
 plugin configuration file:    
 
@@ -151,7 +152,8 @@ Path of the secret key file: key-data/keystore/UTC--2023-02-28T11-40-15.38370976
 ### Start up the service from shell console
 Prepare the plugin binaries, and save them into the `plugins` directory. To start the service, set the system environment variables and run the binary:
 ```shell
-$export ORACLE_SYMBOLS="NTN/USD,ATN/USD,EUR/USD,JPY/USD,GBP/USD,AUD/USD,CAD/USD,SEK/USD"  
+
+$export ORACLE_SYMBOLS="NTN-USD,ATN-USD,EUR-USD,JPY-USD,GBP-USD,AUD-USD,CAD-USD,SEK-USD"
 $export ORACLE_PLUGIN_DIR="./plugins"  
 $export ORACLE_KEY_FILE="./test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"  
 $export ORACLE_KEY_PASSWORD="your passord to the key file"  
@@ -163,7 +165,7 @@ $.~/src/autonity-oracle/build/bin/autoracle
 or configure by using console flags and run the binary:
 
 ```shell
-$./autoracle -oracle_symbols="NTN/USD,ATN/USD,EUR/USD,JPY/USD,GBP/USD,AUD/USD,CAD/USD,SEK/USD" -oracle_plugin_dir="./plugins" -oracle_key_file="../../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" -oracle_key_password="123" -oracle_autonity_ws_url="ws://127.0.0.1:8546"
+$./autoracle -oracle_symbols="NTN-USD,ATN-USD,EUR-USD,JPY-USD,GBP-USD,AUD-USD,CAD-USD,SEK-USD" -oracle_plugin_dir="./plugins" -oracle_key_file="../../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" -oracle_key_password="123" -oracle_autonity_ws_url="ws://127.0.0.1:8546"
 ```
 
 ### Deploy via linux system daemon

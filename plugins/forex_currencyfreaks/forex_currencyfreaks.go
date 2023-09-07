@@ -108,7 +108,8 @@ func (cf *CFClient) Close() {
 
 func (cf *CFClient) symbolsToPrice(s string, res *CFResult) (common.Price, error) {
 	var price common.Price
-	codes := strings.Split(s, "/")
+	sep := common.ResolveSeparator(s)
+	codes := strings.Split(s, sep)
 	if len(codes) != 2 {
 		return price, fmt.Errorf("invalid symbol %s", s)
 	}
