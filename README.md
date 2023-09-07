@@ -52,23 +52,26 @@ Values that can be configured by using environment variables:
 | `ORACLE_KEY_PASSWORD` | Yes | The password of the key file that contains the private key of the oracle client. | "123"                                                                                                | any password that encrypted the private key |
 | `ORACLE_AUTONITY_WS_URL` | Yes | The web socket RPC URL of your Autonity L1 Node that the oracle client communicates with. | "ws://127.0.0.1:8546"                                                                                | the web socket rpc endpoint url of the Autonity client. |
 | `ORACLE_PLUGIN_CONF` | Yes | The plugins' configuration file in YAML. | "./build/bin/plugins/plugins-conf.yml"                                                               | the configuration file of the oracle plugins. |
+| `ORACLE_GAS_TIP_CAP` | NO | The gas priority fee cap to issue the oracle data report transactions | 1                                                               | A non-zero value per gas to prioritize your data report TX to be mined. |
 
 or by using console flags:
-
+```shell
 $./autoracle -help  
-Usage of ./autoracle:  
--oracle_autonity_ws_url="ws://127.0.0.1:8546": The websocket URL of autonity client
--oracle_symbols="NTN/USD,ATN/USD,EUR/USD,JPY/USD,GBP/USD,AUD/USD,CAD/USD,SEK/USD": The symbols string separated by comma  
--oracle_key_file="a path to your key file": The file that save the private key of the oracle client  
--oracle_key_password="key-password": The password to decode your oracle account's key file  
--oracle_plugin_dir="./plugins": The DIR where the adapter plugins are stored
--oracle_plugin_conf="./build/bin/plugins/plugins-conf.yml": The plugins' configuration file in YAML
+Usage of ./autoracle:
+  -oracle_autonity_ws_url="ws://127.0.0.1:8546": WS-RPC server listening interface and port of the connected Autonity Go Client node
+  -oracle_gas_tip_cap=1: The gas priority fee cap set for oracle data report transactions
+  -oracle_key_file="./test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe": Oracle server key file
+  -oracle_key_password="123": Password to the oracle server key file
+  -oracle_plugin_conf="./build/bin/plugins/plugins-conf.yml": The plugins' configuration file in YAML
+  -oracle_plugin_dir="./build/bin/plugins": The DIR where the adapter plugins are stored
+  -oracle_symbols="NTN/USD,NTN/AUD,NTN/CAD,NTN/EUR,NTN/GBP,NTN/JPY,NTN/SEK": The currency pair symbols the oracle returns data for. A comma-separated list
+```
 
 
 example to run the autonity oracle service with console flags:
-
+```shell
 $./autoracle -oracle_symbols="NTN/USD,ATN/USD,EUR/USD,JPY/USD,GBP/USD,AUD/USD,CAD/USD,SEK/USD" -oracle_plugin_dir="./plugins" -oracle_key_file="../../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" -oracle_key_password="123" -oracle_autonity_ws_url="ws://127.0.0.1:8546" -oracle_plugin_conf="./plugins/plugins-conf.yml"
-
+```
 plugin configuration file:    
 
 `A yaml file to config extra data for a specific plugin nominated by its name, for example here is a plugin configuration to
@@ -128,6 +131,7 @@ In the last configuration file, all the forex data vendors need a service key to
 Download the Autonity client to generate the private key from console, and set the password to encode the key file, the  
 key file path will display, and remember the password that encrypted the key file.
 
+```shell
 $./autonity --datadir ./keys/ account new  
 Your new account is locked with a password. Please give a password. Do not forget this password.  
 Password:xxxxxx  
@@ -142,11 +146,11 @@ Path of the secret key file: key-data/keystore/UTC--2023-02-28T11-40-15.38370976
 - You must NEVER share the secret key with anyone! The key controls access to your funds!
 - You must BACKUP your key file! Without the key, it's impossible to access account funds!
 - You must REMEMBER your password! Without the password, it's impossible to decrypt the key!
+```
 
 ### Start up the service from shell console
-Prepare the plugin binaries, and save them into the `plugins` directory, then start the service:  
-Set the system environment variables and run the binary:
-
+Prepare the plugin binaries, and save them into the `plugins` directory. To start the service, set the system environment variables and run the binary:
+```shell
 $export ORACLE_SYMBOLS="NTN/USD,ATN/USD,EUR/USD,JPY/USD,GBP/USD,AUD/USD,CAD/USD,SEK/USD"  
 $export ORACLE_PLUGIN_DIR="./plugins"  
 $export ORACLE_KEY_FILE="./test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"  
@@ -154,10 +158,13 @@ $export ORACLE_KEY_PASSWORD="your passord to the key file"
 $export ORACLE_AUTONITY_WS_URL="ws://127.0.0.1:8546"
 $export ORACLE_PLUGIN_CONF="./plugins/plugins-conf.yml"
 $.~/src/autonity-oracle/build/bin/autoracle
+```
 
 or configure by using console flags and run the binary:
 
+```shell
 $./autoracle -oracle_symbols="NTN/USD,ATN/USD,EUR/USD,JPY/USD,GBP/USD,AUD/USD,CAD/USD,SEK/USD" -oracle_plugin_dir="./plugins" -oracle_key_file="../../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" -oracle_key_password="123" -oracle_autonity_ws_url="ws://127.0.0.1:8546"
+```
 
 ### Deploy via linux system daemon
 #### Preparations
@@ -181,13 +188,13 @@ WantedBy=multi-user.target
 ```  
 #### Start the service
 
+```shell
 sudo systemctl start autoracle.service
+```
 
 #### Stop the service
-
+```shell
 sudo systemctl stop autoracle.service
-
-```  
 ● autoracle.service - Clearmatics Autonity Oracle Server  
 Loaded: loaded (/etc/systemd/system/autoracle.service; disabled; vendor preset: enabled)  
 Active: inactive (dead)  
@@ -207,9 +214,9 @@ Jan 19 03:03:45 jason-ThinkPad-X1-Carbon-7th systemd[1]: Stopped Clearmatics Aut
 
 #### Check the runtime status
 
+```
 sudo systemctl status autoracle.service
-
-```  
+  
 ● autoracle.service - Clearmatics Autonity Oracle Server  
 Loaded: loaded (/etc/systemd/system/autoracle.service; disabled; vendor preset: enabled)  
 Active: active (running) since Thu 2023-01-19 02:42:19 GMT; 15min ago  
@@ -263,33 +270,33 @@ To replace running plugins with new ones, just replace the binary in the `plugin
 ## Development
 
 To build the project run
-
+```shell
 make autoracle
-
+```
 To build the data source simulator run
-
+```shell
 make simulator
-
+```
 To run e2e test use
-
+```shell
 make e2e-test
-
+```
 To run all tests use
-
+```shell
 make test
-
+```
 To lint code run
-
+```shell
 make lint
-
+```
 To generate mocks for unit test
-
+```shell
 make mock
-
+```
 To build docker image
-
+```shell
 make build-docker-image
-
+```
 To build a plugin, please refer to [How to build a plugin](plugins/README.md)
 
 Built binaries are presented at: `./build/bin` under which there is a `plugins` directory for the built plugins as well.

@@ -55,6 +55,7 @@ type RoundData struct {
 
 // OracleServiceConfig is the configuration of the oracle client.
 type OracleServiceConfig struct {
+	GasTipCap      uint64
 	Key            *keystore.Key
 	AutonityWSUrl  string
 	Symbols        []string

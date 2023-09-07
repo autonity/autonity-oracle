@@ -12,6 +12,7 @@ import (
 )
 
 var (
+	DefaultGasTipCap      = uint64(1)
 	DefaultAutonityWSUrl  = "ws://127.0.0.1:8546"
 	DefaultKeyFile        = "./test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"
 	DefaultKeyPassword    = "123"
@@ -29,7 +30,9 @@ func MakeConfig() *types.OracleServiceConfig {
 	var keyPassword string
 	var autonityWSUrl string
 	var pluginConfFile string
+	var gasTipCap uint64
 
+	flag.Uint64Var(&gasTipCap, "oracle_gas_tip_cap", DefaultGasTipCap, "The gas priority fee cap to issue the oracle data report transactions")
 	flag.StringVar(&pluginDir, "oracle_plugin_dir", DefaultPluginDir, "The DIR where the adapter plugins are stored")
 	flag.StringVar(&symbols, "oracle_symbols", DefaultSymbols, "The symbols string separated by comma")
 	flag.StringVar(&keyFile, "oracle_key_file", DefaultKeyFile, "Oracle server key file")
@@ -57,6 +60,7 @@ func MakeConfig() *types.OracleServiceConfig {
 	}
 
 	return &types.OracleServiceConfig{
+		GasTipCap:      gasTipCap,
 		Key:            key,
 		AutonityWSUrl:  autonityWSUrl,
 		Symbols:        symbolArray,

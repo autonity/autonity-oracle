@@ -63,6 +63,8 @@ type OracleServer struct {
 
 	pluginConfFile string
 
+	gasTipCap uint64
+
 	chRoundEvent  chan *contract.OracleNewRound
 	subRoundEvent event.Subscription
 
@@ -82,6 +84,7 @@ func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, clien
 		l1WSUrl:        conf.AutonityWSUrl,
 		roundData:      make(map[uint64]*types.RoundData),
 		key:            conf.Key,
+		gasTipCap:      conf.GasTipCap,
 		pluginConfFile: conf.PluginConfFile,
 		symbols:        conf.Symbols,
 		pluginDIR:      conf.PluginDIR,
@@ -454,8 +457,7 @@ func (os *OracleServer) doReport(curRndCommitHash common.Hash, lastRoundData *ty
 	}
 
 	auth.Value = big.NewInt(0)
-	// todo: make gas tip cap configurable, now just hard code it for test network.
-	auth.GasTipCap = big.NewInt(1)
+	auth.GasTipCap = new(big.Int).SetUint64(os.gasTipCap)
 	auth.GasLimit = uint64(3000000)
 
 	// if there is no last round data, then we just submit the curRndCommitHash hash of current round.
