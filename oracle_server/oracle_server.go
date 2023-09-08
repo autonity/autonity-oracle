@@ -704,7 +704,7 @@ func (os *OracleServer) tryLoadingNewPlugin(f fs.FileInfo, plugConf types.Plugin
 		return
 	}
 
-	if f.ModTime().After(plugin.StartTime()) {
+	if f.ModTime().After(plugin.StartTime()) || plugin.Exited() {
 		if err := os.ApplyPluginConf(f.Name(), plugConf); err != nil {
 			os.logger.Error("Apply plugin config", "error", err.Error())
 			return

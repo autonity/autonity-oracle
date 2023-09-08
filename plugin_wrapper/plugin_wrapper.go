@@ -2,7 +2,6 @@ package pluginwrapper
 
 import (
 	"autonity-oracle/types"
-	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/event"
@@ -14,20 +13,18 @@ import (
 	"time"
 )
 
-var errConnectionNotEstablished = errors.New("connection not established yet")
-
-// PluginWrapper is the unified wrapper for the interface client of a plugin, it contains metadata of a corresponding
+// PluginWrapper is the unified wrapper for the interface of a plugin, it contains metadata of a corresponding
 // plugin, buffers recent data samples measured from the corresponding plugin.
 type PluginWrapper struct {
-	version        string
-	lockService    sync.RWMutex
-	lockSamples    sync.RWMutex
-	samples        map[string]map[int64]types.Price
-	client         *plugin.Client
-	clientProtocol plugin.ClientProtocol
-	name           string
-	startAt        time.Time
-	logger         hclog.Logger
+	version     string
+	lockService sync.RWMutex
+	lockSamples sync.RWMutex
+	samples     map[string]map[int64]types.Price
+	plugin      *plugin.Client
+	adapter     types.Adapter
+	name        string
+	startAt     time.Time
+	logger      hclog.Logger
 
 	doneCh         chan struct{}
 	chSampleEvent  chan *types.SampleEvent
@@ -47,8 +44,8 @@ func NewPluginWrapper(name string, pluginDir string, oracle types.SampleEventSub
 		"adapter": &types.AdapterPlugin{},
 	}
 
-	// We're a host! New client and prepare the cmd to start the plugin
-	rpcClient := plugin.NewClient(&plugin.ClientConfig{
+	// We're a host! Create the plugin life cycle object with configuration
+	pg := plugin.NewClient(&plugin.ClientConfig{
 		HandshakeConfig: types.HandshakeConfig,
 		Plugins:         pluginMap,
 		Cmd:             exec.Command(fmt.Sprintf("%s/%s", pluginDir, name)), //nolint
@@ -57,7 +54,7 @@ func NewPluginWrapper(name string, pluginDir string, oracle types.SampleEventSub
 
 	p := &PluginWrapper{
 		name:          name,
-		client:        rpcClient,
+		plugin:        pg,
 		startAt:       time.Now(),
 		doneCh:        make(chan struct{}),
 		samples:       make(map[string]map[int64]types.Price),
@@ -136,13 +133,22 @@ func (pw *PluginWrapper) StartTime() time.Time {
 
 // Initialize start the plugin, connect to it and do a handshake via state() interface.
 func (pw *PluginWrapper) Initialize() error {
-	// start the plugin and connect to it
-	rpcClient, err := pw.client.Client()
+	// start the plugin process and connect to it
+	rpcClient, err := pw.plugin.Client()
 	if err != nil {
-		pw.logger.Error("cannot connect remote plugin", err.Error())
+		pw.logger.Error("cannot start plugin process", err.Error())
 		return err
 	}
-	pw.clientProtocol = rpcClient
+
+	// dispenses a new instance of the plugin
+	raw, err := rpcClient.Dispense("adapter")
+	if err != nil {
+		pw.logger.Error("cannot dispense adapter", err.Error())
+		return err
+	}
+
+	pw.adapter = raw.(types.Adapter)
+
 	// load plugin's pluginState.
 	state, err := pw.state()
 	if err != nil {
@@ -154,6 +160,10 @@ func (pw *PluginWrapper) Initialize() error {
 	go pw.start()
 	pw.logger.Info("plugin initialized", pw.name, state)
 	return nil
+}
+
+func (pw *PluginWrapper) Exited() bool {
+	return pw.plugin.Exited()
 }
 
 func (pw *PluginWrapper) start() {
@@ -183,31 +193,7 @@ func (pw *PluginWrapper) start() {
 
 func (pw *PluginWrapper) state() (types.PluginState, error) {
 	var s types.PluginState
-	if pw.clientProtocol == nil {
-		// try to reconnect during the runtime.
-		err := pw.connect()
-		if err != nil {
-			return s, err
-		}
-	}
-	err := pw.clientProtocol.Ping()
-	if err != nil {
-		pw.clientProtocol.Close() // no lint
-		pw.clientProtocol = nil
-		// try to reconnect during the runtime.
-		err = pw.connect()
-		if err != nil {
-			return s, err
-		}
-	}
-
-	raw, err := pw.clientProtocol.Dispense("adapter")
-	if err != nil {
-		return s, err
-	}
-
-	adapter := raw.(types.Adapter)
-	state, err := adapter.State()
+	state, err := pw.adapter.State()
 	if err != nil {
 		return s, err
 	}
@@ -220,34 +206,7 @@ func (pw *PluginWrapper) fetchPrices(symbols []string, ts int64) error {
 	pw.lockService.Lock()
 	defer pw.lockService.Unlock()
 
-	if pw.clientProtocol == nil {
-		// try to reconnect during the runtime.
-		err := pw.connect()
-		if err != nil {
-			pw.logger.Error("connect to plugin", "error", err.Error())
-			return err
-		}
-	}
-	err := pw.clientProtocol.Ping()
-	if err != nil {
-		pw.clientProtocol.Close() // no lint
-		pw.clientProtocol = nil
-		// try to reconnect during the runtime.
-		err = pw.connect()
-		if err != nil {
-			pw.logger.Error("connect to plugin", "error", err.Error())
-			return err
-		}
-	}
-
-	raw, err := pw.clientProtocol.Dispense("adapter")
-	if err != nil {
-		pw.logger.Error("Dispense a plugin", "error", err.Error())
-		return err
-	}
-
-	adapter := raw.(types.Adapter)
-	report, err := adapter.FetchPrices(symbols)
+	report, err := pw.adapter.FetchPrices(symbols)
 	if err != nil {
 		pw.logger.Error("Fetch prices", "error", err.Error())
 		return err
@@ -264,21 +223,7 @@ func (pw *PluginWrapper) fetchPrices(symbols []string, ts int64) error {
 }
 
 func (pw *PluginWrapper) Close() {
-	pw.client.Kill()
-	if pw.clientProtocol != nil {
-		pw.clientProtocol.Close() // no lint
-	}
+	pw.plugin.Kill()
 	pw.doneCh <- struct{}{}
 	pw.subSampleEvent.Unsubscribe()
-}
-
-func (pw *PluginWrapper) connect() error {
-	// connect to remote rpc plugin
-	rpcClient, err := pw.client.Client()
-	if err != nil {
-		pw.logger.Error("cannot connect remote plugin", err.Error())
-		return errConnectionNotEstablished
-	}
-	pw.clientProtocol = rpcClient
-	return nil
 }
