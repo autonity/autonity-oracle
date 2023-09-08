@@ -21,7 +21,7 @@ var (
 	DefaultSymbols        = "AUD-USD,CAD-USD,EUR-USD,GBP-USD,JPY-USD,SEK-USD,ATN-USD,NTN-USD"
 )
 
-const Version = "v0.0.2"
+const Version = "v0.1.2"
 
 func MakeConfig() *types.OracleServiceConfig {
 	var keyFile string
