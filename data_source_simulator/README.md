@@ -11,7 +11,7 @@ All the configuration have default values, in case of configuring the simulator,
 |-------------------------|---------------|--------------------------------------------------------------|-----------------------------|----------------------------------|
 | `SIM_HTTP_PORT`         | No            | The port that the simulator HTTP rpc endpoint bind to        | `50991`                     | any free port number on the host |
 | `SIM_PLAYBOOK_FILE`     | No            | The data point playbook that simulator replay with           | ""                          | a .csv file with symbols at header line and datapoint at the other lines|
-| `SIM_SYMBOL_CONFIG`     | No            | The string with items of patter: SYMBOL:StartingDataPoint:DataDistributionRateRange  | "ATN-USD:1.0:0.0003|NTN-USD:10.0:0.002"                 | similar string in such pattern |
+| `SIM_SYMBOL_CONFIG`     | No            | The string with items of patter: SYMBOL:StartingDataPoint:DataDistributionRateRange  | "ATN-USD:1.0:0.0003|NTN-USD:10.0:0.002|NTN-ATN:10.0:0.001"                 | similar string in such pattern |
 
 Or, there are 5 CLI flags as well with the same feature as the system enviroment variables:
 
