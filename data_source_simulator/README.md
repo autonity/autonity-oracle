@@ -53,7 +53,7 @@ WantedBy=multi-user.target
 Same API spec as Binance API spec for the handler of "/api/v3/ticker/price", the query string contains parameter symbols
 and its value which is a JSON list of string of symbol name.
 
-    curl -X 'GET' 'http://127.0.0.1:50991/api/v3/ticker/price?symbols=%5B%22NTN-USD%22%2C%22ATN-USD%22%5D' -H 'accept: application/json'
+    curl -X 'GET' 'https://simfeed.bakerloo.autonity.org/api/v3/ticker/price/api/v3/ticker/price?symbols=%5B%22NTN-USD%22%2C%22ATN-USD%22%5D' -H 'accept: application/json'
 
 ### Tune the simulation
 The HTTP request message and response message are defined in json object JSONRPCMessage, it is carried by the HTTP body in both the request or response message, all the APIs are access with POST method by specifying the method and the corresponding method's params in params field, and the ID help the client to identify the requests and response pairing.
@@ -69,21 +69,21 @@ The HTTP request message and response message are defined in json object JSONRPC
 #### Move to new data reference point by symbols
 This method move to new data reference point by symbols, thus the simulator can generate data from new reference data point.
 
-    curl -X POST -H "Content-Type: application/json" http://127.0.0.1:50991 --data '{"id":1, "method":"move_to", "params": [{"symbol": "NTN-USD", "value": 99.99},{"symbol":"ATN-USD", "value": 9.9}]}'
+    curl -X POST -H "Content-Type: application/json" https://simfeed.bakerloo.autonity.org/api/v3/ticker/price --data '{"id":1, "method":"move_to", "params": [{"symbol": "NTN-USD", "value": 99.99},{"symbol":"ATN-USD", "value": 9.9}]}'
 
 #### Move data reference point by percentage
 This method move the data reference point of symbols by percentage, the percentage could be negative that drops the data reference point while a positive one increase
 the data reference point by certain percentage, thus the simulator can generate data from new reference data point.
 
-    curl -X POST -H "Content-Type: application/json" http://127.0.0.1:50991 --data '{"id":1, "method":"move_by", "params": [{"symbol": "NTN-USD", "value": 0.01},{"symbol":"ATN-USD", "value": -0.02}]}'
+    curl -X POST -H "Content-Type: application/json" https://simfeed.bakerloo.autonity.org/api/v3/ticker/price --data '{"id":1, "method":"move_by", "params": [{"symbol": "NTN-USD", "value": 0.01},{"symbol":"ATN-USD", "value": -0.02}]}'
 
 #### Set data distribution rate range
 This method set new data distribution rate range for symbols' data generator, thus the simulator can gen data with the data distribution range.
 
-    curl -X POST -H "Content-Type: application/json" http://127.0.0.1:50991 --data '{"id":1, "method":"set_distribution_rate", "params": [{"symbol": "NTN-USD", "value": 0.01},{"symbol":"ATN-USD", "value": 0.02}]}'
+    curl -X POST -H "Content-Type: application/json" https://simfeed.bakerloo.autonity.org/api/v3/ticker/price --data '{"id":1, "method":"set_distribution_rate", "params": [{"symbol": "NTN-USD", "value": 0.01},{"symbol":"ATN-USD", "value": 0.02}]}'
 
 #### Simulate new symbols
 This method simulate data points for new symbols, the value field specifies the data reference point for the symbols, while the distribution rate is resolved by default value 0.01. One can change it by calling RPC call "set_distribution_rate".
 
-    curl -X POST -H "Content-Type: application/json" http://127.0.0.1:50991 --data '{"id":1, "method":"new_simulation", "params": [{"symbol": "NTN-USD", "value": 99.77},{"symbol":"ATN-USD", "value": 0.92}]}'
+    curl -X POST -H "Content-Type: application/json" https://simfeed.bakerloo.autonity.org/api/v3/ticker/price --data '{"id":1, "method":"new_simulation", "params": [{"symbol": "NTN-USD", "value": 99.77},{"symbol":"ATN-USD", "value": 0.92}]}'
 
