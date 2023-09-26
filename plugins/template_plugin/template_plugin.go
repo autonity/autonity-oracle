@@ -25,7 +25,7 @@ const (
 
 var (
 	defaultForex  = []string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"}
-	defaultCrypto = []string{"ATN-USD", "NTN-USD"}
+	defaultCrypto = []string{"ATN-USD", "NTN-USD", "NTN-ATN"}
 )
 
 // TemplatePlugin Here is an implementation of a plugin which returns simulated data points.

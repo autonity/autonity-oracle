@@ -14,8 +14,8 @@ import (
 
 const (
 	version               = "v0.0.2"
-	defaultScheme         = "http"
-	defaultHost           = "35.246.61.147:50991"
+	defaultScheme         = "https"
+	defaultHost           = "simfeed.bakerloo.autonity.org"
 	apiPath               = "api/v3/ticker/price"
 	symbol                = "symbols"
 	defaultTimeout        = 10 // 10s
