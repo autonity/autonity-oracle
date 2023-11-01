@@ -14,19 +14,16 @@ import (
 )
 
 const (
-	version       = "v0.0.2"
-	defaultScheme = "https"
-	defaultHost   = "127.0.0.1:8080"
-	//apiPath             = "api/v3/ticker/price"
-	defaultTimeout        = 10   // 10s
-	defaultUpdateInterval = 3600 // 3600s
-	defaultKey            = ""
+	version = "v0.0.2"
 )
 
-var (
-	defaultForex  = []string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"}
-	defaultCrypto = []string{"ATN-USD", "NTN-USD", "NTN-ATN"}
-)
+var defaultConfig = types.PluginConfig{
+	Key:                "",
+	Scheme:             "https",
+	Endpoint:           "127.0.0.1:8080",
+	Timeout:            10,   //10s
+	DataUpdateInterval: 3600, //3600s
+}
 
 // TemplatePlugin Here is an implementation of a plugin which returns simulated data points.
 type TemplatePlugin struct {
@@ -179,29 +176,6 @@ func (g *TemplatePlugin) resolveSymbols(askedSymbols []string) ([]string, []stri
 	return supported, unSupported, symbolsMapping
 }
 
-func resolveConf(conf *types.PluginConfig) {
-
-	if conf.Timeout == 0 {
-		conf.Timeout = defaultTimeout
-	}
-
-	if conf.DataUpdateInterval == 0 {
-		conf.DataUpdateInterval = defaultUpdateInterval
-	}
-
-	if len(conf.Scheme) == 0 {
-		conf.Scheme = defaultScheme
-	}
-
-	if len(conf.Endpoint) == 0 {
-		conf.Endpoint = defaultHost
-	}
-
-	if len(conf.Key) == 0 {
-		conf.Key = defaultKey
-	}
-}
-
 type TemplateClient struct {
 	conf   *types.PluginConfig
 	client *common.Client
@@ -280,7 +254,7 @@ func (tc *TemplateClient) AvailableSymbols() ([]string, error) {
 			res = append(res, p.Symbol)
 		}*/
 	// in this template, we just return the simulated symbols inside this plugin.
-	res := append(defaultForex, defaultCrypto...)
+	res := append(common.DefaultForexSymbols, common.DefaultCryptoSymbols...)
 	return res, nil
 }
 
@@ -321,7 +295,7 @@ func main() {
 		os.Exit(-1)
 	}
 
-	resolveConf(&conf)
+	common.ResolveConf(&conf, &defaultConfig)
 
 	client := NewTemplateClient(&conf)
 	adapter := NewTemplatePlugin(&conf, client, version)
