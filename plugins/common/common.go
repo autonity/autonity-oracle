@@ -16,6 +16,7 @@ var (
 	DefaultForexSymbols  = []string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"}
 	DefaultCryptoSymbols = []string{"ATN-USD", "NTN-USD", "NTN-ATN"}
 	ErrDataNotAvailable  = fmt.Errorf("data is not available")
+	ErrSymbolUnknown     = fmt.Errorf("unknown symbol")
 )
 
 type Price struct {
