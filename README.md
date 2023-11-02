@@ -75,39 +75,57 @@ $./autoracle -oracle_symbols="AUD-USD,CAD-USD,EUR-USD,GBP-USD,JPY-USD,SEK-USD,AT
 ```
 plugin configuration file:    
 
-`A yaml file to config extra data for a specific plugin nominated by its name, for example here is a plugin configuration to
-config the service key to the corresponding plugins:`
+`A yaml file to config plugins:`
 
 ```yaml
-# A list of plugins with each one's executable binary name and its corresponding API key granted by the data provider.
-# For forex data providers which provide the realtime exchange rate of EUR/USD, JPY/USD, GBP/USD, AUD/USD, CAD/USD and
-# SEK/USD, there are 4 official plugins listed below, end user can select one or more of them on-demand for the forex
-# data sourcing. Remember to config the API key in below once you subscribe the service plan from your data vendors.
+# The forex data plugins are used to fetch realtime rate of currency pairs:
+# EUR-USD, JPY-USD, GBP-USD, AUD-USD, CAD-USD and SEK-USD from commercial data providers.
+# There are 4 implemented forex data plugins, each of them requires the end user to apply for their own service key from
+# the selected data provider. The selection of the forex data plugin is on demand by end user. The user can use anyone
+# of them, or he/she can use multiple forex data plugins in the setup.
+#
+# The crypto data plugins are used to fetch realtime rate of crypto currency pairs:
+# ATN-USD, NTN-USD, NTN-ATN from exchanges. For Autonity round4 game, the data provider of these pairs is a simulated
+# exchange that people can trade ATN and NTN in the markets created by it. Thus, there is no configuration required for
+# the plugin named pcgc_cax that fetch data of crypto currency pairs, since the default configurations inside the plugin
+# works for you.
 
-# Un-comment below lines to enable your configuration on demand.
-#  - name: forex_currencyfreaks              # visit https://currencyfreaks.com to apply for your key
-#    key: 5490e15565e741129788f6100e022ec5   # replace it with your own key
+# For each forex data plugin, there is a list of configuration are required, however most of them have use default
+# configuration, thus, the end user just need to configure the required ones. All the configuration of a plugin is
+# explained as below:
+#
+# type PluginConfig struct {
+#	Name               string `json:"name" yaml:"name"`         // the name of the plugin binary, it is required.
+#	Key                string `json:"key" yaml:"key"`           // the API key granted by data provider, it is required.
+#	Scheme             string `json:"scheme" yaml:"scheme"`     // the data service scheme, http or https, it is optional.
+#	Endpoint           string `json:"endpoint" yaml:"endpoint"` // the hostname of the data service endpoint, it is optional.
+#	Timeout            int    `json:"timeout" yaml:"timeout"`   // the timeout in seconds that a request last for, it is optional.
+#	DataUpdateInterval int    `json:"refresh" yaml:"refresh"`   // the interval in seconds to fetch data due to the rate limit from the provider.
+#}
 
-#  - name: forex_openexchangerate            # visit https://openexchangerates.org to apply for your key
-#    key: 0be02ca33c4843ee968c4cedd2686f01   # replace it with your own key
+# An example to config all the configuration of the plugin forex_currencyfreaks, only those required field is needed,
+# however you can configure those optionals on demand to fit your service quality provided by the provider.
+#  - name: forex_currencyfreaks              # required, it is the plugin file name in the plugin directory.
+#    key: 575aab9e47e54790bf6d502c48407c10   # required, visit https://currencyfreaks.com to get your key, and replace it.
+#    scheme: https                           # optional, https or http, default value is https.
+#    endpoint: api.currencyfreaks.com        # optional, default value is api.currencyfreaks.com
+#    timeout: 10                             # optional, default value is 10.
+#    refresh: 3600                           # optional, default value is 3600, that is 1 hour to fetch data from data source.
 
-#  - name: forex_currencylayer               # visit https://currencylayer.com to apply for your key
-#    key: 705af082ac7f7d150c87303d4e2f049e   # replace it with your own key
+# Un-comment below lines to enable your forex data plugin's configuration on demand. Your production configurations start from below:
 
-#  - name: forex_exchangerate                # visit https://www.exchangerate-api.com to apply for your key
-#    key: 411f04e4775bb86c20296530           # replace it with your own key
+#  - name: forex_currencyfreaks              # required, it is the plugin file name in the plugin directory.
+#    key: 575aab9e47e54790bf6d502c48407c10   # required, visit https://currencyfreaks.com to get your key, and replace it.
 
-- name: forex_currencyfreaks              # visit https://currencyfreaks.com to apply for your key
-  key: 5490e15565e741129788f6100e022ec5   # replace it with your own key
+#  - name: forex_openexchangerate            # required, it is the plugin file name in the plugin directory.
+#    key: 0be02ca33c4843ee968c4cedd2686f01   # required, visit https://openexchangerates.org to get your key, and replace it.
 
-- name: forex_openexchangerate            # visit https://openexchangerates.org to apply for your key
-  key: 0be02ca33c4843ee968c4cedd2686f01   # replace it with your own key
+#  - name: forex_currencylayer               # required, it is the plugin file name in the plugin directory.
+#    key: 705af082ac7f7d150c87303d4e2f049e   # required, visit https://currencylayer.com  to get your key, and replace it.
 
-- name: forex_currencylayer               # visit https://currencylayer.com to apply for your key
-  key: 705af082ac7f7d150c87303d4e2f049e   # replace it with your own key
+#  - name: forex_exchangerate                # required, it is the plugin file name in the plugin directory.
+#    key: 411f04e4775bb86c20296530           # required, visit https://www.exchangerate-api.com to get your key, and replace it.
 
-- name: forex_exchangerate                # visit https://www.exchangerate-api.com to apply for your key
-  key: 411f04e4775bb86c20296530           # replace it with your own key
 ```
 
 Available configuration fields:
