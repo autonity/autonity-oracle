@@ -28,9 +28,9 @@ const (
 var defaultConfig = types.PluginConfig{
 	Key:                "",
 	Scheme:             "https",
-	Endpoint:           "cax.devnet.clearmatics.network",
-	Timeout:            10,   //10s
-	DataUpdateInterval: 3600, //3600s, todo: if there is a rate limit for the CAX service, we'd need to set it properly.
+	Endpoint:           "cax.devnet.clearmatics.network", // todo: replace it with cax.piccadilly.autonity.org for piccadilly network.
+	Timeout:            10,                               //10s
+	DataUpdateInterval: 3600,                             //3600s, todo: if there is a rate limit for the CAX service, we'd need to set it properly.
 }
 
 type CAXQuote struct {
