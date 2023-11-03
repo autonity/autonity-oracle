@@ -29,8 +29,8 @@ var defaultConfig = types.PluginConfig{
 	Key:                "",
 	Scheme:             "https",
 	Endpoint:           "cax.devnet.clearmatics.network",
-	Timeout:            10, //10s
-	DataUpdateInterval: 10, //10s
+	Timeout:            10,   //10s
+	DataUpdateInterval: 3600, //3600s, todo: if there is a rate limit for the CAX service, we'd need to set it properly.
 }
 
 type CAXQuote struct {
@@ -68,39 +68,33 @@ func NewCAXClient(conf *types.PluginConfig) *CAXClient {
 
 func (cc *CAXClient) FetchPrice(symbols []string) (common.Prices, error) {
 	var prices common.Prices
-	priceNTN, err := cc.fetchPrice(NTNUSD)
-	if err != nil {
-		cc.logger.Error("query NTN-USD price", "error", err.Error())
-		return nil, err
+	priceMap := make(map[string]common.Price)
+
+	for _, s := range symbols {
+		p, err := cc.fetchPrice(s)
+		if err != nil {
+			cc.logger.Error("query price", "error", err.Error())
+			continue
+		}
+		priceMap[s] = p
+		prices = append(prices, p)
 	}
 
-	priceATN, err := cc.fetchPrice(ATNUSD)
-	if err != nil {
-		cc.logger.Error("query ATN-USD price", "error", err.Error())
-		return nil, err
+	if len(prices) == 0 {
+		return nil, common.ErrDataNotAvailable
 	}
 
 	// for autonity round4 game, the price of "NTN-ATN" is derived from the price of "NTN-USD" and "ATN-USD"
-	priceNTNATN, err := cc.computeDerivedPrice(priceNTN, priceATN)
-	if err != nil {
-		cc.logger.Error("compute derived price NTN-ATN", "error", err.Error())
-		return nil, err
-	}
-
-	for _, s := range symbols {
-		switch s {
-		case NTNUSD:
-			prices = append(prices, priceNTN)
-		case ATNUSD:
-			prices = append(prices, priceATN)
-		case NTNATN:
-			prices = append(prices, priceNTNATN)
-		default:
-			return nil, common.ErrSymbolUnknown
+	if _, ok := priceMap[NTNATN]; !ok && len(priceMap) == 2 {
+		// since only 3 symbols are supported, thus we assume the collected two symbols are NTN-USD and ATN-USD.
+		pNTNATN, err := cc.computeDerivedPrice(priceMap[NTNUSD], priceMap[ATNUSD])
+		if err != nil {
+			cc.logger.Error("compute derived price NTN-ATN", "error", err.Error())
+			return prices, nil
 		}
+		prices = append(prices, pNTNATN)
 	}
 
-	cc.logger.Debug("CAX symbols", "data", prices)
 	return prices, nil
 }
 

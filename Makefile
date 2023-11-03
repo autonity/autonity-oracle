@@ -13,6 +13,7 @@ E2E_TEST_PRD_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/production_plugins
 E2E_TEST_SML_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/simulator_plugins
 E2E_TEST_MIX_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/mix_plugins
 E2E_TEST_FOREX_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/forex_plugins
+E2E_TEST_CAX_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/pcgc_cax_plugins
 SOLC_BINARY = $(BIN_DIR)/solc_static_linux_v$(SOLC_VERSION)
 PLUGIN_DIR = ./build/bin/plugins
 SIMULATOR_BIN_DIR = ./data_source_simulator/build/bin
@@ -35,6 +36,7 @@ autoracle:
 	mkdir -p $(E2E_TEST_SML_PLUGIN_DIR)
 	mkdir -p $(E2E_TEST_MIX_PLUGIN_DIR)
 	mkdir -p $(E2E_TEST_FOREX_PLUGIN_DIR)
+	mkdir -p $(E2E_TEST_CAX_PLUGIN_DIR)
 
     # build oracle client
 	go build -o $(BIN_DIR)/autoracle
@@ -72,6 +74,9 @@ autoracle:
 	cp $(PLUGIN_DIR)/forex_currencylayer $(E2E_TEST_FOREX_PLUGIN_DIR)/forex_currencylayer
 	cp $(PLUGIN_DIR)/forex_exchangerate $(E2E_TEST_FOREX_PLUGIN_DIR)/forex_exchangerate
 	cp $(PLUGIN_DIR)/forex_openexchange $(E2E_TEST_FOREX_PLUGIN_DIR)/forex_openexchange
+
+	# cp autonity round4 game PCGC CAX plugins for e2e testing
+	cp $(PLUGIN_DIR)/pcgc_cax $(E2E_TEST_CAX_PLUGIN_DIR)/pcgc_cax
 
     # build simulator plugin
 	go build -o $(E2E_TEST_SML_PLUGIN_DIR)/sim_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go
