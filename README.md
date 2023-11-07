@@ -86,7 +86,7 @@ plugin configuration file:
 #
 # The crypto data plugins are used to fetch realtime rate of crypto currency pairs:
 # ATN-USD, NTN-USD, NTN-ATN from exchanges. For the Autonity Piccadilly Circus Games Competition Round 4 game, the data provider of these pairs is a simulated
-# exchange that people can trade ATN and NTN in the markets created by it. Thus, there is no configuration required for
+# exchange that people can trade ATN and NTN in markets created by it. No configuration is required for
 # the plugin named pcgc_cax that fetch data of crypto currency pairs, since the default configurations inside the plugin
 # works for you.
 
