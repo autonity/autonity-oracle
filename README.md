@@ -110,7 +110,7 @@ plugin configuration file:
 #    timeout: 10                             # optional, default value is 10.
 #    refresh: 3600                           # optional, default value is 3600, that is 1 hour to fetch data from data source.
 
-# Un-comment below lines to enable your forex data plugin's configuration on demand. Your production configurations start from below:
+# Un-comment below lines to enable your forex data plugin's configuration on demand. Your production configurations starts from below:
 
 #  - name: forex_currencyfreaks              # required, it is the plugin file name in the plugin directory.
 #    key: 575aab9e47e54790bf6d502c48407c10   # required, visit https://currencyfreaks.com to get your key, and replace it.
