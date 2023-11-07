@@ -90,7 +90,7 @@ plugin configuration file:
 # the plugin named pcgc_cax that fetches data for these crypto currency pairs from this exchange as the default configuration is set in the plugin.
 
 # For the forex data plugin, default
-# configuration, thus, the end user just need to configure the required ones. All the configuration of a plugin is
+# configuration is set, so the end user just needs to configure required settings, namely `name` and `key`. The configuration settings of a plugin are:
 # explained as below:
 #
 # type PluginConfig struct {
