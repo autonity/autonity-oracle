@@ -22,7 +22,7 @@
 #}
 
 # As an example, to set the configuration of the plugin `forex_currencyfreaks`, only the required field are needed
-# however you can configure those optionals on demand to fit your service quality provided by the provider.
+# however you can configure the optional fields on demand to fit your service quality from the rate provider.
 #  - name: forex_currencyfreaks              # required, it is the plugin file name in the plugin directory.
 #    key: 575aab9e47e54790bf6d502c48407c10   # required, visit https://currencyfreaks.com to get your key, and replace it.
 #    scheme: https                           # optional, https or http, default value is https.
