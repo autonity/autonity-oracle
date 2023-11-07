@@ -81,7 +81,7 @@ plugin configuration file:
 # The forex data plugins are used to fetch realtime rate of currency pairs:
 # EUR-USD, JPY-USD, GBP-USD, AUD-USD, CAD-USD and SEK-USD from commercial data providers.
 # There are 4 implemented forex data plugins, each of them requires the end user to apply for their own service key from
-# the selected data provider. The selection of the forex data plugin is on demand by end user. The user can use anyone
+# the selected data provider. The selection of the forex data plugin is on demand by the end user. The user can use anyone
 # of them, or he/she can use multiple forex data plugins in the setup.
 #
 # The crypto data plugins are used to fetch realtime rate of crypto currency pairs:
