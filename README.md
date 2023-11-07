@@ -89,7 +89,7 @@ plugin configuration file:
 # exchange that people can trade ATN and NTN in markets created by it. No configuration is required for
 # the plugin named pcgc_cax that fetches data for these crypto currency pairs from this exchange as the default configuration is set in the plugin.
 
-# For each forex data plugin, there is a list of configuration are required, however most of them have use default
+# For the forex data plugin, default
 # configuration, thus, the end user just need to configure the required ones. All the configuration of a plugin is
 # explained as below:
 #
