@@ -10,9 +10,7 @@
 # the plugin named pcgc_cax that fetch data of crypto currency pairs, since the default configurations inside the plugin
 # works for you.
 
-# For each forex data plugin, there is a list of configuration are required, however most of them have use default
-# configuration, thus, the end user just need to configure the required ones. All the configuration of a plugin is
-# explained as below:
+# For the forex data plugin default , so the end user just needs to configure required settings, namely `name` and `key`. The configuration settings of a plugin are:
 #
 # type PluginConfig struct {
 #	Name               string `json:"name" yaml:"name"`         // the name of the plugin binary, it is required.
