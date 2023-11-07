@@ -91,7 +91,6 @@ plugin configuration file:
 
 # For the forex data plugin, default
 # configuration is set, so the end user just needs to configure required settings, namely `name` and `key`. The configuration settings of a plugin are:
-# explained as below:
 #
 # type PluginConfig struct {
 #	Name               string `json:"name" yaml:"name"`         // the name of the plugin binary, it is required.
