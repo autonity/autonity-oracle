@@ -88,12 +88,14 @@ func (cc *CAXClient) FetchPrice(symbols []string) (common.Prices, error) {
 	if _, ok := priceMap[NTNATN]; !ok && len(priceMap) == 2 {
 		pNTN, ok := priceMap[NTNUSD]
 		if !ok {
-			return nil, common.ErrDataNotAvailable
+			cc.logger.Error("missing NTN-USD data to compute derived price: NTN-ATN")
+			return prices, nil
 		}
 
 		pATN, ok := priceMap[ATNUSD]
 		if !ok {
-			return nil, common.ErrDataNotAvailable
+			cc.logger.Error("missing ATN-USD data to compute derived price: NTN-ATN")
+			return prices, nil
 		}
 
 		// since only 3 symbols are supported, thus we assume the collected two symbols are NTN-USD and ATN-USD.
