@@ -86,8 +86,18 @@ func (cc *CAXClient) FetchPrice(symbols []string) (common.Prices, error) {
 
 	// for autonity round4 game, the price of "NTN-ATN" is derived from the price of "NTN-USD" and "ATN-USD"
 	if _, ok := priceMap[NTNATN]; !ok && len(priceMap) == 2 {
+		pNTN, ok := priceMap[NTNUSD]
+		if !ok {
+			return nil, common.ErrDataNotAvailable
+		}
+
+		pATN, ok := priceMap[ATNUSD]
+		if !ok {
+			return nil, common.ErrDataNotAvailable
+		}
+
 		// since only 3 symbols are supported, thus we assume the collected two symbols are NTN-USD and ATN-USD.
-		pNTNATN, err := cc.computeDerivedPrice(priceMap[NTNUSD], priceMap[ATNUSD])
+		pNTNATN, err := cc.computeDerivedPrice(pNTN, pATN)
 		if err != nil {
 			cc.logger.Error("compute derived price NTN-ATN", "error", err.Error())
 			return prices, nil
