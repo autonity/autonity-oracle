@@ -1,18 +1,16 @@
 # The forex data plugins are used to fetch realtime rate of currency pairs:
 # EUR-USD, JPY-USD, GBP-USD, AUD-USD, CAD-USD and SEK-USD from commercial data providers.
 # There are 4 implemented forex data plugins, each of them requires the end user to apply for their own service key from
-# the selected data provider. The selection of the forex data plugin is on demand by end user. The user can use anyone
+# the selected data provider. The selection of which forex data plugin(s) to use is for the end user to decide. The user can use any one
 # of them, or he/she can use multiple forex data plugins in the setup.
 #
 # The crypto data plugins are used to fetch realtime rate of crypto currency pairs:
-# ATN-USD, NTN-USD, NTN-ATN from exchanges. For Autonity round4 game, the data provider of these pairs is a simulated
+# ATN-USD, NTN-USD, NTN-ATN from exchanges. For the Autonity Piccadilly Circus Games Competition Round 4 game,, the data provider of these pairs is a simulated
 # exchange that people can trade ATN and NTN in the markets created by it. Thus, there is no configuration required for
 # the plugin named pcgc_cax that fetch data of crypto currency pairs, since the default configurations inside the plugin
 # works for you.
 
-# For each forex data plugin, there is a list of configuration are required, however most of them have use default
-# configuration, thus, the end user just need to configure the required ones. All the configuration of a plugin is
-# explained as below:
+# For the forex data plugin default configuration is set, so the end user just needs to configure required settings, namely `name` and `key`. The configuration settings of a plugin are:
 #
 # type PluginConfig struct {
 #	Name               string `json:"name" yaml:"name"`         // the name of the plugin binary, it is required.
@@ -23,8 +21,8 @@
 #	DataUpdateInterval int    `json:"refresh" yaml:"refresh"`   // the interval in seconds to fetch data due to the rate limit from the provider.
 #}
 
-# An example to config all the configuration of the plugin forex_currencyfreaks, only those required field is needed,
-# however you can configure those optionals on demand to fit your service quality provided by the provider.
+# As an example, to set the configuration of the plugin `forex_currencyfreaks`, only the required field are needed
+# however you can configure the optional fields on demand to fit your service quality from the rate provider.
 #  - name: forex_currencyfreaks              # required, it is the plugin file name in the plugin directory.
 #    key: 575aab9e47e54790bf6d502c48407c10   # required, visit https://currencyfreaks.com to get your key, and replace it.
 #    scheme: https                           # optional, https or http, default value is https.
