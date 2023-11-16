@@ -12,14 +12,19 @@ import (
 	"time"
 )
 
+var (
+	DefaultForexSymbols  = []string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"}
+	DefaultCryptoSymbols = []string{"ATN-USD", "NTN-USD", "NTN-ATN"}
+	ErrDataNotAvailable  = fmt.Errorf("data is not available")
+	ErrSymbolUnknown     = fmt.Errorf("unknown symbol")
+)
+
 type Price struct {
 	Symbol string `json:"symbol,omitempty"`
 	Price  string `json:"price,omitempty"`
 }
 
 type Prices []Price
-
-var DefaultForexSymbols = []string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"}
 
 type Plugin struct {
 	version          string
@@ -199,4 +204,27 @@ func ConvertSymbol(src string, toSep string) string {
 	}
 	subs := strings.Split(src, srcSep)
 	return strings.Join(subs, toSep)
+}
+
+func ResolveConf(conf *types.PluginConfig, defConf *types.PluginConfig) {
+
+	if conf.Timeout == 0 {
+		conf.Timeout = defConf.Timeout
+	}
+
+	if conf.DataUpdateInterval == 0 {
+		conf.DataUpdateInterval = defConf.DataUpdateInterval
+	}
+
+	if len(conf.Scheme) == 0 {
+		conf.Scheme = defConf.Scheme
+	}
+
+	if len(conf.Endpoint) == 0 {
+		conf.Endpoint = defConf.Endpoint
+	}
+
+	if len(conf.Key) == 0 {
+		conf.Key = defConf.Key
+	}
 }

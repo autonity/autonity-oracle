@@ -16,15 +16,18 @@ import (
 )
 
 const (
-	version               = "v0.0.1"
-	defaultScheme         = "https"
-	defaultHost           = "api.currencyfreaks.com"
-	defaultKey            = "5490e15565e741129788f6100e022ec5"
-	apiVersion            = "v2.0/rates/latest"
-	defaultTimeout        = 10   // 10s
-	defaultUpdateInterval = 3600 // 3600s
-	apiKey                = "apikey"
+	version    = "v0.0.1"
+	apiVersion = "v2.0/rates/latest"
+	apiKey     = "apikey"
 )
+
+var defaultConfig = types.PluginConfig{
+	Key:                "575aab9e47e54790bf6d502c48407c10",
+	Scheme:             "https",
+	Endpoint:           "api.currencyfreaks.com",
+	Timeout:            10,   //10s
+	DataUpdateInterval: 3600, //3600s
+}
 
 type CFResult struct {
 	Date  string  `json:"date"`
@@ -83,6 +86,11 @@ func (cf *CFClient) FetchPrice(symbols []string) (common.Prices, error) {
 	if err != nil {
 		cf.logger.Error("unmarshal price", "error", err.Error())
 		return nil, err
+	}
+
+	if result.Date == "" {
+		cf.logger.Error("data source returns", "data", string(body))
+		return nil, common.ErrDataNotAvailable
 	}
 
 	for _, s := range symbols {
@@ -173,29 +181,6 @@ func (cf *CFClient) buildURL(key string) *url.URL {
 	return endpoint
 }
 
-func resolveConf(conf *types.PluginConfig) {
-
-	if conf.Timeout == 0 {
-		conf.Timeout = defaultTimeout
-	}
-
-	if conf.DataUpdateInterval == 0 {
-		conf.DataUpdateInterval = defaultUpdateInterval
-	}
-
-	if len(conf.Scheme) == 0 {
-		conf.Scheme = defaultScheme
-	}
-
-	if len(conf.Endpoint) == 0 {
-		conf.Endpoint = defaultHost
-	}
-
-	if len(conf.Key) == 0 {
-		conf.Key = defaultKey
-	}
-}
-
 func main() {
 	conf, err := common.LoadPluginConf(os.Args[0])
 	if err != nil {
@@ -203,7 +188,7 @@ func main() {
 		os.Exit(-1)
 	}
 
-	resolveConf(&conf)
+	common.ResolveConf(&conf, &defaultConfig)
 
 	client := NewCFClient(&conf)
 	adapter := common.NewPlugin(&conf, client, version)

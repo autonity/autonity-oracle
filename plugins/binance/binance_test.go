@@ -1,6 +1,7 @@
 package main
 
 import (
+	"autonity-oracle/plugins/common"
 	"autonity-oracle/types"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -11,7 +12,7 @@ func TestNewBIClient(t *testing.T) {
 		Name: "binance",
 	}
 
-	resolveConf(&conf)
+	common.ResolveConf(&conf, &defaultConfig)
 
 	client := NewBIClient(&conf)
 	prices, err := client.FetchPrice([]string{"BTCUSD", "ETHUSD"})
@@ -24,7 +25,7 @@ func TestBIClient_AvailableSymbols(t *testing.T) {
 		Name: "binance",
 	}
 
-	resolveConf(&conf)
+	common.ResolveConf(&conf, &defaultConfig)
 
 	client := NewBIClient(&conf)
 	symbols, err := client.AvailableSymbols()

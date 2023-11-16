@@ -1,6 +1,7 @@
 package main
 
 import (
+	"autonity-oracle/plugins/common"
 	"autonity-oracle/types"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -11,12 +12,12 @@ func TestNewSIMClient(t *testing.T) {
 		Name: "simulator",
 	}
 
-	resolveConf(&conf)
+	common.ResolveConf(&conf, &defaultConfig)
 
 	client := NewSIMClient(&conf)
-	prices, err := client.FetchPrice([]string{"EUR/USD", "JPY/USD"})
+	prices, err := client.FetchPrice([]string{"ATN-USD", "NTN-USD", "NTN-ATN"})
 	require.NoError(t, err)
-	require.Equal(t, 2, len(prices))
+	require.Equal(t, 3, len(prices))
 }
 
 func TestSIMClient_AvailableSymbols(t *testing.T) {
@@ -24,11 +25,11 @@ func TestSIMClient_AvailableSymbols(t *testing.T) {
 		Name: "simulator",
 	}
 
-	resolveConf(&conf)
+	common.ResolveConf(&conf, &defaultConfig)
 
 	client := NewSIMClient(&conf)
 	symbols, err := client.AvailableSymbols()
 	require.NoError(t, err)
 
-	require.Contains(t, symbols, "ATN/USD")
+	require.Contains(t, symbols, "ATN-USD")
 }

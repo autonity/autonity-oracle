@@ -1,6 +1,7 @@
 package main
 
 import (
+	"autonity-oracle/plugins/common"
 	"autonity-oracle/types"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -11,7 +12,7 @@ func TestNewEXClient(t *testing.T) {
 		Name: "forex-ExchangeRate",
 	}
 
-	resolveConf(&conf)
+	common.ResolveConf(&conf, &defaultConfig)
 
 	client := NewEXClient(&conf)
 	prices, err := client.FetchPrice([]string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"})

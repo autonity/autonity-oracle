@@ -16,15 +16,18 @@ import (
 )
 
 const (
-	version               = "v0.0.1"
-	defaultScheme         = "http" // todo: replace the scheme with https once we purchase the service plan.
-	defaultHost           = "api.currencylayer.com"
-	pathLive              = "live"
-	accessKey             = "access_key"
-	defaultKey            = "705af082ac7f7d150c87303d4e2f049e"
-	defaultTimeout        = 10   // 10s
-	defaultUpdateInterval = 3600 // 3600s
+	version   = "v0.0.1"
+	pathLive  = "live"
+	accessKey = "access_key"
 )
+
+var defaultConfig = types.PluginConfig{
+	Key:                "705af082ac7f7d150c87303d4e2f049e",
+	Scheme:             "http", // todo: replace the scheme with https once we purchase the service plan.
+	Endpoint:           "api.currencylayer.com",
+	Timeout:            10,   //10s
+	DataUpdateInterval: 3600, //3600s
+}
 
 type CLResult struct {
 	Success   bool   `json:"success"`
@@ -75,7 +78,6 @@ func (cl *CLClient) FetchPrice(symbols []string) (common.Prices, error) {
 		return nil, err
 	}
 	defer res.Body.Close()
-
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		cl.logger.Error("io read", "error", err.Error())
@@ -87,6 +89,11 @@ func (cl *CLClient) FetchPrice(symbols []string) (common.Prices, error) {
 	if err != nil {
 		cl.logger.Error("unmarshal price", "error", err.Error())
 		return nil, err
+	}
+
+	if result.Timestamp == 0 {
+		cl.logger.Error("data source returns", "data", string(body))
+		return nil, common.ErrDataNotAvailable
 	}
 
 	if !result.Success {
@@ -161,29 +168,6 @@ func (cl *CLClient) buildURL(apiKey string) *url.URL {
 	return endpoint
 }
 
-func resolveConf(conf *types.PluginConfig) {
-
-	if conf.Timeout == 0 {
-		conf.Timeout = defaultTimeout
-	}
-
-	if conf.DataUpdateInterval == 0 {
-		conf.DataUpdateInterval = defaultUpdateInterval
-	}
-
-	if len(conf.Scheme) == 0 {
-		conf.Scheme = defaultScheme
-	}
-
-	if len(conf.Endpoint) == 0 {
-		conf.Endpoint = defaultHost
-	}
-
-	if len(conf.Key) == 0 {
-		conf.Key = defaultKey
-	}
-}
-
 func main() {
 	conf, err := common.LoadPluginConf(os.Args[0])
 	if err != nil {
@@ -191,7 +175,7 @@ func main() {
 		os.Exit(-1)
 	}
 
-	resolveConf(&conf)
+	common.ResolveConf(&conf, &defaultConfig)
 
 	client := NewCLClient(&conf)
 	adapter := common.NewPlugin(&conf, client, version)

@@ -16,14 +16,17 @@ import (
 )
 
 const (
-	version               = "v0.0.1"
-	defaultScheme         = "https"
-	defaultHost           = "v6.exchangerate-api.com"
-	exVersion             = "v6"
-	defaultKey            = "411f04e4775bb86c20296530"
-	defaultTimeout        = 10   // 10s
-	defaultUpdateInterval = 3600 // 3600s
+	version   = "v0.0.1"
+	exVersion = "v6"
 )
+
+var defaultConfig = types.PluginConfig{
+	Key:                "411f04e4775bb86c20296530",
+	Scheme:             "https",
+	Endpoint:           "v6.exchangerate-api.com",
+	Timeout:            10,   //10s
+	DataUpdateInterval: 3600, //3600s
+}
 
 type EXResult struct {
 	Result             string          `json:"result"`
@@ -84,6 +87,7 @@ func (ex *EXClient) FetchPrice(symbols []string) (common.Prices, error) {
 		return nil, err
 	}
 
+	ex.logger.Info("data source returns", "data", string(body))
 	var result EXResult
 	err = json.Unmarshal(body, &result)
 	if err != nil {
@@ -92,8 +96,8 @@ func (ex *EXClient) FetchPrice(symbols []string) (common.Prices, error) {
 	}
 
 	if result.Result != "success" {
-		ex.logger.Error("result success code", "error", result.Result)
-		return nil, fmt.Errorf("%s", result.Result)
+		ex.logger.Error("data source returns", "data", string(body))
+		return nil, common.ErrDataNotAvailable
 	}
 
 	for _, s := range symbols {
@@ -157,29 +161,6 @@ func (ex *EXClient) buildURL(apiKey string) *url.URL {
 	return endpoint
 }
 
-func resolveConf(conf *types.PluginConfig) {
-
-	if conf.Timeout == 0 {
-		conf.Timeout = defaultTimeout
-	}
-
-	if conf.DataUpdateInterval == 0 {
-		conf.DataUpdateInterval = defaultUpdateInterval
-	}
-
-	if len(conf.Scheme) == 0 {
-		conf.Scheme = defaultScheme
-	}
-
-	if len(conf.Endpoint) == 0 {
-		conf.Endpoint = defaultHost
-	}
-
-	if len(conf.Key) == 0 {
-		conf.Key = defaultKey
-	}
-}
-
 func main() {
 	conf, err := common.LoadPluginConf(os.Args[0])
 	if err != nil {
@@ -187,7 +168,7 @@ func main() {
 		os.Exit(-1)
 	}
 
-	resolveConf(&conf)
+	common.ResolveConf(&conf, &defaultConfig)
 
 	client := NewEXClient(&conf)
 	adapter := common.NewPlugin(&conf, client, version)

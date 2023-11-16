@@ -341,6 +341,71 @@ func TestForexPluginsHappyCase(t *testing.T) {
 	testHappyCase(t, o, endRound, pricePrecision)
 }
 
+func TestCAXPluginsHappyCase(t *testing.T) {
+	// run the test after the data source cax.devnet.clearmatics.network provides available data.
+	t.Skip("this test depends on the remote service endpoint of cax.devnet.clearmatics.network")
+	var conf = &NetworkConfig{
+		EnableL1Logs: false,
+		Symbols:      "NTN-USD,ATN-USD,NTN-ATN",
+		VotePeriod:   defaultVotePeriod,
+		PluginDIRs:   []string{caxPlugDir, caxPlugDir, caxPlugDir, caxPlugDir},
+	}
+
+	net, err := createNetwork(conf)
+	require.NoError(t, err)
+	defer net.Stop()
+
+	client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d", net.L1Nodes[0].Host, net.L1Nodes[0].WSPort))
+	require.NoError(t, err)
+	defer client.Close()
+
+	// bind client with oracle contract address
+	o, err := contract.NewOracle(types.OracleContractAddress, client)
+	require.NoError(t, err)
+
+	// subscribe on-chain round rotation event
+	chRoundEvent := make(chan *contract.OracleNewRound)
+	subRoundEvent, err := o.WatchNewRound(new(bind.WatchOpts), chRoundEvent)
+	require.NoError(t, err)
+	defer subRoundEvent.Unsubscribe()
+
+	symbols := []string{"NTN-USD", "ATN-USD", "NTN-ATN"}
+	endRound := uint64(5)
+
+	var prices []contract.IOracleRoundData
+
+	for {
+		select {
+		case rEvent := <-chRoundEvent:
+			if rEvent.Round.Uint64() <= 3 {
+				continue
+			}
+
+			if rEvent.Round.Uint64() > endRound {
+				return
+			}
+
+			lastRound := new(big.Int).SetUint64(rEvent.Round.Uint64() - 1)
+
+			for _, s := range symbols {
+				p, err := o.GetRoundData(nil, lastRound, s)
+				require.NoError(t, err)
+				prices = append(prices, p)
+			}
+
+			hasBadValue := false
+			for _, p := range prices {
+				if p.Status.Uint64() != 0 || p.Price.Uint64() == 0 {
+					hasBadValue = true
+				}
+			}
+			if !hasBadValue {
+				break
+			}
+		}
+	}
+}
+
 func testHappyCase(t *testing.T, o *contract.Oracle, beforeRound uint64, pricePrecision decimal.Decimal) {
 	for {
 		time.Sleep(1 * time.Minute)

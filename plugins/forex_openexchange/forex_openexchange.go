@@ -16,16 +16,19 @@ import (
 )
 
 const (
-	version               = "v0.0.1"
-	defaultScheme         = "https"
-	defaultHost           = "openexchangerates.org"
-	api                   = "api/latest.json"
-	base                  = "base"
-	appID                 = "app_id"
-	defaultKey            = "0be02ca33c4843ee968c4cedd2686f01"
-	defaultTimeout        = 10   // 10s
-	defaultUpdateInterval = 3600 // 3600s
+	version = "v0.0.1"
+	api     = "api/latest.json"
+	base    = "base"
+	appID   = "app_id"
 )
+
+var defaultConfig = types.PluginConfig{
+	Key:                "0be02ca33c4843ee968c4cedd2686f01",
+	Scheme:             "https",
+	Endpoint:           "openexchangerates.org",
+	Timeout:            10,   //10s
+	DataUpdateInterval: 3600, //3600s
+}
 
 type ConversionRates struct {
 	EUR decimal.Decimal `json:"EUR"`
@@ -89,6 +92,11 @@ func (oe *OXClient) FetchPrice(symbols []string) (common.Prices, error) {
 	if err != nil {
 		oe.logger.Error("unmarshal price", "error", err.Error())
 		return nil, err
+	}
+
+	if result.Timestamp == 0 {
+		oe.logger.Error("data source returns", "data", string(body))
+		return nil, common.ErrDataNotAvailable
 	}
 
 	for _, s := range symbols {
@@ -155,36 +163,13 @@ func (oe *OXClient) buildURL(apiKey string) *url.URL {
 	return endpoint
 }
 
-func resolveConf(conf *types.PluginConfig) {
-
-	if conf.Timeout == 0 {
-		conf.Timeout = defaultTimeout
-	}
-
-	if conf.DataUpdateInterval == 0 {
-		conf.DataUpdateInterval = defaultUpdateInterval
-	}
-
-	if len(conf.Scheme) == 0 {
-		conf.Scheme = defaultScheme
-	}
-
-	if len(conf.Endpoint) == 0 {
-		conf.Endpoint = defaultHost
-	}
-
-	if len(conf.Key) == 0 {
-		conf.Key = defaultKey
-	}
-}
-
 func main() {
 	conf, err := common.LoadPluginConf(os.Args[0])
 	if err != nil {
 		println("cannot load conf: ", err.Error(), os.Args[0])
 		os.Exit(-1)
 	}
-	resolveConf(&conf)
+	common.ResolveConf(&conf, &defaultConfig)
 
 	client := NewOXClient(&conf)
 	adapter := common.NewPlugin(&conf, client, version)

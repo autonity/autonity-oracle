@@ -13,15 +13,18 @@ import (
 )
 
 const (
-	version               = "v0.0.2"
-	defaultScheme         = "https"
-	defaultHost           = "api.binance.us"
-	apiPath               = "api/v3/ticker/price"
-	symbol                = "symbols"
-	defaultTimeout        = 10 // 10s
-	defaultUpdateInterval = 10 // 10s
-	defaultKey            = ""
+	version = "v0.0.2"
+	apiPath = "api/v3/ticker/price"
+	symbol  = "symbols"
 )
+
+var defaultConfig = types.PluginConfig{
+	Key:                "",
+	Scheme:             "https",
+	Endpoint:           "api.binance.us",
+	Timeout:            10, //10s
+	DataUpdateInterval: 10, //10s
+}
 
 type BIClient struct {
 	conf   *types.PluginConfig
@@ -108,37 +111,13 @@ func (bi *BIClient) buildURL(symbols []string) (*url.URL, error) {
 	return endpoint, nil
 }
 
-func resolveConf(conf *types.PluginConfig) {
-
-	if conf.Timeout == 0 {
-		conf.Timeout = defaultTimeout
-	}
-
-	if conf.DataUpdateInterval == 0 {
-		conf.DataUpdateInterval = defaultUpdateInterval
-	}
-
-	if len(conf.Scheme) == 0 {
-		conf.Scheme = defaultScheme
-	}
-
-	if len(conf.Endpoint) == 0 {
-		conf.Endpoint = defaultHost
-	}
-
-	if len(conf.Key) == 0 {
-		conf.Key = defaultKey
-	}
-}
-
 func main() {
 	conf, err := common.LoadPluginConf(os.Args[0])
 	if err != nil {
 		println("cannot load conf: ", err.Error(), os.Args[0])
 		os.Exit(-1)
 	}
-
-	resolveConf(&conf)
+	common.ResolveConf(&conf, &defaultConfig)
 
 	client := NewBIClient(&conf)
 	adapter := common.NewPlugin(&conf, client, version)
