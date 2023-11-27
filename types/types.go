@@ -15,9 +15,13 @@ import (
 
 var (
 	EnvSymbols              = "SYMBOLS"
-	EnvPluginDIR            = "PLUGIN.DIR"
-	EnvKeyFile              = "KEY.FILE"
-	EnvKeyFilePASS          = "KEY.PASSWORD"
+	EnvPluginDIR            = "PLUGIN_DIR"
+	EnvKeyFile              = "KEY_FILE"
+	EnvKeyFilePASS          = "KEY_PASSWORD"
+	EnvWS                   = "AUTONITY_WS"
+	EnvPluginCof            = "PLUGIN_CONF"
+	EnvGasTipCap            = "GAS_TIP_CAP"
+	EnvLogLevel             = "LOG_LEVEL"
 	SimulatedPrice          = decimal.RequireFromString("11.11")
 	InvalidPrice            = new(big.Int).Sub(math.BigPow(2, 255), big.NewInt(1))
 	InvalidSalt             = big.NewInt(0)

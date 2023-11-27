@@ -4,11 +4,11 @@ import (
 	"autonity-oracle/types"
 	"encoding/csv"
 	"fmt"
+	"github.com/namsral/flag"
 	"github.com/shopspring/decimal"
 	"io"
 	"io/fs"
 	"io/ioutil" //nolint
-	"log"
 	"os"
 	"sort"
 	"strings"
@@ -26,19 +26,10 @@ var (
 )
 
 func PrintUsage() {
-	usage := "Usage of ./autoracle:\n" +
-		"Sub commands: \n" +
-		"\tversion: prints the version of the oracle server.\n" +
-		"Flags: \n" +
-		"\t-key.password=\"123\": set the password to the oracle server key file.\n\n" +
-		"\t-plugin.dir=\"./build/bin/plugins\": set the directory of the adapter plugins.\n\n" +
-		"\t-gas.tip.cap=1: set the gas priority fee cap to issue the oracle data report transactions.\n\n" +
-		"\t-plugin.conf=\"./build/bin/plugins/plugins-conf.yml\": set the plugins' configuration file.\n\n" +
-		"\t-log.level=2: Set the logging level, available levels are:  0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error.\n\n" +
-		"\t-symbols=\"AUD-USD,CAD-USD,EUR-USD,GBP-USD,JPY-USD,SEK-USD,ATN-USD,NTN-USD,NTN-ATN\": set the symbols string separated by comma.\n\n" +
-		"\t-autonity.ws.url=\"ws://127.0.0.1:8546\": set the WS-RPC server listening interface and port of the connected Autonity client node.\n\n" +
-		"\t-key.file=\"./test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe\": set the oracle server key file.\n"
-	log.Print(usage)
+	fmt.Print("Usage of Autonity Oracle Server:\n")
+	fmt.Print("Sub commands: \n  version: print the version of the oracle server.\n")
+	fmt.Print("Flags:\n")
+	flag.PrintDefaults()
 }
 
 func ResolveSimulatedPrice(s string) decimal.Decimal {

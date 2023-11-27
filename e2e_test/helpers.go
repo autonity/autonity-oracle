@@ -134,7 +134,7 @@ func (o *Oracle) Stop() {
 
 func (o *Oracle) GenCMD(wsEndpoint string) {
 	c := exec.Command("./autoracle",
-		fmt.Sprintf("-autonity.ws.url=%s", wsEndpoint),
+		fmt.Sprintf("-ws=%s", wsEndpoint),
 		fmt.Sprintf("-symbols=%s", o.Symbols),
 		fmt.Sprintf("-key.file=%s", o.Key.KeyFile),
 		fmt.Sprintf("-key.password=%s", o.Key.Password),

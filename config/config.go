@@ -9,6 +9,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"log"
 	"os"
+	"strconv"
 )
 
 var (
@@ -17,8 +18,8 @@ var (
 	DefaultAutonityWSUrl  = "ws://127.0.0.1:8546"
 	DefaultKeyFile        = "./test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"
 	DefaultKeyPassword    = "123"
-	DefaultPluginDir      = "./build/bin/plugins"
-	DefaultPluginConfFile = "./build/bin/plugins/plugins-conf.yml"
+	DefaultPluginDir      = "./plugins"
+	DefaultPluginConfFile = "./plugins-conf.yml"
 	DefaultSymbols        = "AUD-USD,CAD-USD,EUR-USD,GBP-USD,JPY-USD,SEK-USD,ATN-USD,NTN-USD,NTN-ATN"
 )
 
@@ -40,7 +41,7 @@ func MakeConfig() *types.OracleServiceConfig {
 	flag.StringVar(&symbols, "symbols", DefaultSymbols, "Set the symbols string separated by comma")
 	flag.StringVar(&keyFile, "key.file", DefaultKeyFile, "Set oracle server key file")
 	flag.StringVar(&keyPassword, "key.password", DefaultKeyPassword, "Set the password to decrypt oracle server key file")
-	flag.StringVar(&autonityWSUrl, "autonity.ws.url", DefaultAutonityWSUrl, "Set the WS-RPC server listening interface and port of the connected Autonity Client node")
+	flag.StringVar(&autonityWSUrl, "ws", DefaultAutonityWSUrl, "Set the WS-RPC server listening interface and port of the connected Autonity Client node")
 	flag.StringVar(&pluginConfFile, "plugin.conf", DefaultPluginConfFile, "Set the plugins' configuration file")
 
 	flag.Parse()
@@ -50,6 +51,52 @@ func MakeConfig() *types.OracleServiceConfig {
 		os.Exit(0)
 	}
 
+	// Parse system environment variables.
+	if s, presented := os.LookupEnv(types.EnvSymbols); presented {
+		symbols = s
+	}
+
+	if lvl, presented := os.LookupEnv(types.EnvLogLevel); presented {
+		l, err := strconv.Atoi(lvl)
+		if err != nil {
+			log.Printf("Wrong LOG_LEVEL configed by system environment variable")
+			helpers.PrintUsage()
+			os.Exit(1)
+		}
+		logLevel = l
+	}
+
+	if pluginBase, presented := os.LookupEnv(types.EnvPluginDIR); presented {
+		pluginDir = pluginBase
+	}
+
+	if k, presented := os.LookupEnv(types.EnvKeyFile); presented {
+		keyFile = k
+	}
+
+	if password, presented := os.LookupEnv(types.EnvKeyFilePASS); presented {
+		keyPassword = password
+	}
+
+	if ws, presented := os.LookupEnv(types.EnvWS); presented {
+		autonityWSUrl = ws
+	}
+
+	if pluginConf, presented := os.LookupEnv(types.EnvPluginCof); presented {
+		pluginConfFile = pluginConf
+	}
+
+	if capGasTip, presented := os.LookupEnv(types.EnvGasTipCap); presented {
+		gasTip, err := strconv.ParseUint(capGasTip, 0, 64)
+		if err != nil {
+			log.Printf("Wrong GAS_TIP_CAP configed by system environment variable")
+			helpers.PrintUsage()
+			os.Exit(1)
+		}
+		gasTipCap = gasTip
+	}
+
+	// verify configurations.
 	symbolArray := helpers.ParseSymbols(symbols)
 
 	keyJson, err := os.ReadFile(keyFile)

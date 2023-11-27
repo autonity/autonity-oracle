@@ -3,6 +3,7 @@ package config
 import (
 	"autonity-oracle/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
@@ -18,10 +19,22 @@ func TestMakeConfigWithConfiguration(t *testing.T) {
 		require.NoError(t, err)
 		err = os.Setenv(types.EnvPluginDIR, "./")
 		require.NoError(t, err)
+		err = os.Setenv(types.EnvLogLevel, "3")
+		require.NoError(t, err)
+		err = os.Setenv(types.EnvGasTipCap, "30")
+		require.NoError(t, err)
+		err = os.Setenv(types.EnvWS, "ws://127.0.0.1:30303")
+		require.NoError(t, err)
+		err = os.Setenv(types.EnvPluginCof, "./plugin-conf.yml")
+		require.NoError(t, err)
 
 		conf := MakeConfig()
 		require.Equal(t, []string{"AUD-USD", "CAD-USD", "EUR-USD"}, conf.Symbols)
 		require.Equal(t, "./", conf.PluginDIR)
 		require.Equal(t, common.HexToAddress("0xb749d3d83376276ab4ddef2d9300fb5ce70ebafe"), conf.Key.Address)
+		require.Equal(t, hclog.Info, conf.LoggingLevel)
+		require.Equal(t, uint64(30), conf.GasTipCap)
+		require.Equal(t, "ws://127.0.0.1:30303", conf.AutonityWSUrl)
+		require.Equal(t, "./plugin-conf.yml", conf.PluginConfFile)
 	})
 }
