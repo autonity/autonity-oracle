@@ -44,8 +44,8 @@ autoracle:
 	cp $(BIN_DIR)/autoracle $(E2E_TEST_DIR)/autoracle
 
     # build production plugins
-	go build -o $(PLUGIN_DIR)/binance $(PLUGIN_SRC_DIR)/binance/binance.go
-	go build -o $(PLUGIN_DIR)/simulator_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go
+	#go build -o $(PLUGIN_DIR)/binance $(PLUGIN_SRC_DIR)/binance/binance.go
+	#go build -o $(PLUGIN_DIR)/simulator_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go
 	go build -o $(PLUGIN_DIR)/pcgc_cax $(PLUGIN_SRC_DIR)/pcgc_cax/pcgc_cax.go
 	go build -o $(PLUGIN_DIR)/forex_currencyfreaks $(PLUGIN_SRC_DIR)/forex_currencyfreaks/forex_currencyfreaks.go
 	go build -o $(PLUGIN_DIR)/forex_currencylayer $(PLUGIN_SRC_DIR)/forex_currencylayer/forex_currencylayer.go
@@ -67,7 +67,8 @@ autoracle:
 	cp $(PLUGIN_SRC_DIR)/template_plugin/bin/template_plugin $(E2E_TEST_MIX_PLUGIN_DIR)/template_plugin
 	cp $(PLUGIN_SRC_DIR)/template_plugin/bin/template_plugin $(E2E_TEST_TEMPLATE_PLUGIN_DIR)/template_plugin
 
-	cp $(PLUGIN_DIR)/binance $(E2E_TEST_PRD_PLUGIN_DIR)/binance
+	# build binance plugin only for e2e test.
+	go build -o $(E2E_TEST_PRD_PLUGIN_DIR)/binance $(PLUGIN_SRC_DIR)/binance/binance.go
 
 	# cp forex plugins for e2e testing
 	cp $(PLUGIN_DIR)/forex_currencyfreaks $(E2E_TEST_FOREX_PLUGIN_DIR)/forex_currencyfreaks
