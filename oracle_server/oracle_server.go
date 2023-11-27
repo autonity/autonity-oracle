@@ -73,6 +73,7 @@ type OracleServer struct {
 	lastSampledTS   int64
 
 	sampleEventFee event.Feed
+	lostSync       bool // set to true if the connectivity with L1 Autonity network is dropped during runtime.
 }
 
 func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, client types.Blockchain,
@@ -126,6 +127,7 @@ func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, clien
 		// stop the client on start up once the remote endpoint of autonity L1 network is not ready.
 		panic(err)
 	}
+	os.lostSync = false
 	return os
 }
 
@@ -214,42 +216,17 @@ func (os *OracleServer) gcRoundData() {
 }
 
 func (os *OracleServer) handleConnectivityError() {
-	if os.client != nil {
-		os.client.Close()
-		os.client = nil
-	}
-	os.subRoundEvent.Unsubscribe()
-	os.subSymbolsEvent.Unsubscribe()
+	os.lostSync = true
 }
 
 func (os *OracleServer) checkHealth() {
-	// if the web socket was drops my remote peer, the client will be reset into nil.
-	if os.client == nil {
-		// rebuild the connection with autonity L1 node.
-		// connect to autonity node via web socket
-		var err error
-		os.client, err = os.dialer.Dial(os.l1WSUrl)
-		if err != nil {
-			os.logger.Error("dail L1 node", "error", err.Error())
-			return
-		}
-
-		// bind client with oracle contract address
-		os.logger.Info("binding with oracle contract", "address", types.OracleContractAddress.String())
-		os.oracleContract, err = contract.NewOracle(types.OracleContractAddress, os.client)
-		if err != nil {
-			os.logger.Error("binding oracle contract", "error", err.Error())
-			return
-		}
-
-		err = os.syncStates()
+	if os.lostSync {
+		err := os.syncStates()
 		if err != nil && err != types.ErrNoSymbolsObserved {
-			if os.client != nil {
-				os.client.Close()
-				os.client = nil
-			}
 			os.logger.Info("rebuilding connectivity with autonity L1 node", "error", err)
+			return
 		}
+		os.lostSync = false
 		return
 	}
 
@@ -603,11 +580,13 @@ func (os *OracleServer) Start() {
 			if err != nil {
 				os.logger.Info("subscription error of new symbols event", err)
 				os.handleConnectivityError()
+				os.subSymbolsEvent.Unsubscribe()
 			}
 		case err := <-os.subRoundEvent.Err():
 			if err != nil {
 				os.logger.Info("subscription error of new rEvent event", err)
 				os.handleConnectivityError()
+				os.subRoundEvent.Unsubscribe()
 			}
 		case <-os.psTicker.C:
 			preSampleTS := time.Now().Unix()
@@ -651,9 +630,7 @@ func (os *OracleServer) Start() {
 }
 
 func (os *OracleServer) Stop() {
-	if os.client != nil {
-		os.client.Close()
-	}
+	os.client.Close()
 	os.subRoundEvent.Unsubscribe()
 	os.subSymbolsEvent.Unsubscribe()
 

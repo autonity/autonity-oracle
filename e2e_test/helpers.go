@@ -184,7 +184,7 @@ func (n *L1Node) GenCMD(genesisFile string) {
 func (n *L1Node) Start() {
 	err := n.Command.Run()
 	if err != nil {
-		panic(err)
+		log.Error("L1 node start error", "error", err)
 	}
 }
 
@@ -252,6 +252,16 @@ func (net *Network) Start() {
 	for i, n := range net.L2Nodes {
 		n.GenCMD(fmt.Sprintf("ws://%s:%d", net.L1Nodes[i].Host, net.L1Nodes[i].WSPort))
 		go n.Start()
+	}
+}
+
+func (net *Network) ResetL1Node(index int) {
+	for i, n := range net.L1Nodes {
+		if i == index {
+			n.Stop()
+			n.GenCMD(net.GenesisFile)
+			go n.Start()
+		}
 	}
 }
 
