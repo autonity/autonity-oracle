@@ -3,6 +3,7 @@ package main
 import (
 	"autonity-oracle/config"
 	contract "autonity-oracle/contract_binder/contract"
+	"autonity-oracle/helpers"
 	"autonity-oracle/oracle_server"
 	"autonity-oracle/types"
 	"log"
@@ -21,12 +22,16 @@ func main() { //nolint
 	dialer := &types.L1Dialer{}
 	client, err := dialer.Dial(conf.AutonityWSUrl)
 	if err != nil {
-		panic(err)
+		log.Printf("Cannot connect to Autonity network via web socket: %s", err.Error())
+		helpers.PrintUsage()
+		os.Exit(1)
 	}
 
 	oc, err := contract.NewOracle(types.OracleContractAddress, client)
 	if err != nil {
-		panic(err)
+		log.Printf("Cannot bind to oracle contract in Autonity network via web socket: %s", err.Error())
+		helpers.PrintUsage()
+		os.Exit(1)
 	}
 
 	oracle := oracleserver.NewOracleServer(conf, dialer, client, oc)

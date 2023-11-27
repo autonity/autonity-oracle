@@ -8,15 +8,16 @@ import (
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/hashicorp/go-hclog"
 	"github.com/shopspring/decimal"
 	"math/big"
 )
 
 var (
-	EnvSymbols              = "ORACLE_SYMBOLS"
-	EnvPluginDIR            = "ORACLE_PLUGIN_DIR"
-	EnvKeyFile              = "ORACLE_KEY_FILE"
-	EnvKeyFilePASS          = "ORACLE_KEY_PASSWORD"
+	EnvSymbols              = "SYMBOLS"
+	EnvPluginDIR            = "PLUGIN.DIR"
+	EnvKeyFile              = "KEY.FILE"
+	EnvKeyFilePASS          = "KEY.PASSWORD"
 	SimulatedPrice          = decimal.RequireFromString("11.11")
 	InvalidPrice            = new(big.Int).Sub(math.BigPow(2, 255), big.NewInt(1))
 	InvalidSalt             = big.NewInt(0)
@@ -55,6 +56,7 @@ type RoundData struct {
 
 // OracleServiceConfig is the configuration of the oracle client.
 type OracleServiceConfig struct {
+	LoggingLevel   hclog.Level
 	GasTipCap      uint64
 	Key            *keystore.Key
 	AutonityWSUrl  string
