@@ -60,15 +60,19 @@ Values that can be configured by using environment variables:
 or by using console flags:
 ```shell
 $./autoracle --help
-Usage of ./autoracle:
-    -key.file="./UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe": Set oracle server key file
-    -key.password="123": Set the password to decrypt oracle server key file
-    -log.level=2: Set the logging level, available levels are:  0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error
-    -plugin.conf="./plugins-conf.yml": Set the plugins' configuration file
-    -plugin.dir="./plugins": Set the directory of the data plugins.
-    -symbols="AUD-USD,CAD-USD,EUR-USD,GBP-USD,JPY-USD,SEK-USD,ATN-USD,NTN-USD,NTN-ATN": Set the symbols string separated by comma
-    -tip=1: Set the gas priority fee cap to issue the oracle data report transactions.
-    -ws="ws://127.0.0.1:8546": Set the WS-RPC server listening interface and port of the connected Autonity Client node
+Usage of Autonity Oracle Server:
+Sub commands: 
+  version: print the version of the oracle server.
+Flags:
+  -key.file="./UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe": Set oracle server key file
+  -key.password="123": Set the password to decrypt oracle server key file
+  -log.level=2: Set the logging level, available levels are:  0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error
+  -plugin.conf="./plugins-conf.yml": Set the plugins' configuration file
+  -plugin.dir="./plugins": Set the directory of the data plugins.
+  -symbols="AUD-USD,CAD-USD,EUR-USD,GBP-USD,JPY-USD,SEK-USD,ATN-USD,NTN-USD,NTN-ATN": Set the symbols string separated by comma
+  -tip=1: Set the gas priority fee cap to issue the oracle data report transactions.
+  -ws="ws://127.0.0.1:8546": Set the WS-RPC server listening interface and port of the connected Autonity Client node
+
 ```
 
 
