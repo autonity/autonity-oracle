@@ -16,7 +16,7 @@ var (
 	DefaultLogVerbosity   = 2 // 0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error
 	DefaultGasTipCap      = uint64(1)
 	DefaultAutonityWSUrl  = "ws://127.0.0.1:8546"
-	DefaultKeyFile        = "./test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"
+	DefaultKeyFile        = "./UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"
 	DefaultKeyPassword    = "123"
 	DefaultPluginDir      = "./plugins"
 	DefaultPluginConfFile = "./plugins-conf.yml"
