@@ -36,7 +36,7 @@ func MakeConfig() *types.OracleServiceConfig {
 	var gasTipCap uint64
 
 	flag.IntVar(&logLevel, "log.level", DefaultLogVerbosity, "Set the logging level, available levels are:  0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error")
-	flag.Uint64Var(&gasTipCap, "gas.tip.cap", DefaultGasTipCap, "Set the gas priority fee cap to issue the oracle data report transactions.")
+	flag.Uint64Var(&gasTipCap, "tip", DefaultGasTipCap, "Set the gas priority fee cap to issue the oracle data report transactions.")
 	flag.StringVar(&pluginDir, "plugin.dir", DefaultPluginDir, "Set the directory of the data plugins.")
 	flag.StringVar(&symbols, "symbols", DefaultSymbols, "Set the symbols string separated by comma")
 	flag.StringVar(&keyFile, "key.file", DefaultKeyFile, "Set oracle server key file")
