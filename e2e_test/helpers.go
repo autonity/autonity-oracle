@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/hashicorp/go-hclog"
 	"github.com/phayes/freeport"
 	"io/fs"
 	"io/ioutil"
@@ -133,12 +134,13 @@ func (o *Oracle) Stop() {
 
 func (o *Oracle) GenCMD(wsEndpoint string) {
 	c := exec.Command("./autoracle",
-		fmt.Sprintf("-oracle_autonity_ws_url=%s", wsEndpoint),
-		fmt.Sprintf("-oracle_symbols=%s", o.Symbols),
-		fmt.Sprintf("-oracle_key_file=%s", o.Key.KeyFile),
-		fmt.Sprintf("-oracle_key_password=%s", o.Key.Password),
-		fmt.Sprintf("-oracle_plugin_dir=%s", o.PluginDir),
-		fmt.Sprintf("-oracle_plugin_conf=%s", o.PluginConf),
+		fmt.Sprintf("-ws=%s", wsEndpoint),
+		fmt.Sprintf("-symbols=%s", o.Symbols),
+		fmt.Sprintf("-key.file=%s", o.Key.KeyFile),
+		fmt.Sprintf("-key.password=%s", o.Key.Password),
+		fmt.Sprintf("-plugin.dir=%s", o.PluginDir),
+		fmt.Sprintf("-log.level=%d", hclog.Debug),
+		fmt.Sprintf("-plugin.conf=%s", o.PluginConf),
 	)
 
 	c.Stderr = os.Stderr
@@ -184,7 +186,7 @@ func (n *L1Node) GenCMD(genesisFile string) {
 func (n *L1Node) Start() {
 	err := n.Command.Run()
 	if err != nil {
-		panic(err)
+		log.Error("L1 node start error", "error", err)
 	}
 }
 
@@ -252,6 +254,16 @@ func (net *Network) Start() {
 	for i, n := range net.L2Nodes {
 		n.GenCMD(fmt.Sprintf("ws://%s:%d", net.L1Nodes[i].Host, net.L1Nodes[i].WSPort))
 		go n.Start()
+	}
+}
+
+func (net *Network) ResetL1Node(index int) {
+	for i, n := range net.L1Nodes {
+		if i == index {
+			n.Stop()
+			n.GenCMD(net.GenesisFile)
+			go n.Start()
+		}
 	}
 }
 

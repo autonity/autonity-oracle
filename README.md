@@ -1,14 +1,6 @@
 
 # Autonity Oracle Server
 
-## Quickstart
-
-With the appropriate parameters, run:
-
-``` 
-$./autoracle -oracle_key_file="./keystore/key" -oracle_key_password="123" -oracle_autonity_ws_url="ws://127.0.0.1:8546" -oracle_plugin_conf="./plugins/plugin-conf.yml"
-```  
-
 ## Assumptions
 
 This project assumes the following:
@@ -25,7 +17,7 @@ DApps deployed on the Autonity L1 network can access these data points via the o
 
 ## The Oracle Server
 - The Oracle Server is operated and maintained by an Autonity validator node operator.
--  The validator must participate in the Oracle protocol if selected to be part of the consensus committee.
+- The validator must participate in the Oracle protocol if selected to be part of the consensus committee.
 - A proof of ownership for the oracle account is required when submitting a registration transaction to the Autonity Contract.
 - Oracle transactions are refunded if successful. The balance of the oracle account is required to be funded to cover at least one voting transaction.
 
@@ -41,37 +33,52 @@ To coordinate data sampling in the oracle network, the L1 oracle contract issues
 
 ![Screenshot from 2023-04-21 04-19-10](https://user-images.githubusercontent.com/54585152/233533092-29b65a39-eb87-496f-9a1e-0741bc7fbd45.png)
 
+## Version
+
+Print the version of the oracle server:
+
+```
+$./autoracle version
+v0.1.3
+```
+
 ## Configuration
 Values that can be configured by using environment variables:
 
 | **Env Variable** | **Required?** | **Meaning** | **Default Value**                                                                                    | **Valid Options** |
 |----------------------------|---------------|---------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|---------------------------------------------------------|
-| `ORACLE_SYMBOLS` | No | The symbols that the oracle component collects data points for | "AUD-USD,CAD-USD,EUR-USD,GBP-USD,JPY-USD,SEK-USD,ATN-USD,NTN-USD,NTN-ATN"                                    | symbols separated by ',' |
-| `ORACLE_PLUGIN_DIR` | No | The directory that stores the plugins | "./build/bin/plugins"                                                                                | any directory that saves plugins |
-| `ORACLE_KEY_FILE` | Yes | The encrypted key file path that contains the private key of the oracle client. | "./test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" | any key file that saves the private key |  
-| `ORACLE_KEY_PASSWORD` | Yes | The password of the key file that contains the private key of the oracle client. | "123"                                                                                                | any password that encrypted the private key |
-| `ORACLE_AUTONITY_WS_URL` | Yes | The web socket RPC URL of your Autonity L1 Node that the oracle client communicates with. | "ws://127.0.0.1:8546"                                                                                | the web socket rpc endpoint url of the Autonity client. |
-| `ORACLE_PLUGIN_CONF` | Yes | The plugins' configuration file in YAML. | "./build/bin/plugins/plugins-conf.yml"                                                               | the configuration file of the oracle plugins. |
-| `ORACLE_GAS_TIP_CAP` | No | The gas priority fee cap to issue the oracle data report transactions | 1                                                               | A non-zero value per gas to prioritize your data report TX to be mined. |
+| `SYMBOLS` | No | The symbols that the oracle component collects data points for | "AUD-USD,CAD-USD,EUR-USD,GBP-USD,JPY-USD,SEK-USD,ATN-USD,NTN-USD,NTN-ATN"                                    | symbols separated by ',' |
+| `PLUGIN_DIR` | No | The directory that stores the plugins | "./plugins"                                                                                | any directory that saves plugins |
+| `KEY_FILE` | Yes | The encrypted key file path that contains the private key of the oracle client. | "./UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" | any key file that saves the private key |
+| `KEY_PASSWORD` | Yes | The password of the key file that contains the private key of the oracle client. | "123"                                                                                                | any password that encrypted the private key |
+| `AUTONITY_WS` | Yes | The web socket RPC URL of your Autonity L1 Node that the oracle client communicates with. | "ws://127.0.0.1:8546"                                                                                | the web socket rpc endpoint url of the Autonity client. |
+| `PLUGIN_CONF` | Yes | The plugins' configuration file in YAML. | "./plugins-conf.yml"                                                               | the configuration file of the oracle plugins. |
+| `GAS_TIP_CAP` | No | The gas priority fee cap to issue the oracle data report transactions | 1                                                               | A non-zero value per gas to prioritize your data report TX to be mined. |
+| `LOG_LEVEL` | No | The logging level of the oracle server | 2                                                              | available levels are:  0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error. |
 
 
 or by using console flags:
 ```shell
-$./autoracle -help  
-Usage of ./autoracle:
-  -oracle_autonity_ws_url="ws://127.0.0.1:8546": WS-RPC server listening interface and port of the connected Autonity Go Client node
-  -oracle_gas_tip_cap=1: The gas priority fee cap set for oracle data report transactions
-  -oracle_key_file="./test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe": Oracle server key file
-  -oracle_key_password="123": Password to the oracle server key file
-  -oracle_plugin_conf="./build/bin/plugins/plugins-conf.yml": The plugins' configuration file in YAML
-  -oracle_plugin_dir="./build/bin/plugins": The DIR where the adapter plugins are stored
-  -oracle_symbols="AUD-USD,CAD-USD,EUR-USD,GBP-USD,JPY-USD,SEK-USD,ATN-USD,NTN-USD,NTN-ATN": The currency pair symbols the oracle returns data for. A comma-separated list
+$./autoracle --help
+Usage of Autonity Oracle Server:
+Sub commands: 
+  version: print the version of the oracle server.
+Flags:
+  -key.file="./UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe": Set oracle server key file
+  -key.password="123": Set the password to decrypt oracle server key file
+  -log.level=2: Set the logging level, available levels are:  0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error
+  -plugin.conf="./plugins-conf.yml": Set the plugins' configuration file
+  -plugin.dir="./plugins": Set the directory of the data plugins.
+  -symbols="AUD-USD,CAD-USD,EUR-USD,GBP-USD,JPY-USD,SEK-USD,ATN-USD,NTN-USD,NTN-ATN": Set the symbols string separated by comma
+  -tip=1: Set the gas priority fee cap to issue the oracle data report transactions.
+  -ws="ws://127.0.0.1:8546": Set the WS-RPC server listening interface and port of the connected Autonity Client node
+
 ```
 
 
 example to run the autonity oracle service with console flags:
 ```shell
-$./autoracle -oracle_symbols="AUD-USD,CAD-USD,EUR-USD,GBP-USD,JPY-USD,SEK-USD,ATN-USD,NTN-USD,NTN-ATN" -oracle_plugin_dir="./plugins" -oracle_key_file="../../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" -oracle_key_password="123" -oracle_autonity_ws_url="ws://127.0.0.1:8546" -oracle_plugin_conf="./plugins/plugins-conf.yml"
+$./autoracle --symbols="AUD-USD,CAD-USD,EUR-USD,GBP-USD,JPY-USD,SEK-USD,ATN-USD,NTN-USD,NTN-ATN" --plugin.dir="./plugins" --key.file="../../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" --key.password="123" --ws="ws://127.0.0.1:8546" --plugin.conf="./plugins-conf.yml"
 ```
 plugin configuration file:    
 
@@ -169,19 +176,19 @@ Path of the secret key file: key-data/keystore/UTC--2023-02-28T11-40-15.38370976
 Prepare the plugin binaries, and save them into the `plugins` directory. To start the service, set the system environment variables and run the binary:
 ```shell
 
-$export ORACLE_SYMBOLS="AUD-USD,CAD-USD,EUR-USD,GBP-USD,JPY-USD,SEK-USD,ATN-USD,NTN-USD,NTN-ATN"
-$export ORACLE_PLUGIN_DIR="./plugins"  
-$export ORACLE_KEY_FILE="./test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"  
-$export ORACLE_KEY_PASSWORD="your passord to the key file"  
-$export ORACLE_AUTONITY_WS_URL="ws://127.0.0.1:8546"
-$export ORACLE_PLUGIN_CONF="./plugins/plugins-conf.yml"
+$export SYMBOLS="AUD-USD,CAD-USD,EUR-USD,GBP-USD,JPY-USD,SEK-USD,ATN-USD,NTN-USD,NTN-ATN"
+$export PLUGIN_DIR="./plugins"
+$export KEY_FILE="./test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"
+$export KEY_PASSWORD="your passord to the key file"
+$export AUTONITY_WS="ws://127.0.0.1:8546"
+$export PLUGIN_CONF="./plugins-conf.yml"
 $.~/src/autonity-oracle/build/bin/autoracle
 ```
 
 or configure by using console flags and run the binary:
 
 ```shell
-$./autoracle -oracle_symbols="AUD-USD,CAD-USD,EUR-USD,GBP-USD,JPY-USD,SEK-USD,ATN-USD,NTN-USD,NTN-ATN" -oracle_plugin_dir="./plugins" -oracle_key_file="../../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" -oracle_key_password="123" -oracle_autonity_ws_url="ws://127.0.0.1:8546"
+$./autoracle --symbols="AUD-USD,CAD-USD,EUR-USD,GBP-USD,JPY-USD,SEK-USD,ATN-USD,NTN-USD,NTN-ATN" --plugin.dir="./plugins" --key.file="./test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" --key.password="123" --ws="ws://127.0.0.1:8546"
 ```
 
 ### Deploy via linux system daemon
@@ -194,7 +201,7 @@ Description=Clearmatics Autonity Oracle Server
 After=syslog.target network.target  
 [Service]  
 Type=simple  
-ExecStart=/home/test/src/autonity-oracle/build/bin/autoracle -oracle_plugin_dir="/home/test/src/autonity-oracle/build/bin/plugins" -oracle_plugin_conf="/home/test/src/autonity-oracle/build/bin/plugins/plugins-conf.yml"
+ExecStart=/home/test/src/autonity-oracle/build/bin/autoracle -plugin.dir="/home/test/src/autonity-oracle/build/bin/plugins" -plugin.conf="/home/test/src/autonity-oracle/build/bin/plugins/plugins-conf.yml"
 KillMode=process  
 KillSignal=SIGINT  
 TimeoutStopSec=5  
@@ -217,16 +224,16 @@ sudo systemctl stop autoracle.service
 Loaded: loaded (/etc/systemd/system/autoracle.service; disabled; vendor preset: enabled)  
 Active: inactive (dead)  
   
-Jan 19 03:03:45 jason-ThinkPad-X1-Carbon-7th systemd[1]: Stopping Clearmatics Autonity Oracle Server...  
-Jan 19 03:03:45 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T03:03:45.233Z [INFO] *oracleserver.OracleServer: the jobTicker jobs of oracle service is stopped  
-Jan 19 03:03:45 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T03:03:45.233Z [DEBUG] binance.binance: 2023/01/19 03:03:45 [DEBUG] plugin: plugin server: accept unix /tmp/plugin3024381010: use of closed network connection  
-Jan 19 03:03:45 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T03:03:45.235Z [INFO] binance: plugin process exited: path=/home/jason/src/autonity-oracle/build/bin/plugins/binance pid=14577  
-Jan 19 03:03:45 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T03:03:45.235Z [DEBUG] binance: plugin exited  
-Jan 19 03:03:45 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T03:03:45.236Z [DEBUG] fakeplugin.fakeplugin: 2023/01/19 03:03:45 [DEBUG] plugin: plugin server: accept unix /tmp/plugin2424636505: use of closed network connection  
-Jan 19 03:03:45 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T03:03:45.237Z [INFO] fakeplugin: plugin process exited: path=/home/jason/src/autonity-oracle/build/bin/plugins/fakeplugin pid=14586  
-Jan 19 03:03:45 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T03:03:45.237Z [DEBUG] fakeplugin: plugin exited  
-Jan 19 03:03:45 jason-ThinkPad-X1-Carbon-7th systemd[1]: autoracle.service: Succeeded.  
-Jan 19 03:03:45 jason-ThinkPad-X1-Carbon-7th systemd[1]: Stopped Clearmatics Autonity Oracle Server.  
+Jan 19 03:03:45 systemd[1]: Stopping Clearmatics Autonity Oracle Server...  
+Jan 19 03:03:45 autoracle[14568]: 2023-01-19T03:03:45.233Z [INFO] *oracleserver.OracleServer: the jobTicker jobs of oracle service is stopped  
+Jan 19 03:03:45 autoracle[14568]: 2023-01-19T03:03:45.233Z [DEBUG] binance.binance: 2023/01/19 03:03:45 [DEBUG] plugin: plugin server: accept unix /tmp/plugin3024381010: use of closed network connection  
+Jan 19 03:03:45 autoracle[14568]: 2023-01-19T03:03:45.235Z [INFO] binance: plugin process exited: path=/home/user/src/autonity-oracle/build/bin/plugins/binance pid=14577  
+Jan 19 03:03:45 autoracle[14568]: 2023-01-19T03:03:45.235Z [DEBUG] binance: plugin exited  
+Jan 19 03:03:45 autoracle[14568]: 2023-01-19T03:03:45.236Z [DEBUG] fakeplugin.fakeplugin: 2023/01/19 03:03:45 [DEBUG] plugin: plugin server: accept unix /tmp/plugin2424636505: use of closed network connection  
+Jan 19 03:03:45 autoracle[14568]: 2023-01-19T03:03:45.237Z [INFO] fakeplugin: plugin process exited: path=/home/user/src/autonity-oracle/build/bin/plugins/fakeplugin pid=14586  
+Jan 19 03:03:45 autoracle[14568]: 2023-01-19T03:03:45.237Z [DEBUG] fakeplugin: plugin exited  
+Jan 19 03:03:45 systemd[1]: autoracle.service: Succeeded.  
+Jan 19 03:03:45 systemd[1]: Stopped Clearmatics Autonity Oracle Server.  
   
 ```  
 
@@ -242,12 +249,12 @@ Main PID: 14568 (autoracle)
 Tasks: 34 (limit: 18690)  
 Memory: 25.4M  
 CGroup: /system.slice/autoracle.service  
-├─14568 /home/jason/src/autonity-oracle/build/bin/autoracle -oracle_plugin_dir=/home/jason/src/autonity-oracle/build/bin/plugins  
-├─14577 /home/jason/src/autonity-oracle/build/bin/plugins/binance  
-└─14586 /home/jason/src/autonity-oracle/build/bin/plugins/fakeplugin  
+├─14568 /home/user/src/autonity-oracle/build/bin/autoracle -plugin.dir=/home/user/src/autonity-oracle/build/bin/plugins
+├─14577 /home/user/src/autonity-oracle/build/bin/plugins/binance  
+└─14586 /home/user/src/autonity-oracle/build/bin/plugins/fakeplugin  
   
-Jan 19 02:57:39 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:57:39.155Z [DEBUG] fakeplugin.fakeplugin: receive request from oracle service, send data response: timestamp=2023-01-19T02:57:39.154Z  
-Jan 19 02:57:59 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:57:59.156Z [DEBUG] fakeplugin.fakeplugin: receive request from oracle service, send data response: timestamp=2023-01-19T02:57:59.156Z  
+Jan 19 02:57:39 autoracle[14568]: 2023-01-19T02:57:39.155Z [DEBUG] fakeplugin.fakeplugin: receive request from oracle service, send data response: timestamp=2023-01-19T02:57:39.154Z  
+Jan 19 02:57:59 autoracle[14568]: 2023-01-19T02:57:59.156Z [DEBUG] fakeplugin.fakeplugin: receive request from oracle service, send data response: timestamp=2023-01-19T02:57:59.156Z  
   
 ```  
 
@@ -257,25 +264,25 @@ sudo journalctl -u autoracle.service -b
 
 ```  
 -- Logs begin at Sat 2022-11-26 11:54:00 GMT, end at Thu 2023-01-19 02:59:51 GMT. --  
-Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th systemd[1]: Started Clearmatics Autonity Oracle Server.  
-Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023/01/19 02:42:19  
-Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: Running autonity oracle service at port: 30311, with symbols: NTNUSDT,NTNUSDC,NTNBTC,NTNETH and plugin diretory: /home/jason/src/autonity-oracle/build/bin/plugins  
-Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.152Z [WARN] binance: plugin configured with a nil SecureConfig  
-Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.152Z [DEBUG] binance: starting plugin: path=/home/jason/src/autonity-oracle/build/bin/plugins/binance args=[/home/jason/src/autonity-oracle/build/bin/plugins/binance]  
-Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.152Z [DEBUG] binance: plugin started: path=/home/jason/src/autonity-oracle/build/bin/plugins/binance pid=14577  
-Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.152Z [DEBUG] binance: waiting for RPC address: path=/home/jason/src/autonity-oracle/build/bin/plugins/binance  
-Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.159Z [DEBUG] binance.binance: plugin address: network=unix address=/tmp/plugin3024381010 timestamp=2023-01-19T02:42:19.159Z  
-Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.159Z [DEBUG] binance: using plugin: version=1  
-Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.161Z [INFO] binance: plugin initialized: binance=v0.0.1  
-Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.161Z [WARN] fakeplugin: plugin configured with a nil SecureConfig  
-Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.161Z [DEBUG] fakeplugin: starting plugin: path=/home/jason/src/autonity-oracle/build/bin/plugins/fakeplugin args=[/home/jason/src/autonity-oracle/build/bin/plugins/fakeplugin]  
-Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.161Z [DEBUG] fakeplugin: plugin started: path=/home/jason/src/autonity-oracle/build/bin/plugins/fakeplugin pid=14586  
-Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.161Z [DEBUG] fakeplugin: waiting for RPC address: path=/home/jason/src/autonity-oracle/build/bin/plugins/fakeplugin  
-Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.168Z [DEBUG] fakeplugin.fakeplugin: plugin address: address=/tmp/plugin2424636505 network=unix timestamp=2023-01-19T02:42:19.167Z  
-Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.168Z [DEBUG] fakeplugin: using plugin: version=1  
-Jan 19 02:42:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:19.170Z [INFO] fakeplugin: plugin initialized: fakeplugin=v0.0.1  
-Jan 19 02:42:29 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:42:29.156Z [DEBUG] fakeplugin.fakeplugin: receive request from oracle service, send data response: timestamp=2023-01-19T02:42:29.156Z  
-Jan 19 02:43:19 jason-ThinkPad-X1-Carbon-7th autoracle[14568]: 2023-01-19T02:43:19.156Z [DEBUG] fakeplugin.fakeplugin: receive request from oracle service, send data response: timestamp=2023-01-19T02:43:19.156Z  
+Jan 19 02:42:19 systemd[1]: Started Clearmatics Autonity Oracle Server.  
+Jan 19 02:42:19 autoracle[14568]: 2023/01/19 02:42:19  
+Jan 19 02:42:19 autoracle[14568]: Running autonity oracle service at port: 30311, with symbols: NTNUSDT,NTNUSDC,NTNBTC,NTNETH and plugin diretory: /home/user/src/autonity-oracle/build/bin/plugins  
+Jan 19 02:42:19 autoracle[14568]: 2023-01-19T02:42:19.152Z [WARN] binance: plugin configured with a nil SecureConfig  
+Jan 19 02:42:19 autoracle[14568]: 2023-01-19T02:42:19.152Z [DEBUG] binance: starting plugin: path=/home/user/src/autonity-oracle/build/bin/plugins/binance args=[/home/uesr/src/autonity-oracle/build/bin/plugins/binance]  
+Jan 19 02:42:19 autoracle[14568]: 2023-01-19T02:42:19.152Z [DEBUG] binance: plugin started: path=/home/user/src/autonity-oracle/build/bin/plugins/binance pid=14577  
+Jan 19 02:42:19 autoracle[14568]: 2023-01-19T02:42:19.152Z [DEBUG] binance: waiting for RPC address: path=/home/user/src/autonity-oracle/build/bin/plugins/binance  
+Jan 19 02:42:19 autoracle[14568]: 2023-01-19T02:42:19.159Z [DEBUG] binance.binance: plugin address: network=unix address=/tmp/plugin3024381010 timestamp=2023-01-19T02:42:19.159Z  
+Jan 19 02:42:19 autoracle[14568]: 2023-01-19T02:42:19.159Z [DEBUG] binance: using plugin: version=1  
+Jan 19 02:42:19 autoracle[14568]: 2023-01-19T02:42:19.161Z [INFO] binance: plugin initialized: binance=v0.0.1  
+Jan 19 02:42:19 autoracle[14568]: 2023-01-19T02:42:19.161Z [WARN] fakeplugin: plugin configured with a nil SecureConfig  
+Jan 19 02:42:19 autoracle[14568]: 2023-01-19T02:42:19.161Z [DEBUG] fakeplugin: starting plugin: path=/home/user/src/autonity-oracle/build/bin/plugins/fakeplugin args=[/home/user/src/autonity-oracle/build/bin/plugins/fakeplugin]  
+Jan 19 02:42:19 autoracle[14568]: 2023-01-19T02:42:19.161Z [DEBUG] fakeplugin: plugin started: path=/home/user/src/autonity-oracle/build/bin/plugins/fakeplugin pid=14586  
+Jan 19 02:42:19 autoracle[14568]: 2023-01-19T02:42:19.161Z [DEBUG] fakeplugin: waiting for RPC address: path=/home/user/src/autonity-oracle/build/bin/plugins/fakeplugin  
+Jan 19 02:42:19 autoracle[14568]: 2023-01-19T02:42:19.168Z [DEBUG] fakeplugin.fakeplugin: plugin address: address=/tmp/plugin2424636505 network=unix timestamp=2023-01-19T02:42:19.167Z  
+Jan 19 02:42:19 autoracle[14568]: 2023-01-19T02:42:19.168Z [DEBUG] fakeplugin: using plugin: version=1  
+Jan 19 02:42:19 autoracle[14568]: 2023-01-19T02:42:19.170Z [INFO] fakeplugin: plugin initialized: fakeplugin=v0.0.1  
+Jan 19 02:42:29 autoracle[14568]: 2023-01-19T02:42:29.156Z [DEBUG] fakeplugin.fakeplugin: receive request from oracle service, send data response: timestamp=2023-01-19T02:42:29.156Z  
+Jan 19 02:43:19 autoracle[14568]: 2023-01-19T02:43:19.156Z [DEBUG] fakeplugin.fakeplugin: receive request from oracle service, send data response: timestamp=2023-01-19T02:43:19.156Z  
 ```  
 
 ### Runtime plugin management

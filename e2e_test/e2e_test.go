@@ -14,6 +14,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 	"math/big"
+	"os"
 	"testing"
 	"time"
 )
@@ -46,6 +47,31 @@ func TestHappyCase(t *testing.T) {
 	// first test happy case.
 	endRound := uint64(10)
 	testHappyCase(t, o, endRound, pricePrecision)
+}
+
+func TestLostL1Connectivity(t *testing.T) {
+	var netConf = &NetworkConfig{
+		EnableL1Logs: false,
+		Symbols:      config.DefaultSymbols,
+		VotePeriod:   defaultVotePeriod,
+		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir},
+	}
+	network, err := createNetwork(netConf)
+	require.NoError(t, err)
+	defer network.Stop()
+
+	client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d", network.L1Nodes[0].Host, network.L1Nodes[0].WSPort))
+	require.NoError(t, err)
+	defer client.Close()
+
+	// bind client with oracle contract address
+	o, err := contract.NewOracle(types.OracleContractAddress, client)
+	require.NoError(t, err)
+
+	resetRound := uint64(5)
+	endRound := uint64(10)
+	nodeIndex := 2
+	testRestartL1Node(t, network, nodeIndex, o, resetRound, endRound)
 }
 
 func TestAddNewSymbol(t *testing.T) {
@@ -435,6 +461,28 @@ func testHappyCase(t *testing.T, o *contract.Oracle, beforeRound uint64, pricePr
 			require.NoError(t, err)
 			require.True(t, true, price.Div(pricePrecision).Equal(helpers.ResolveSimulatedPrice(s)))
 		}
+		break
+	}
+}
+
+func testRestartL1Node(t *testing.T, net *Network, index int, o *contract.Oracle, resetRound, beforeRound uint64) {
+	for {
+		time.Sleep(1 * time.Minute)
+		round, err := o.GetRound(nil)
+		require.NoError(t, err)
+
+		if round.Uint64() == resetRound {
+			net.ResetL1Node(index)
+		}
+
+		// continue to wait until end round.
+		if round.Uint64() < beforeRound {
+			continue
+		}
+
+		// verify result.
+		_, err = os.FindProcess(net.L2Nodes[index].Command.Process.Pid)
+		require.NoError(t, err)
 		break
 	}
 }

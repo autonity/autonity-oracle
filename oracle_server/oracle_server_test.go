@@ -29,9 +29,9 @@ func TestOracleServer(t *testing.T) {
 	votePeriod := new(big.Int).SetUint64(30)
 	var subRoundEvent event.Subscription
 	var subSymbolsEvent event.Subscription
-	os.Setenv("ORACLE_KEY_FILE", "../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe") //nolint
-	os.Setenv("ORACLE_PLUGIN_DIR", "../plugins/template_plugin/bin")                                                                    //nolint
-	os.Setenv("ORACLE_PLUGIN_CONF", "../test_data/plugins-conf.yml")                                                                    //nolint
+	os.Setenv("KEY.FILE", "../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe") //nolint
+	os.Setenv("PLUGIN.DIR", "../plugins/template_plugin/bin")                                                                    //nolint
+	os.Setenv("PLUGIN.CONF", "../test_data/plugins-conf.yml")                                                                    //nolint
 	defer os.Clearenv()
 	conf := config.MakeConfig()
 

@@ -4,6 +4,7 @@ import (
 	"autonity-oracle/types"
 	"encoding/csv"
 	"fmt"
+	"github.com/namsral/flag"
 	"github.com/shopspring/decimal"
 	"io"
 	"io/fs"
@@ -23,6 +24,13 @@ var (
 	pATNUSD = decimal.RequireFromString("1.0")
 	pNTNUSD = decimal.RequireFromString("10.0")
 )
+
+func PrintUsage() {
+	fmt.Print("Usage of Autonity Oracle Server:\n")
+	fmt.Print("Sub commands: \n  version: print the version of the oracle server.\n")
+	fmt.Print("Flags:\n")
+	flag.PrintDefaults()
+}
 
 func ResolveSimulatedPrice(s string) decimal.Decimal {
 	defaultPrice := types.SimulatedPrice

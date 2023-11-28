@@ -31,12 +31,12 @@ type PluginWrapper struct {
 	subSampleEvent event.Subscription
 }
 
-func NewPluginWrapper(name string, pluginDir string, oracle types.SampleEventSubscriber) *PluginWrapper {
+func NewPluginWrapper(logLevel hclog.Level, name string, pluginDir string, oracle types.SampleEventSubscriber) *PluginWrapper {
 	// Create an hclog.Logger
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   name,
 		Output: os.Stdout,
-		Level:  hclog.Debug,
+		Level:  logLevel,
 	})
 
 	// pluginMap is the map of plugins we can dispense.
