@@ -24,8 +24,8 @@ var defaultConfig = types.PluginConfig{
 	Key:                "411f04e4775bb86c20296530",
 	Scheme:             "https",
 	Endpoint:           "v6.exchangerate-api.com",
-	Timeout:            10,   //10s
-	DataUpdateInterval: 3600, //3600s
+	Timeout:            10, //10s
+	DataUpdateInterval: 30, //30s
 }
 
 type EXResult struct {

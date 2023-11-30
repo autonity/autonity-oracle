@@ -186,7 +186,7 @@ const (
 	defaultHost   = "127.0.0.1:8080"
 	//apiPath               = "api/v3/ticker/price"
 	defaultTimeout        = 10 // 10s
-	defaultUpdateInterval = 60
+	defaultUpdateInterval = 30 // 30s
 	defaultKey            = ""
 )
 

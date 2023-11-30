@@ -26,8 +26,8 @@ var defaultConfig = types.PluginConfig{
 	Key:                "0be02ca33c4843ee968c4cedd2686f01",
 	Scheme:             "https",
 	Endpoint:           "openexchangerates.org",
-	Timeout:            10,   //10s
-	DataUpdateInterval: 3600, //3600s
+	Timeout:            10, //10s
+	DataUpdateInterval: 30, //30s
 }
 
 type ConversionRates struct {
