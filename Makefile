@@ -6,6 +6,7 @@
 
 SOLC_VERSION = 0.8.2
 BIN_DIR = ./build/bin
+CONF_FILE = ./config/plugins-conf.yml
 E2E_TEST_DIR = ./e2e_test
 E2E_TEST_PLUGIN_DIR = $(E2E_TEST_DIR)/plugins
 E2E_TEST_TEMPLATE_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/template_plugins
@@ -42,6 +43,9 @@ autoracle:
 	go build -o $(BIN_DIR)/autoracle
 	chmod +x $(BIN_DIR)/autoracle
 	cp $(BIN_DIR)/autoracle $(E2E_TEST_DIR)/autoracle
+
+	# copy example plugin-conf
+	cp $(CONF_FILE) $(BIN_DIR)
 
     # build production plugins
 	#go build -o $(PLUGIN_DIR)/binance $(PLUGIN_SRC_DIR)/binance/binance.go
