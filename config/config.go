@@ -23,7 +23,7 @@ var (
 	DefaultSymbols        = "AUD-USD,CAD-USD,EUR-USD,GBP-USD,JPY-USD,SEK-USD,ATN-USD,NTN-USD,NTN-ATN"
 )
 
-const Version = "v0.1.3"
+const Version = "v0.1.4"
 
 func MakeConfig() *types.OracleServiceConfig {
 	var logLevel int
