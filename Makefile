@@ -2,7 +2,7 @@
 # with Go source code. If you know what GOPATH is then you probably
 # don't need to bother with make.
 
-.PHONY: autoracle test e2e_test clean lint dep all
+.PHONY: mkdir oracle-server conf-file e2e-test-stuffs forex-plugins autoracle test e2e_test clean lint dep all
 
 SOLC_VERSION = 0.8.2
 BIN_DIR = ./build/bin
@@ -27,7 +27,7 @@ ifeq ($(LATEST_COMMIT),)
 LATEST_COMMIT := $(shell git log -n 1 HEAD~1 --pretty=format:"%H")
 endif
 
-autoracle:
+mkdir:
 	mkdir -p $(BIN_DIR)
 	mkdir -p $(PLUGIN_DIR)
 	mkdir -p $(SIMULATOR_BIN_DIR)
@@ -39,24 +39,17 @@ autoracle:
 	mkdir -p $(E2E_TEST_FOREX_PLUGIN_DIR)
 	mkdir -p $(E2E_TEST_CAX_PLUGIN_DIR)
 
+oracle-server:
     # build oracle client
 	go build -o $(BIN_DIR)/autoracle
 	chmod +x $(BIN_DIR)/autoracle
 	cp $(BIN_DIR)/autoracle $(E2E_TEST_DIR)/autoracle
 
+conf-file:
 	# copy example plugin-conf
 	cp $(CONF_FILE) $(BIN_DIR)
 
-    # build production plugins
-	#go build -o $(PLUGIN_DIR)/binance $(PLUGIN_SRC_DIR)/binance/binance.go
-	#go build -o $(PLUGIN_DIR)/simulator_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go
-	go build -o $(PLUGIN_DIR)/pcgc_cax $(PLUGIN_SRC_DIR)/pcgc_cax/pcgc_cax.go
-	go build -o $(PLUGIN_DIR)/forex_currencyfreaks $(PLUGIN_SRC_DIR)/forex_currencyfreaks/forex_currencyfreaks.go
-	go build -o $(PLUGIN_DIR)/forex_currencylayer $(PLUGIN_SRC_DIR)/forex_currencylayer/forex_currencylayer.go
-	go build -o $(PLUGIN_DIR)/forex_exchangerate $(PLUGIN_SRC_DIR)/forex_exchangerate/forex_exchangerate.go
-	go build -o $(PLUGIN_DIR)/forex_openexchange $(PLUGIN_SRC_DIR)/forex_openexchange/forex_openexchange.go
-	chmod +x $(PLUGIN_DIR)/*
-
+e2e-test-stuffs:
     # build template plugin for integration test
 	mkdir -p $(PLUGIN_SRC_DIR)/template_plugin/bin
 	go build -o $(PLUGIN_SRC_DIR)/template_plugin/bin/template_plugin $(PLUGIN_SRC_DIR)/template_plugin/template_plugin.go
@@ -89,7 +82,27 @@ autoracle:
 
 	cp  $(E2E_TEST_SML_PLUGIN_DIR)/sim_plugin $(E2E_TEST_MIX_PLUGIN_DIR)/sim_plugin
 
-	@echo "Done building."
+forex-plugins:
+	go build -o $(PLUGIN_DIR)/forex_currencyfreaks $(PLUGIN_SRC_DIR)/forex_currencyfreaks/forex_currencyfreaks.go
+	go build -o $(PLUGIN_DIR)/forex_currencylayer $(PLUGIN_SRC_DIR)/forex_currencylayer/forex_currencylayer.go
+	go build -o $(PLUGIN_DIR)/forex_exchangerate $(PLUGIN_SRC_DIR)/forex_exchangerate/forex_exchangerate.go
+	go build -o $(PLUGIN_DIR)/forex_openexchange $(PLUGIN_SRC_DIR)/forex_openexchange/forex_openexchange.go
+	chmod +x $(PLUGIN_DIR)/*
+
+dev-cax-plugin:
+	go build -o $(PLUGIN_DIR)/pcgc_cax -tags dev $(PLUGIN_SRC_DIR)/pcgc_cax/
+	chmod +x $(PLUGIN_DIR)/pcgc_cax
+
+piccadilly-cax-plugin:
+	go build -o $(PLUGIN_DIR)/pcgc_cax $(PLUGIN_SRC_DIR)/pcgc_cax/
+	chmod +x $(PLUGIN_DIR)/pcgc_cax
+
+autoracle-dev: mkdir oracle-server forex-plugins dev-cax-plugin conf-file e2e-test-stuffs
+	@echo "Done building for dev network."
+	@echo "Run \"$(BIN_DIR)/autoracle\" to launch autonity oracle."
+
+autoracle: mkdir oracle-server forex-plugins piccadilly-cax-plugin conf-file e2e-test-stuffs
+	@echo "Done building for piccadilly network."
 	@echo "Run \"$(BIN_DIR)/autoracle\" to launch autonity oracle."
 
 simulator:
