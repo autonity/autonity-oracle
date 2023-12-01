@@ -17,20 +17,23 @@ import (
 // This plugin is only used for autonity round 4 game purpose, the data of NTN-USD & ATN-USD come from a simulated
 // exchange service build by Clearmatics.
 const (
-	version   = "v0.0.1"
-	orderbook = "orderbooks"
-	quote     = "quote"
-	NTNATN    = "NTN-ATN"
-	NTNUSD    = "NTN-USD"
-	ATNUSD    = "ATN-USD"
+	version = "v0.0.1"
+	quote   = "quote"
+	NTNATN  = "NTN-ATN"
+	NTNUSD  = "NTN-USD"
+	ATNUSD  = "ATN-USD"
 )
+
+// take piccadilly setup as the default setting
+var routers = "api/orderbooks"
+var defaultEndpoint = "cax.piccadilly.autonity.org"
 
 var defaultConfig = types.PluginConfig{
 	Key:                "",
 	Scheme:             "https",
-	Endpoint:           "cax.devnet.clearmatics.network", // todo: replace it with cax.piccadilly.autonity.org for piccadilly network.
-	Timeout:            10,                               //10s
-	DataUpdateInterval: 3600,                             //3600s, todo: if there is a rate limit for the CAX service, we'd need to set it properly.
+	Endpoint:           defaultEndpoint,
+	Timeout:            10, //10s
+	DataUpdateInterval: 30, //30s,
 }
 
 type CAXQuote struct {
@@ -159,7 +162,7 @@ func (cc *CAXClient) fetchPrice(symbol string) (common.Price, error) {
 
 func (cc *CAXClient) buildURL(symbol string) *url.URL {
 	endpoint := &url.URL{}
-	endpoint.Path = strings.Join([]string{orderbook, symbol, quote}, "/")
+	endpoint.Path = strings.Join([]string{routers, symbol, quote}, "/")
 	return endpoint
 }
 
@@ -204,6 +207,7 @@ func main() {
 		"adapter": &types.AdapterPlugin{Impl: adapter},
 	}
 
+	println("endpoint and routers:", defaultEndpoint, routers)
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: types.HandshakeConfig,
 		Plugins:         pluginMap,

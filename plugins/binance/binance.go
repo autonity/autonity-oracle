@@ -23,7 +23,7 @@ var defaultConfig = types.PluginConfig{
 	Scheme:             "https",
 	Endpoint:           "api.binance.us",
 	Timeout:            10, //10s
-	DataUpdateInterval: 10, //10s
+	DataUpdateInterval: 30, //10s
 }
 
 type BIClient struct {

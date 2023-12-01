@@ -25,8 +25,8 @@ var defaultConfig = types.PluginConfig{
 	Key:                "705af082ac7f7d150c87303d4e2f049e",
 	Scheme:             "http", // todo: replace the scheme with https once we purchase the service plan.
 	Endpoint:           "api.currencylayer.com",
-	Timeout:            10,   //10s
-	DataUpdateInterval: 3600, //3600s
+	Timeout:            10, //10s
+	DataUpdateInterval: 30, //30s
 }
 
 type CLResult struct {

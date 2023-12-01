@@ -21,8 +21,8 @@ var defaultConfig = types.PluginConfig{
 	Key:                "",
 	Scheme:             "https",
 	Endpoint:           "127.0.0.1:8080",
-	Timeout:            10,   //10s
-	DataUpdateInterval: 3600, //3600s
+	Timeout:            10, //10s
+	DataUpdateInterval: 30, //30s
 }
 
 // TemplatePlugin Here is an implementation of a plugin which returns simulated data points.

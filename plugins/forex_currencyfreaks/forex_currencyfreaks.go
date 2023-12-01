@@ -25,8 +25,8 @@ var defaultConfig = types.PluginConfig{
 	Key:                "575aab9e47e54790bf6d502c48407c10",
 	Scheme:             "https",
 	Endpoint:           "api.currencyfreaks.com",
-	Timeout:            10,   //10s
-	DataUpdateInterval: 3600, //3600s
+	Timeout:            10, //10s
+	DataUpdateInterval: 30, //30s
 }
 
 type CFResult struct {

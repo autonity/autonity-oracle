@@ -115,7 +115,7 @@ plugin configuration file:
 #    scheme: https                           # optional, https or http, default value is https.
 #    endpoint: api.currencyfreaks.com        # optional, default value is api.currencyfreaks.com
 #    timeout: 10                             # optional, default value is 10.
-#    refresh: 3600                           # optional, default value is 3600, that is 1 hour to fetch data from data source.
+#    refresh: 30                             # optional, default value is 30, that is 30 seconds to fetch data from data source.
 
 # Un-comment below lines to enable your forex data plugin's configuration on demand. Your production configurations starts from below:
 

@@ -30,20 +30,20 @@
 #    scheme: https                           # optional, https or http, default value is https.
 #    endpoint: api.currencyfreaks.com        # optional, default value is api.currencyfreaks.com
 #    timeout: 10                             # optional, default value is 10.
-#    refresh: 3600                           # optional, default value is 3600, that is 1 hour to fetch data from data source.
+#    refresh: 30                             # optional, default value is 30, that is 30s to fetch data from data source.
 
 # Un-comment below lines to enable your forex data plugin's configuration on demand. Your production configurations start from below:
-  - name: forex_currencyfreaks              # visit https://currencyfreaks.com to apply for your key
-    key: 5490e15565e741129788f6100e022ec5   # replace it with your own key
+#  - name: forex_currencyfreaks              # visit https://currencyfreaks.com to apply for your key
+#    key: 1490e15565e741129788f6100e022ec5   # replace it with your own key
 
-  - name: forex_openexchangerate            # visit https://openexchangerates.org to apply for your key
-    key: 0be02ca33c4843ee968c4cedd2686f01   # replace it with your own key
+#  - name: forex_openexchangerate            # visit https://openexchangerates.org to apply for your key
+#    key: 1be02ca33c4843ee968c4cedd2686f01   # replace it with your own key
 
-  - name: forex_currencylayer               # visit https://currencylayer.com to apply for your key
-    key: 705af082ac7f7d150c87303d4e2f049e   # replace it with your own key
+#  - name: forex_currencylayer               # visit https://currencylayer.com to apply for your key
+#    key: 105af082ac7f7d150c87303d4e2f049e   # replace it with your own key
 
-  - name: forex_exchangerate                # visit https://www.exchangerate-api.com to apply for your key
-    key: 411f04e4775bb86c20296530           # replace it with your own key
+#  - name: forex_exchangerate                # visit https://www.exchangerate-api.com to apply for your key
+#    key: 111f04e4775bb86c20296530           # replace it with your own key
 
   - name: sim_plugin
     endpoint: 127.0.0.1:50991

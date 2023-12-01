@@ -11,6 +11,10 @@ func TestNewCAXClient(t *testing.T) {
 	var conf = types.PluginConfig{
 		Name: "pcgc-cax",
 	}
+
+	// set the CAX of dev-net for testing by default since piccadilly CAX is not ready.
+	defaultConfig.Endpoint = "cax.devnet.clearmatics.network"
+	routers = "orderbooks"
 	common.ResolveConf(&conf, &defaultConfig)
 
 	client := NewCAXClient(&conf)
