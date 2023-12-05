@@ -73,9 +73,6 @@ e2e-test-stuffs:
 	cp $(PLUGIN_DIR)/forex_exchangerate $(E2E_TEST_FOREX_PLUGIN_DIR)/forex_exchangerate
 	cp $(PLUGIN_DIR)/forex_openexchange $(E2E_TEST_FOREX_PLUGIN_DIR)/forex_openexchange
 
-	# cp autonity round4 game PCGC CAX plugins for e2e testing
-	cp $(PLUGIN_DIR)/pcgc_cax $(E2E_TEST_CAX_PLUGIN_DIR)/pcgc_cax
-
     # build simulator plugin
 	go build -o $(E2E_TEST_SML_PLUGIN_DIR)/sim_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go
 	chmod +x $(E2E_TEST_SML_PLUGIN_DIR)/sim_plugin
@@ -92,21 +89,34 @@ forex-plugins:
 dev-cax-plugin:
 	go build -o $(PLUGIN_DIR)/pcgc_cax -tags dev $(PLUGIN_SRC_DIR)/pcgc_cax/
 	chmod +x $(PLUGIN_DIR)/pcgc_cax
+	# cp autonity round4 game PCGC CAX plugins for e2e testing
+	cp $(PLUGIN_DIR)/pcgc_cax $(E2E_TEST_CAX_PLUGIN_DIR)/pcgc_cax
 
 piccadilly-cax-plugin:
 	go build -o $(PLUGIN_DIR)/pcgc_cax $(PLUGIN_SRC_DIR)/pcgc_cax/
 	chmod +x $(PLUGIN_DIR)/pcgc_cax
+	# cp autonity round4 game PCGC CAX plugins for e2e testing
+	cp $(PLUGIN_DIR)/pcgc_cax $(E2E_TEST_CAX_PLUGIN_DIR)/pcgc_cax
+
+bakerloo-simulator:
+	go build -o $(SIMULATOR_BIN_DIR)/simulator $(SIMULATOR_SRC_DIR)/main.go
+	go build -o $(BIN_DIR)/simulator $(SIMULATOR_SRC_DIR)/main.go
+
+bakerloo-sim-plugin:
+	go build -o $(PLUGIN_DIR)/sim_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go
+	chmod +x $(PLUGIN_DIR)/sim_plugin
 
 autoracle-dev: mkdir oracle-server forex-plugins dev-cax-plugin conf-file e2e-test-stuffs
 	@echo "Done building for dev network."
 	@echo "Run \"$(BIN_DIR)/autoracle\" to launch autonity oracle."
 
+autoracle-bakerloo: mkdir oracle-server forex-plugins bakerloo-simulator bakerloo-sim-plugin conf-file e2e-test-stuffs
+	@echo "Done building for bakerloo network."
+	@echo "Run \"$(BIN_DIR)/autoracle\" to launch autonity oracle."
+
 autoracle: mkdir oracle-server forex-plugins piccadilly-cax-plugin conf-file e2e-test-stuffs
 	@echo "Done building for piccadilly network."
 	@echo "Run \"$(BIN_DIR)/autoracle\" to launch autonity oracle."
-
-simulator:
-	go build -o $(SIMULATOR_BIN_DIR)/simulator $(SIMULATOR_SRC_DIR)/main.go
 
 oracle-contract:
 	mkdir -p $(BIN_DIR)

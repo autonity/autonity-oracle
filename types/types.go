@@ -14,7 +14,6 @@ import (
 )
 
 var (
-	EnvSymbols              = "SYMBOLS"
 	EnvPluginDIR            = "PLUGIN_DIR"
 	EnvKeyFile              = "KEY_FILE"
 	EnvKeyFilePASS          = "KEY_PASSWORD"
@@ -64,7 +63,6 @@ type OracleServiceConfig struct {
 	GasTipCap      uint64
 	Key            *keystore.Key
 	AutonityWSUrl  string
-	Symbols        []string
 	PluginDIR      string
 	PluginConfFile string
 }

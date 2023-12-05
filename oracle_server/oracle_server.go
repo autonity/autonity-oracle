@@ -87,7 +87,6 @@ func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, clien
 		key:            conf.Key,
 		gasTipCap:      conf.GasTipCap,
 		pluginConfFile: conf.PluginConfFile,
-		symbols:        conf.Symbols,
 		pluginDIR:      conf.PluginDIR,
 		pluginSet:      make(map[string]*pWrapper.PluginWrapper),
 		doneCh:         make(chan struct{}),

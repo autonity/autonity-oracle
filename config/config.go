@@ -20,7 +20,7 @@ var (
 	DefaultKeyPassword    = "123"
 	DefaultPluginDir      = "./plugins"
 	DefaultPluginConfFile = "./plugins-conf.yml"
-	DefaultSymbols        = "AUD-USD,CAD-USD,EUR-USD,GBP-USD,JPY-USD,SEK-USD,ATN-USD,NTN-USD,NTN-ATN"
+	DefaultSymbols        = []string{"AUD-USD", "CAD-USD", "EUR-USD", "GBP-USD", "JPY-USD", "SEK-USD", "ATN-USD", "NTN-USD", "NTN-ATN"}
 )
 
 const Version = "v0.1.4"
@@ -28,7 +28,6 @@ const Version = "v0.1.4"
 func MakeConfig() *types.OracleServiceConfig {
 	var logLevel int
 	var keyFile string
-	var symbols string
 	var pluginDir string
 	var keyPassword string
 	var autonityWSUrl string
@@ -38,7 +37,6 @@ func MakeConfig() *types.OracleServiceConfig {
 	flag.IntVar(&logLevel, "log.level", DefaultLogVerbosity, "Set the logging level, available levels are:  0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error")
 	flag.Uint64Var(&gasTipCap, "tip", DefaultGasTipCap, "Set the gas priority fee cap to issue the oracle data report transactions.")
 	flag.StringVar(&pluginDir, "plugin.dir", DefaultPluginDir, "Set the directory of the data plugins.")
-	flag.StringVar(&symbols, "symbols", DefaultSymbols, "Set the symbols string separated by comma")
 	flag.StringVar(&keyFile, "key.file", DefaultKeyFile, "Set oracle server key file")
 	flag.StringVar(&keyPassword, "key.password", DefaultKeyPassword, "Set the password to decrypt oracle server key file")
 	flag.StringVar(&autonityWSUrl, "ws", DefaultAutonityWSUrl, "Set the WS-RPC server listening interface and port of the connected Autonity Client node")
@@ -49,11 +47,6 @@ func MakeConfig() *types.OracleServiceConfig {
 		log.SetFlags(0)
 		log.Println(Version)
 		os.Exit(0)
-	}
-
-	// Parse system environment variables.
-	if s, presented := os.LookupEnv(types.EnvSymbols); presented {
-		symbols = s
 	}
 
 	if lvl, presented := os.LookupEnv(types.EnvLogLevel); presented {
@@ -97,8 +90,6 @@ func MakeConfig() *types.OracleServiceConfig {
 	}
 
 	// verify configurations.
-	symbolArray := helpers.ParseSymbols(symbols)
-
 	keyJson, err := os.ReadFile(keyFile)
 	if err != nil {
 		log.Printf("Cannot read key file: %s, %s", keyFile, err.Error())
@@ -123,7 +114,6 @@ func MakeConfig() *types.OracleServiceConfig {
 		GasTipCap:      gasTipCap,
 		Key:            key,
 		AutonityWSUrl:  autonityWSUrl,
-		Symbols:        symbolArray,
 		PluginDIR:      pluginDir,
 		PluginConfFile: pluginConfFile,
 		LoggingLevel:   hclog.Level(logLevel),

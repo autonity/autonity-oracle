@@ -16,7 +16,6 @@ import (
 	"math/big"
 	"os"
 	"os/exec"
-	"strings"
 	"time"
 )
 
@@ -114,7 +113,6 @@ type Oracle struct {
 	PluginConf string
 	Host       string
 	Command    *exec.Cmd
-	Symbols    string
 }
 
 // Start starts the process and wait until it exists, the caller should use a go routine to invoke it.
@@ -135,7 +133,6 @@ func (o *Oracle) Stop() {
 func (o *Oracle) GenCMD(wsEndpoint string) {
 	c := exec.Command("./autoracle",
 		fmt.Sprintf("-ws=%s", wsEndpoint),
-		fmt.Sprintf("-symbols=%s", o.Symbols),
 		fmt.Sprintf("-key.file=%s", o.Key.KeyFile),
 		fmt.Sprintf("-key.password=%s", o.Key.Password),
 		fmt.Sprintf("-plugin.dir=%s", o.PluginDir),
@@ -201,7 +198,7 @@ func (n *L1Node) Stop() {
 
 type NetworkConfig struct {
 	EnableL1Logs    bool
-	Symbols         string
+	Symbols         []string
 	VotePeriod      uint64
 	PluginDIRs      []string // different oracle can have different plugins configured.
 	SimulateTimeout int      // to simulate timeout in seconds at data source simulator when processing http request.
@@ -215,7 +212,7 @@ type Network struct {
 	L1Nodes      []*L1Node
 	L2Nodes      []*Oracle
 	Simulator    *DataSimulator
-	Symbols      string
+	Symbols      []string
 	VotePeriod   uint64
 	PluginDirs   []string // different oracle can have different plugins configured.
 	PluginConf   []string // different oracle can have different plugin conf.
@@ -343,7 +340,6 @@ func configNetwork(network *Network, freeKeys []*Key, freePorts []int, nodes int
 			PluginDir:  network.PluginDirs[i],
 			PluginConf: network.PluginConf[i],
 			Host:       defaultHost,
-			Symbols:    network.Symbols,
 		}
 
 		// allocate a key and 2 ports for l1 validator client,
@@ -397,7 +393,7 @@ func makeGenesisConfig(srcTemplate string, dstFile string, vals []*Validator, ne
 	genesis.Config.Autonity.Treasury = net.TreasuryKey.Key.Address
 	genesis.Config.Autonity.Validators = append(genesis.Config.Autonity.Validators, vals...)
 
-	genesis.Config.OracleContractConfig.Symbols = strings.Split(net.Symbols, ",")
+	genesis.Config.OracleContractConfig.Symbols = net.Symbols
 	genesis.Config.OracleContractConfig.VotePeriod = net.VotePeriod
 
 	jsonData, err := json.MarshalIndent(genesis, "", " ")

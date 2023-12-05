@@ -47,7 +47,6 @@ Values that can be configured by using environment variables:
 
 | **Env Variable** | **Required?** | **Meaning** | **Default Value**                                                                                    | **Valid Options** |
 |----------------------------|---------------|---------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|---------------------------------------------------------|
-| `SYMBOLS` | No | The symbols that the oracle component collects data points for | "AUD-USD,CAD-USD,EUR-USD,GBP-USD,JPY-USD,SEK-USD,ATN-USD,NTN-USD,NTN-ATN"                                    | symbols separated by ',' |
 | `PLUGIN_DIR` | No | The directory that stores the plugins | "./plugins"                                                                                | any directory that saves plugins |
 | `KEY_FILE` | Yes | The encrypted key file path that contains the private key of the oracle client. | "./UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" | any key file that saves the private key |
 | `KEY_PASSWORD` | Yes | The password of the key file that contains the private key of the oracle client. | "123"                                                                                                | any password that encrypted the private key |
@@ -69,7 +68,6 @@ Flags:
   -log.level=2: Set the logging level, available levels are:  0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error
   -plugin.conf="./plugins-conf.yml": Set the plugins' configuration file
   -plugin.dir="./plugins": Set the directory of the data plugins.
-  -symbols="AUD-USD,CAD-USD,EUR-USD,GBP-USD,JPY-USD,SEK-USD,ATN-USD,NTN-USD,NTN-ATN": Set the symbols string separated by comma
   -tip=1: Set the gas priority fee cap to issue the oracle data report transactions.
   -ws="ws://127.0.0.1:8546": Set the WS-RPC server listening interface and port of the connected Autonity Client node
 
@@ -78,7 +76,7 @@ Flags:
 
 example to run the autonity oracle service with console flags:
 ```shell
-$./autoracle --symbols="AUD-USD,CAD-USD,EUR-USD,GBP-USD,JPY-USD,SEK-USD,ATN-USD,NTN-USD,NTN-ATN" --plugin.dir="./plugins" --key.file="../../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" --key.password="123" --ws="ws://127.0.0.1:8546" --plugin.conf="./plugins-conf.yml"
+$./autoracle --plugin.dir="./plugins" --key.file="../../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" --key.password="123" --ws="ws://127.0.0.1:8546" --plugin.conf="./plugins-conf.yml"
 ```
 plugin configuration file:    
 
@@ -188,7 +186,7 @@ $.~/src/autonity-oracle/build/bin/autoracle
 or configure by using console flags and run the binary:
 
 ```shell
-$./autoracle --symbols="AUD-USD,CAD-USD,EUR-USD,GBP-USD,JPY-USD,SEK-USD,ATN-USD,NTN-USD,NTN-ATN" --plugin.dir="./plugins" --key.file="./test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" --key.password="123" --ws="ws://127.0.0.1:8546"
+$./autoracle --plugin.dir="./plugins" --key.file="./test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" --key.password="123" --ws="ws://127.0.0.1:8546"
 ```
 
 ### Deploy via linux system daemon
@@ -266,7 +264,7 @@ sudo journalctl -u autoracle.service -b
 -- Logs begin at Sat 2022-11-26 11:54:00 GMT, end at Thu 2023-01-19 02:59:51 GMT. --  
 Jan 19 02:42:19 systemd[1]: Started Clearmatics Autonity Oracle Server.  
 Jan 19 02:42:19 autoracle[14568]: 2023/01/19 02:42:19  
-Jan 19 02:42:19 autoracle[14568]: Running autonity oracle service at port: 30311, with symbols: NTNUSDT,NTNUSDC,NTNBTC,NTNETH and plugin diretory: /home/user/src/autonity-oracle/build/bin/plugins  
+Jan 19 02:42:19 autoracle[14568]: Running autonity oracle service at port: 30311, with plugin diretory: /home/user/src/autonity-oracle/build/bin/plugins
 Jan 19 02:42:19 autoracle[14568]: 2023-01-19T02:42:19.152Z [WARN] binance: plugin configured with a nil SecureConfig  
 Jan 19 02:42:19 autoracle[14568]: 2023-01-19T02:42:19.152Z [DEBUG] binance: starting plugin: path=/home/user/src/autonity-oracle/build/bin/plugins/binance args=[/home/uesr/src/autonity-oracle/build/bin/plugins/binance]  
 Jan 19 02:42:19 autoracle[14568]: 2023-01-19T02:42:19.152Z [DEBUG] binance: plugin started: path=/home/user/src/autonity-oracle/build/bin/plugins/binance pid=14577  

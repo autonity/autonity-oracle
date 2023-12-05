@@ -7,19 +7,6 @@ import (
 	"testing"
 )
 
-func TestParseSymbols(t *testing.T) {
-	defaultSymbols := "ETH-USDC,ETH-USDT,ETH-BTC"
-	symbolsWithSpace := " ETH-USDC , ETH-USDT, ETH-BTC "
-	outputSymbols := ParseSymbols(defaultSymbols)
-	require.Equal(t, 3, len(outputSymbols))
-	require.Equal(t, "ETH-USDC", outputSymbols[0])
-	require.Equal(t, "ETH-USDT", outputSymbols[1])
-	require.Equal(t, "ETH-BTC", outputSymbols[2])
-
-	results := ParseSymbols(symbolsWithSpace)
-	require.Equal(t, outputSymbols, results)
-}
-
 func TestParsePlaybookHeader(t *testing.T) {
 	playbook := "../test_data/samplePlaybook.csv"
 	symbols, err := ParsePlaybookHeader(playbook)
