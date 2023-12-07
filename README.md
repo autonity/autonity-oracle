@@ -291,11 +291,19 @@ To replace running plugins with new ones, just replace the binary in the `plugin
 
 
 ## Development
-
-To build the project run
+### Build for DEV net
+```shell
+make autoracle-dev
+```
+### Build for Bakerloo net
+```shell
+make autoracle-bakerloo
+```
+### Build for Piccadilly net
 ```shell
 make autoracle
 ```
+### Other build helpers
 To build the data source simulator run
 ```shell
 make simulator
