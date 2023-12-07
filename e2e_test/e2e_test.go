@@ -197,7 +197,7 @@ func TestAddCommitteeMember(t *testing.T) {
 func TestHappyCaseWithBinanceDataService(t *testing.T) {
 	var netConf = &NetworkConfig{
 		EnableL1Logs: false,
-		Symbols:      "BTC-USD,BTC-USDC,BTC-USDT,BTC-USD4",
+		Symbols:      []string{"BTC-USD", "BTC-USDC", "BTC-USDT", "BTC-USD4"},
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{binancePlugDir, binancePlugDir, binancePlugDir, binancePlugDir},
 	}
@@ -342,7 +342,7 @@ func TestWithBinanceSimulatorTimeout(t *testing.T) {
 func TestForexPluginsHappyCase(t *testing.T) {
 	var netConf = &NetworkConfig{
 		EnableL1Logs: false,
-		Symbols:      "EUR-USD,JPY-USD,GBP-USD,AUD-USD,CAD-USD,SEK-USD",
+		Symbols:      []string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"},
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{forexPlugDir, forexPlugDir, forexPlugDir, forexPlugDir},
 	}
@@ -372,7 +372,7 @@ func TestCAXPluginsHappyCase(t *testing.T) {
 	//t.Skip("this test depends on the remote service endpoint of cax.devnet.clearmatics.network")
 	var conf = &NetworkConfig{
 		EnableL1Logs: false,
-		Symbols:      "NTN-USD,ATN-USD,NTN-ATN",
+		Symbols:      []string{"NTN-USD", "ATN-USD", "NTN-ATN"},
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{caxPlugDir, caxPlugDir, caxPlugDir, caxPlugDir},
 	}
