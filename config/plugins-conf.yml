@@ -35,7 +35,7 @@
 #  - name: forex_currencyfreaks              # required, it is the plugin file name in the plugin directory.
 #    key: 175aab9e47e54790bf6d502c48407c10   # required, visit https://currencyfreaks.com to get your key, and replace it.
 
-#  - name: forex_openexchangerate            # required, it is the plugin file name in the plugin directory.
+#  - name: forex_openexchange                # required, it is the plugin file name in the plugin directory.
 #    key: 1be02ca33c4843ee968c4cedd2686f01   # required, visit https://openexchangerates.org to get your key, and replace it.
 
 #  - name: forex_currencylayer               # required, it is the plugin file name in the plugin directory.
