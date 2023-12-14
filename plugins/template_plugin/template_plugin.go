@@ -39,7 +39,7 @@ type TemplatePlugin struct {
 func NewTemplatePlugin(conf *types.PluginConfig, client common.DataSourceClient, version string) *TemplatePlugin {
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:       conf.Name,
-		Level:      hclog.Debug,
+		Level:      hclog.Info,
 		Output:     os.Stderr, // logging into stderr thus the go-plugin can redirect the logs to plugin server.
 		JSONFormat: true,
 	})
@@ -59,15 +59,14 @@ func (g *TemplatePlugin) FetchPrices(symbols []string) (types.PluginPriceReport,
 
 	availableSymbols, badSymbols, availableSymMap := g.resolveSymbols(symbols)
 	if len(availableSymbols) == 0 {
-		g.logger.Warn("no available symbols from plugin", "plugin", g.conf.Name)
-		report.BadSymbols = badSymbols
+		report.UnRecognizeSymbols = badSymbols
 		return report, fmt.Errorf("no available symbols")
 	}
 
 	cPRs, err := g.fetchPricesFromCache(availableSymbols)
 	if err == nil {
 		report.Prices = cPRs
-		report.BadSymbols = badSymbols
+		report.UnRecognizeSymbols = badSymbols
 		return report, nil
 	}
 
@@ -76,8 +75,6 @@ func (g *TemplatePlugin) FetchPrices(symbols []string) (types.PluginPriceReport,
 	if err != nil {
 		return report, err
 	}
-
-	g.logger.Debug("sampled data points", res)
 
 	now := time.Now().Unix()
 	for _, v := range res {
@@ -95,7 +92,7 @@ func (g *TemplatePlugin) FetchPrices(symbols []string) (types.PluginPriceReport,
 		g.cachePrices[v.Symbol] = pr
 		report.Prices = append(report.Prices, pr)
 	}
-	report.BadSymbols = badSymbols
+	report.UnRecognizeSymbols = badSymbols
 	return report, nil
 }
 

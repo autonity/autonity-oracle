@@ -53,7 +53,7 @@ Values that can be configured by using environment variables:
 | `AUTONITY_WS` | Yes | The web socket RPC URL of your Autonity L1 Node that the oracle client communicates with. | "ws://127.0.0.1:8546"                                                                                | the web socket rpc endpoint url of the Autonity client. |
 | `PLUGIN_CONF` | Yes | The plugins' configuration file in YAML. | "./plugins-conf.yml"                                                               | the configuration file of the oracle plugins. |
 | `GAS_TIP_CAP` | No | The gas priority fee cap to issue the oracle data report transactions | 1                                                               | A non-zero value per gas to prioritize your data report TX to be mined. |
-| `LOG_LEVEL` | No | The logging level of the oracle server | 2                                                              | available levels are:  0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error. |
+| `LOG_LEVEL` | No | The logging level of the oracle server | 3                                                              | available levels are:  0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error. |
 
 
 or by using console flags:

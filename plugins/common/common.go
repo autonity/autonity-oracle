@@ -16,7 +16,6 @@ var (
 	DefaultForexSymbols  = []string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"}
 	DefaultCryptoSymbols = []string{"ATN-USD", "NTN-USD", "NTN-ATN"}
 	ErrDataNotAvailable  = fmt.Errorf("data is not available")
-	ErrSymbolUnknown     = fmt.Errorf("unknown symbol")
 )
 
 type Price struct {
@@ -59,15 +58,14 @@ func (p *Plugin) FetchPrices(symbols []string) (types.PluginPriceReport, error) 
 
 	availableSymbols, badSymbols, availableSymMap := p.resolveSymbols(symbols)
 	if len(availableSymbols) == 0 {
-		p.logger.Warn("no available symbols from plugin", "plugin", p.conf.Name)
-		report.BadSymbols = badSymbols
-		return report, fmt.Errorf("no available symbols")
+		report.UnRecognizeSymbols = badSymbols
+		return report, fmt.Errorf("the data source of current plugin does not have the data asked by oracle server")
 	}
 
 	cPRs, err := p.fetchPricesFromCache(availableSymbols)
 	if err == nil {
 		report.Prices = cPRs
-		report.BadSymbols = badSymbols
+		report.UnRecognizeSymbols = badSymbols
 		return report, nil
 	}
 
@@ -77,7 +75,7 @@ func (p *Plugin) FetchPrices(symbols []string) (types.PluginPriceReport, error) 
 		return report, err
 	}
 
-	p.logger.Debug("sampled data points", res)
+	p.logger.Info("sampled data", res)
 
 	now := time.Now().Unix()
 	for _, v := range res {
@@ -95,7 +93,7 @@ func (p *Plugin) FetchPrices(symbols []string) (types.PluginPriceReport, error) 
 		p.cachePrices[v.Symbol] = pr
 		report.Prices = append(report.Prices, pr)
 	}
-	report.BadSymbols = badSymbols
+	report.UnRecognizeSymbols = badSymbols
 	return report, nil
 }
 

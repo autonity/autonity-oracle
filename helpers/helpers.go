@@ -76,7 +76,7 @@ func ParsePlaybookHeader(playbook string) ([]string, error) {
 func Median(prices []decimal.Decimal) (decimal.Decimal, error) {
 	l := len(prices)
 	if l == 0 {
-		return decimal.Decimal{}, fmt.Errorf("empty data set")
+		return decimal.Decimal{}, fmt.Errorf("empty data set for median aggregation")
 	}
 
 	if l == 1 {

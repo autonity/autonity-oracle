@@ -18,11 +18,11 @@ var HandshakeConfig = plugin.HandshakeConfig{
 	MagicCookieValue: "hello",
 }
 
-// PluginPriceReport is the returned data samples from adapters which carry the prices and bad symbols if there are any
-// invalid symbols which is not recognisable by the data source.
+// PluginPriceReport is the returned data samples from adapters which carry the prices and those symbols of no data if
+// there are any unrecognisable symbols from the data source side.
 type PluginPriceReport struct {
-	Prices     []Price
-	BadSymbols []string
+	Prices             []Price
+	UnRecognizeSymbols []string
 }
 
 // PluginState is the returned data when the oracle host want to initialise the plugin with basic information: version,

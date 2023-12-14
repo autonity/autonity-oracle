@@ -63,7 +63,7 @@ func NewEXClient(conf *types.PluginConfig) *EXClient {
 
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   "ExchangeClient",
-		Level:  hclog.Debug,
+		Level:  hclog.Info,
 		Output: os.Stdout,
 	})
 
@@ -109,7 +109,6 @@ func (ex *EXClient) FetchPrice(symbols []string) (common.Prices, error) {
 		prices = append(prices, p)
 	}
 
-	ex.logger.Info("Exchange Rate", "data", prices)
 	return prices, nil
 }
 

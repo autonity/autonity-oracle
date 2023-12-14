@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	DefaultLogVerbosity   = 2 // 0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error
+	DefaultLogVerbosity   = 3 // 0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error
 	DefaultGasTipCap      = uint64(1)
 	DefaultAutonityWSUrl  = "ws://127.0.0.1:8546"
 	DefaultKeyFile        = "./UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"
@@ -24,23 +24,30 @@ var (
 )
 
 const Version = "v0.1.5"
+const UsageOracleKey = "Set the oracle server key file path."
+const UsagePluginConf = "Set the plugins' configuration file path."
+const UsagePluginDir = "Set the directory path of the data plugins."
+const UsageOracleKeyPassword = "Set the password to decrypt oracle server key file."
+const UsageGasTipCap = "Set the gas priority fee cap to issue the oracle data report transactions."
+const UsageWSUrl = "Set the WS-RPC server listening interface and port of the connected Autonity Client node."
+const UsageLogLevel = "Set the logging level, available levels are:  0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error"
 
 func MakeConfig() *types.OracleServiceConfig {
 	var logLevel int
 	var keyFile string
+	var gasTipCap uint64
 	var pluginDir string
 	var keyPassword string
 	var autonityWSUrl string
 	var pluginConfFile string
-	var gasTipCap uint64
 
-	flag.IntVar(&logLevel, "log.level", DefaultLogVerbosity, "Set the logging level, available levels are:  0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error")
-	flag.Uint64Var(&gasTipCap, "tip", DefaultGasTipCap, "Set the gas priority fee cap to issue the oracle data report transactions.")
-	flag.StringVar(&pluginDir, "plugin.dir", DefaultPluginDir, "Set the directory of the data plugins.")
-	flag.StringVar(&keyFile, "key.file", DefaultKeyFile, "Set oracle server key file")
-	flag.StringVar(&keyPassword, "key.password", DefaultKeyPassword, "Set the password to decrypt oracle server key file")
-	flag.StringVar(&autonityWSUrl, "ws", DefaultAutonityWSUrl, "Set the WS-RPC server listening interface and port of the connected Autonity Client node")
-	flag.StringVar(&pluginConfFile, "plugin.conf", DefaultPluginConfFile, "Set the plugins' configuration file")
+	flag.Uint64Var(&gasTipCap, "tip", DefaultGasTipCap, UsageGasTipCap)
+	flag.StringVar(&keyFile, "key.file", DefaultKeyFile, UsageOracleKey)
+	flag.IntVar(&logLevel, "log.level", DefaultLogVerbosity, UsageLogLevel)
+	flag.StringVar(&autonityWSUrl, "ws", DefaultAutonityWSUrl, UsageWSUrl)
+	flag.StringVar(&pluginDir, "plugin.dir", DefaultPluginDir, UsagePluginDir)
+	flag.StringVar(&pluginConfFile, "plugin.conf", DefaultPluginConfFile, UsagePluginConf)
+	flag.StringVar(&keyPassword, "key.password", DefaultKeyPassword, UsageOracleKeyPassword)
 
 	flag.Parse()
 	if len(flag.Args()) == 1 && flag.Args()[0] == "version" {
@@ -52,7 +59,7 @@ func MakeConfig() *types.OracleServiceConfig {
 	if lvl, presented := os.LookupEnv(types.EnvLogLevel); presented {
 		l, err := strconv.Atoi(lvl)
 		if err != nil {
-			log.Printf("Wrong LOG_LEVEL configed by system environment variable")
+			log.Printf("Wrong log level configed in $LOG_LEVEL")
 			helpers.PrintUsage()
 			os.Exit(1)
 		}
@@ -82,7 +89,7 @@ func MakeConfig() *types.OracleServiceConfig {
 	if capGasTip, presented := os.LookupEnv(types.EnvGasTipCap); presented {
 		gasTip, err := strconv.ParseUint(capGasTip, 0, 64)
 		if err != nil {
-			log.Printf("Wrong GAS_TIP_CAP configed by system environment variable")
+			log.Printf("Wrong value configed in $GAS_TIP_CAP")
 			helpers.PrintUsage()
 			os.Exit(1)
 		}
@@ -92,20 +99,20 @@ func MakeConfig() *types.OracleServiceConfig {
 	// verify configurations.
 	keyJson, err := os.ReadFile(keyFile)
 	if err != nil {
-		log.Printf("Cannot read key file: %s, %s", keyFile, err.Error())
+		log.Printf("Cannot read key from oracle key file: %s, %s", keyFile, err.Error())
 		helpers.PrintUsage()
 		os.Exit(1)
 	}
 
 	key, err := keystore.DecryptKey(keyJson, keyPassword)
 	if err != nil {
-		log.Printf("Cannot decrypt keyfile: %s, with the provided password!", keyFile)
+		log.Printf("Cannot decrypt oracle key file: %s, with the provided password!", keyFile)
 		helpers.PrintUsage()
 		os.Exit(1)
 	}
 
 	if hclog.Level(logLevel) < hclog.NoLevel || hclog.Level(logLevel) > hclog.Error {
-		log.Printf("Wrong logging level configed %d", logLevel)
+		log.Printf("Wrong logging level configed %d, %s", logLevel, UsageLogLevel)
 		helpers.PrintUsage()
 		os.Exit(1)
 	}

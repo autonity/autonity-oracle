@@ -60,7 +60,7 @@ func NewOXClient(conf *types.PluginConfig) *OXClient {
 	}
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   "OpenExchangeRate",
-		Level:  hclog.Debug,
+		Level:  hclog.Info,
 		Output: os.Stdout,
 	})
 
@@ -107,7 +107,6 @@ func (oe *OXClient) FetchPrice(symbols []string) (common.Prices, error) {
 		}
 		prices = append(prices, p)
 	}
-	oe.logger.Info("open exchange api", "data", prices)
 	return prices, nil
 }
 

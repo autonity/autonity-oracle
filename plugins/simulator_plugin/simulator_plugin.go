@@ -40,7 +40,7 @@ func NewSIMClient(conf *types.PluginConfig) *SIMClient {
 
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   conf.Name,
-		Level:  hclog.Debug,
+		Level:  hclog.Info,
 		Output: os.Stdout,
 	})
 
@@ -72,7 +72,6 @@ func (bi *SIMClient) FetchPrice(symbols []string) (common.Prices, error) {
 		return nil, err
 	}
 
-	bi.logger.Info("binance", "data", prices)
 	return prices, nil
 }
 

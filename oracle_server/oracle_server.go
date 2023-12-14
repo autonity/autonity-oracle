@@ -104,7 +104,7 @@ func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, clien
 	// load plugin configs before start them.
 	plugConfs, err := config.LoadPluginsConfig(conf.PluginConfFile)
 	if err != nil {
-		os.logger.Error("cannot load plugin configuration", "error", err.Error())
+		os.logger.Error("cannot load plugin configuration", "error", err.Error(), "path", conf.PluginConfFile)
 		helpers.PrintUsage()
 		o.Exit(1)
 	}
@@ -113,7 +113,7 @@ func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, clien
 	binaries, err := helpers.ListPlugins(conf.PluginDIR)
 	if len(binaries) == 0 || err != nil {
 		// to stop the service on the start once there is no plugin in the db.
-		os.logger.Error("No plugins at plugin dir", "plugin-dir", os.pluginDIR)
+		os.logger.Error("No plugin discovered", "plugin-dir", os.pluginDIR)
 		helpers.PrintUsage()
 		o.Exit(1)
 	}
@@ -123,11 +123,11 @@ func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, clien
 		os.tryLoadingNewPlugin(f, pConf)
 	}
 
-	os.logger.Info("Running data contract_binder", "rpc: ", conf.AutonityWSUrl, "voter", conf.Key.Address.String())
+	os.logger.Info("Running oracle contract listener at", "WS", conf.AutonityWSUrl, "ID", conf.Key.Address.String())
 	err = os.syncStates()
 	if err != nil {
 		// stop the client on start up once the remote endpoint of autonity L1 network is not ready.
-		os.logger.Error("Cannot sync oracle contract state from autonity L1 Network", "error", err.Error())
+		os.logger.Error("Cannot synchronize oracle contract state from Autonity L1 Network", "error", err.Error(), "WS", conf.AutonityWSUrl)
 		helpers.PrintUsage()
 		o.Exit(1)
 	}
@@ -140,7 +140,7 @@ func (os *OracleServer) syncStates() error {
 	// get initial states from on-chain oracle contract.
 	os.curRound, os.protocolSymbols, os.pricePrecision, os.votePeriod, err = os.initStates()
 	if err != nil {
-		os.logger.Error("init state", "error", err.Error())
+		os.logger.Error("synchronize oracle contract state", "error", err.Error())
 		return err
 	}
 
@@ -195,7 +195,7 @@ func (os *OracleServer) initStates() (uint64, []string, decimal.Decimal, uint64,
 	}
 
 	if len(symbols) == 0 {
-		os.logger.Error("No symbols set by operator")
+		os.logger.Error("There are no symbols in Autonity L1 oracle contract")
 		return currentRound.Uint64(), symbols, decimal.NewFromInt(p.Int64()), votePeriod.Uint64(), types.ErrNoSymbolsObserved
 	}
 
@@ -227,7 +227,7 @@ func (os *OracleServer) checkHealth() {
 	if os.lostSync {
 		err := os.syncStates()
 		if err != nil && err != types.ErrNoSymbolsObserved {
-			os.logger.Info("rebuilding connectivity with autonity L1 node", "error", err)
+			os.logger.Info("rebuilding WS connectivity with Autonity L1 node", "error", err)
 			return
 		}
 		os.lostSync = false
@@ -245,7 +245,7 @@ func (os *OracleServer) checkHealth() {
 		os.logger.Error("get round", "error", err.Error())
 		return
 	}
-	os.logger.Info("checking heart beat", "current height", h, "current round", r.Uint64())
+	os.logger.Debug("checking heart beat", "current height", h, "current round", r.Uint64())
 }
 
 func (os *OracleServer) isVoter() (bool, error) {
@@ -271,7 +271,7 @@ func (os *OracleServer) printLatestRoundData(newRound uint64) {
 			return
 		}
 
-		os.logger.Info("GetRoundPrice", "round", newRound-1, "symbol", s, "Price",
+		os.logger.Debug("GetRoundPrice", "round", newRound-1, "symbol", s, "Price",
 			rd.Price.String(), "status", rd.Status.String())
 	}
 
@@ -287,7 +287,7 @@ func (os *OracleServer) printLatestRoundData(newRound uint64) {
 			continue
 		}
 
-		os.logger.Info("LatestRoundPrice", "round", rd.Round.Uint64(), "symbol", s, "price",
+		os.logger.Debug("LatestRoundPrice", "round", rd.Round.Uint64(), "symbol", s, "price",
 			price.Div(os.pricePrecision).String(), "status", rd.Status.String())
 	}
 }
@@ -326,6 +326,7 @@ func (os *OracleServer) handleRoundVote() error {
 	}
 
 	if syncing != nil {
+		os.logger.Warn("skip round event since the Autonity L1 node is doing block synchronization")
 		return types.ErrPeerOnSync
 	}
 
@@ -382,7 +383,7 @@ func (os *OracleServer) reportWithCommitment(newRound uint64, lastRoundData *typ
 
 	// save current round data.
 	os.roundData[newRound] = curRoundData
-	os.logger.Info("report with commitment", "TX hash", curRoundData.Tx.Hash(), "Nonce", curRoundData.Tx.Nonce(), "Cost", curRoundData.Tx.Cost())
+	os.logger.Info("reported last round data and with current round commitment", "TX hash", curRoundData.Tx.Hash(), "Nonce", curRoundData.Tx.Nonce(), "Cost", curRoundData.Tx.Cost())
 
 	// alert in case of balance reach the warning value.
 	balance, err := os.client.BalanceAt(context.Background(), os.key.Address, nil)
@@ -391,7 +392,7 @@ func (os *OracleServer) reportWithCommitment(newRound uint64, lastRoundData *typ
 		return err
 	}
 
-	os.logger.Info("oracle client left fund", "balance", balance.String())
+	os.logger.Info("oracle server account left fund", "address", os.key.Address, "balance", balance.String())
 	if balance.Cmp(AlertBalance) <= 0 {
 		os.logger.Warn("oracle account has too less balance left for data reporting", "balance", balance.String())
 	}
@@ -407,7 +408,7 @@ func (os *OracleServer) reportWithoutCommitment(lastRoundData *types.RoundData) 
 		os.logger.Error("do report", "error", err.Error())
 		return err
 	}
-	os.logger.Info("report without commitment", "TX hash", tx.Hash(), "Nonce", tx.Nonce())
+	os.logger.Info("reported last round data and without current round commitment", "TX hash", tx.Hash(), "Nonce", tx.Nonce())
 	return nil
 }
 
@@ -472,7 +473,7 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 	for _, s := range os.protocolSymbols {
 		p, err := os.aggregatePrice(s, int64(os.curSampleTS))
 		if err != nil {
-			os.logger.Error("aggregatePrice", "error", err.Error(), "symbol", s)
+			os.logger.Warn("aggregatePrice", "error", err.Error(), "symbol", s)
 			continue
 		}
 		prices[s] = *p
@@ -481,8 +482,6 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 	if len(prices) == 0 {
 		return nil, types.ErrNoAvailablePrice
 	}
-
-	os.logger.Info("sampled prices", "round", round, "prices", prices)
 
 	salt, err := rand.Int(rand.Reader, SaltRange)
 	if err != nil {
@@ -498,7 +497,7 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 		Prices:         prices,
 	}
 	roundData.CommitmentHash = os.commitmentHash(roundData, os.protocolSymbols)
-	os.logger.Info("build round data", "current round", round, "commitment hash", roundData.CommitmentHash.String())
+	os.logger.Info("assembled data report", "current round", round, "prices", prices, "commitment hash", roundData.CommitmentHash.String())
 	return roundData, nil
 }
 
@@ -519,7 +518,6 @@ func (os *OracleServer) commitmentHash(roundData *types.RoundData, symbols []str
 }
 
 func (os *OracleServer) handleNewSymbolsEvent(symbols []string) {
-	os.logger.Info("handleNewSymbolsEvent", "symbols", symbols)
 	// just add symbols to oracle service's symbol pool, thus the oracle service can start to prepare the data.
 	os.UpdateSymbols(symbols)
 }
@@ -536,7 +534,7 @@ func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, er
 	}
 
 	if len(prices) == 0 {
-		return nil, types.ErrNoAvailablePrice
+		return nil, types.ErrNoDataRound
 	}
 
 	price := &types.Price{
@@ -601,7 +599,7 @@ func (os *OracleServer) Start() {
 			os.lastSampledTS = preSampleTS
 		case rEvent := <-os.chRoundEvent:
 			os.logger.Info("handle new round", "round", rEvent.Round.Uint64(), "required sampling TS",
-				rEvent.Timestamp.Uint64(), "height", rEvent.Height.Uint64(), "vote period", rEvent.VotePeriod.Uint64())
+				rEvent.Timestamp.Uint64(), "height", rEvent.Height.Uint64(), "round period", rEvent.VotePeriod.Uint64())
 
 			// save the round rotation info to coordinate the pre-sampling.
 			os.curRound = rEvent.Round.Uint64()
@@ -611,14 +609,13 @@ func (os *OracleServer) Start() {
 
 			err := os.handleRoundVote()
 			if err != nil {
-				os.logger.Error("Handling round vote", "err", err.Error())
 				continue
 			}
 			os.gcDataSamples()
 			// after vote finished, gc useless symbols by protocol required symbols.
 			os.symbols = os.protocolSymbols
 		case symbols := <-os.chSymbolsEvent:
-			os.logger.Info("handle new symbols", "symbols", symbols.Symbols, "activate at round", symbols.Round)
+			os.logger.Info("handle new symbols", "new symbols", symbols.Symbols, "activate at round", symbols.Round)
 			os.handleNewSymbolsEvent(symbols.Symbols)
 		case <-os.regularTicker.C:
 			// start the regular price sampling for oracle service on each 10s.
@@ -677,11 +674,10 @@ func (os *OracleServer) tryLoadingNewPlugin(f fs.FileInfo, plugConf types.Plugin
 
 		pluginWrapper := pWrapper.NewPluginWrapper(os.loggingLevel, f.Name(), os.pluginDIR, os)
 		if err := pluginWrapper.Initialize(); err != nil {
-			os.logger.Error("** Cannot initialize plugin", "name", f.Name(), "error", err.Error())
+			os.logger.Error("Cannot initialize plugin", "name", f.Name(), "error", err.Error())
 			return
 		}
 		os.pluginSet[f.Name()] = pluginWrapper
-		os.logger.Info("** New plugin on ready: ", f.Name())
 		return
 	}
 
@@ -691,18 +687,17 @@ func (os *OracleServer) tryLoadingNewPlugin(f fs.FileInfo, plugConf types.Plugin
 			return
 		}
 
+		os.logger.Info("** Replacing legacy plugin with new one: ", f.Name(), f.Mode().String())
 		// stop the legacy plugin
 		plugin.Close()
 		delete(os.pluginSet, f.Name())
 
-		os.logger.Info("*** Replacing legacy plugin with new one: ", f.Name(), f.Mode().String())
 		pluginWrapper := pWrapper.NewPluginWrapper(os.loggingLevel, f.Name(), os.pluginDIR, os)
 		if err := pluginWrapper.Initialize(); err != nil {
-			os.logger.Error("** Cannot initialize plugin", "name", f.Name(), "error", err.Error())
+			os.logger.Error("Cannot initialize plugin", "name", f.Name(), "error", err.Error())
 			return
 		}
 		os.pluginSet[f.Name()] = pluginWrapper
-		os.logger.Info("*** Finnish the replacement of plugin: ", f.Name())
 	}
 }
 
@@ -714,11 +709,11 @@ func (os *OracleServer) ApplyPluginConf(name string, plugConf types.PluginConfig
 	// set the plugin configuration via system env, thus the plugin can load it on startup.
 	conf, err := json.Marshal(plugConf)
 	if err != nil {
-		os.logger.Error("** Cannot marshal plugin's configuration", "error", err.Error())
+		os.logger.Error("Cannot marshal plugin's configuration", "error", err.Error())
 		return err
 	}
 	if err = o.Setenv(name, string(conf)); err != nil {
-		os.logger.Error("** Cannot set plugin configuration via system ENV")
+		os.logger.Error("Cannot set plugin configuration via system ENV")
 		return err
 	}
 	return nil

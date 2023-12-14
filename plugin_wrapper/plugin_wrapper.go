@@ -158,7 +158,7 @@ func (pw *PluginWrapper) Initialize() error {
 	pw.version = state.Version
 
 	go pw.start()
-	pw.logger.Info("plugin initialized", pw.name, state)
+	pw.logger.Info("plugin is up and running", pw.name, state)
 	return nil
 }
 
@@ -185,7 +185,6 @@ func (pw *PluginWrapper) start() {
 					pw.logger.Error("fetch price routine", "error", err.Error())
 					return
 				}
-				pw.logger.Debug("fetch price routine done successfully")
 			}()
 		}
 	}
@@ -208,12 +207,11 @@ func (pw *PluginWrapper) fetchPrices(symbols []string, ts int64) error {
 
 	report, err := pw.adapter.FetchPrices(symbols)
 	if err != nil {
-		pw.logger.Error("Fetch prices", "error", err.Error())
 		return err
 	}
 
-	if len(report.BadSymbols) != 0 {
-		pw.logger.Warn("find bad symbols: ", report.BadSymbols)
+	if len(report.UnRecognizeSymbols) != 0 {
+		pw.logger.Debug("the data source cannot recognize some symbol", "report", report)
 	}
 
 	if len(report.Prices) > 0 {

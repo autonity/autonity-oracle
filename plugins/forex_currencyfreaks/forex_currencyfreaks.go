@@ -58,7 +58,7 @@ func NewCFClient(conf *types.PluginConfig) *CFClient {
 
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   conf.Name,
-		Level:  hclog.Debug,
+		Level:  hclog.Info,
 		Output: os.Stdout,
 	})
 
@@ -101,7 +101,6 @@ func (cf *CFClient) FetchPrice(symbols []string) (common.Prices, error) {
 		}
 		prices = append(prices, p)
 	}
-	cf.logger.Info("currency freaks", "data", prices)
 	return prices, nil
 }
 

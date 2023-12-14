@@ -58,7 +58,7 @@ func NewCAXClient(conf *types.PluginConfig) *CAXClient {
 
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   "AutonityR4CAX",
-		Level:  hclog.Debug,
+		Level:  hclog.Info,
 		Output: os.Stdout,
 	})
 
