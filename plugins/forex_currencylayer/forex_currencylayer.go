@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
 	"github.com/shopspring/decimal"
 	"io"
 	"net/url"
@@ -56,7 +55,7 @@ type CLClient struct {
 func NewCLClient(conf *types.PluginConfig) *CLClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
 	if client == nil {
-		panic("cannot create client for currency layer")
+		panic(fmt.Sprintf("cannot create client for %s", conf.Endpoint))
 	}
 
 	logger := hclog.New(&hclog.LoggerOptions{
@@ -168,24 +167,8 @@ func (cl *CLClient) buildURL(apiKey string) *url.URL {
 }
 
 func main() {
-	conf, err := common.LoadPluginConf(os.Args[0])
-	if err != nil {
-		println("cannot load conf: ", err.Error(), os.Args[0])
-		os.Exit(-1)
-	}
-
-	common.ResolveConf(&conf, &defaultConfig)
-
-	client := NewCLClient(&conf)
-	adapter := common.NewPlugin(&conf, client, version)
+	conf := common.ResolveConf(os.Args[0], &defaultConfig)
+	adapter := common.NewPlugin(conf, NewCLClient(conf), version)
 	defer adapter.Close()
-
-	var pluginMap = map[string]plugin.Plugin{
-		"adapter": &types.AdapterPlugin{Impl: adapter},
-	}
-
-	plugin.Serve(&plugin.ServeConfig{
-		HandshakeConfig: types.HandshakeConfig,
-		Plugins:         pluginMap,
-	})
+	common.PluginServe(adapter)
 }

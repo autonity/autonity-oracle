@@ -5,7 +5,6 @@ import (
 	"autonity-oracle/types"
 	"encoding/json"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
 	"io"
 	"net/url"
 	"os"
@@ -35,7 +34,7 @@ type BIClient struct {
 func NewBIClient(conf *types.PluginConfig) *BIClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
 	if client == nil {
-		panic("cannot create client for exchange rate api")
+		panic("cannot create https client for api.binance.us")
 	}
 
 	logger := hclog.New(&hclog.LoggerOptions{
@@ -111,23 +110,9 @@ func (bi *BIClient) buildURL(symbols []string) (*url.URL, error) {
 }
 
 func main() {
-	conf, err := common.LoadPluginConf(os.Args[0])
-	if err != nil {
-		println("cannot load conf: ", err.Error(), os.Args[0])
-		os.Exit(-1)
-	}
-	common.ResolveConf(&conf, &defaultConfig)
-
-	client := NewBIClient(&conf)
-	adapter := common.NewPlugin(&conf, client, version)
+	conf := common.ResolveConf(os.Args[0], &defaultConfig)
+	adapter := common.NewPlugin(conf, NewBIClient(conf), version)
 	defer adapter.Close()
 
-	var pluginMap = map[string]plugin.Plugin{
-		"adapter": &types.AdapterPlugin{Impl: adapter},
-	}
-
-	plugin.Serve(&plugin.ServeConfig{
-		HandshakeConfig: types.HandshakeConfig,
-		Plugins:         pluginMap,
-	})
+	common.PluginServe(adapter)
 }

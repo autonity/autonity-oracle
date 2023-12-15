@@ -4,8 +4,8 @@ import (
 	"autonity-oracle/plugins/common"
 	"autonity-oracle/types"
 	"encoding/json"
+	"fmt"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
 	"io"
 	"net/url"
 	"os"
@@ -35,7 +35,7 @@ type SIMClient struct {
 func NewSIMClient(conf *types.PluginConfig) *SIMClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
 	if client == nil {
-		panic("cannot create client for exchange rate api")
+		panic(fmt.Sprintf("cannot create client for %s", conf.Endpoint))
 	}
 
 	logger := hclog.New(&hclog.LoggerOptions{
@@ -111,24 +111,8 @@ func (bi *SIMClient) buildURL(symbols []string) (*url.URL, error) {
 }
 
 func main() {
-	conf, err := common.LoadPluginConf(os.Args[0])
-	if err != nil {
-		println("cannot load conf: ", err.Error(), os.Args[0])
-		os.Exit(-1)
-	}
-
-	common.ResolveConf(&conf, &defaultConfig)
-
-	client := NewSIMClient(&conf)
-	adapter := common.NewPlugin(&conf, client, version)
+	conf := common.ResolveConf(os.Args[0], &defaultConfig)
+	adapter := common.NewPlugin(conf, NewSIMClient(conf), version)
 	defer adapter.Close()
-
-	var pluginMap = map[string]plugin.Plugin{
-		"adapter": &types.AdapterPlugin{Impl: adapter},
-	}
-
-	plugin.Serve(&plugin.ServeConfig{
-		HandshakeConfig: types.HandshakeConfig,
-		Plugins:         pluginMap,
-	})
+	common.PluginServe(adapter)
 }

@@ -4,8 +4,8 @@ import (
 	"autonity-oracle/plugins/common"
 	"autonity-oracle/types"
 	"encoding/json"
+	"fmt"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
 	"github.com/shopspring/decimal"
 	"io"
 	"net/url"
@@ -53,7 +53,7 @@ type CAXClient struct {
 func NewCAXClient(conf *types.PluginConfig) *CAXClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
 	if client == nil {
-		panic("cannot create client for open exchange rate api")
+		panic(fmt.Sprintf("cannot create client for %s", conf.Endpoint))
 	}
 
 	logger := hclog.New(&hclog.LoggerOptions{
@@ -193,23 +193,8 @@ func (cc *CAXClient) Close() {
 }
 
 func main() {
-	conf, err := common.LoadPluginConf(os.Args[0])
-	if err != nil {
-		println("cannot load conf: ", err.Error(), os.Args[0])
-		os.Exit(-1)
-	}
-	common.ResolveConf(&conf, &defaultConfig)
-	client := NewCAXClient(&conf)
-	adapter := common.NewPlugin(&conf, client, version)
+	conf := common.ResolveConf(os.Args[0], &defaultConfig)
+	adapter := common.NewPlugin(conf, NewCAXClient(conf), version)
 	defer adapter.Close()
-
-	var pluginMap = map[string]plugin.Plugin{
-		"adapter": &types.AdapterPlugin{Impl: adapter},
-	}
-
-	println("endpoint and routers:", defaultEndpoint, routers)
-	plugin.Serve(&plugin.ServeConfig{
-		HandshakeConfig: types.HandshakeConfig,
-		Plugins:         pluginMap,
-	})
+	common.PluginServe(adapter)
 }

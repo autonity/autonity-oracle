@@ -57,16 +57,16 @@ func NewTemplatePlugin(conf *types.PluginConfig, client common.DataSourceClient,
 func (g *TemplatePlugin) FetchPrices(symbols []string) (types.PluginPriceReport, error) {
 	var report types.PluginPriceReport
 
-	availableSymbols, badSymbols, availableSymMap := g.resolveSymbols(symbols)
+	availableSymbols, unRecognizeSymbols, availableSymMap := g.resolveSymbols(symbols)
 	if len(availableSymbols) == 0 {
-		report.UnRecognizeSymbols = badSymbols
-		return report, fmt.Errorf("no available symbols")
+		report.UnRecognizeSymbols = unRecognizeSymbols
+		return report, common.ErrKnownSymbols
 	}
 
 	cPRs, err := g.fetchPricesFromCache(availableSymbols)
 	if err == nil {
 		report.Prices = cPRs
-		report.UnRecognizeSymbols = badSymbols
+		report.UnRecognizeSymbols = unRecognizeSymbols
 		return report, nil
 	}
 
@@ -80,7 +80,7 @@ func (g *TemplatePlugin) FetchPrices(symbols []string) (types.PluginPriceReport,
 	for _, v := range res {
 		dec, err := decimal.NewFromString(v.Price)
 		if err != nil {
-			g.logger.Error("cannot convert price string to decimal: ", v.Price, err)
+			g.logger.Error("cannot convert price string to decimal: ", "price", v.Price, "error", err.Error())
 			continue
 		}
 
@@ -92,7 +92,7 @@ func (g *TemplatePlugin) FetchPrices(symbols []string) (types.PluginPriceReport,
 		g.cachePrices[v.Symbol] = pr
 		report.Prices = append(report.Prices, pr)
 	}
-	report.UnRecognizeSymbols = badSymbols
+	report.UnRecognizeSymbols = unRecognizeSymbols
 	return report, nil
 }
 
@@ -182,7 +182,7 @@ type TemplateClient struct {
 func NewTemplateClient(conf *types.PluginConfig) *TemplateClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
 	if client == nil {
-		panic("cannot create client for exchange rate api")
+		panic(fmt.Sprintf("cannot create client for %s", conf.Endpoint))
 	}
 
 	logger := hclog.New(&hclog.LoggerOptions{
@@ -286,16 +286,8 @@ func (tc *TemplateClient) buildURL(symbols []string) (*url.URL, error) { //nolin
 }
 
 func main() {
-	conf, err := common.LoadPluginConf(os.Args[0])
-	if err != nil {
-		println("cannot load conf: ", err.Error(), os.Args[0])
-		os.Exit(-1)
-	}
-
-	common.ResolveConf(&conf, &defaultConfig)
-
-	client := NewTemplateClient(&conf)
-	adapter := NewTemplatePlugin(&conf, client, version)
+	conf := common.ResolveConf(os.Args[0], &defaultConfig)
+	adapter := NewTemplatePlugin(conf, NewTemplateClient(conf), version)
 	defer adapter.Close()
 
 	var pluginMap = map[string]plugin.Plugin{

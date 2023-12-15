@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
 	"github.com/shopspring/decimal"
 	"io"
 	"net/url"
@@ -58,7 +57,7 @@ type EXClient struct {
 func NewEXClient(conf *types.PluginConfig) *EXClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
 	if client == nil {
-		panic("cannot create client for exchange rate api")
+		panic(fmt.Sprintf("cannot create client for %s", conf.Endpoint))
 	}
 
 	logger := hclog.New(&hclog.LoggerOptions{
@@ -161,24 +160,8 @@ func (ex *EXClient) buildURL(apiKey string) *url.URL {
 }
 
 func main() {
-	conf, err := common.LoadPluginConf(os.Args[0])
-	if err != nil {
-		println("cannot load conf: ", err.Error(), os.Args[0])
-		os.Exit(-1)
-	}
-
-	common.ResolveConf(&conf, &defaultConfig)
-
-	client := NewEXClient(&conf)
-	adapter := common.NewPlugin(&conf, client, version)
+	conf := common.ResolveConf(os.Args[0], &defaultConfig)
+	adapter := common.NewPlugin(conf, NewEXClient(conf), version)
 	defer adapter.Close()
-
-	var pluginMap = map[string]plugin.Plugin{
-		"adapter": &types.AdapterPlugin{Impl: adapter},
-	}
-
-	plugin.Serve(&plugin.ServeConfig{
-		HandshakeConfig: types.HandshakeConfig,
-		Plugins:         pluginMap,
-	})
+	common.PluginServe(adapter)
 }
