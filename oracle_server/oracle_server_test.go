@@ -23,12 +23,6 @@ import (
 	"time"
 )
 
-func TestExample(t *testing.T) {
-	mapping := make(map[int]int)
-	mapping[1] = 1
-	require.Equal(t, 0, mapping[2])
-}
-
 func TestOracleServer(t *testing.T) {
 	currentRound := new(big.Int).SetUint64(1)
 	precision := new(big.Int).SetUint64(10000000)
