@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"github.com/shopspring/decimal"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,6 +19,7 @@ var (
 	DefaultCryptoSymbols = []string{"ATN-USD", "NTN-USD", "NTN-ATN"}
 	ErrDataNotAvailable  = fmt.Errorf("data is not available")
 	ErrKnownSymbols      = fmt.Errorf("the data source does not have all the data asked by oracle server")
+	ErrAccessLimited     = fmt.Errorf("access rate is limited, please check your subscription from data provider")
 )
 
 type Price struct {
@@ -247,4 +249,18 @@ func PluginServe(p *Plugin) {
 		HandshakeConfig: types.HandshakeConfig,
 		Plugins:         pluginMap,
 	})
+}
+
+func CheckHTTPStatusCode(code int) error {
+	if code != http.StatusOK {
+		switch code {
+		case http.StatusForbidden:
+			fallthrough
+		case http.StatusTooManyRequests:
+			return ErrAccessLimited
+		default:
+			return fmt.Errorf("error return from data source, status code: %d", code)
+		}
+	}
+	return nil
 }

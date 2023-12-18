@@ -6,7 +6,8 @@ import (
 )
 
 func TestNewEXClient(t *testing.T) {
-	t.Skip("monthly usage limit has been reached. Please upgrade your Subscription Plan")
+	// this key is only used by testing
+	defaultConfig.Key = "fc2e53282835eb092f8cafd4"
 	client := NewEXClient(&defaultConfig)
 	prices, err := client.FetchPrice([]string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"})
 	require.NoError(t, err)

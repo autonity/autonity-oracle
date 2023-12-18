@@ -80,13 +80,17 @@ func (ex *EXClient) FetchPrice(symbols []string) (common.Prices, error) {
 	}
 	defer res.Body.Close()
 
+	if err = common.CheckHTTPStatusCode(res.StatusCode); err != nil {
+		ex.logger.Error("data source return error", "error", err.Error())
+		return nil, err
+	}
+
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		ex.logger.Error("read", "error", err.Error())
 		return nil, err
 	}
 
-	ex.logger.Info("data source returns", "data", string(body))
 	var result EXResult
 	err = json.Unmarshal(body, &result)
 	if err != nil {

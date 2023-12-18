@@ -6,7 +6,7 @@ import (
 )
 
 func TestNewCLClient(t *testing.T) {
-	t.Skip("monthly usage limit has been reached. Please upgrade your Subscription Plan")
+	defaultConfig.Key = "c4817087691d124d6ddabbb93411633b"
 	client := NewCLClient(&defaultConfig)
 	prices, err := client.FetchPrice([]string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"})
 	require.NoError(t, err)

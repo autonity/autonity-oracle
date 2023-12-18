@@ -74,6 +74,11 @@ func (cc *CAXClient) FetchPrice(symbols []string) (common.Prices, error) {
 	priceMap := make(map[string]common.Price)
 
 	for _, s := range symbols {
+		// all CAXs of Autonity test networks do not provice NTN-ATN price, thus the price of NTN-ATN is derived from
+		// the price of NTN-USD and ATN-USD for the time being.
+		if s == NTNATN {
+			continue
+		}
 		p, err := cc.fetchPrice(s)
 		if err != nil {
 			cc.logger.Error("query price", "error", err.Error())
@@ -122,6 +127,10 @@ func (cc *CAXClient) fetchPrice(symbol string) (common.Price, error) {
 		return price, err
 	}
 	defer res.Body.Close()
+
+	if err = common.CheckHTTPStatusCode(res.StatusCode); err != nil {
+		return price, err
+	}
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {

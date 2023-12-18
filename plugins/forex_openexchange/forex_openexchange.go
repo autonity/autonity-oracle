@@ -80,6 +80,11 @@ func (oe *OXClient) FetchPrice(symbols []string) (common.Prices, error) {
 	}
 	defer res.Body.Close()
 
+	if err = common.CheckHTTPStatusCode(res.StatusCode); err != nil {
+		oe.logger.Error("data source return error", "error", err.Error())
+		return nil, err
+	}
+
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		oe.logger.Error("io read", "error", err.Error())

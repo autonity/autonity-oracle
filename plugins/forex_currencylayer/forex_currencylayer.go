@@ -77,6 +77,12 @@ func (cl *CLClient) FetchPrice(symbols []string) (common.Prices, error) {
 		return nil, err
 	}
 	defer res.Body.Close()
+
+	if err = common.CheckHTTPStatusCode(res.StatusCode); err != nil {
+		cl.logger.Error("data source return error", "error", err.Error())
+		return nil, err
+	}
+
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		cl.logger.Error("io read", "error", err.Error())
@@ -90,14 +96,9 @@ func (cl *CLClient) FetchPrice(symbols []string) (common.Prices, error) {
 		return nil, err
 	}
 
-	if result.Timestamp == 0 {
-		cl.logger.Error("data source returns", "data", string(body))
-		return nil, common.ErrDataNotAvailable
-	}
-
 	if !result.Success {
-		cl.logger.Error("fetch price", "error", "not success")
-		return nil, fmt.Errorf("source return not success")
+		cl.logger.Error("fetch price", "error", string(body))
+		return nil, fmt.Errorf("data source return error: %s", string(body))
 	}
 
 	for _, s := range symbols {
