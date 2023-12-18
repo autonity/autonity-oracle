@@ -46,6 +46,10 @@ func NewBIClient(conf *types.PluginConfig) *BIClient {
 	return &BIClient{conf: conf, client: client, logger: logger}
 }
 
+func (bi *BIClient) KeyRequired() bool {
+	return false
+}
+
 func (bi *BIClient) FetchPrice(symbols []string) (common.Prices, error) {
 	var prices common.Prices
 	u, err := bi.buildURL(symbols)

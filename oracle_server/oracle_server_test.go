@@ -23,6 +23,12 @@ import (
 	"time"
 )
 
+func TestExample(t *testing.T) {
+	mapping := make(map[int]int)
+	mapping[1] = 1
+	require.Equal(t, 0, mapping[2])
+}
+
 func TestOracleServer(t *testing.T) {
 	currentRound := new(big.Int).SetUint64(1)
 	precision := new(big.Int).SetUint64(10000000)
@@ -62,7 +68,7 @@ func TestOracleServer(t *testing.T) {
 	t.Run("test pre-sampling happy case", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		chainHeight := uint64(46)
+		chainHeight := uint64(56)
 		dialerMock := mock.NewMockDialer(ctrl)
 		contractMock := cMock.NewMockContractAPI(ctrl)
 		contractMock.EXPECT().GetRound(nil).Return(currentRound, nil)
@@ -106,7 +112,7 @@ func TestOracleServer(t *testing.T) {
 	t.Run("test round vote happy case, with commitment and round data", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		chainHeight := uint64(45)
+		chainHeight := uint64(55)
 
 		var voters []common.Address
 		voters = append(voters, conf.Key.Address)

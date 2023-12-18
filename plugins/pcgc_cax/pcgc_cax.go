@@ -69,6 +69,10 @@ func NewCAXClient(conf *types.PluginConfig) *CAXClient {
 	}
 }
 
+func (cc *CAXClient) KeyRequired() bool {
+	return false
+}
+
 func (cc *CAXClient) FetchPrice(symbols []string) (common.Prices, error) {
 	var prices common.Prices
 	priceMap := make(map[string]common.Price)
