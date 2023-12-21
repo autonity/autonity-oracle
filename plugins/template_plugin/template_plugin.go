@@ -122,6 +122,7 @@ func (g *TemplatePlugin) State() (types.PluginState, error) {
 		}
 	}
 
+	state.KeyRequired = g.client.KeyRequired()
 	state.Version = g.version
 	state.AvailableSymbols = symbols
 
@@ -188,6 +189,11 @@ func NewTemplateClient(conf *types.PluginConfig) *TemplateClient {
 	})
 
 	return &TemplateClient{conf: conf, client: client, logger: logger}
+}
+
+// KeyRequired returns true if the service key is required to access the data source.
+func (tc *TemplateClient) KeyRequired() bool {
+	return false
 }
 
 // FetchPrice is the function fetch prices of the available symbols from data vendor.

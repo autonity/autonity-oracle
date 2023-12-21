@@ -20,7 +20,7 @@ const (
 )
 
 var defaultConfig = types.PluginConfig{
-	Key:                "411f04e4775bb86c20296530",
+	Key:                "",
 	Scheme:             "https",
 	Endpoint:           "v6.exchangerate-api.com",
 	Timeout:            10, //10s
@@ -63,6 +63,10 @@ func NewEXClient(conf *types.PluginConfig) *EXClient {
 	})
 
 	return &EXClient{conf: conf, client: client, logger: logger}
+}
+
+func (ex *EXClient) KeyRequired() bool {
+	return true
 }
 
 func (ex *EXClient) FetchPrice(symbols []string) (common.Prices, error) {

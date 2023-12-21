@@ -17,6 +17,7 @@ import (
 // plugin, buffers recent data samples measured from the corresponding plugin.
 type PluginWrapper struct {
 	version     string
+	conf        *types.PluginConfig
 	lockService sync.RWMutex
 	lockSamples sync.RWMutex
 	samples     map[string]map[int64]types.Price
@@ -29,9 +30,10 @@ type PluginWrapper struct {
 	doneCh         chan struct{}
 	chSampleEvent  chan *types.SampleEvent
 	subSampleEvent event.Subscription
+	samplingSub    types.SampleEventSubscriber
 }
 
-func NewPluginWrapper(logLevel hclog.Level, name string, pluginDir string, oracle types.SampleEventSubscriber) *PluginWrapper {
+func NewPluginWrapper(logLevel hclog.Level, name string, pluginDir string, sub types.SampleEventSubscriber, conf *types.PluginConfig) *PluginWrapper {
 	// Create an hclog.Logger
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   name,
@@ -55,13 +57,15 @@ func NewPluginWrapper(logLevel hclog.Level, name string, pluginDir string, oracl
 	p := &PluginWrapper{
 		name:          name,
 		plugin:        pg,
+		conf:          conf,
+		samplingSub:   sub,
 		startAt:       time.Now(),
 		doneCh:        make(chan struct{}),
 		samples:       make(map[string]map[int64]types.Price),
 		chSampleEvent: make(chan *types.SampleEvent),
 		logger:        logger,
 	}
-	p.subSampleEvent = oracle.WatchSampleEvent(p.chSampleEvent)
+
 	return p
 }
 
@@ -156,7 +160,11 @@ func (pw *PluginWrapper) Initialize() error {
 		return err
 	}
 	pw.version = state.Version
+	if state.KeyRequired && pw.conf.Key == "" {
+		return types.ErrMissingServiceKey
+	}
 
+	// all good, start to subscribe data sampling event from oracle server, and listen for sampling.
 	go pw.start()
 	pw.logger.Info("plugin is up and running", pw.name, state)
 	return nil
@@ -167,6 +175,7 @@ func (pw *PluginWrapper) Exited() bool {
 }
 
 func (pw *PluginWrapper) start() {
+	pw.subSampleEvent = pw.samplingSub.WatchSampleEvent(pw.chSampleEvent)
 	for {
 		select {
 		case <-pw.doneCh:
@@ -218,6 +227,10 @@ func (pw *PluginWrapper) fetchPrices(symbols []string, ts int64) error {
 		pw.AddSample(report.Prices, ts)
 	}
 	return nil
+}
+
+func (pw *PluginWrapper) CleanPluginProcess() {
+	pw.plugin.Kill()
 }
 
 func (pw *PluginWrapper) Close() {

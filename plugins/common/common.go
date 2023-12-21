@@ -129,7 +129,7 @@ func (p *Plugin) State() (types.PluginState, error) {
 
 	state.Version = p.version
 	state.AvailableSymbols = symbols
-
+	state.KeyRequired = p.client.KeyRequired()
 	return state, nil
 }
 
