@@ -21,8 +21,8 @@ var HandshakeConfig = plugin.HandshakeConfig{
 // PluginPriceReport is the returned data samples from adapters which carry the prices and those symbols of no data if
 // there are any unrecognisable symbols from the data source side.
 type PluginPriceReport struct {
-	Prices             []Price
-	UnRecognizeSymbols []string
+	Prices                []Price
+	UnRecognizableSymbols []string
 }
 
 // PluginState is the returned data when the oracle host want to initialise the plugin with basic information: version,

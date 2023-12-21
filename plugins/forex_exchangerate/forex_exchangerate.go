@@ -56,10 +56,6 @@ type EXClient struct {
 
 func NewEXClient(conf *types.PluginConfig) *EXClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
-	if client == nil {
-		panic(fmt.Sprintf("cannot create client for %s", conf.Endpoint))
-	}
-
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   "ExchangeClient",
 		Level:  hclog.Info,

@@ -210,7 +210,7 @@ func (pw *PluginWrapper) fetchPrices(symbols []string, ts int64) error {
 		return err
 	}
 
-	if len(report.UnRecognizeSymbols) != 0 {
+	if len(report.UnRecognizableSymbols) != 0 {
 		pw.logger.Debug("the data source cannot recognize some symbol", "report", report)
 	}
 

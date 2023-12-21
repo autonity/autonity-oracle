@@ -33,10 +33,6 @@ type BIClient struct {
 
 func NewBIClient(conf *types.PluginConfig) *BIClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
-	if client == nil {
-		panic("cannot create https client for api.binance.us")
-	}
-
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   conf.Name,
 		Level:  hclog.Info,

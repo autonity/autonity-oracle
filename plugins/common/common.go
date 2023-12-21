@@ -60,16 +60,16 @@ func NewPlugin(conf *types.PluginConfig, client DataSourceClient, version string
 func (p *Plugin) FetchPrices(symbols []string) (types.PluginPriceReport, error) {
 	var report types.PluginPriceReport
 
-	availableSymbols, unRecogniseSymbols, availableSymMap := p.resolveSymbols(symbols)
+	availableSymbols, unRecognizableSymbols, availableSymMap := p.resolveSymbols(symbols)
 	if len(availableSymbols) == 0 {
-		report.UnRecognizeSymbols = unRecogniseSymbols
+		report.UnRecognizableSymbols = unRecognizableSymbols
 		return report, ErrKnownSymbols
 	}
 
 	cPRs, err := p.fetchPricesFromCache(availableSymbols)
 	if err == nil {
 		report.Prices = cPRs
-		report.UnRecognizeSymbols = unRecogniseSymbols
+		report.UnRecognizableSymbols = unRecognizableSymbols
 		return report, nil
 	}
 
@@ -97,7 +97,7 @@ func (p *Plugin) FetchPrices(symbols []string) (types.PluginPriceReport, error) 
 		p.cachePrices[v.Symbol] = pr
 		report.Prices = append(report.Prices, pr)
 	}
-	report.UnRecognizeSymbols = unRecogniseSymbols
+	report.UnRecognizableSymbols = unRecognizableSymbols
 	return report, nil
 }
 
@@ -143,20 +143,20 @@ func (p *Plugin) Close() {
 // pattens supported by data providers, and filter outs those un-supported symbols.
 func (p *Plugin) resolveSymbols(askedSymbols []string) ([]string, []string, map[string]string) {
 	var supported []string
-	var unSupported []string
+	var unRecognizable []string
 
 	symbolsMapping := make(map[string]string)
 
 	for _, askedSym := range askedSymbols {
 		converted := ConvertSymbol(askedSym, p.symbolSeparator)
 		if _, ok := p.availableSymbols[converted]; !ok {
-			unSupported = append(unSupported, askedSym)
+			unRecognizable = append(unRecognizable, askedSym)
 			continue
 		}
 		supported = append(supported, converted)
 		symbolsMapping[converted] = askedSym
 	}
-	return supported, unSupported, symbolsMapping
+	return supported, unRecognizable, symbolsMapping
 }
 
 func (p *Plugin) fetchPricesFromCache(availableSymbols []string) ([]types.Price, error) {

@@ -59,14 +59,14 @@ func (g *TemplatePlugin) FetchPrices(symbols []string) (types.PluginPriceReport,
 
 	availableSymbols, unRecognizeSymbols, availableSymMap := g.resolveSymbols(symbols)
 	if len(availableSymbols) == 0 {
-		report.UnRecognizeSymbols = unRecognizeSymbols
+		report.UnRecognizableSymbols = unRecognizeSymbols
 		return report, common.ErrKnownSymbols
 	}
 
 	cPRs, err := g.fetchPricesFromCache(availableSymbols)
 	if err == nil {
 		report.Prices = cPRs
-		report.UnRecognizeSymbols = unRecognizeSymbols
+		report.UnRecognizableSymbols = unRecognizeSymbols
 		return report, nil
 	}
 
@@ -92,7 +92,7 @@ func (g *TemplatePlugin) FetchPrices(symbols []string) (types.PluginPriceReport,
 		g.cachePrices[v.Symbol] = pr
 		report.Prices = append(report.Prices, pr)
 	}
-	report.UnRecognizeSymbols = unRecognizeSymbols
+	report.UnRecognizableSymbols = unRecognizeSymbols
 	return report, nil
 }
 
@@ -181,10 +181,6 @@ type TemplateClient struct {
 
 func NewTemplateClient(conf *types.PluginConfig) *TemplateClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
-	if client == nil {
-		panic(fmt.Sprintf("cannot create client for %s", conf.Endpoint))
-	}
-
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   conf.Name,
 		Level:  hclog.Debug,
