@@ -54,9 +54,6 @@ type OXClient struct {
 
 func NewOXClient(conf *types.PluginConfig) *OXClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
-	if client == nil {
-		panic(fmt.Sprintf("cannot create client for %s", conf.Endpoint))
-	}
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   "OpenExchangeRate",
 		Level:  hclog.Info,

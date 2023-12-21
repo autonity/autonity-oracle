@@ -4,7 +4,6 @@ import (
 	"autonity-oracle/plugins/common"
 	"autonity-oracle/types"
 	"encoding/json"
-	"fmt"
 	"github.com/hashicorp/go-hclog"
 	"io"
 	"net/url"
@@ -34,10 +33,6 @@ type SIMClient struct {
 
 func NewSIMClient(conf *types.PluginConfig) *SIMClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
-	if client == nil {
-		panic(fmt.Sprintf("cannot create client for %s", conf.Endpoint))
-	}
-
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   conf.Name,
 		Level:  hclog.Info,

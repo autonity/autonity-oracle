@@ -54,10 +54,6 @@ type CLClient struct {
 
 func NewCLClient(conf *types.PluginConfig) *CLClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
-	if client == nil {
-		panic(fmt.Sprintf("cannot create client for %s", conf.Endpoint))
-	}
-
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   conf.Name,
 		Level:  hclog.Info,

@@ -4,7 +4,6 @@ import (
 	"autonity-oracle/plugins/common"
 	"autonity-oracle/types"
 	"encoding/json"
-	"fmt"
 	"github.com/hashicorp/go-hclog"
 	"github.com/shopspring/decimal"
 	"io"
@@ -52,10 +51,6 @@ type CAXClient struct {
 
 func NewCAXClient(conf *types.PluginConfig) *CAXClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
-	if client == nil {
-		panic(fmt.Sprintf("cannot create client for %s", conf.Endpoint))
-	}
-
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   "AutonityR4CAX",
 		Level:  hclog.Info,
