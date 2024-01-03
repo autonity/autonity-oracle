@@ -29,9 +29,14 @@ plugins from the plugin directory during runtime. Detection of new or changed pl
 no shutdown of the oracle client is required to detect and apply the change.
 
 ## Coordination of data sampling
-To coordinate data sampling in the oracle network, the L1 oracle contract issues a round event on every vote period (60 blocks). The round event carries a tuple `(RoundID, SampleTS, Height, VotePeriod)`, which tell the oracle clients that on round with ID `RoundID`, a data sample with timestamp `SampleTS` is required for the data submission. The `Height` stands for the start height of the new round, while the `VotePeriod` stands for the round length of the new round. Thus the oracle client can estimate and manage data pre-samplings for the new round and then pick up the nearest sample refering to the required `SampleTS`.
+### The overview
+To coordinate data sampling in the oracle network, the L1 oracle contract issues a round event on every vote period (30 ~ 60 blocks). The round event carries a tuple `(RoundID, SampleTS, Height, VotePeriod)`, which tell the oracle clients that on round with ID `RoundID`, a data sample with timestamp `SampleTS` is required for the data submission. The `Height` stands for the start height of the new round, while the `VotePeriod` stands for the round length of the new round. Thus the oracle client can estimate and manage data pre-samplings for the new round and then pick up the nearest sample refering to the required `SampleTS`.
 
 ![Screenshot from 2023-04-21 04-19-10](https://user-images.githubusercontent.com/54585152/233533092-29b65a39-eb87-496f-9a1e-0741bc7fbd45.png)
+### The data pre-sampling
+To mitigate data deviation caused by the distributed system, a data pre-sampling mechanism is employed. When approaching the round's boundary, the oracle server initiates data pre-sampling approximately 15 seconds in advance. During this pre-sampling window, the server samples data per second and selects the sample closest to the required SampleTS for data aggregation. The round event includes a tuple (RoundID, SampleTS, Height, VotePeriod) indicating the expected SampleTS of data sample and the next round's boundary.     
+
+In a production network, node operators should obtain real-time data from high-quality data sources. However, most commercial data providers price their services based on quality of service (QoS) and rate limits. To address this, a configuration parameter "refresh" has been introduced for each data plugin. This parameter represents the interval in seconds between data fetches after the last successful data sampling. A buffered sample is used before the next data fetch. Node operators should configure an appropriate "refresh" interval by estimating the data fetching rate and the QoS subscribed from the data provider. The default value of "refresh" is 30 seconds, indicating that the plugin will query the data from the data source once every 30 seconds, even during the data pre-sampling window. If the data source does not limit the rate, it's recommended to set "refresh" to 1, allowing the pre-sampling to fetch data every 1 second to obtain real-time data.
 
 ## Version
 
@@ -43,6 +48,7 @@ v0.1.3
 ```
 
 ## Configuration
+### Oracle Server Config
 Values that can be configured by using environment variables:
 
 | **Env Variable** | **Required?** | **Meaning** | **Default Value**                                                                                    | **Valid Options** |
@@ -78,7 +84,7 @@ example to run the autonity oracle service with console flags:
 ```shell
 $./autoracle --plugin.dir="./plugins" --key.file="../../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" --key.password="123" --ws="ws://127.0.0.1:8546" --plugin.conf="./plugins-conf.yml"
 ```
-plugin configuration file:    
+### Plugin Config    
 
 `A yaml file to config plugins:`
 
