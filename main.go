@@ -21,14 +21,14 @@ func main() { //nolint
 	dialer := &types.L1Dialer{}
 	client, err := dialer.Dial(conf.AutonityWSUrl)
 	if err != nil {
-		log.Printf("Cannot connect to Autonity network via web socket: %s", err.Error())
+		log.Printf("cannot connect to Autonity network via web socket: %s", err.Error())
 		helpers.PrintUsage()
 		os.Exit(1)
 	}
 
 	oc, err := contract.NewOracle(types.OracleContractAddress, client)
 	if err != nil {
-		log.Printf("Cannot bind to oracle contract in Autonity network via web socket: %s", err.Error())
+		log.Printf("cannot bind to oracle contract in Autonity network via web socket: %s", err.Error())
 		helpers.PrintUsage()
 		os.Exit(1)
 	}
@@ -45,6 +45,5 @@ func main() { //nolint
 	// kill -9 is syscall.SIGKILL but can't be caught, so don't need to add it
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Println("Shutting down oracle server...")
-	log.Println("Server exiting")
+	log.Println("shutting down oracle server...")
 }

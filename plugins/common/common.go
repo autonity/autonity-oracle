@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-plugin"
 	"github.com/shopspring/decimal"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,7 +18,8 @@ var (
 	DefaultForexSymbols  = []string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"}
 	DefaultCryptoSymbols = []string{"ATN-USD", "NTN-USD", "NTN-ATN"}
 	ErrDataNotAvailable  = fmt.Errorf("data is not available")
-	ErrSymbolUnknown     = fmt.Errorf("unknown symbol")
+	ErrKnownSymbols      = fmt.Errorf("the data source does not have all the data asked by oracle server")
+	ErrAccessLimited     = fmt.Errorf("access rate is limited, please check your subscription from data provider")
 )
 
 type Price struct {
@@ -57,17 +60,16 @@ func NewPlugin(conf *types.PluginConfig, client DataSourceClient, version string
 func (p *Plugin) FetchPrices(symbols []string) (types.PluginPriceReport, error) {
 	var report types.PluginPriceReport
 
-	availableSymbols, badSymbols, availableSymMap := p.resolveSymbols(symbols)
+	availableSymbols, unRecognizableSymbols, availableSymMap := p.resolveSymbols(symbols)
 	if len(availableSymbols) == 0 {
-		p.logger.Warn("no available symbols from plugin", "plugin", p.conf.Name)
-		report.BadSymbols = badSymbols
-		return report, fmt.Errorf("no available symbols")
+		report.UnRecognizableSymbols = unRecognizableSymbols
+		return report, ErrKnownSymbols
 	}
 
 	cPRs, err := p.fetchPricesFromCache(availableSymbols)
 	if err == nil {
 		report.Prices = cPRs
-		report.BadSymbols = badSymbols
+		report.UnRecognizableSymbols = unRecognizableSymbols
 		return report, nil
 	}
 
@@ -77,13 +79,13 @@ func (p *Plugin) FetchPrices(symbols []string) (types.PluginPriceReport, error) 
 		return report, err
 	}
 
-	p.logger.Debug("sampled data points", res)
+	p.logger.Info("sampled data", "data", res)
 
 	now := time.Now().Unix()
 	for _, v := range res {
 		dec, err := decimal.NewFromString(v.Price)
 		if err != nil {
-			p.logger.Error("cannot convert price string to decimal: ", v.Price, err)
+			p.logger.Error("cannot convert price string to decimal: ", "price", v.Price, "error", err.Error())
 			continue
 		}
 
@@ -95,7 +97,7 @@ func (p *Plugin) FetchPrices(symbols []string) (types.PluginPriceReport, error) 
 		p.cachePrices[v.Symbol] = pr
 		report.Prices = append(report.Prices, pr)
 	}
-	report.BadSymbols = badSymbols
+	report.UnRecognizableSymbols = unRecognizableSymbols
 	return report, nil
 }
 
@@ -141,20 +143,20 @@ func (p *Plugin) Close() {
 // pattens supported by data providers, and filter outs those un-supported symbols.
 func (p *Plugin) resolveSymbols(askedSymbols []string) ([]string, []string, map[string]string) {
 	var supported []string
-	var unSupported []string
+	var unRecognizable []string
 
 	symbolsMapping := make(map[string]string)
 
 	for _, askedSym := range askedSymbols {
 		converted := ConvertSymbol(askedSym, p.symbolSeparator)
 		if _, ok := p.availableSymbols[converted]; !ok {
-			unSupported = append(unSupported, askedSym)
+			unRecognizable = append(unRecognizable, askedSym)
 			continue
 		}
 		supported = append(supported, converted)
 		symbolsMapping[converted] = askedSym
 	}
-	return supported, unSupported, symbolsMapping
+	return supported, unRecognizable, symbolsMapping
 }
 
 func (p *Plugin) fetchPricesFromCache(availableSymbols []string) ([]types.Price, error) {
@@ -176,15 +178,15 @@ func (p *Plugin) fetchPricesFromCache(availableSymbols []string) ([]types.Price,
 }
 
 // LoadPluginConf is called from plugin main() to load plugin's conf from system env.
-func LoadPluginConf(cmd string) (types.PluginConfig, error) {
+func LoadPluginConf(cmd string) (*types.PluginConfig, error) {
 	name := filepath.Base(cmd)
 	conf := os.Getenv(name)
 	var c types.PluginConfig
 	err := json.Unmarshal([]byte(conf), &c)
 	if err != nil {
-		return c, err
+		return nil, err
 	}
-	return c, nil
+	return &c, nil
 }
 
 func ResolveSeparator(symbol string) string {
@@ -206,7 +208,13 @@ func ConvertSymbol(src string, toSep string) string {
 	return strings.Join(subs, toSep)
 }
 
-func ResolveConf(conf *types.PluginConfig, defConf *types.PluginConfig) {
+func ResolveConf(cmd string, defConf *types.PluginConfig) *types.PluginConfig {
+
+	conf, err := LoadPluginConf(cmd)
+	if err != nil {
+		println("cannot load conf: ", err.Error(), cmd)
+		os.Exit(-1)
+	}
 
 	if conf.Timeout == 0 {
 		conf.Timeout = defConf.Timeout
@@ -227,4 +235,32 @@ func ResolveConf(conf *types.PluginConfig, defConf *types.PluginConfig) {
 	if len(conf.Key) == 0 {
 		conf.Key = defConf.Key
 	}
+
+	return conf
+}
+
+// PluginServe doesn't return until the plugin is done being executed.
+func PluginServe(p *Plugin) {
+	var pluginMap = map[string]plugin.Plugin{
+		"adapter": &types.AdapterPlugin{Impl: p},
+	}
+
+	plugin.Serve(&plugin.ServeConfig{
+		HandshakeConfig: types.HandshakeConfig,
+		Plugins:         pluginMap,
+	})
+}
+
+func CheckHTTPStatusCode(code int) error {
+	if code != http.StatusOK {
+		switch code {
+		case http.StatusForbidden:
+			fallthrough
+		case http.StatusTooManyRequests:
+			return ErrAccessLimited
+		default:
+			return fmt.Errorf("error return from data source, status code: %d", code)
+		}
+	}
+	return nil
 }

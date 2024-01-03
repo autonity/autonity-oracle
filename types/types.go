@@ -30,6 +30,7 @@ var (
 
 	ErrPeerOnSync        = errors.New("l1 node is on peer sync")
 	ErrNoAvailablePrice  = errors.New("no available prices collected yet")
+	ErrNoDataRound       = errors.New("no data collected at current round")
 	ErrNoSymbolsObserved = errors.New("no symbols observed from oracle contract")
 )
 

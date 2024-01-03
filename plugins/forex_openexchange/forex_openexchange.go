@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
 	"github.com/shopspring/decimal"
 	"io"
 	"net/url"
@@ -55,12 +54,9 @@ type OXClient struct {
 
 func NewOXClient(conf *types.PluginConfig) *OXClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
-	if client == nil {
-		panic("cannot create client for open exchange rate api")
-	}
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   "OpenExchangeRate",
-		Level:  hclog.Debug,
+		Level:  hclog.Info,
 		Output: os.Stdout,
 	})
 
@@ -80,6 +76,11 @@ func (oe *OXClient) FetchPrice(symbols []string) (common.Prices, error) {
 		return nil, err
 	}
 	defer res.Body.Close()
+
+	if err = common.CheckHTTPStatusCode(res.StatusCode); err != nil {
+		oe.logger.Error("data source return error", "error", err.Error())
+		return nil, err
+	}
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
@@ -107,7 +108,6 @@ func (oe *OXClient) FetchPrice(symbols []string) (common.Prices, error) {
 		}
 		prices = append(prices, p)
 	}
-	oe.logger.Info("open exchange api", "data", prices)
 	return prices, nil
 }
 
@@ -164,23 +164,8 @@ func (oe *OXClient) buildURL(apiKey string) *url.URL {
 }
 
 func main() {
-	conf, err := common.LoadPluginConf(os.Args[0])
-	if err != nil {
-		println("cannot load conf: ", err.Error(), os.Args[0])
-		os.Exit(-1)
-	}
-	common.ResolveConf(&conf, &defaultConfig)
-
-	client := NewOXClient(&conf)
-	adapter := common.NewPlugin(&conf, client, version)
+	conf := common.ResolveConf(os.Args[0], &defaultConfig)
+	adapter := common.NewPlugin(conf, NewOXClient(conf), version)
 	defer adapter.Close()
-
-	var pluginMap = map[string]plugin.Plugin{
-		"adapter": &types.AdapterPlugin{Impl: adapter},
-	}
-
-	plugin.Serve(&plugin.ServeConfig{
-		HandshakeConfig: types.HandshakeConfig,
-		Plugins:         pluginMap,
-	})
+	common.PluginServe(adapter)
 }

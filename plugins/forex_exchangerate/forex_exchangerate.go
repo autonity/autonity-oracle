@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
 	"github.com/shopspring/decimal"
 	"io"
 	"net/url"
@@ -57,13 +56,9 @@ type EXClient struct {
 
 func NewEXClient(conf *types.PluginConfig) *EXClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
-	if client == nil {
-		panic("cannot create client for exchange rate api")
-	}
-
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   "ExchangeClient",
-		Level:  hclog.Debug,
+		Level:  hclog.Info,
 		Output: os.Stdout,
 	})
 
@@ -81,13 +76,17 @@ func (ex *EXClient) FetchPrice(symbols []string) (common.Prices, error) {
 	}
 	defer res.Body.Close()
 
+	if err = common.CheckHTTPStatusCode(res.StatusCode); err != nil {
+		ex.logger.Error("data source return error", "error", err.Error())
+		return nil, err
+	}
+
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		ex.logger.Error("read", "error", err.Error())
 		return nil, err
 	}
 
-	ex.logger.Info("data source returns", "data", string(body))
 	var result EXResult
 	err = json.Unmarshal(body, &result)
 	if err != nil {
@@ -109,7 +108,6 @@ func (ex *EXClient) FetchPrice(symbols []string) (common.Prices, error) {
 		prices = append(prices, p)
 	}
 
-	ex.logger.Info("Exchange Rate", "data", prices)
 	return prices, nil
 }
 
@@ -162,24 +160,8 @@ func (ex *EXClient) buildURL(apiKey string) *url.URL {
 }
 
 func main() {
-	conf, err := common.LoadPluginConf(os.Args[0])
-	if err != nil {
-		println("cannot load conf: ", err.Error(), os.Args[0])
-		os.Exit(-1)
-	}
-
-	common.ResolveConf(&conf, &defaultConfig)
-
-	client := NewEXClient(&conf)
-	adapter := common.NewPlugin(&conf, client, version)
+	conf := common.ResolveConf(os.Args[0], &defaultConfig)
+	adapter := common.NewPlugin(conf, NewEXClient(conf), version)
 	defer adapter.Close()
-
-	var pluginMap = map[string]plugin.Plugin{
-		"adapter": &types.AdapterPlugin{Impl: adapter},
-	}
-
-	plugin.Serve(&plugin.ServeConfig{
-		HandshakeConfig: types.HandshakeConfig,
-		Plugins:         pluginMap,
-	})
+	common.PluginServe(adapter)
 }
