@@ -86,7 +86,7 @@ $./autoracle --plugin.dir="./plugins" --key.file="../../test_data/keystore/UTC--
 ```
 ### Plugin Config    
 
-`A yaml file to config plugins:`
+`A yaml file to configure plugins:`
 
 ```yaml
 # The forex data plugins are used to fetch realtime rate of currency pairs:
