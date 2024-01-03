@@ -26,6 +26,7 @@ LATEST_COMMIT ?= $(shell git log -n 1 master --pretty=format:"%H")
 ifeq ($(LATEST_COMMIT),)
 LATEST_COMMIT := $(shell git log -n 1 HEAD~1 --pretty=format:"%H")
 endif
+#//todo(Jason) copy the template oracle-server.config file to build-bin
 
 mkdir:
 	mkdir -p $(BIN_DIR)

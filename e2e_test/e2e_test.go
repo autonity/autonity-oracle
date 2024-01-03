@@ -49,6 +49,8 @@ func TestHappyCase(t *testing.T) {
 	testHappyCase(t, o, endRound, pricePrecision)
 }
 
+//todo: (Jason) test to start oracle server with a config file.
+
 func TestLostL1Connectivity(t *testing.T) {
 	var netConf = &NetworkConfig{
 		EnableL1Logs: false,

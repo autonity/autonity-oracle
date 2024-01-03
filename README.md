@@ -42,6 +42,7 @@ $./autoracle version
 v0.1.3
 ```
 
+// todo: (Jason) update with new config for oracle-server.config
 ## Configuration
 Values that can be configured by using environment variables:
 
