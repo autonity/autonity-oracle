@@ -20,6 +20,7 @@ import (
 )
 
 var (
+	oracleConfigDir    = "./oracle_config"
 	nodeKeyDir         = "./autonity_l1_config/nodekeys"
 	keyStoreDir        = "./autonity_l1_config/keystore"
 	defaultHost        = "127.0.0.1"
@@ -111,6 +112,7 @@ type Oracle struct {
 	Key        *Key
 	PluginDir  string
 	PluginConf string
+	OracleConf string
 	Host       string
 	Command    *exec.Cmd
 }
@@ -128,18 +130,28 @@ func (o *Oracle) Stop() {
 	if err != nil {
 		log.Error("stop oracle client failed", "error", err.Error())
 	}
+	err = os.Remove(o.OracleConf)
+	if err != nil {
+		log.Error("clean up oracle server config failed", "error", err.Error())
+	}
 }
 
-func (o *Oracle) GenCMD(wsEndpoint string) {
-	c := exec.Command("./autoracle",
-		fmt.Sprintf("-ws=%s", wsEndpoint),
-		fmt.Sprintf("-key.file=%s", o.Key.KeyFile),
-		fmt.Sprintf("-key.password=%s", o.Key.Password),
-		fmt.Sprintf("-plugin.dir=%s", o.PluginDir),
-		fmt.Sprintf("-log.level=%d", hclog.Debug),
-		fmt.Sprintf("-plugin.conf=%s", o.PluginConf),
-	)
+func (o *Oracle) ConfigOracleServer(wsEndpoint string) {
+	// write config to config file:
+	f, err := os.Create(o.OracleConf)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
 
+	_, err = f.WriteString(fmt.Sprintf("ws %s\nkey.file %s\nkey.password %s\nplugin.dir %s\nlog.level %d\nplugin.conf %s\n",
+		wsEndpoint, o.Key.KeyFile, o.Key.Password, o.PluginDir, hclog.Debug, o.PluginConf))
+	if err != nil {
+		panic(err)
+	}
+
+	// prepare cli command
+	c := exec.Command("./autoracle", fmt.Sprintf("-config=%s", o.OracleConf))
 	c.Stderr = os.Stderr
 	c.Stdout = os.Stdout
 	o.Command = c
@@ -249,7 +261,7 @@ func (net *Network) Start() {
 	time.Sleep(5 * time.Second)
 
 	for i, n := range net.L2Nodes {
-		n.GenCMD(fmt.Sprintf("ws://%s:%d", net.L1Nodes[i].Host, net.L1Nodes[i].WSPort))
+		n.ConfigOracleServer(fmt.Sprintf("ws://%s:%d", net.L1Nodes[i].Host, net.L1Nodes[i].WSPort))
 		go n.Start()
 	}
 }
@@ -339,6 +351,7 @@ func configNetwork(network *Network, freeKeys []*Key, freePorts []int, nodes int
 			Key:        freeKeys[i*2],
 			PluginDir:  network.PluginDirs[i],
 			PluginConf: network.PluginConf[i],
+			OracleConf: fmt.Sprintf("%s/oracle-server.config%d", oracleConfigDir, i),
 			Host:       defaultHost,
 		}
 

@@ -44,31 +44,59 @@ Print the version of the oracle server:
 
 ```
 $./autoracle version
-v0.1.3
+v0.1.5
 ```
 
-## Configuration
-### Oracle Server Config
-Values that can be configured by using environment variables:
+## Configuration of oracle server
+There are three ways to config oracle server.
+### Oracle Server Configuration File
+A template configuration file `oracle-server.config` is made in the build bin when you build the project, and it is also
+included in the release package, you can config and start the oracle server with it:
+```shell
+#This is a configuration file for autonity-oracle server.
+#Set the gas priority fee cap to issue the oracle data report transactions.
+tip 1
+#Set oracle server key file
+key.file ./UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe
+#Set the password to decrypt oracle server key file
+key.password 123%&%^$
+#Set the logging level, available levels are:  0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error
+log.level 3
+#Set the WS-RPC server listening interface and port of the connected Autonity Client node
+ws ws://127.0.0.1:8546
+#Set the directory of the data plugins.
+plugin.dir ./plugins
+#Set the plugins' configuration file
+plugin.conf ./plugins-conf.yml
+```
+Start oracle server with a config file:
+```shell
+$./autoracle --config="./oracle-server.config"
+```
 
+### System Environment Variables
+A set of system environment variables can be used too to config oracle server:
 | **Env Variable** | **Required?** | **Meaning** | **Default Value**                                                                                    | **Valid Options** |
 |----------------------------|---------------|---------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|---------------------------------------------------------|
-| `PLUGIN_DIR` | No | The directory that stores the plugins | "./plugins"                                                                                | any directory that saves plugins |
+| `PLUGIN_DIR` | Yes | The directory that stores the plugins | "./plugins"                                                                                | any directory that saves plugins |
 | `KEY_FILE` | Yes | The encrypted key file path that contains the private key of the oracle client. | "./UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" | any key file that saves the private key |
 | `KEY_PASSWORD` | Yes | The password of the key file that contains the private key of the oracle client. | "123"                                                                                                | any password that encrypted the private key |
 | `AUTONITY_WS` | Yes | The web socket RPC URL of your Autonity L1 Node that the oracle client communicates with. | "ws://127.0.0.1:8546"                                                                                | the web socket rpc endpoint url of the Autonity client. |
 | `PLUGIN_CONF` | Yes | The plugins' configuration file in YAML. | "./plugins-conf.yml"                                                               | the configuration file of the oracle plugins. |
+| `CONFIG` | No | Use a configuration file to start oracle server. | ""                                                               | the configuration file of the oracle server. |
 | `GAS_TIP_CAP` | No | The gas priority fee cap to issue the oracle data report transactions | 1                                                               | A non-zero value per gas to prioritize your data report TX to be mined. |
 | `LOG_LEVEL` | No | The logging level of the oracle server | 3                                                              | available levels are:  0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error. |
 
 
-or by using console flags:
+### CLI Flags
+A set of CLI flags can be used too to config and start oracle server:
 ```shell
 $./autoracle --help
 Usage of Autonity Oracle Server:
 Sub commands: 
   version: print the version of the oracle server.
 Flags:
+  -config="": Set the oracle server configuration file path.
   -key.file="./UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe": Set oracle server key file
   -key.password="123": Set the password to decrypt oracle server key file
   -log.level=2: Set the logging level, available levels are:  0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error
@@ -79,14 +107,13 @@ Flags:
 
 ```
 
-
 example to run the autonity oracle service with console flags:
 ```shell
 $./autoracle --plugin.dir="./plugins" --key.file="../../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" --key.password="123" --ws="ws://127.0.0.1:8546" --plugin.conf="./plugins-conf.yml"
 ```
-### Plugin Config    
-
-`A yaml file to configure plugins:`
+## Configuration of plugins:
+The configuration of plugins are assembled in a yaml file:
+`A yaml file to config plugins:`
 
 ```yaml
 # The forex data plugins are used to fetch realtime rate of currency pairs:
@@ -180,7 +207,6 @@ Path of the secret key file: key-data/keystore/UTC--2023-02-28T11-40-15.38370976
 Prepare the plugin binaries, and save them into the `plugins` directory. To start the service, set the system environment variables and run the binary:
 ```shell
 
-$export SYMBOLS="AUD-USD,CAD-USD,EUR-USD,GBP-USD,JPY-USD,SEK-USD,ATN-USD,NTN-USD,NTN-ATN"
 $export PLUGIN_DIR="./plugins"
 $export KEY_FILE="./test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"
 $export KEY_PASSWORD="your passord to the key file"
@@ -189,10 +215,14 @@ $export PLUGIN_CONF="./plugins-conf.yml"
 $.~/src/autonity-oracle/build/bin/autoracle
 ```
 
-or configure by using console flags and run the binary:
+or configure it by using console flags and run the binary:
 
 ```shell
 $./autoracle --plugin.dir="./plugins" --key.file="./test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe" --key.password="123" --ws="ws://127.0.0.1:8546"
+```
+or configure it by a configuration file: `oracle-server.config`:
+```shell
+$./autoracle --config="./oracle-server.config"
 ```
 
 ### Deploy via linux system daemon

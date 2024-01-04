@@ -20,12 +20,14 @@ var (
 	DefaultKeyPassword    = "123"
 	DefaultPluginDir      = "./plugins"
 	DefaultPluginConfFile = "./plugins-conf.yml"
+	DefaultOracleConfFile = ""
 	DefaultSymbols        = []string{"AUD-USD", "CAD-USD", "EUR-USD", "GBP-USD", "JPY-USD", "SEK-USD", "ATN-USD", "NTN-USD", "NTN-ATN"}
 )
 
 const Version = "v0.1.5"
 const UsageOracleKey = "Set the oracle server key file path."
 const UsagePluginConf = "Set the plugin's configuration file path."
+const UsageOracleConf = "Set the oracle server configuration file path."
 const UsagePluginDir = "Set the directory path of the data plugins."
 const UsageOracleKeyPassword = "Set the password to decrypt oracle server key file."
 const UsageGasTipCap = "Set the gas priority fee cap to issue the oracle data report transactions."
@@ -40,6 +42,7 @@ func MakeConfig() *types.OracleServiceConfig {
 	var keyPassword string
 	var autonityWSUrl string
 	var pluginConfFile string
+	var oracleConfFile string
 
 	flag.Uint64Var(&gasTipCap, "tip", DefaultGasTipCap, UsageGasTipCap)
 	flag.StringVar(&keyFile, "key.file", DefaultKeyFile, UsageOracleKey)
@@ -48,6 +51,7 @@ func MakeConfig() *types.OracleServiceConfig {
 	flag.StringVar(&pluginDir, "plugin.dir", DefaultPluginDir, UsagePluginDir)
 	flag.StringVar(&pluginConfFile, "plugin.conf", DefaultPluginConfFile, UsagePluginConf)
 	flag.StringVar(&keyPassword, "key.password", DefaultKeyPassword, UsageOracleKeyPassword)
+	flag.StringVar(&oracleConfFile, flag.DefaultConfigFlagname, DefaultOracleConfFile, UsageOracleConf)
 
 	flag.Parse()
 	if len(flag.Args()) == 1 && flag.Args()[0] == "version" {
@@ -56,7 +60,9 @@ func MakeConfig() *types.OracleServiceConfig {
 		os.Exit(0)
 	}
 
-	if lvl, presented := os.LookupEnv(types.EnvLogLevel); presented {
+	// configs which are not set in the CLI flags or in a config file, should be set by system environment variables.
+	// if they are not set by below environment variables, the default values are applied.
+	if lvl, presented := os.LookupEnv(types.EnvLogLevel); presented && logLevel == DefaultLogVerbosity {
 		l, err := strconv.Atoi(lvl)
 		if err != nil {
 			log.Printf("wrong log level configed in $LOG_LEVEL")
@@ -64,29 +70,34 @@ func MakeConfig() *types.OracleServiceConfig {
 			os.Exit(1)
 		}
 		logLevel = l
+		if hclog.Level(logLevel) < hclog.NoLevel || hclog.Level(logLevel) > hclog.Error {
+			log.Printf("wrong logging level configed %d, %s", logLevel, UsageLogLevel)
+			helpers.PrintUsage()
+			os.Exit(1)
+		}
 	}
 
-	if pluginBase, presented := os.LookupEnv(types.EnvPluginDIR); presented {
+	if pluginBase, presented := os.LookupEnv(types.EnvPluginDIR); presented && pluginDir == DefaultPluginDir {
 		pluginDir = pluginBase
 	}
 
-	if k, presented := os.LookupEnv(types.EnvKeyFile); presented {
+	if k, presented := os.LookupEnv(types.EnvKeyFile); presented && keyFile == DefaultKeyFile {
 		keyFile = k
 	}
 
-	if password, presented := os.LookupEnv(types.EnvKeyFilePASS); presented {
+	if password, presented := os.LookupEnv(types.EnvKeyFilePASS); presented && keyPassword == DefaultKeyPassword {
 		keyPassword = password
 	}
 
-	if ws, presented := os.LookupEnv(types.EnvWS); presented {
+	if ws, presented := os.LookupEnv(types.EnvWS); presented && autonityWSUrl == DefaultAutonityWSUrl {
 		autonityWSUrl = ws
 	}
 
-	if pluginConf, presented := os.LookupEnv(types.EnvPluginCof); presented {
+	if pluginConf, presented := os.LookupEnv(types.EnvPluginCof); presented && pluginConfFile == DefaultPluginConfFile {
 		pluginConfFile = pluginConf
 	}
 
-	if capGasTip, presented := os.LookupEnv(types.EnvGasTipCap); presented {
+	if capGasTip, presented := os.LookupEnv(types.EnvGasTipCap); presented && gasTipCap == DefaultGasTipCap {
 		gasTip, err := strconv.ParseUint(capGasTip, 0, 64)
 		if err != nil {
 			log.Printf("wrong value configed in $GAS_TIP_CAP")
@@ -96,23 +107,8 @@ func MakeConfig() *types.OracleServiceConfig {
 		gasTipCap = gasTip
 	}
 
-	// verify configurations.
-	keyJson, err := os.ReadFile(keyFile)
+	key, err := loadKey(keyFile, keyPassword)
 	if err != nil {
-		log.Printf("cannot read key from oracle key file: %s, %s", keyFile, err.Error())
-		helpers.PrintUsage()
-		os.Exit(1)
-	}
-
-	key, err := keystore.DecryptKey(keyJson, keyPassword)
-	if err != nil {
-		log.Printf("cannot decrypt oracle key file: %s, with the provided password!", keyFile)
-		helpers.PrintUsage()
-		os.Exit(1)
-	}
-
-	if hclog.Level(logLevel) < hclog.NoLevel || hclog.Level(logLevel) > hclog.Error {
-		log.Printf("wrong logging level configed %d, %s", logLevel, UsageLogLevel)
 		helpers.PrintUsage()
 		os.Exit(1)
 	}
@@ -125,6 +121,21 @@ func MakeConfig() *types.OracleServiceConfig {
 		PluginConfFile: pluginConfFile,
 		LoggingLevel:   hclog.Level(logLevel),
 	}
+}
+
+func loadKey(keyFile, password string) (*keystore.Key, error) {
+	keyJson, err := os.ReadFile(keyFile)
+	if err != nil {
+		log.Printf("cannot read key from oracle key file: %s, %s", keyFile, err.Error())
+		return nil, err
+	}
+
+	key, err := keystore.DecryptKey(keyJson, password)
+	if err != nil {
+		log.Printf("cannot decrypt oracle key file: %s, with the provided password!", keyFile)
+		return nil, err
+	}
+	return key, nil
 }
 
 func LoadPluginsConfig(file string) (map[string]types.PluginConfig, error) {
