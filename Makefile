@@ -6,7 +6,8 @@
 
 SOLC_VERSION = 0.8.2
 BIN_DIR = ./build/bin
-CONF_FILE = ./config/plugins-conf.yml
+CONF_FILE = ./config/oracle-server.config
+PLUGIN_CONF_FILE = ./config/plugins-conf.yml
 E2E_TEST_DIR = ./e2e_test
 E2E_TEST_PLUGIN_DIR = $(E2E_TEST_DIR)/plugins
 E2E_TEST_TEMPLATE_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/template_plugins
@@ -26,7 +27,6 @@ LATEST_COMMIT ?= $(shell git log -n 1 master --pretty=format:"%H")
 ifeq ($(LATEST_COMMIT),)
 LATEST_COMMIT := $(shell git log -n 1 HEAD~1 --pretty=format:"%H")
 endif
-#//todo(Jason) copy the template oracle-server.config file to build-bin
 
 mkdir:
 	mkdir -p $(BIN_DIR)
@@ -48,6 +48,8 @@ oracle-server:
 
 conf-file:
 	# copy example plugin-conf
+	cp $(PLUGIN_CONF_FILE) $(BIN_DIR)
+	# copy example oracle-server.conf
 	cp $(CONF_FILE) $(BIN_DIR)
 
 e2e-test-stuffs:
