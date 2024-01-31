@@ -60,7 +60,7 @@ type PluginState struct {
 where the statements in PluginState:
 - KeyRequired states if the plugin needs a service key to be configured. When the plugin requires a key, oracle server will not start the plugin if a key is missing from the configuration.
 - Version states the version of the plugin.
-- AvailableSymbols states the available symbols of current data plugin.
+- AvailableSymbols states the set of symbols the data plugin is configured to fetch.
 
 ## Implement a plugin
 Create a directory for your plugin under the autonity-oracle/plugins directory. There is a template_plugin directory
