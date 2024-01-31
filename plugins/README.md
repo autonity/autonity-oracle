@@ -2,7 +2,7 @@
 The oracle server provides a plugin framework for the development and management of data adaptors for loading data from external data source providers. Runtime management of plugins is dynamic; the server discovers and loads new or updated data source adaptors during runtime, so there is no need to restart the oracle server to detect data adaptor changes.
 
 ## The plugin configuration
-Every plugin has a unified configuration, it is configured by oracle server in the plugins-conf.yml file. When you implement a new plugin, you will need to prepare the default values for the plugin, for example:
+Every plugin has a unified configuration, that is configured by oracle server in the `plugins-conf.yml` file. When you implement a new plugin, you will need to prepare the default values for the plugin, for example:
 ```go
 var defaultConfig = types.PluginConfig{
 	Key:                "",
