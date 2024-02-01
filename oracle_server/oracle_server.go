@@ -685,7 +685,6 @@ func (os *OracleServer) loadNewPlugin(f fs.FileInfo, plugConf types.PluginConfig
 
 	if f.ModTime().After(plugin.StartTime()) || plugin.Exited() {
 		os.logger.Info("replacing legacy plugin with new one: ", f.Name(), f.Mode().String())
-
 		// stop the legacy plugin
 		plugin.Close()
 		delete(os.pluginSet, f.Name())
