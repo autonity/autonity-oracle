@@ -21,7 +21,7 @@ const (
 )
 
 var defaultConfig = types.PluginConfig{
-	Key:                "705af082ac7f7d150c87303d4e2f049e",
+	Key:                "",
 	Scheme:             "http", // todo: replace the scheme with https once we purchase the service plan.
 	Endpoint:           "api.currencylayer.com",
 	Timeout:            10, //10s
@@ -61,6 +61,10 @@ func NewCLClient(conf *types.PluginConfig) *CLClient {
 	})
 
 	return &CLClient{conf: conf, client: client, logger: logger}
+}
+
+func (cl *CLClient) KeyRequired() bool {
+	return true
 }
 
 func (cl *CLClient) FetchPrice(symbols []string) (common.Prices, error) {

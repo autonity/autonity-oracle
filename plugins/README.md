@@ -1,9 +1,27 @@
 # To write a new plugin
 The oracle server provides a plugin framework for the development and management of data adaptors for loading data from external data source providers. Runtime management of plugins is dynamic; the server discovers and loads new or updated data source adaptors during runtime, so there is no need to restart the oracle server to detect data adaptor changes.
-## The interfaces
-The interfaces between the oracle server and the plugin are simple:
+
+## The plugin configuration
+Every plugin has a unified configuration, that is configured by oracle server in the `plugins-conf.yml` file. When you implement a new plugin, you will need to prepare the default values for the plugin, for example:
 ```go
-// in autonity-oracle/types/plugin_spec.go, there is an interface:
+var defaultConfig = types.PluginConfig{
+	Key:                "",
+	Scheme:             "https",
+	Endpoint:           "127.0.0.1:8080",
+	Timeout:            10, //10s
+	DataUpdateInterval: 30, //30s
+}
+```
+where:
+- Key is a string contains the data access service key of your data provider, keep it empty if the provider does not require one.
+- Scheme is either "http" or "https" depends on your data provider service.
+- Endpoint is the host endpoint of your data provider's service.
+- Timeout is the timer in seconds to cancel a single data request RPC.
+- DataUpdateInterval is the interval in seconds to fetch data from the data provider, it is very useful for those rate limited data service.
+
+## Interface
+The interface in between the oracle server and the plugin are simple:
+```go
 // Adapter is the interface that we're exposing as a plugin.
 type Adapter interface {
 	// FetchPrices is called by oracle server to fetch data points of symbols required by the protocol contract, some
@@ -16,11 +34,11 @@ type Adapter interface {
 	State() (PluginState, error)
 }
 
-// PluginPriceReport is the returned data samples from adapters which carry the prices and bad symbols if there are any
-// invalid symbols which is not recognisable by the data source.
+// PluginPriceReport is the returned data samples from adapters which carry the prices and those symbols of no data if
+// there are any unrecognisable symbols from the data source side.
 type PluginPriceReport struct {
-	Prices     []Price
-	BadSymbols []string
+	Prices                []Price
+	UnRecognizableSymbols []string
 }
 
 // in autonity-oracle/types/types.go, there is a type Price:
@@ -34,10 +52,16 @@ type Price struct {
 // PluginState is the returned data when the oracle host want to initialise the plugin with basic information: version,
 // and available symbols that the data source support.
 type PluginState struct {
+	KeyRequired      bool
 	Version          string
 	AvailableSymbols []string
 }
 ```
+where the statements in PluginState:
+- KeyRequired states if the plugin needs a service key to be configured. When the plugin requires a key, oracle server will not start the plugin if a key is missing from the configuration.
+- Version states the version of the plugin.
+- AvailableSymbols states the set of symbols the data plugin is configured to fetch.
+
 ## Implement a plugin
 Create a directory for your plugin under the autonity-oracle/plugins directory. There is a template_plugin directory
 which contains a go source code file template_plugin.go that can be used as a template. To implement a new plugin, there are 4 steps described beneath.
@@ -101,8 +125,8 @@ func (g *TemplatePlugin) State() (types.PluginState, error) {
 
 	if len(g.availableSymbols) != 0 {
 		for k := range g.availableSymbols {
-			symbol := k
-			delete(g.availableSymbols, symbol)
+		symbol := k
+		delete(g.availableSymbols, symbol)
 		}
 	}
 
@@ -117,11 +141,18 @@ func (g *TemplatePlugin) State() (types.PluginState, error) {
 		}
 	}
 
+	state.KeyRequired = g.client.KeyRequired()
 	state.Version = g.version
 	state.AvailableSymbols = symbols
 
 	return state, nil
 }
+
+// KeyRequired returns true if the service key is required to access the data source.
+func (tc *TemplateClient) KeyRequired() bool {
+	return false // return true if your data provider asked for a service key.
+}
+
 ```
 ### Instantiate the Plugin and Register it.
 In the main() function, which is the entry point of your plugin, initialize the plugin structure, and register it in the go-plugin framework:

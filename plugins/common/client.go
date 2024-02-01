@@ -14,6 +14,7 @@ type Connection interface {
 type DataSourceClient interface {
 	AvailableSymbols() ([]string, error)
 	FetchPrice([]string) (Prices, error)
+	KeyRequired() bool
 	Close()
 }
 

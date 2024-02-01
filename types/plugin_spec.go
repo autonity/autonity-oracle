@@ -28,6 +28,7 @@ type PluginPriceReport struct {
 // PluginState is the returned data when the oracle host want to initialise the plugin with basic information: version,
 // and available symbols that the data source support.
 type PluginState struct {
+	KeyRequired      bool
 	Version          string
 	AvailableSymbols []string
 }

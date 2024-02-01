@@ -28,7 +28,7 @@ import (
 var (
 	TenSecsInterval  = 10 * time.Second // 10s ticker job to check health with l1, plugin discovery and regular data sampling.
 	OneSecInterval   = 1 * time.Second  // 1s ticker job to check if we need to do pre-sampling.
-	PreSamplingRange = 15               // pre-sampling starts in 15blocks in advance.
+	PreSamplingRange = 5                // pre-sampling starts in 5 blocks in advance.
 	SaltRange        = new(big.Int).SetUint64(math.MaxInt64)
 	AlertBalance     = new(big.Int).SetUint64(2000000000000) // 2000 Gwei, 0.000002 Ether
 )
@@ -43,6 +43,8 @@ type OracleServer struct {
 	pluginDIR string                             // the dir saves the plugins.
 	pluginSet map[string]*pWrapper.PluginWrapper // the plugin clients that connect with different adapters.
 	symbols   []string                           // the symbols for data fetching in oracle service.
+
+	keyRequiredPlugins map[string]struct{} // saving those plugins which require a key granted by data provider
 
 	// the reporting staffs
 	dialer         types.Dialer
@@ -79,20 +81,21 @@ type OracleServer struct {
 func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, client types.Blockchain,
 	oc contract.ContractAPI) *OracleServer {
 	os := &OracleServer{
-		dialer:         dialer,
-		client:         client,
-		oracleContract: oc,
-		l1WSUrl:        conf.AutonityWSUrl,
-		roundData:      make(map[uint64]*types.RoundData),
-		key:            conf.Key,
-		gasTipCap:      conf.GasTipCap,
-		pluginConfFile: conf.PluginConfFile,
-		pluginDIR:      conf.PluginDIR,
-		pluginSet:      make(map[string]*pWrapper.PluginWrapper),
-		doneCh:         make(chan struct{}),
-		regularTicker:  time.NewTicker(TenSecsInterval),
-		psTicker:       time.NewTicker(OneSecInterval),
-		loggingLevel:   conf.LoggingLevel,
+		dialer:             dialer,
+		client:             client,
+		oracleContract:     oc,
+		l1WSUrl:            conf.AutonityWSUrl,
+		roundData:          make(map[uint64]*types.RoundData),
+		key:                conf.Key,
+		gasTipCap:          conf.GasTipCap,
+		pluginConfFile:     conf.PluginConfFile,
+		pluginDIR:          conf.PluginDIR,
+		pluginSet:          make(map[string]*pWrapper.PluginWrapper),
+		keyRequiredPlugins: make(map[string]struct{}),
+		doneCh:             make(chan struct{}),
+		regularTicker:      time.NewTicker(TenSecsInterval),
+		psTicker:           time.NewTicker(OneSecInterval),
+		loggingLevel:       conf.LoggingLevel,
 	}
 
 	os.logger = hclog.New(&hclog.LoggerOptions{
@@ -120,7 +123,7 @@ func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, clien
 	for _, file := range binaries {
 		f := file
 		pConf := plugConfs[f.Name()]
-		os.tryLoadingNewPlugin(f, pConf)
+		os.loadNewPlugin(f, pConf)
 	}
 
 	os.logger.Info("running oracle contract listener at", "WS", conf.AutonityWSUrl, "ID", conf.Key.Address.String())
@@ -658,23 +661,22 @@ func (os *OracleServer) PluginRuntimeDiscovery() {
 	for _, file := range binaries {
 		f := file
 		pConf := plugConfs[f.Name()]
-		os.tryLoadingNewPlugin(f, pConf)
+
+		// skip to set up plugins until there is a service key is presented at plugin-confs.yml
+		if _, ok := os.keyRequiredPlugins[f.Name()]; ok && pConf.Key == "" {
+			continue
+		}
+
+		os.loadNewPlugin(f, pConf)
 	}
 }
 
-func (os *OracleServer) tryLoadingNewPlugin(f fs.FileInfo, plugConf types.PluginConfig) {
+func (os *OracleServer) loadNewPlugin(f fs.FileInfo, plugConf types.PluginConfig) {
 	plugin, ok := os.pluginSet[f.Name()]
 	if !ok {
 		os.logger.Info("new plugin discovered, going to setup it: ", f.Name(), f.Mode().String())
-
-		if err := os.ApplyPluginConf(f.Name(), plugConf); err != nil {
-			os.logger.Error("apply plugin config", "error", err.Error())
-			return
-		}
-
-		pluginWrapper := pWrapper.NewPluginWrapper(os.loggingLevel, f.Name(), os.pluginDIR, os)
-		if err := pluginWrapper.Initialize(); err != nil {
-			os.logger.Error("cannot initialize plugin", "name", f.Name(), "error", err.Error())
+		pluginWrapper, err := os.setupNewPlugin(f.Name(), &plugConf)
+		if err != nil {
 			return
 		}
 		os.pluginSet[f.Name()] = pluginWrapper
@@ -682,30 +684,45 @@ func (os *OracleServer) tryLoadingNewPlugin(f fs.FileInfo, plugConf types.Plugin
 	}
 
 	if f.ModTime().After(plugin.StartTime()) || plugin.Exited() {
-		if err := os.ApplyPluginConf(f.Name(), plugConf); err != nil {
-			os.logger.Error("apply plugin config", "error", err.Error())
-			return
-		}
-
 		os.logger.Info("replacing legacy plugin with new one: ", f.Name(), f.Mode().String())
 		// stop the legacy plugin
 		plugin.Close()
 		delete(os.pluginSet, f.Name())
 
-		pluginWrapper := pWrapper.NewPluginWrapper(os.loggingLevel, f.Name(), os.pluginDIR, os)
-		if err := pluginWrapper.Initialize(); err != nil {
-			os.logger.Error("cannot initialize plugin", "name", f.Name(), "error", err.Error())
+		pluginWrapper, err := os.setupNewPlugin(f.Name(), &plugConf)
+		if err != nil {
 			return
 		}
 		os.pluginSet[f.Name()] = pluginWrapper
 	}
 }
 
+func (os *OracleServer) setupNewPlugin(name string, conf *types.PluginConfig) (*pWrapper.PluginWrapper, error) {
+	if err := os.ApplyPluginConf(name, conf); err != nil {
+		os.logger.Error("apply plugin config", "error", err.Error())
+		return nil, err
+	}
+
+	pluginWrapper := pWrapper.NewPluginWrapper(os.loggingLevel, name, os.pluginDIR, os, conf)
+	if err := pluginWrapper.Initialize(); err != nil {
+		// if the plugin states that a service key is missing, then we mark it down, thus the runtime discovery can
+		// skip those plugins without a key configured.
+		if err == types.ErrMissingServiceKey {
+			os.keyRequiredPlugins[name] = struct{}{}
+		}
+		os.logger.Error("cannot setup plugin", "name", name, "error", err.Error())
+		pluginWrapper.CleanPluginProcess()
+		return nil, err
+	}
+
+	return pluginWrapper, nil
+}
+
 func (os *OracleServer) WatchSampleEvent(sink chan<- *types.SampleEvent) event.Subscription {
 	return os.sampleEventFee.Subscribe(sink)
 }
 
-func (os *OracleServer) ApplyPluginConf(name string, plugConf types.PluginConfig) error {
+func (os *OracleServer) ApplyPluginConf(name string, plugConf *types.PluginConfig) error {
 	// set the plugin configuration via system env, thus the plugin can load it on startup.
 	conf, err := json.Marshal(plugConf)
 	if err != nil {

@@ -21,7 +21,7 @@ const (
 )
 
 var defaultConfig = types.PluginConfig{
-	Key:                "575aab9e47e54790bf6d502c48407c10",
+	Key:                "",
 	Scheme:             "https",
 	Endpoint:           "api.currencyfreaks.com",
 	Timeout:            10, //10s
@@ -58,6 +58,10 @@ func NewCFClient(conf *types.PluginConfig) *CFClient {
 	})
 
 	return &CFClient{conf: conf, client: client, logger: logger}
+}
+
+func (cf *CFClient) KeyRequired() bool {
+	return true
 }
 
 func (cf *CFClient) FetchPrice(symbols []string) (common.Prices, error) {

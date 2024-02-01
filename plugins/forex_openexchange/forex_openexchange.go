@@ -22,7 +22,7 @@ const (
 )
 
 var defaultConfig = types.PluginConfig{
-	Key:                "0be02ca33c4843ee968c4cedd2686f01",
+	Key:                "",
 	Scheme:             "https",
 	Endpoint:           "openexchangerates.org",
 	Timeout:            10, //10s
@@ -65,6 +65,10 @@ func NewOXClient(conf *types.PluginConfig) *OXClient {
 		client: client,
 		logger: logger,
 	}
+}
+
+func (oe *OXClient) KeyRequired() bool {
+	return true
 }
 
 func (oe *OXClient) FetchPrice(symbols []string) (common.Prices, error) {
