@@ -24,7 +24,7 @@ var (
 	DefaultSymbols        = []string{"AUD-USD", "CAD-USD", "EUR-USD", "GBP-USD", "JPY-USD", "SEK-USD", "ATN-USD", "NTN-USD", "NTN-ATN"}
 )
 
-const Version = "v0.1.5"
+const Version = "v0.1.6"
 const UsageOracleKey = "Set the oracle server key file path."
 const UsagePluginConf = "Set the plugin's configuration file path."
 const UsageOracleConf = "Set the oracle server configuration file path."
