@@ -349,12 +349,12 @@ func (os *OracleServer) handleRoundVote() error {
 	// query last round's prices, its random salt which will reveal last round's report.
 	lastRoundData, ok := os.roundData[os.curRound-1]
 	if !ok {
-		os.logger.Info("cannot find last round's data, reports with commitment hash and no data")
+		os.logger.Debug("no last round data, client is no longer a voter or it will report with commitment hash")
 	}
 
 	// if node is no longer a validator, and it doesn't have last round data, skip reporting.
 	if !isVoter && !ok {
-		os.logger.Debug("skip reporting since client is no long a voter, and have no last round data.")
+		os.logger.Debug("skip data reporting since client is no longer a voter")
 		return nil
 	}
 
@@ -363,7 +363,7 @@ func (os *OracleServer) handleRoundVote() error {
 		return os.reportWithCommitment(os.curRound, lastRoundData)
 	}
 
-	// report with last round data but without current round commitment.
+	// voter reports with last round data but without current round commitment since it is not committee member now.
 	return os.reportWithoutCommitment(lastRoundData)
 }
 
