@@ -6,6 +6,7 @@ import (
 )
 
 func TestNewCAXClient(t *testing.T) {
+	t.Skipf("skipped duo to the remote service endpoint is not available")
 	// set the CAX of dev-net for testing by default since piccadilly CAX is not ready.
 	defaultConfig.Endpoint = "cax.devnet.clearmatics.network"
 	routers = "orderbooks"
