@@ -2,8 +2,6 @@
   "config": {
     "chainId": 1,
     "autonity": {
-      "bytecode": "",
-      "abi": "",
       "minBaseFee": 5000,
       "delegationRate": 1000,
       "blockPeriod": 1,
@@ -16,9 +14,16 @@
       "validators": []
     },
     "oracle": {
-      "bytecode": "",
-      "abi": "",
       "votePeriod": 30
+    },
+    "accountability": {
+      "innocenceProofSubmissionWindow": 30,
+      "baseSlashingRateLow": 500,
+      "baseSlashingRateMid": 1000,
+      "collusionFactor": 550,
+      "historyFactor": 750,
+      "jailFactor": 60,
+      "slashingRatePrecision": 10000
     }
   },
   "nonce": "0x0",

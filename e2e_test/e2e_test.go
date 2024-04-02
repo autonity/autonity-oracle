@@ -296,7 +296,7 @@ func TestWithBinanceSimulatorOff(t *testing.T) {
 		d, err := o.LatestRoundData(nil, s)
 		require.NoError(t, err)
 		require.NotEqual(t, uint64(0), d.Price.Uint64())
-		require.Equal(t, uint64(0), d.Status.Uint64())
+		require.Equal(t, true, d.IsValid)
 
 		price, err := decimal.NewFromString(d.Price.String())
 		require.NoError(t, err)
@@ -335,7 +335,7 @@ func TestWithBinanceSimulatorTimeout(t *testing.T) {
 		d, err := o.LatestRoundData(nil, s)
 		require.NoError(t, err)
 		require.NotEqual(t, uint64(0), d.Price.Uint64())
-		require.Equal(t, uint64(0), d.Status.Uint64())
+		require.Equal(t, true, d.IsValid)
 	}
 }
 
@@ -421,7 +421,7 @@ func TestCAXPluginsHappyCase(t *testing.T) {
 
 			hasBadValue := false
 			for _, p := range prices {
-				if p.Status.Uint64() != 0 || p.Price.Uint64() == 0 {
+				if !p.IsValid || p.Price.Uint64() == 0 {
 					hasBadValue = true
 				}
 			}
@@ -451,7 +451,7 @@ func testHappyCase(t *testing.T, o *contract.Oracle, beforeRound uint64, pricePr
 		for _, s := range symbols {
 			d, err := o.GetRoundData(nil, round, s)
 			require.NoError(t, err)
-			require.Equal(t, uint64(0), d.Status.Uint64())
+			require.Equal(t, true, d.IsValid)
 			rd = append(rd, d)
 		}
 
@@ -506,7 +506,7 @@ func testBinanceDataHappyCase(t *testing.T, o *contract.Oracle, beforeRound uint
 			d, err := o.GetRoundData(nil, round.Sub(round, common.Big1), s)
 			require.NoError(t, err)
 			require.NotEqual(t, uint64(0), d.Price.Uint64())
-			require.Equal(t, uint64(0), d.Status.Uint64())
+			require.Equal(t, true, d.IsValid)
 		}
 
 		break
@@ -561,7 +561,7 @@ func testAddNewSymbols(t *testing.T, network *Network, client *ethclient.Client,
 			price, err := decimal.NewFromString(rd[i].Price.String())
 			require.NoError(t, err)
 			require.True(t, true, price.Div(pricePrecision).Equal(helpers.ResolveSimulatedPrice(s)))
-			require.Equal(t, uint64(0), rd[i].Status.Uint64())
+			require.Equal(t, true, rd[i].IsValid)
 		}
 		break
 	}
@@ -624,7 +624,7 @@ func testRMSymbols(t *testing.T, network *Network, client *ethclient.Client, o *
 			price, err := decimal.NewFromString(rd[i].Price.String())
 			require.NoError(t, err)
 			require.True(t, true, price.Div(pricePrecision).Equal(helpers.ResolveSimulatedPrice(s)))
-			require.Equal(t, uint64(0), rd[i].Status.Uint64())
+			require.Equal(t, true, rd[i].IsValid)
 		}
 		break
 	}
@@ -681,7 +681,7 @@ func testRMValidatorFromCommittee(t *testing.T, network *Network, client *ethcli
 			price, err := decimal.NewFromString(rd[i].Price.String())
 			require.NoError(t, err)
 			require.True(t, true, price.Div(pricePrecision).Equal(helpers.ResolveSimulatedPrice(s)))
-			require.Equal(t, uint64(0), rd[i].Status.Uint64())
+			require.Equal(t, true, rd[i].IsValid)
 		}
 
 		// todo: check the leaving validator shouldn't be slashed if it does not omit any report.
@@ -740,7 +740,7 @@ func testNewValidatorJoinToCommittee(t *testing.T, network *Network, client *eth
 			price, err := decimal.NewFromString(rd[i].Price.String())
 			require.NoError(t, err)
 			require.True(t, true, price.Div(pricePrecision).Equal(helpers.ResolveSimulatedPrice(s)))
-			require.Equal(t, uint64(0), rd[i].Status.Uint64())
+			require.Equal(t, true, rd[i].IsValid)
 		}
 
 		// todo: newly added validator shouldn't be slashed if they not omit any report.

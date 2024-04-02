@@ -275,7 +275,7 @@ func (os *OracleServer) printLatestRoundData(newRound uint64) {
 		}
 
 		os.logger.Debug("get round price", "round", newRound-1, "symbol", s, "Price",
-			rd.Price.String(), "status", rd.Status.String())
+			rd.Price.String(), "isValid", rd.IsValid)
 	}
 
 	for _, s := range os.protocolSymbols {
@@ -291,7 +291,7 @@ func (os *OracleServer) printLatestRoundData(newRound uint64) {
 		}
 
 		os.logger.Debug("latest round price", "round", rd.Round.Uint64(), "symbol", s, "price",
-			price.Div(os.pricePrecision).String(), "status", rd.Status.String())
+			price.Div(os.pricePrecision).String(), "isValid", rd.IsValid)
 	}
 }
 
