@@ -114,7 +114,7 @@ func TestOracleServer(t *testing.T) {
 			Round:     currentRound,
 			Price:     new(big.Int).SetUint64(0),
 			Timestamp: new(big.Int).SetUint64(10000),
-			IsValid:   true,
+			Success:   true,
 		}
 
 		dialerMock := mock.NewMockDialer(ctrl)
