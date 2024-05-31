@@ -2,15 +2,23 @@ package test
 
 import (
 	"crypto/ecdsa"
+	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/hashicorp/go-hclog"
 	"github.com/phayes/freeport"
+	bind "github.com/supranational/blst/bindings/go"
+	blst "github.com/supranational/blst/bindings/go"
 	"io/fs"
 	"io/ioutil"
 	"math/big"
@@ -40,12 +48,15 @@ var (
 
 	numberOfKeys              = 10
 	numberOfValidators        = 4
-	numberOfPortsForBindNodes = 2
+	numberOfPortsForBindNodes = 3
 )
 
+// ErrZeroKey describes an error due to a zero secret key.
+var ErrZeroKey = errors.New("generated secret key is zero")
+
 type AutonityContractGenesis struct {
-	Bytecode         string         `json:"bytecode,omitempty" toml:",omitempty"`
-	ABI              string         `json:"abi,omitempty" toml:",omitempty"`
+	Bytecode         hexutil.Bytes  `json:"bytecode,omitempty" toml:",omitempty"`
+	ABI              *abi.ABI       `json:"abi,omitempty" toml:",omitempty"`
 	MinBaseFee       uint64         `json:"minBaseFee"`
 	EpochPeriod      uint64         `json:"epochPeriod"`
 	UnbondingPeriod  uint64         `json:"unbondingPeriod"`
@@ -58,21 +69,96 @@ type AutonityContractGenesis struct {
 	Validators       []*Validator   `json:"validators"`
 }
 
-// OracleContractGenesis contract config. It'is used for deployment.
-type OracleContractGenesis struct {
-	// Bytecode of validators contract
-	// would like this type to be []byte but the unmarshalling is not working
-	Bytecode string `json:"bytecode,omitempty" toml:",omitempty"`
-	// Json ABI of the contract
-	ABI        string   `json:"abi,omitempty" toml:",omitempty"`
-	Symbols    []string `json:"symbols"`
-	VotePeriod uint64   `json:"defaultVotePeriod"`
+type AccountabilityGenesis struct {
+	InnocenceProofSubmissionWindow uint64 `json:"innocenceProofSubmissionWindow"`
+	// Slashing parameters
+	BaseSlashingRateLow   uint64 `json:"baseSlashingRateLow"`
+	BaseSlashingRateMid   uint64 `json:"baseSlashingRateMid"`
+	CollusionFactor       uint64 `json:"collusionFactor"`
+	HistoryFactor         uint64 `json:"historyFactor"`
+	JailFactor            uint64 `json:"jailFactor"`
+	SlashingRatePrecision uint64 `json:"slashingRatePrecision"`
 }
 
+// OracleContractGenesis Autonity contract config. It'is used for deployment.
+type OracleContractGenesis struct {
+	Bytecode   hexutil.Bytes `json:"bytecode,omitempty" toml:",omitempty"`
+	ABI        *abi.ABI      `json:"abi,omitempty" toml:",omitempty"`
+	Symbols    []string      `json:"symbols"`
+	VotePeriod uint64        `json:"votePeriod"`
+}
+
+type AsmConfig struct {
+	ACUContractConfig           *AcuContractGenesis           `json:"acu,omitempty"`
+	StabilizationContractConfig *StabilizationContractGenesis `json:"stabilization,omitempty"`
+	SupplyControlConfig         *SupplyControlGenesis         `json:"supplyControl,omitempty"`
+}
+
+type AcuContractGenesis struct {
+	Symbols    []string
+	Quantities []uint64
+	Scale      uint64
+}
+
+type StabilizationContractGenesis struct {
+	BorrowInterestRate        *math.HexOrDecimal256
+	LiquidationRatio          *math.HexOrDecimal256
+	MinCollateralizationRatio *math.HexOrDecimal256
+	MinDebtRequirement        *math.HexOrDecimal256
+	TargetPrice               *math.HexOrDecimal256
+}
+
+type SupplyControlGenesis struct {
+	InitialAllocation *math.HexOrDecimal256
+}
+
+// EthashConfig is the consensus engine configs for proof-of-work based sealing.
+type EthashConfig struct{}
+
+// ChainConfig is the core config which determines the blockchain settings.
+//
+// ChainConfig is stored in the database on a per block basis. This means
+// that any network, identified by its genesis block, can have its own
+// set of configuration options.
 type ChainConfig struct {
-	ChainID              *big.Int                 `json:"chainId"` // chainId identifies the current chain and is used for replay protection
-	Autonity             *AutonityContractGenesis `json:"autonity"`
-	OracleContractConfig *OracleContractGenesis   `json:"oracle,omitempty"`
+	ChainID *big.Int `json:"chainId"` // chainId identifies the current chain and is used for replay protection
+
+	HomesteadBlock *big.Int `json:"homesteadBlock,omitempty"` // Homestead switch block (nil = no fork, 0 = already homestead)
+
+	DAOForkBlock   *big.Int `json:"daoForkBlock,omitempty"`   // TheDAO hard-fork switch block (nil = no fork)
+	DAOForkSupport bool     `json:"daoForkSupport,omitempty"` // Whether the nodes supports or opposes the DAO hard-fork
+
+	// EIP150 implements the Gas price changes (https://github.com/ethereum/EIPs/issues/150)
+	EIP150Block *big.Int    `json:"eip150Block,omitempty"` // EIP150 HF block (nil = no fork)
+	EIP150Hash  common.Hash `json:"eip150Hash,omitempty"`  // EIP150 HF hash (needed for header only clients as only gas pricing changed)
+
+	EIP155Block *big.Int `json:"eip155Block,omitempty"` // EIP155 HF block
+	EIP158Block *big.Int `json:"eip158Block,omitempty"` // EIP158 HF block
+
+	ByzantiumBlock      *big.Int `json:"byzantiumBlock,omitempty"`      // Byzantium switch block (nil = no fork, 0 = already on byzantium)
+	ConstantinopleBlock *big.Int `json:"constantinopleBlock,omitempty"` // Constantinople switch block (nil = no fork, 0 = already activated)
+	PetersburgBlock     *big.Int `json:"petersburgBlock,omitempty"`     // Petersburg switch block (nil = same as Constantinople)
+	IstanbulBlock       *big.Int `json:"istanbulBlock,omitempty"`       // Istanbul switch block (nil = no fork, 0 = already on istanbul)
+	MuirGlacierBlock    *big.Int `json:"muirGlacierBlock,omitempty"`    // Eip-2384 (bomb delay) switch block (nil = no fork, 0 = already activated)
+	BerlinBlock         *big.Int `json:"berlinBlock,omitempty"`         // Berlin switch block (nil = no fork, 0 = already on berlin)
+	LondonBlock         *big.Int `json:"londonBlock,omitempty"`         // London switch block (nil = no fork, 0 = already on london)
+	ArrowGlacierBlock   *big.Int `json:"arrowGlacierBlock,omitempty"`   // Eip-4345 (bomb delay) switch block (nil = no fork, 0 = already activated)
+	MergeForkBlock      *big.Int `json:"mergeForkBlock,omitempty"`      // EIP-3675 (TheMerge) switch block (nil = no fork, 0 = already in merge proceedings)
+
+	// TerminalTotalDifficulty is the amount of total difficulty reached by
+	// the network that triggers the consensus upgrade.
+	TerminalTotalDifficulty *big.Int `json:"terminalTotalDifficulty,omitempty"`
+
+	// Various consensus engines
+	Ethash                 *EthashConfig            `json:"ethash,omitempty"`
+	AutonityContractConfig *AutonityContractGenesis `json:"autonity,omitempty"`
+	AccountabilityConfig   *AccountabilityGenesis   `json:"accountability,omitempty"`
+	OracleContractConfig   *OracleContractGenesis   `json:"oracle,omitempty"`
+
+	ASM AsmConfig `json:"asm,omitempty"`
+
+	// true if run in test-mode, false by default
+	TestMode bool `json:"testMode,omitempty"`
 }
 
 type Validator struct {
@@ -80,6 +166,7 @@ type Validator struct {
 	Enode         string         `json:"enode"`
 	OracleAddress common.Address `json:"oracleAddress"`
 	BondedStake   *big.Int       `json:"bondedStake"`
+	ConsensusKey  string         `json:"consensusKey"`
 }
 
 type DataSimulator struct {
@@ -157,11 +244,70 @@ func (o *Oracle) ConfigOracleServer(wsEndpoint string) {
 	o.Command = c
 }
 
+// RandBLSKey creates a new private key using a random method provided as an io.Reader.
+func RandBLSKey() (SecretKey, error) {
+	// Generate 32 bytes of randomness
+	var ikm [32]byte
+	_, err := rand.Read(ikm[:])
+	if err != nil {
+		return nil, err
+	}
+	// Defensive check, that we have not generated a secret key,
+	secKey := &bls12SecretKey{blst.KeyGen(ikm[:])}
+
+	if IsZero(secKey.Marshal()) {
+		return nil, ErrZeroKey
+	}
+
+	return secKey, nil
+}
+
+// SecretKey represents a BLS secret or private key.
+type SecretKey interface {
+	Marshal() []byte
+	PublicKey() []byte
+}
+
+// bls12SecretKey used in the BLS signature scheme.
+type bls12SecretKey struct {
+	p *blst.SecretKey
+}
+
+// Marshal a secret key into a LittleEndian byte slice.
+func (s *bls12SecretKey) Marshal() []byte {
+	keyBytes := s.p.Serialize()
+	return keyBytes
+}
+
+func (s *bls12SecretKey) PublicKey() []byte {
+	pub := &BlsPublicKey{p: new(blstPublicKey).From(s.p)}
+	return pub.p.Compress()
+}
+
+// BlsPublicKey used in the BLS signature scheme.
+type BlsPublicKey struct {
+	p *blstPublicKey
+}
+
+type blstPublicKey = bind.P1Affine
+
+// IsZero checks if the secret key is a zero key. We don't rely on the CGO to refer to the type of C.blst_scalar which
+// is implemented in C to initialize the memory bits of C.blst_scalar to be zero. It is better for go binder to
+// check if all the bytes of the secret key are zero.
+func IsZero(sKey []byte) bool {
+	b := byte(0)
+	for _, s := range sKey {
+		b |= s
+	}
+	return subtle.ConstantTimeByteEq(b, 0) == 1
+}
+
 type Key struct {
-	KeyFile    string
-	RawKeyFile string
-	Password   string
-	Key        *keystore.Key
+	KeyFile          string
+	AutonityKeysFile string
+	ConsensusKey     string
+	Password         string
+	Key              *keystore.Key
 }
 
 type L1Node struct {
@@ -170,6 +316,7 @@ type L1Node struct {
 	NodeKey   *Key
 	Host      string
 	P2PPort   int
+	ACNPort   int
 	WSPort    int
 	Command   *exec.Cmd
 	Validator *Validator
@@ -177,9 +324,9 @@ type L1Node struct {
 
 func (n *L1Node) GenCMD(genesisFile string) {
 	c := exec.Command("./autonity",
-		"--ipcdisable", "--datadir", n.DataDir, "--genesis", genesisFile, "--nodekey", n.NodeKey.RawKeyFile, "--ws",
-		"--ws.addr", n.Host, "--ws.port", fmt.Sprintf("%d", n.WSPort), "--ws.api",
-		"tendermint,eth,web3,admin,debug,miner,personal,txpool,net", "--syncmode", "full", "--miner.gaslimit",
+		"--ipcdisable", "--datadir", n.DataDir, "--genesis", genesisFile, "--autonitykeys", n.NodeKey.AutonityKeysFile, "--ws",
+		"--ws.addr", n.Host, "--ws.port", fmt.Sprintf("%d", n.WSPort), "--consensus.port", fmt.Sprintf("%d", n.ACNPort),
+		"--ws.api", "tendermint,eth,web3,admin,debug,miner,personal,txpool,net", "--syncmode", "full", "--miner.gaslimit",
 		"100000000", "--miner.threads", fmt.Sprintf("%d", 1), "--port", fmt.Sprintf("%d", n.P2PPort))
 
 	// enable logging in the standard outputs.
@@ -361,15 +508,17 @@ func configNetwork(network *Network, freeKeys []*Key, freePorts []int, nodes int
 			DataDir:   fmt.Sprintf("%s/node_%d/data", defaultDataDirRoot, i),
 			NodeKey:   freeKeys[i*2+1],
 			Host:      defaultHost,
-			P2PPort:   freePorts[i*2],
-			WSPort:    freePorts[i*2+1],
+			P2PPort:   freePorts[i*3],
+			WSPort:    freePorts[i*3+1],
+			ACNPort:   freePorts[i*3+2],
 		}
 
 		var validator = &Validator{
 			Treasury:      l1Node.NodeKey.Key.Address,
-			Enode:         genEnode(&l1Node.NodeKey.Key.PrivateKey.PublicKey, l1Node.Host, l1Node.P2PPort),
+			Enode:         genEnode(&l1Node.NodeKey.Key.PrivateKey.PublicKey, l1Node.Host, l1Node.P2PPort, l1Node.ACNPort),
 			OracleAddress: crypto.PubkeyToAddress(l2Node.Key.Key.PrivateKey.PublicKey),
 			BondedStake:   defaultBondedStake,
+			ConsensusKey:  l1Node.NodeKey.ConsensusKey,
 		}
 
 		l1Node.Validator = validator
@@ -402,9 +551,9 @@ func makeGenesisConfig(srcTemplate string, dstFile string, vals []*Validator, ne
 	if err = json.NewDecoder(file).Decode(genesis); err != nil {
 		return err
 	}
-	genesis.Config.Autonity.Operator = net.OperatorKey.Key.Address
-	genesis.Config.Autonity.Treasury = net.TreasuryKey.Key.Address
-	genesis.Config.Autonity.Validators = append(genesis.Config.Autonity.Validators, vals...)
+	genesis.Config.AutonityContractConfig.Operator = net.OperatorKey.Key.Address
+	genesis.Config.AutonityContractConfig.Treasury = net.TreasuryKey.Key.Address
+	genesis.Config.AutonityContractConfig.Validators = append(genesis.Config.AutonityContractConfig.Validators, vals...)
 
 	genesis.Config.OracleContractConfig.Symbols = net.Symbols
 	genesis.Config.OracleContractConfig.VotePeriod = net.VotePeriod
@@ -441,13 +590,18 @@ func loadKeys(kStore string, password string) ([]*Key, error) {
 			return nil, err
 		}
 
-		strKey := hex.EncodeToString(crypto.FromECDSA(key.PrivateKey))
+		ecdsaKey := hex.EncodeToString(crypto.FromECDSA(key.PrivateKey))
+		blsKey, err := RandBLSKey()
+		if err != nil {
+			return nil, err
+		}
 		rawKeyFile := fmt.Sprintf("%s/%s", nodeKeyDir, key.Address)
-		if err := os.WriteFile(rawKeyFile, []byte(strKey), 0666); err != nil {
+		if err := os.WriteFile(rawKeyFile, []byte(ecdsaKey+hex.EncodeToString(blsKey.Marshal())), 0666); err != nil {
 			return nil, err
 		}
 
-		var k = &Key{Key: key, KeyFile: keyFile, Password: password, RawKeyFile: rawKeyFile}
+		consensusKey := "0x" + hex.EncodeToString(blsKey.PublicKey())
+		var k = &Key{Key: key, KeyFile: keyFile, Password: password, AutonityKeysFile: rawKeyFile, ConsensusKey: consensusKey}
 		keys = append(keys, k)
 	}
 
@@ -455,9 +609,9 @@ func loadKeys(kStore string, password string) ([]*Key, error) {
 }
 
 // generate enode url
-func genEnode(key *ecdsa.PublicKey, host string, port int) string {
+func genEnode(key *ecdsa.PublicKey, host string, p2pPort int, acnPort int) string {
 	pub := fmt.Sprintf("%x", crypto.FromECDSAPub(key)[1:])
-	return fmt.Sprintf("enode://%s@%s:%d", pub, host, port)
+	return fmt.Sprintf("enode://%s@%s:%d?acn=%s:%d", pub, host, p2pPort, host, acnPort)
 }
 
 // get free ports from current system

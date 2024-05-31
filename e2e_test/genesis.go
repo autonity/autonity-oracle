@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
 	"math/big"
-	"sync"
 )
 
 //go:generate gencodec -type Genesis -field-override genesisSpecMarshaling -out gen_genesis.go
@@ -34,7 +33,6 @@ type Genesis struct {
 	GasUsed    uint64      `json:"gasUsed"`
 	ParentHash common.Hash `json:"parentHash"`
 
-	mu      sync.RWMutex
 	BaseFee *big.Int `json:"baseFeePerGas"`
 }
 
@@ -55,9 +53,12 @@ func (ga *GenesisAlloc) UnmarshalJSON(data []byte) error {
 
 // GenesisAccount is an account in the state of the genesis block.
 type GenesisAccount struct {
-	Code       []byte                      `json:"code,omitempty"`
-	Storage    map[common.Hash]common.Hash `json:"storage,omitempty"`
-	Balance    *big.Int                    `json:"balance" gencodec:"required"`
+	Code          []byte                      `json:"code,omitempty"`
+	Storage       map[common.Hash]common.Hash `json:"storage,omitempty"`
+	Balance       *big.Int                    `json:"balance" gencodec:"required"`
+	NewtonBalance *big.Int                    `json:"newtonBalance"`
+	// validator address to amount bond to this validator
+	Bonds      map[common.Address]*big.Int `json:"bonds"`
 	Nonce      uint64                      `json:"nonce,omitempty"`
 	PrivateKey []byte                      `json:"secretKey,omitempty"` // for tests
 }
@@ -73,16 +74,16 @@ type genesisSpecMarshaling struct {
 	Difficulty *math.HexOrDecimal256
 	BaseFee    *math.HexOrDecimal256
 	Alloc      map[common.UnprefixedAddress]GenesisAccount
-
-	VotingPowers []math.HexOrDecimal64
 }
 
 type genesisAccountMarshaling struct {
-	Code       hexutil.Bytes
-	Balance    *math.HexOrDecimal256
-	Nonce      math.HexOrDecimal64
-	Storage    map[storageJSON]storageJSON
-	PrivateKey hexutil.Bytes
+	Code          hexutil.Bytes
+	Balance       *math.HexOrDecimal256
+	NewtonBalance *math.HexOrDecimal256
+	Bonds         map[common.Address]*math.HexOrDecimal256
+	Nonce         math.HexOrDecimal64
+	Storage       map[storageJSON]storageJSON
+	PrivateKey    hexutil.Bytes
 }
 
 // storageJSON represents a 256 bit byte array, but allows less than 256 bits when
