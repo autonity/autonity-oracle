@@ -372,7 +372,7 @@ func TestCAXPluginsHappyCase(t *testing.T) {
 	//t.Skip("this test depends on the remote service endpoint of cax.devnet.clearmatics.network")
 	var conf = &NetworkConfig{
 		EnableL1Logs: false,
-		Symbols:      []string{"NTN-USD", "ATN-USD", "NTN-ATN"},
+		Symbols:      []string{"NTN-USDC", "ATN-USDC", "NTN-ATN"},
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{caxPlugDir, caxPlugDir, caxPlugDir, caxPlugDir},
 	}
@@ -395,7 +395,7 @@ func TestCAXPluginsHappyCase(t *testing.T) {
 	require.NoError(t, err)
 	defer subRoundEvent.Unsubscribe()
 
-	symbols := []string{"NTN-USD", "ATN-USD", "NTN-ATN"}
+	symbols := []string{"NTN-USDC", "ATN-USDC", "NTN-ATN"}
 	endRound := uint64(5)
 
 	var prices []contract.IOracleRoundData

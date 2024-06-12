@@ -12,8 +12,8 @@ func TestParsePlaybookHeader(t *testing.T) {
 	symbols, err := ParsePlaybookHeader(playbook)
 	require.NoError(t, err)
 	require.Equal(t, 8, len(symbols))
-	require.Equal(t, "ATN-USD", symbols[0])
-	require.Equal(t, "NTN-USD", symbols[1])
+	require.Equal(t, "ATN-USDC", symbols[0])
+	require.Equal(t, "NTN-USDC", symbols[1])
 	require.Equal(t, "EUR-USD", symbols[2])
 	require.Equal(t, "JPY-USD", symbols[3])
 	require.Equal(t, "GBP-USD", symbols[4])
@@ -27,11 +27,11 @@ func TestResolveSimulatedPrice(t *testing.T) {
 	price := ResolveSimulatedPrice(symbol)
 	require.Equal(t, true, types.SimulatedPrice.Equal(price))
 
-	symbol = "NTN-USD"
+	symbol = "NTN-USDC"
 	p := ResolveSimulatedPrice(symbol)
 	require.Equal(t, true, pNTNUSD.Equal(p))
 
-	symbol = "ATN-USD"
+	symbol = "ATN-USDC"
 	p = ResolveSimulatedPrice(symbol)
 	require.Equal(t, true, pATNUSD.Equal(p))
 }

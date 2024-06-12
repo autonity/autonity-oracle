@@ -13,14 +13,14 @@ import (
 	"time"
 )
 
-// This plugin is only used for autonity round 4 game purpose, the data of NTN-USD & ATN-USD come from a simulated
+// This plugin is only used for autonity round 4 game purpose, the data of NTN-USDC & ATN-USDC come from a simulated
 // exchange service build by Clearmatics.
 const (
 	version = "v0.0.1"
 	quote   = "quote"
 	NTNATN  = "NTN-ATN"
-	NTNUSD  = "NTN-USD"
-	ATNUSD  = "ATN-USD"
+	NTNUSDC = "NTN-USDC"
+	ATNUSDC = "ATN-USDC"
 )
 
 // take piccadilly setup as the default setting
@@ -74,7 +74,7 @@ func (cc *CAXClient) FetchPrice(symbols []string) (common.Prices, error) {
 
 	for _, s := range symbols {
 		// all CAXs of Autonity test networks do not provice NTN-ATN price, thus the price of NTN-ATN is derived from
-		// the price of NTN-USD and ATN-USD for the time being.
+		// the price of NTN-USDC and ATN-USDC for the time being.
 		if s == NTNATN {
 			continue
 		}
@@ -91,21 +91,21 @@ func (cc *CAXClient) FetchPrice(symbols []string) (common.Prices, error) {
 		return nil, common.ErrDataNotAvailable
 	}
 
-	// for autonity round4 game, the price of "NTN-ATN" is derived from the price of "NTN-USD" and "ATN-USD"
+	// for autonity round4 game, the price of "NTN-ATN" is derived from the price of "NTN-USDC" and "ATN-USDC"
 	if _, ok := priceMap[NTNATN]; !ok && len(priceMap) == 2 {
-		pNTN, ok := priceMap[NTNUSD]
+		pNTN, ok := priceMap[NTNUSDC]
 		if !ok {
-			cc.logger.Error("missing NTN-USD data to compute derived price: NTN-ATN")
+			cc.logger.Error("missing NTN-USDC data to compute derived price: NTN-ATN")
 			return prices, nil
 		}
 
-		pATN, ok := priceMap[ATNUSD]
+		pATN, ok := priceMap[ATNUSDC]
 		if !ok {
-			cc.logger.Error("missing ATN-USD data to compute derived price: NTN-ATN")
+			cc.logger.Error("missing ATN-USDC data to compute derived price: NTN-ATN")
 			return prices, nil
 		}
 
-		// since only 3 symbols are supported, thus we assume the collected two symbols are NTN-USD and ATN-USD.
+		// since only 3 symbols are supported, thus we assume the collected two symbols are NTN-USDC and ATN-USDC.
 		pNTNATN, err := cc.computeDerivedPrice(pNTN, pATN)
 		if err != nil {
 			cc.logger.Error("compute derived price NTN-ATN", "error", err.Error())
@@ -174,7 +174,7 @@ func (cc *CAXClient) buildURL(symbol string) *url.URL {
 	return endpoint
 }
 
-// for autonity round4 game, "NTN-ATN" is derived from NTN-USD and ATN-USD.
+// for autonity round4 game, "NTN-ATN" is derived from NTN-USDC and ATN-USDC.
 func (cc *CAXClient) computeDerivedPrice(ntnUSD, atnUSD common.Price) (common.Price, error) {
 	var priceNTNATN common.Price
 	pNTN, err := decimal.NewFromString(ntnUSD.Price)

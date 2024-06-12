@@ -21,10 +21,10 @@ var (
 	DefaultPluginDir      = "./plugins"
 	DefaultPluginConfFile = "./plugins-conf.yml"
 	DefaultOracleConfFile = ""
-	DefaultSymbols        = []string{"AUD-USD", "CAD-USD", "EUR-USD", "GBP-USD", "JPY-USD", "SEK-USD", "ATN-USD", "NTN-USD", "NTN-ATN"}
+	DefaultSymbols        = []string{"AUD-USD", "CAD-USD", "EUR-USD", "GBP-USD", "JPY-USD", "SEK-USD", "ATN-USDC", "NTN-USDC", "NTN-ATN"}
 )
 
-const Version = "v0.1.8"
+const Version = "v0.1.9"
 const UsageOracleKey = "Set the oracle server key file path."
 const UsagePluginConf = "Set the plugin's configuration file path."
 const UsageOracleConf = "Set the oracle server configuration file path."
