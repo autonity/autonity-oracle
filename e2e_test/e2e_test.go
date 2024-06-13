@@ -368,8 +368,6 @@ func TestForexPluginsHappyCase(t *testing.T) {
 }
 
 func TestCAXPluginsHappyCase(t *testing.T) {
-	// run the test after the data source cax.devnet.clearmatics.network provides available data.
-	//t.Skip("this test depends on the remote service endpoint of cax.devnet.clearmatics.network")
 	var conf = &NetworkConfig{
 		EnableL1Logs: false,
 		Symbols:      []string{"NTN-USDC", "ATN-USDC", "NTN-ATN"},

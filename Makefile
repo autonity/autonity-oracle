@@ -89,12 +89,6 @@ forex-plugins:
 	go build -o $(PLUGIN_DIR)/forex_openexchange $(PLUGIN_SRC_DIR)/forex_openexchange/forex_openexchange.go
 	chmod +x $(PLUGIN_DIR)/*
 
-dev-cax-plugin:
-	go build -o $(PLUGIN_DIR)/pcgc_cax -tags dev $(PLUGIN_SRC_DIR)/pcgc_cax/
-	chmod +x $(PLUGIN_DIR)/pcgc_cax
-	# cp autonity round4 game PCGC CAX plugins for e2e testing
-	cp $(PLUGIN_DIR)/pcgc_cax $(E2E_TEST_CAX_PLUGIN_DIR)/pcgc_cax
-
 piccadilly-cax-plugin:
 	go build -o $(PLUGIN_DIR)/pcgc_cax $(PLUGIN_SRC_DIR)/pcgc_cax/
 	chmod +x $(PLUGIN_DIR)/pcgc_cax
@@ -108,10 +102,6 @@ bakerloo-simulator:
 bakerloo-sim-plugin:
 	go build -o $(PLUGIN_DIR)/sim_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go
 	chmod +x $(PLUGIN_DIR)/sim_plugin
-
-autoracle-dev: mkdir oracle-server forex-plugins dev-cax-plugin conf-file e2e-test-stuffs
-	@echo "Done building for dev network."
-	@echo "Run \"$(BIN_DIR)/autoracle\" to launch autonity oracle."
 
 autoracle-bakerloo: mkdir oracle-server forex-plugins bakerloo-simulator bakerloo-sim-plugin conf-file e2e-test-stuffs
 	@echo "Done building for bakerloo network."

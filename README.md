@@ -327,10 +327,6 @@ To replace running plugins with new ones, just replace the binary in the `plugin
 
 
 ## Development
-### Build for DEV net
-```shell
-make autoracle-dev
-```
 ### Build for Bakerloo net
 ```shell
 make autoracle-bakerloo
