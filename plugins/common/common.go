@@ -16,7 +16,7 @@ import (
 
 var (
 	DefaultForexSymbols  = []string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"}
-	DefaultCryptoSymbols = []string{"ATN-USD", "NTN-USD", "NTN-ATN"}
+	DefaultCryptoSymbols = []string{"ATN-USDC", "NTN-USDC", "NTN-ATN"}
 	ErrDataNotAvailable  = fmt.Errorf("data is not available")
 	ErrKnownSymbols      = fmt.Errorf("the data source does not have all the data asked by oracle server")
 	ErrAccessLimited     = fmt.Errorf("access rate is limited, please check your subscription from data provider")

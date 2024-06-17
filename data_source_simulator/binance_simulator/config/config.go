@@ -11,7 +11,7 @@ var (
 	// with each separated by a "|". To tune the starting data point for symbols, one can set the values on demand with CLI
 	// flags or system environment variables with such data pattern, or tune it via HTTP rpc call during the runtime, please
 	// refer to the readme.
-	DefSimulatorConf = "ATN-USD:1.0:0.0003|NTN-USD:10.0:0.002|NTN-ATN:10.0:0.001"
+	DefSimulatorConf = "ATN-USDC:1.0:0.0003|NTN-USDC:10.0:0.002|NTN-ATN:10.0:0.001"
 	DefSimulatorPort = 50991 // default port bind with the http service in the simulator.
 	DefPlaybook      = ""    // the default playbook file used to replay data points in the generator.
 	DefTimeout       = 0     // the default timeout simulated when processing a http request.

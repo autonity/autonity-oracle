@@ -14,19 +14,19 @@ func TestConvertSymbol(t *testing.T) {
 }
 
 func TestResolveSeparator(t *testing.T) {
-	symbol := "NTN/USD"
+	symbol := "NTN/USDC"
 	require.Equal(t, "/", ResolveSeparator(symbol))
 
-	symbol = "NTN|USD"
+	symbol = "NTN|USDC"
 	require.Equal(t, "|", ResolveSeparator(symbol))
 
-	symbol = "NTN-USD"
+	symbol = "NTN-USDC"
 	require.Equal(t, "-", ResolveSeparator(symbol))
 
-	symbol = "NTN,USD"
+	symbol = "NTN,USDC"
 	require.Equal(t, ",", ResolveSeparator(symbol))
 
-	symbol = "NTN.USD"
+	symbol = "NTN.USDC"
 	require.Equal(t, ".", ResolveSeparator(symbol))
 
 	symbol = "BTCUSD"
