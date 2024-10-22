@@ -484,7 +484,9 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 	for _, s := range os.protocolSymbols {
 		// aggregate bridged symbols
 		if s == "ATN-USD" || s == "NTN-USD" {
-			// todo: Jason, if we don't have usdc price collected, shall we drop vote for ATN-USD & NTN-USD of this round?
+			// todo: Jason, if we don't have usdc price collected,
+			//  shall we drop vote for ATN-USD & NTN-USD of this round
+			//  or we use the price of ATN-USDC, NTN-USDC as the price of ATN-USD, NTN-USD?
 			if usdcPrice == nil {
 				continue
 			}
