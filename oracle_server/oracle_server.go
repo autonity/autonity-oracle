@@ -570,7 +570,7 @@ func (os *OracleServer) aggregateBridgedPrice(srcSymbol string, target int64, us
 		return nil, err
 	}
 
-	// reset the symbol with source symbol, and update price with: ATN-USD=ATN-USDC×USDC-USD
+	// reset the symbol with source symbol, and update price with: ATN-USD=ATN-USDC*USDC-USD / NTN-USD=NTN-USDC*USDC-USD
 	p.Symbol = srcSymbol
 	p.Price = p.Price.Mul(usdcPrice.Price)
 
