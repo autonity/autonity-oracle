@@ -43,6 +43,7 @@ type Price struct {
 	Timestamp int64 // TS on when the data is being sampled in time's seconds since Jan 1 1970 (Unix time).
 	Symbol    string
 	Price     decimal.Decimal
+	// todo: Jason, add confidence factor here. It is used to weight the price with confidence.
 }
 
 // PriceBySymbol group the price by symbols.

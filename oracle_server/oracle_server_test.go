@@ -51,7 +51,7 @@ func TestOracleServer(t *testing.T) {
 
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
-		require.Equal(t, config.DefaultSymbols, srv.symbols)
+		require.Equal(t, config.DefaultSymbols, srv.sampledSymbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromInt(precision.Int64())))
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
 		require.Equal(t, 1, len(srv.pluginSet))
@@ -202,15 +202,15 @@ func TestOracleServer(t *testing.T) {
 
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
-		require.Equal(t, config.DefaultSymbols, srv.symbols)
+		require.Equal(t, config.DefaultSymbols, srv.sampledSymbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromInt(precision.Int64())))
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
 		require.Equal(t, 1, len(srv.pluginSet))
 
 		nSymbols := append(config.DefaultSymbols, "NTNETH", "NTNBTC", "NTNCNY")
 		srv.handleNewSymbolsEvent(nSymbols)
-		require.Equal(t, len(nSymbols), len(srv.symbols))
-		require.Equal(t, nSymbols, srv.symbols)
+		require.Equal(t, len(nSymbols), len(srv.sampledSymbols))
+		require.Equal(t, nSymbols, srv.sampledSymbols)
 		srv.pluginSet["template_plugin"].Close()
 	})
 
@@ -230,7 +230,7 @@ func TestOracleServer(t *testing.T) {
 
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
-		require.Equal(t, config.DefaultSymbols, srv.symbols)
+		require.Equal(t, config.DefaultSymbols, srv.sampledSymbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromInt(precision.Int64())))
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
 		require.Equal(t, 1, len(srv.pluginSet))
@@ -269,7 +269,7 @@ func TestOracleServer(t *testing.T) {
 
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
-		require.Equal(t, config.DefaultSymbols, srv.symbols)
+		require.Equal(t, config.DefaultSymbols, srv.sampledSymbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromInt(precision.Int64())))
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
 		require.Equal(t, 1, len(srv.pluginSet))
