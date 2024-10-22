@@ -475,10 +475,30 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 	}
 
 	prices := make(types.PriceBySymbol)
-	for _, s := range os.protocolSymbols {
-		// todo: Jason, special case for ATN-USD, NTN-USD. As ATN-USD and NTN-USD will be computed from:
-		// ATN-USDC, NTN-USDC and USDC-USD.
 
+	usdcPrice, err := os.aggregatePrice("USDC-USD", int64(os.curSampleTS))
+	if err != nil {
+		os.logger.Error("aggregate USDC-USD price", "error", err.Error())
+	}
+
+	for _, s := range os.protocolSymbols {
+		// aggregate bridged symbols
+		if s == "ATN-USD" || s == "NTN-USD" {
+			// todo: Jason, if we don't have usdc price collected, shall we drop vote for ATN-USD & NTN-USD of this round?
+			if usdcPrice == nil {
+				continue
+			}
+
+			p, err := os.aggregateBridgedPrice(s, int64(os.curSampleTS), usdcPrice)
+			if err != nil {
+				os.logger.Error("aggregate bridged price", "error", err.Error(), "symbol", s)
+				continue
+			}
+			prices[s] = *p
+			continue
+		}
+
+		// aggregate none bridged symbols
 		p, err := os.aggregatePrice(s, int64(os.curSampleTS))
 		if err != nil {
 			os.logger.Debug("no data for aggregation", "reason", err.Error(), "symbol", s)
@@ -530,9 +550,33 @@ func (os *OracleServer) handleNewSymbolsEvent(symbols []string) {
 	os.UpdateSymbols(symbols)
 }
 
+// aggregateBridgedPrice ATN-USD or NTN-USD from bridged ATN-USDC or NTN-USDC with USDC-USD price,
+// it assumes the input usdcPrice is not nil.
+func (os *OracleServer) aggregateBridgedPrice(srcSymbol string, target int64, usdcPrice *types.Price) (*types.Price, error) {
+	var bridgedSymbol string
+	if srcSymbol == "ATN-USD" {
+		bridgedSymbol = "ATN-USDC"
+	}
+
+	if srcSymbol == "NTN-USD" {
+		bridgedSymbol = "NTN-USDC"
+	}
+
+	p, err := os.aggregatePrice(bridgedSymbol, target)
+	if err != nil {
+		os.logger.Error("aggregate bridged price", "error", err.Error(), "symbol", bridgedSymbol)
+		return nil, err
+	}
+
+	// reset the symbol with source symbol, and update price with: ATN-USD=ATN-USDC×USDC-USD
+	p.Symbol = srcSymbol
+	p.Price = p.Price.Mul(usdcPrice.Price)
+
+	return p, nil
+}
+
 func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, error) {
 	var prices []decimal.Decimal
-
 	for _, plugin := range os.pluginSet {
 		p, err := plugin.GetSample(s, target)
 		if err != nil {
