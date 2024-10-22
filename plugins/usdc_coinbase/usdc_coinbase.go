@@ -88,7 +88,7 @@ func (c *CoinBaseClient) FetchPrice(symbols []string) (common.Prices, error) {
 	for _, s := range symbols {
 		p, err := c.toPrice(s, &data)
 		if err != nil {
-			c.logger.Error("Error filling USDC-USD price data", "err", err.Error())
+			c.logger.Error("error filling USDC-USD price data", "err", err.Error())
 			continue
 		}
 		prices = append(prices, p)
