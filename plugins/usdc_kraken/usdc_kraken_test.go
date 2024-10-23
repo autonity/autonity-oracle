@@ -1,4 +1,4 @@
-package usdc_kraken
+package main
 
 import (
 	"github.com/stretchr/testify/require"

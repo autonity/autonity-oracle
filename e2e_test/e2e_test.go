@@ -367,12 +367,12 @@ func TestForexPluginsHappyCase(t *testing.T) {
 	testHappyCase(t, o, endRound, pricePrecision)
 }
 
-func TestCAXPluginsHappyCase(t *testing.T) {
+func TestCryptoPluginsHappyCase(t *testing.T) {
 	var conf = &NetworkConfig{
 		EnableL1Logs: false,
-		Symbols:      []string{"NTN-USDC", "ATN-USDC", "NTN-ATN"},
+		Symbols:      []string{"NTN-USD", "ATN-USD", "NTN-ATN"},
 		VotePeriod:   defaultVotePeriod,
-		PluginDIRs:   []string{caxPlugDir, caxPlugDir, caxPlugDir, caxPlugDir},
+		PluginDIRs:   []string{cryptoPlugDir, cryptoPlugDir, cryptoPlugDir, cryptoPlugDir},
 	}
 
 	net, err := createNetwork(conf)
@@ -393,8 +393,8 @@ func TestCAXPluginsHappyCase(t *testing.T) {
 	require.NoError(t, err)
 	defer subRoundEvent.Unsubscribe()
 
-	symbols := []string{"NTN-USDC", "ATN-USDC", "NTN-ATN"}
-	endRound := uint64(5)
+	symbols := []string{"NTN-USD", "ATN-USD", "NTN-ATN"}
+	endRound := uint64(10)
 
 	var prices []contract.IOracleRoundData
 

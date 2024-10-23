@@ -1,4 +1,4 @@
-package usdc_coinbase
+package main
 
 import (
 	"autonity-oracle/plugins/common"

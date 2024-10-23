@@ -1,4 +1,4 @@
-package usdc_coingecko
+package main
 
 import (
 	"autonity-oracle/plugins/common"
@@ -29,7 +29,7 @@ var defaultConfig = types.PluginConfig{
 	Scheme:             "https",
 	Endpoint:           "api.coingecko.com",
 	Timeout:            10, // 10s
-	DataUpdateInterval: 30, // 30s
+	DataUpdateInterval: 60, // 60s
 }
 
 type CoinData struct {

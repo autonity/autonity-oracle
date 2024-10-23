@@ -34,7 +34,7 @@ var (
 	defaultHost        = "127.0.0.1"
 	defaultPlugDir     = "./plugins/template_plugins"
 	forexPlugDir       = "./plugins/forex_plugins"
-	caxPlugDir         = "./plugins/pcgc_cax_plugins"
+	cryptoPlugDir      = "./plugins/crypto_plugins"
 	binancePlugDir     = "./plugins/production_plugins"
 	simulatorPlugDir   = "./plugins/simulator_plugins"
 	mixPluginDir       = "./plugins/mix_plugins"
