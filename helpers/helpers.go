@@ -48,6 +48,10 @@ func ResolveSimulatedPrice(s string) decimal.Decimal {
 		defaultPrice = pSEKUSD
 	case "ATN-USDC": //nolint
 		defaultPrice = pATNUSD
+	case "ATN-USD": //nolint
+		defaultPrice = pATNUSD
+	case "NTN-USD": //nolint
+		defaultPrice = pNTNUSD
 	case "NTN-USDC": //nolint
 		defaultPrice = pNTNUSD
 	}

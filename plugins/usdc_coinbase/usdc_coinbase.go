@@ -19,6 +19,7 @@ const (
 )
 
 var defaultConfig = types.PluginConfig{
+	Name:               "usdc_coinbase",
 	Key:                "",
 	Scheme:             "https",
 	Endpoint:           "api.coinbase.com",

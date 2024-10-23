@@ -26,6 +26,8 @@ var (
 	// BridgerSymbols are helper symbols to convert the ratio of ATN-USDC & NTN-USDC to the required symbols: ATN-USD, NTN-USD.
 	// They are always attached into the sampled symbols set which is used for data sampling.
 	BridgerSymbols = []string{"ATN-USDC", "NTN-USDC", "USDC-USD"}
+
+	DefaultSampledSymbols = []string{"AUD-USD", "CAD-USD", "EUR-USD", "GBP-USD", "JPY-USD", "SEK-USD", "ATN-USD", "NTN-USD", "NTN-ATN", "ATN-USDC", "NTN-USDC", "USDC-USD"}
 )
 
 const Version = "v0.1.9"

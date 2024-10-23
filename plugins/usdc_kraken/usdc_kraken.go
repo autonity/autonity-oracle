@@ -23,6 +23,7 @@ const (
 )
 
 var defaultConfig = types.PluginConfig{
+	Name:               "usdc_kraken",
 	Key:                "",
 	Scheme:             "https",
 	Endpoint:           "api.kraken.com",

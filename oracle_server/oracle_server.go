@@ -40,9 +40,9 @@ type OracleServer struct {
 	regularTicker *time.Ticker // the clock source to trigger the 10s interval job.
 	psTicker      *time.Ticker // the pre-sampling ticker in 1s.
 
-	pluginDIR      string                             // the dir saves the plugins.
-	pluginSet      map[string]*pWrapper.PluginWrapper // the plugin clients that connect with different adapters.
-	sampledSymbols []string                           // the symbols for data fetching in oracle service, can be different from the required protocol symbols.
+	pluginDIR       string                             // the dir saves the plugins.
+	pluginSet       map[string]*pWrapper.PluginWrapper // the plugin clients that connect with different adapters.
+	samplingSymbols []string                           // the symbols for data fetching in oracle service, can be different from the required protocol symbols.
 
 	keyRequiredPlugins map[string]struct{} // saving those plugins which require a key granted by data provider
 
@@ -138,6 +138,9 @@ func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, clien
 	return os
 }
 
+// syncStates is executed on client startup or after the L1 connection recovery to sync the on-chain oracle contract
+// states, symbols, round id, precision, vote period, etc... to the oracle server. It also subscribes the on-chain
+// events of oracle protocol: round event, symbol update event, etc...
 func (os *OracleServer) syncStates() error {
 	var err error
 	// get initial states from on-chain oracle contract.
@@ -148,8 +151,9 @@ func (os *OracleServer) syncStates() error {
 	}
 
 	os.logger.Info("syncStates", "CurrentRound", os.curRound, "Num of AvailableSymbols", len(os.protocolSymbols), "CurrentSymbols", os.protocolSymbols)
-	os.UpdateSymbols(os.protocolSymbols)
-	os.UpdateSymbols(config.BridgerSymbols)
+	os.AddNewSymbols(os.protocolSymbols)
+	os.logger.Info("syncStates", "CurrentRound", os.curRound, "Num of BridgerSymbols", len(config.BridgerSymbols), "BridgerSymbols", config.BridgerSymbols)
+	os.AddNewSymbols(config.BridgerSymbols)
 
 	// subscribe on-chain round rotation event
 	os.chRoundEvent = make(chan *contract.OracleNewRound)
@@ -316,7 +320,7 @@ func (os *OracleServer) handlePreSampling(preSampleTS int64) error {
 
 	// do the data pre-sampling.
 	os.logger.Debug("data pre-sampling", "on height", curHeight, "TS", preSampleTS)
-	os.samplePrice(os.sampledSymbols, preSampleTS)
+	os.samplePrice(os.samplingSymbols, preSampleTS)
 
 	return nil
 }
@@ -416,16 +420,16 @@ func (os *OracleServer) reportWithoutCommitment(lastRoundData *types.RoundData) 
 	return nil
 }
 
-// UpdateSymbols adds new symbols to the local symbol set for data fetching.
-func (os *OracleServer) UpdateSymbols(newSymbols []string) {
+// AddNewSymbols adds new symbols to the local symbol set for data fetching, duplicated one is not added.
+func (os *OracleServer) AddNewSymbols(newSymbols []string) {
 	var symbolsMap = make(map[string]struct{})
-	for _, s := range os.sampledSymbols {
+	for _, s := range os.samplingSymbols {
 		symbolsMap[s] = struct{}{}
 	}
 
 	for _, newS := range newSymbols {
 		if _, ok := symbolsMap[newS]; !ok {
-			os.sampledSymbols = append(os.sampledSymbols, newS)
+			os.samplingSymbols = append(os.samplingSymbols, newS)
 		}
 	}
 }
@@ -549,7 +553,7 @@ func (os *OracleServer) commitmentHash(roundData *types.RoundData, symbols []str
 
 func (os *OracleServer) handleNewSymbolsEvent(symbols []string) {
 	// just add symbols to oracle service's symbol pool, thus the oracle service can start to prepare the data.
-	os.UpdateSymbols(symbols)
+	os.AddNewSymbols(symbols)
 }
 
 // aggregateBridgedPrice ATN-USD or NTN-USD from bridged ATN-USDC or NTN-USDC with USDC-USD price,
@@ -667,8 +671,9 @@ func (os *OracleServer) Start() {
 			}
 			os.gcDataSamples()
 			// after vote finished, gc useless symbols by protocol required symbols.
-			os.sampledSymbols = os.protocolSymbols
-			os.UpdateSymbols(config.BridgerSymbols)
+			os.samplingSymbols = os.protocolSymbols
+			// attach the bridger symbols too once the sampling symbols is replaced by protocol symbols.
+			os.AddNewSymbols(config.BridgerSymbols)
 		case symbols := <-os.chSymbolsEvent:
 			os.logger.Info("handle new symbols", "new symbols", symbols.Symbols, "activate at round", symbols.Round)
 			os.handleNewSymbolsEvent(symbols.Symbols)
@@ -676,7 +681,7 @@ func (os *OracleServer) Start() {
 			// start the regular price sampling for oracle service on each 10s.
 			now := time.Now().Unix()
 			os.logger.Debug("regular 10s data sampling", "ts", now)
-			os.samplePrice(os.sampledSymbols, now)
+			os.samplePrice(os.samplingSymbols, now)
 			os.lastSampledTS = now
 			os.checkHealth()
 			os.PluginRuntimeDiscovery()

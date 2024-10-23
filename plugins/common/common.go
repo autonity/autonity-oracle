@@ -237,6 +237,10 @@ func ResolveConf(cmd string, defConf *types.PluginConfig) *types.PluginConfig {
 		conf.Key = defConf.Key
 	}
 
+	if len(conf.Name) == 0 {
+		conf.Name = defConf.Name
+	}
+
 	return conf
 }
 

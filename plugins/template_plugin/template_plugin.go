@@ -18,6 +18,7 @@ const (
 )
 
 var defaultConfig = types.PluginConfig{
+	Name:               "pluginBinaryName",
 	Key:                "",
 	Scheme:             "https",
 	Endpoint:           "127.0.0.1:8080",
