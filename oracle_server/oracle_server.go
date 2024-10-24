@@ -33,6 +33,14 @@ var (
 	AlertBalance     = new(big.Int).SetUint64(2000000000000) // 2000 Gwei, 0.000002 Ether
 )
 
+const (
+	ATNUSD  = "ATN-USD"
+	NTNUSD  = "NTN-USD"
+	USDCUSD = "USDC-USD"
+	ATNUSDC = "ATN-USDC"
+	NTNUSDC = "NTN-USDC"
+)
+
 // OracleServer coordinates the plugin discovery, the data sampling, and do the health checking with L1 connectivity.
 type OracleServer struct {
 	logger        hclog.Logger
@@ -480,24 +488,21 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 
 	prices := make(types.PriceBySymbol)
 
-	usdcPrice, err := os.aggregatePrice("USDC-USD", int64(os.curSampleTS))
+	usdcPrice, err := os.aggregatePrice(USDCUSD, int64(os.curSampleTS))
 	if err != nil {
 		os.logger.Error("aggregate USDC-USD price", "error", err.Error())
 	}
 
 	for _, s := range os.protocolSymbols {
 		// aggregate bridged symbols
-		if s == "ATN-USD" || s == "NTN-USD" {
-			// todo: Jason, if we don't have usdc price collected,
-			//  shall we drop vote for ATN-USD & NTN-USD of this round
-			//  or we use the price of ATN-USDC, NTN-USDC as the price of ATN-USD, NTN-USD?
+		if s == ATNUSD || s == NTNUSD {
 			if usdcPrice == nil {
 				continue
 			}
 
-			p, err := os.aggregateBridgedPrice(s, int64(os.curSampleTS), usdcPrice)
-			if err != nil {
-				os.logger.Error("aggregate bridged price", "error", err.Error(), "symbol", s)
+			p, e := os.aggregateBridgedPrice(s, int64(os.curSampleTS), usdcPrice)
+			if e != nil {
+				os.logger.Error("aggregate bridged price", "error", e.Error(), "symbol", s)
 				continue
 			}
 			prices[s] = *p
@@ -505,9 +510,9 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 		}
 
 		// aggregate none bridged symbols
-		p, err := os.aggregatePrice(s, int64(os.curSampleTS))
-		if err != nil {
-			os.logger.Debug("no data for aggregation", "reason", err.Error(), "symbol", s)
+		p, e := os.aggregatePrice(s, int64(os.curSampleTS))
+		if e != nil {
+			os.logger.Debug("no data for aggregation", "reason", e.Error(), "symbol", s)
 			continue
 		}
 		prices[s] = *p
@@ -560,12 +565,12 @@ func (os *OracleServer) handleNewSymbolsEvent(symbols []string) {
 // it assumes the input usdcPrice is not nil.
 func (os *OracleServer) aggregateBridgedPrice(srcSymbol string, target int64, usdcPrice *types.Price) (*types.Price, error) {
 	var bridgedSymbol string
-	if srcSymbol == "ATN-USD" {
-		bridgedSymbol = "ATN-USDC"
+	if srcSymbol == ATNUSD {
+		bridgedSymbol = ATNUSDC
 	}
 
-	if srcSymbol == "NTN-USD" {
-		bridgedSymbol = "NTN-USDC"
+	if srcSymbol == NTNUSD {
+		bridgedSymbol = NTNUSDC
 	}
 
 	p, err := os.aggregatePrice(bridgedSymbol, target)

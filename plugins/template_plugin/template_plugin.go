@@ -255,6 +255,7 @@ func (tc *TemplateClient) AvailableSymbols() ([]string, error) {
 		}*/
 	// in this template, we just return the simulated symbols inside this plugin.
 	res := append(common.DefaultForexSymbols, common.DefaultCryptoSymbols...)
+	res = append(res, common.DefaultUSDCSymbols...)
 	return res, nil
 }
 

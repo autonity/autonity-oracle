@@ -14,14 +14,15 @@ import (
 )
 
 var (
-	pEURUSD = decimal.RequireFromString("1.086")
-	pJPYUSD = decimal.RequireFromString("0.0073")
-	pGBPUSD = decimal.RequireFromString("1.25")
-	pAUDUSD = decimal.RequireFromString("0.67")
-	pCADUSD = decimal.RequireFromString("0.74")
-	pSEKUSD = decimal.RequireFromString("0.096")
-	pATNUSD = decimal.RequireFromString("1.0")
-	pNTNUSD = decimal.RequireFromString("10.0")
+	pEURUSD  = decimal.RequireFromString("1.086")
+	pJPYUSD  = decimal.RequireFromString("0.0073")
+	pGBPUSD  = decimal.RequireFromString("1.25")
+	pAUDUSD  = decimal.RequireFromString("0.67")
+	pCADUSD  = decimal.RequireFromString("0.74")
+	pSEKUSD  = decimal.RequireFromString("0.096")
+	pATNUSD  = decimal.RequireFromString("1.0")
+	pUSDCUSD = decimal.RequireFromString("1.0")
+	pNTNUSD  = decimal.RequireFromString("10.0")
 )
 
 func PrintUsage() {
@@ -54,6 +55,8 @@ func ResolveSimulatedPrice(s string) decimal.Decimal {
 		defaultPrice = pNTNUSD
 	case "NTN-USDC": //nolint
 		defaultPrice = pNTNUSD
+	case "USDC-USD":
+		defaultPrice = pUSDCUSD
 	}
 	return defaultPrice
 }
