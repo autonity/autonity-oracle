@@ -124,7 +124,7 @@ The configuration of plugins are assembled in a yaml file:
 #
 # The crypto data plugins are used to fetch realtime rate of crypto currency pairs: ATN-USDC, NTN-USDC, NTN-ATN and
 # USDC-USD. USDC liquidity is bridged to the Autonity public testnet from the Polygon Amoy testnet via a bridge service. USDC is used as the quote currency for ATN-USDC and NTN-USDC markets which provides
-# open and free data access for the pcgc_cax plugin, the NTN-ATN price is computed by pcgc_cax plugin from the price
+# open and free data access for the `testnet_dax plugin`, the NTN-ATN price is computed by `testnet_dax plugin` from the price
 # of ATN-USDC and NTN-USDC. So put the pcgc_cax plugin in your plugin directory, thus oracle server can discovery and
 # load it, otherwise your oracle node will be slashed. You don't need config the pcgc_cax plugin, as it use open and
 # free data source.
