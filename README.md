@@ -132,7 +132,7 @@ The configuration of plugins are assembled in a yaml file:
 # USDC-USD prices are required by the protocol to convert the ATN-USDC and NTN-USDC to ATN-USD and
 # NTN-USD. This enables the reporting of ATN and NTN prices in USD to the ASM. To enable this, 3 plugins are implemented to source the USDC-USD datapoint from open and free data sources: coinbase,
 # coingecko, and kraken. To prevent single data source failure, putting all 3 usdc plugins into your
-# plugin directory, thus oracle server can discovery and load them, otherwise your oracle node might be slashed due to
+# plugin directory is recommended. Oracle server can then discover and load them.
 # missing of data report. You don't need to config the usdc plugins as well.
 
 # For the forex data plugin default configuration is set, so the end user just needs to configure required settings,
