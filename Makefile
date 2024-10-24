@@ -15,7 +15,7 @@ E2E_TEST_PRD_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/production_plugins
 E2E_TEST_SML_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/simulator_plugins
 E2E_TEST_MIX_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/mix_plugins
 E2E_TEST_FOREX_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/forex_plugins
-E2E_TEST_CAX_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/crypto_plugins
+E2E_TEST_CRYPTO_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/crypto_plugins
 SOLC_BINARY = $(BIN_DIR)/solc_static_linux_v$(SOLC_VERSION)
 PLUGIN_DIR = ./build/bin/plugins
 SIMULATOR_BIN_DIR = ./data_source_simulator/build/bin
@@ -38,7 +38,7 @@ mkdir:
 	mkdir -p $(E2E_TEST_SML_PLUGIN_DIR)
 	mkdir -p $(E2E_TEST_MIX_PLUGIN_DIR)
 	mkdir -p $(E2E_TEST_FOREX_PLUGIN_DIR)
-	mkdir -p $(E2E_TEST_CAX_PLUGIN_DIR)
+	mkdir -p $(E2E_TEST_CRYPTO_PLUGIN_DIR)
 
 oracle-server:
     # build oracle client
@@ -77,9 +77,9 @@ e2e-test-stuffs:
 	cp $(PLUGIN_DIR)/forex_openexchange $(E2E_TEST_FOREX_PLUGIN_DIR)/forex_openexchange
 
 	# cp usdc plugins for e2e testing
-	cp $(PLUGIN_DIR)/usdc_coinbase $(E2E_TEST_CAX_PLUGIN_DIR)/usdc_coinbase
-	cp $(PLUGIN_DIR)/usdc_coingecko $(E2E_TEST_CAX_PLUGIN_DIR)/usdc_coingecko
-	cp $(PLUGIN_DIR)/usdc_kraken $(E2E_TEST_CAX_PLUGIN_DIR)/usdc_kraken
+	cp $(PLUGIN_DIR)/usdc_coinbase $(E2E_TEST_CRYPTO_PLUGIN_DIR)/usdc_coinbase
+	cp $(PLUGIN_DIR)/usdc_coingecko $(E2E_TEST_CRYPTO_PLUGIN_DIR)/usdc_coingecko
+	cp $(PLUGIN_DIR)/usdc_kraken $(E2E_TEST_CRYPTO_PLUGIN_DIR)/usdc_kraken
 
     # build simulator plugin
 	go build -o $(E2E_TEST_SML_PLUGIN_DIR)/sim_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go
@@ -104,7 +104,7 @@ piccadilly-cax-plugin:
 	go build -o $(PLUGIN_DIR)/pcgc_cax $(PLUGIN_SRC_DIR)/pcgc_cax/
 	chmod +x $(PLUGIN_DIR)/pcgc_cax
 	# cp autonity round4 game PCGC CAX plugins for e2e testing
-	cp $(PLUGIN_DIR)/pcgc_cax $(E2E_TEST_CAX_PLUGIN_DIR)/pcgc_cax
+	cp $(PLUGIN_DIR)/pcgc_cax $(E2E_TEST_CRYPTO_PLUGIN_DIR)/pcgc_cax
 
 bakerloo-simulator:
 	go build -o $(SIMULATOR_BIN_DIR)/simulator $(SIMULATOR_SRC_DIR)/main.go
