@@ -28,6 +28,7 @@ var routers = "api/orderbooks"
 var defaultEndpoint = "cax.piccadilly.autonity.org"
 
 var defaultConfig = types.PluginConfig{
+	Name:               "pcgc_cax",
 	Key:                "",
 	Scheme:             "https",
 	Endpoint:           defaultEndpoint,

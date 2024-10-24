@@ -18,6 +18,7 @@ const (
 )
 
 var defaultConfig = types.PluginConfig{
+	Name:               "simulator_plugin",
 	Key:                "",
 	Scheme:             "https",
 	Endpoint:           "simfeed.bakerloo.autonity.org",

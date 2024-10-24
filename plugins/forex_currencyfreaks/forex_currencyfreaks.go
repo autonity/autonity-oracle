@@ -21,6 +21,7 @@ const (
 )
 
 var defaultConfig = types.PluginConfig{
+	Name:               "forex_currencyfreaks",
 	Key:                "",
 	Scheme:             "https",
 	Endpoint:           "api.currencyfreaks.com",

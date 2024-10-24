@@ -117,18 +117,26 @@ The configuration of plugins are assembled in a yaml file:
 
 ```yaml
 # The forex data plugins are used to fetch realtime rate of currency pairs:
-# EUR-USD, JPY-USD, GBP-USD, AUD-USD, CAD-USD and SEK-USD from commercial data providers.
-# There are 4 implemented forex data plugins, each of them requires the end user to apply for their own service key from
-# the selected data provider. The selection of the forex data plugin is on demand by the end user. The user can use anyone
-# of them, or he/she can use multiple forex data plugins in the setup.
+# EUR-USD, JPY-USD, GBP-USD, AUD-USD, CAD-USD and SEK-USD from commercial data providers. There are 4 implemented forex
+# data plugins, each of them requires the end user to apply for their own service key from the selected data provider.
+# The selection of which forex data plugin(s) to use is for the end user to decide. The user can use any one of them,
+# or he/she can use multiple forex data plugins in the setup.
 #
-# The crypto data plugins are used to fetch realtime rate of crypto currency pairs:
-# ATN-USDC, NTN-USDC, NTN-ATN from exchanges. For the Autonity Piccadilly Circus Games Competition Round 6 game, the data provider of these pairs is a simulated
-# exchange that people can trade ATN and NTN in markets created by it. No configuration is required for
-# the plugin named pcgc_cax that fetches data for these crypto currency pairs from this exchange as the default configuration is set in the plugin.
+# The crypto data plugins are used to fetch realtime rate of crypto currency pairs: ATN-USDC, NTN-USDC, NTN-ATN and
+# USDC-USD. USDC liquidity is bridged to the Autonity public testnet from the Polygon Amoy testnet via a bridge service. USDC is used as the quote currency for ATN-USDC and NTN-USDC markets which provides
+# open and free data access for the `testnet_dax plugin`, the NTN-ATN price is computed by `testnet_dax plugin` from the price
+# of ATN-USDC and NTN-USDC. To retrieve ATN and NTN prices, put the `testnet_dax plugin` in your plugin directory. Oracle server can then discover and
+# load it. Configuring the `testnet_dax` plugin does not require an API key; it is an open and
+# free data source.
 
-# For the forex data plugin, default
-# configuration is set, so the end user just needs to configure required settings, namely `name` and `key`. The configuration settings of a plugin are:
+# USDC-USD prices are required by the protocol to convert the ATN-USDC and NTN-USDC to ATN-USD and
+# NTN-USD. This enables the reporting of ATN and NTN prices in USD to the ASM. To enable this, 3 plugins are implemented to source the USDC-USD datapoint from open and free data sources: coinbase,
+# coingecko, and kraken. To prevent single data source failure, putting all 3 usdc plugins into your
+# plugin directory is recommended. Oracle server can then discover and load them.
+# You don't need to configure the usdc plugins in your oracle server plugin configuration file.
+
+# For the forex data plugin default configuration is set, so the end user just needs to configure required settings,
+# namely `name` and `key`. The configuration settings of a plugin are:
 #
 # type PluginConfig struct {
 #	Name               string `json:"name" yaml:"name"`         // the name of the plugin binary, it is required.
@@ -139,28 +147,32 @@ The configuration of plugins are assembled in a yaml file:
 #	DataUpdateInterval int    `json:"refresh" yaml:"refresh"`   // the interval in seconds to fetch data due to the rate limit from the provider.
 #}
 
-# As an example, to set the configuration of the plugin `forex_currencyfreaks`, only the required field are needed,
+# As an example, to set the configuration of the plugin `forex_currencyfreaks`, only the required field are needed
 # however you can configure the optional fields on demand to fit your service quality from the rate provider.
 #  - name: forex_currencyfreaks              # required, it is the plugin file name in the plugin directory.
-#    key: 575aab9e47e54790bf6d502c48407c10   # required, visit https://currencyfreaks.com to get your key, and replace it.
+#    key: 175aab9e47e54790bf6d502c48407c10   # required, visit https://currencyfreaks.com to get your key, and replace it.
 #    scheme: https                           # optional, https or http, default value is https.
 #    endpoint: api.currencyfreaks.com        # optional, default value is api.currencyfreaks.com
 #    timeout: 10                             # optional, default value is 10.
-#    refresh: 30                             # optional, default value is 30, that is 30 seconds to fetch data from data source.
+#    refresh: 3600                           # optional, default value is 30, that is 30s to fetch data from data source.
 
-# Un-comment below lines to enable your forex data plugin's configuration on demand. Your production configurations starts from below:
+# Un-comment below lines to enable your forex data plugin's configuration on demand. Your production configurations start from below:
 
 #  - name: forex_currencyfreaks              # required, it is the plugin file name in the plugin directory.
-#    key: 575aab9e47e54790bf6d502c48407c10   # required, visit https://currencyfreaks.com to get your key, and replace it.
+#    key: 175aab9e47e54790bf6d502c48407c10   # required, visit https://currencyfreaks.com to get your key, and replace it.
+#    refresh: 3600                           # optional, buffered data within 3600s, recommended for API rate limited data source.
 
-#  - name: forex_openexchangerate            # required, it is the plugin file name in the plugin directory.
-#    key: 0be02ca33c4843ee968c4cedd2686f01   # required, visit https://openexchangerates.org to get your key, and replace it.
+#  - name: forex_openexchange                # required, it is the plugin file name in the plugin directory.
+#    key: 1be02ca33c4843ee968c4cedd2686f01   # required, visit https://openexchangerates.org to get your key, and replace it.
+#    refresh: 3600                           # optional, buffered data within 3600s, recommended for API rate limited data source.
 
 #  - name: forex_currencylayer               # required, it is the plugin file name in the plugin directory.
-#    key: 705af082ac7f7d150c87303d4e2f049e   # required, visit https://currencylayer.com  to get your key, and replace it.
+#    key: 105af082ac7f7d150c87303d4e2f049e   # required, visit https://currencylayer.com  to get your key, and replace it.
+#    refresh: 3600                           # optional, buffered data within 3600s, recommended for API rate limited data source.
 
 #  - name: forex_exchangerate                # required, it is the plugin file name in the plugin directory.
-#    key: 411f04e4775bb86c20296530           # required, visit https://www.exchangerate-api.com to get your key, and replace it.
+#    key: 111f04e4775bb86c20296530           # required, visit https://www.exchangerate-api.com to get your key, and replace it.
+#    refresh: 3600                           # optional, buffered data within 3600s, recommended for API rate limited data source.
 
 ```
 

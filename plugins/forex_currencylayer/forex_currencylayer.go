@@ -21,6 +21,7 @@ const (
 )
 
 var defaultConfig = types.PluginConfig{
+	Name:               "forex_currencylayer",
 	Key:                "",
 	Scheme:             "http", // todo: replace the scheme with https once we purchase the service plan.
 	Endpoint:           "api.currencylayer.com",

@@ -2,7 +2,7 @@
 # with Go source code. If you know what GOPATH is then you probably
 # don't need to bother with make.
 
-.PHONY: mkdir oracle-server conf-file e2e-test-stuffs forex-plugins autoracle test e2e_test clean lint dep all
+.PHONY: mkdir oracle-server conf-file e2e-test-stuffs forex-plugins usdc-plugins autoracle test e2e_test clean lint dep all
 
 SOLC_VERSION = 0.8.2
 BIN_DIR = ./build/bin
@@ -15,7 +15,7 @@ E2E_TEST_PRD_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/production_plugins
 E2E_TEST_SML_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/simulator_plugins
 E2E_TEST_MIX_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/mix_plugins
 E2E_TEST_FOREX_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/forex_plugins
-E2E_TEST_CAX_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/pcgc_cax_plugins
+E2E_TEST_CRYPTO_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/crypto_plugins
 SOLC_BINARY = $(BIN_DIR)/solc_static_linux_v$(SOLC_VERSION)
 PLUGIN_DIR = ./build/bin/plugins
 SIMULATOR_BIN_DIR = ./data_source_simulator/build/bin
@@ -38,7 +38,7 @@ mkdir:
 	mkdir -p $(E2E_TEST_SML_PLUGIN_DIR)
 	mkdir -p $(E2E_TEST_MIX_PLUGIN_DIR)
 	mkdir -p $(E2E_TEST_FOREX_PLUGIN_DIR)
-	mkdir -p $(E2E_TEST_CAX_PLUGIN_DIR)
+	mkdir -p $(E2E_TEST_CRYPTO_PLUGIN_DIR)
 
 oracle-server:
     # build oracle client
@@ -76,6 +76,11 @@ e2e-test-stuffs:
 	cp $(PLUGIN_DIR)/forex_exchangerate $(E2E_TEST_FOREX_PLUGIN_DIR)/forex_exchangerate
 	cp $(PLUGIN_DIR)/forex_openexchange $(E2E_TEST_FOREX_PLUGIN_DIR)/forex_openexchange
 
+	# cp usdc plugins for e2e testing
+	cp $(PLUGIN_DIR)/usdc_coinbase $(E2E_TEST_CRYPTO_PLUGIN_DIR)/usdc_coinbase
+	cp $(PLUGIN_DIR)/usdc_coingecko $(E2E_TEST_CRYPTO_PLUGIN_DIR)/usdc_coingecko
+	cp $(PLUGIN_DIR)/usdc_kraken $(E2E_TEST_CRYPTO_PLUGIN_DIR)/usdc_kraken
+
     # build simulator plugin
 	go build -o $(E2E_TEST_SML_PLUGIN_DIR)/sim_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go
 	chmod +x $(E2E_TEST_SML_PLUGIN_DIR)/sim_plugin
@@ -89,11 +94,17 @@ forex-plugins:
 	go build -o $(PLUGIN_DIR)/forex_openexchange $(PLUGIN_SRC_DIR)/forex_openexchange/forex_openexchange.go
 	chmod +x $(PLUGIN_DIR)/*
 
+usdc-plugins:
+	go build -o $(PLUGIN_DIR)/usdc_coinbase $(PLUGIN_SRC_DIR)/usdc_coinbase/usdc_coinbase.go
+	go build -o $(PLUGIN_DIR)/usdc_coingecko $(PLUGIN_SRC_DIR)/usdc_coingecko/usdc_coingecko.go
+	go build -o $(PLUGIN_DIR)/usdc_kraken $(PLUGIN_SRC_DIR)/usdc_kraken/usdc_kraken.go
+	chmod +x $(PLUGIN_DIR)/*
+
 piccadilly-cax-plugin:
 	go build -o $(PLUGIN_DIR)/pcgc_cax $(PLUGIN_SRC_DIR)/pcgc_cax/
 	chmod +x $(PLUGIN_DIR)/pcgc_cax
 	# cp autonity round4 game PCGC CAX plugins for e2e testing
-	cp $(PLUGIN_DIR)/pcgc_cax $(E2E_TEST_CAX_PLUGIN_DIR)/pcgc_cax
+	cp $(PLUGIN_DIR)/pcgc_cax $(E2E_TEST_CRYPTO_PLUGIN_DIR)/pcgc_cax
 
 bakerloo-simulator:
 	go build -o $(SIMULATOR_BIN_DIR)/simulator $(SIMULATOR_SRC_DIR)/main.go
@@ -107,7 +118,7 @@ autoracle-bakerloo: mkdir oracle-server forex-plugins bakerloo-simulator bakerlo
 	@echo "Done building for bakerloo network."
 	@echo "Run \"$(BIN_DIR)/autoracle\" to launch autonity oracle."
 
-autoracle: mkdir oracle-server forex-plugins piccadilly-cax-plugin conf-file e2e-test-stuffs
+autoracle: mkdir oracle-server forex-plugins piccadilly-cax-plugin usdc-plugins conf-file e2e-test-stuffs
 	@echo "Done building for piccadilly network."
 	@echo "Run \"$(BIN_DIR)/autoracle\" to launch autonity oracle."
 
