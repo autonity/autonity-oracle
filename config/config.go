@@ -9,6 +9,7 @@ import (
 	"github.com/namsral/flag"
 	"gopkg.in/yaml.v2"
 	"log"
+	"math"
 	"os"
 	"strconv"
 )
@@ -32,6 +33,9 @@ var (
 )
 
 const Version uint8 = 19
+const MaxConfidence = 100
+const BaseConfidence = 40
+const SourceScalingFactor = 10
 const UsageOracleKey = "Set the oracle server key file path."
 const UsagePluginConf = "Set the plugin's configuration file path."
 const UsageOracleConf = "Set the oracle server configuration file path."
@@ -171,4 +175,20 @@ func FormatVersion(version uint8) string {
 	minor := (version / 10) % 10
 	patch := version % 10
 	return fmt.Sprintf("v%d.%d.%d", major, minor, patch)
+}
+
+// ComputeConfidence calculates the confidence weight based on the number of sources and a scaling factor.
+func ComputeConfidence(numSources int) uint8 {
+	if numSources == 0 {
+		return 0
+	}
+
+	// Use an exponential formula to compute weight
+	weight := BaseConfidence + SourceScalingFactor*uint64(math.Pow(1.75, float64(numSources)))
+
+	if weight > MaxConfidence {
+		weight = MaxConfidence
+	}
+
+	return uint8(weight)
 }

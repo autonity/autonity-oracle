@@ -579,10 +579,11 @@ func (os *OracleServer) aggregateBridgedPrice(srcSymbol string, target int64, us
 		return nil, err
 	}
 
-	// reset the symbol with source symbol, and update price with: ATN-USD=ATN-USDC*USDC-USD / NTN-USD=NTN-USDC*USDC-USD
+	// reset the symbol with source symbol,
+	// and update price with: ATN-USD=ATN-USDC*USDC-USD / NTN-USD=NTN-USDC*USDC-USD
+	// the confidence of ATN-USD and NTN-USD are inherit from ATN-USDC and NTN-USDC.
 	p.Symbol = srcSymbol
 	p.Price = p.Price.Mul(usdcPrice.Price)
-
 	return p, nil
 }
 
@@ -600,10 +601,14 @@ func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, er
 		return nil, types.ErrNoDataRound
 	}
 
+	// compute confidence of the symbol from the num of plugins' samples of it.
+	confidence := config.ComputeConfidence(len(prices))
+
 	price := &types.Price{
-		Timestamp: target,
-		Price:     prices[0],
-		Symbol:    s,
+		Timestamp:  target,
+		Price:      prices[0],
+		Symbol:     s,
+		Confidence: confidence,
 	}
 
 	// we have multiple provider provide prices for this symbol, we have to aggregate it.

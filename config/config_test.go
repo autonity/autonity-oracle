@@ -59,3 +59,11 @@ func TestFormatVersion(t *testing.T) {
 	require.Equal(t, "v1.2.5", FormatVersion(125))
 	require.Equal(t, "v2.5.5", FormatVersion(255))
 }
+
+func TestComputeConfidence(t *testing.T) {
+
+	for i := 1; i <= 4; i++ {
+		confidence := ComputeConfidence(i)
+		t.Log(confidence)
+	}
+}
