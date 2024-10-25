@@ -3,6 +3,7 @@ package config
 import (
 	"autonity-oracle/helpers"
 	"autonity-oracle/types"
+	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/hashicorp/go-hclog"
 	"github.com/namsral/flag"
@@ -30,7 +31,7 @@ var (
 	DefaultSampledSymbols = []string{"AUD-USD", "CAD-USD", "EUR-USD", "GBP-USD", "JPY-USD", "SEK-USD", "ATN-USD", "NTN-USD", "NTN-ATN", "ATN-USDC", "NTN-USDC", "USDC-USD"}
 )
 
-const Version = "v0.1.9"
+const Version uint8 = 19
 const UsageOracleKey = "Set the oracle server key file path."
 const UsagePluginConf = "Set the plugin's configuration file path."
 const UsageOracleConf = "Set the oracle server configuration file path."
@@ -62,7 +63,7 @@ func MakeConfig() *types.OracleServiceConfig {
 	flag.Parse()
 	if len(flag.Args()) == 1 && flag.Args()[0] == "version" {
 		log.SetFlags(0)
-		log.Println(Version)
+		log.Println(FormatVersion(Version))
 		os.Exit(0)
 	}
 
@@ -163,4 +164,11 @@ func LoadPluginsConfig(file string) (map[string]types.PluginConfig, error) {
 	}
 
 	return confs, nil
+}
+
+func FormatVersion(version uint8) string {
+	major := version / 100
+	minor := (version / 10) % 10
+	patch := version % 10
+	return fmt.Sprintf("v%d.%d.%d", major, minor, patch)
 }

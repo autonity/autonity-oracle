@@ -40,9 +40,10 @@ const MaxBufferedRounds = 10
 
 // Price is the structure contains the exchange rate of a symbol with a timestamp at which the sampling happens.
 type Price struct {
-	Timestamp int64 // TS on when the data is being sampled in time's seconds since Jan 1 1970 (Unix time).
-	Symbol    string
-	Price     decimal.Decimal
+	Timestamp  int64 // TS on when the data is being sampled in time's seconds since Jan 1 1970 (Unix time).
+	Symbol     string
+	Price      decimal.Decimal
+	Confidence uint8 // to be resolved on the aggregation phase, depends on how many data samples.
 }
 
 // PriceBySymbol group the price by symbols.

@@ -48,3 +48,14 @@ func TestMakeConfigWithEnvironmentVariables(t *testing.T) {
 		require.Equal(t, "./plugin-conf.yml", conf.PluginConfFile)
 	})
 }
+
+func TestFormatVersion(t *testing.T) {
+	require.Equal(t, "v0.0.0", FormatVersion(0))
+	require.Equal(t, "v0.0.1", FormatVersion(1))
+	require.Equal(t, "v0.0.9", FormatVersion(9))
+	require.Equal(t, "v0.1.0", FormatVersion(10))
+	require.Equal(t, "v0.1.9", FormatVersion(19))
+	require.Equal(t, "v0.2.0", FormatVersion(20))
+	require.Equal(t, "v1.2.5", FormatVersion(125))
+	require.Equal(t, "v2.5.5", FormatVersion(255))
+}
