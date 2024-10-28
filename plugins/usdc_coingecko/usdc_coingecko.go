@@ -28,8 +28,8 @@ var defaultConfig = types.PluginConfig{
 	Key:                "",
 	Scheme:             "https",
 	Endpoint:           "api.coingecko.com",
-	Timeout:            10,  // 10s
-	DataUpdateInterval: 120, // 120s
+	Timeout:            10, // 10s
+	DataUpdateInterval: 30, // 30s, tested and passed the rate limit policy of public data service of coin-gecko.
 }
 
 type CoinData struct {

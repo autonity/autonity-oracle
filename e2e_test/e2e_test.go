@@ -28,7 +28,7 @@ func TestHappyCase(t *testing.T) {
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir},
 	}
-	network, err := createNetwork(netConf)
+	network, err := createNetwork(netConf, numberOfValidators)
 	require.NoError(t, err)
 	defer network.Stop()
 
@@ -56,7 +56,7 @@ func TestLostL1Connectivity(t *testing.T) {
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir},
 	}
-	network, err := createNetwork(netConf)
+	network, err := createNetwork(netConf, numberOfValidators)
 	require.NoError(t, err)
 	defer network.Stop()
 
@@ -81,7 +81,7 @@ func TestAddNewSymbol(t *testing.T) {
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir},
 	}
-	network, err := createNetwork(netConf)
+	network, err := createNetwork(netConf, numberOfValidators)
 	require.NoError(t, err)
 	defer network.Stop()
 
@@ -109,7 +109,7 @@ func TestRMSymbol(t *testing.T) {
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir},
 	}
-	network, err := createNetwork(netConf)
+	network, err := createNetwork(netConf, numberOfValidators)
 	require.NoError(t, err)
 	defer network.Stop()
 
@@ -137,7 +137,7 @@ func TestRMCommitteeMember(t *testing.T) {
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir},
 	}
-	network, err := createNetwork(netConf)
+	network, err := createNetwork(netConf, numberOfValidators)
 	require.NoError(t, err)
 	defer network.Stop()
 
@@ -169,7 +169,7 @@ func TestAddCommitteeMember(t *testing.T) {
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir},
 	}
-	network, err := createNetwork(netConf)
+	network, err := createNetwork(netConf, numberOfValidators)
 	require.NoError(t, err)
 	defer network.Stop()
 
@@ -201,7 +201,7 @@ func TestHappyCaseWithBinanceDataService(t *testing.T) {
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{binancePlugDir, binancePlugDir, binancePlugDir, binancePlugDir},
 	}
-	network, err := createNetwork(netConf)
+	network, err := createNetwork(netConf, numberOfValidators)
 	require.NoError(t, err)
 	defer network.Stop()
 
@@ -225,7 +225,7 @@ func TestFeeRefund(t *testing.T) {
 		VotePeriod:   20,
 		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir},
 	}
-	network, err := createNetwork(netConf)
+	network, err := createNetwork(netConf, numberOfValidators)
 	require.NoError(t, err)
 	defer network.Stop()
 
@@ -268,7 +268,7 @@ func TestWithBinanceSimulatorOff(t *testing.T) {
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{simulatorPlugDir, mixPluginDir, mixPluginDir, mixPluginDir},
 	}
-	network, err := createNetwork(netConf)
+	network, err := createNetwork(netConf, numberOfValidators)
 	require.NoError(t, err)
 	defer network.Stop()
 
@@ -312,7 +312,7 @@ func TestWithBinanceSimulatorTimeout(t *testing.T) {
 		PluginDIRs:      []string{simulatorPlugDir, mixPluginDir, mixPluginDir, mixPluginDir},
 		SimulateTimeout: 10,
 	}
-	network, err := createNetwork(netConf)
+	network, err := createNetwork(netConf, numberOfValidators)
 	require.NoError(t, err)
 	defer network.Stop()
 
@@ -346,7 +346,7 @@ func TestForexPluginsHappyCase(t *testing.T) {
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{forexPlugDir, forexPlugDir, forexPlugDir, forexPlugDir},
 	}
-	network, err := createNetwork(netConf)
+	network, err := createNetwork(netConf, numberOfValidators)
 	require.NoError(t, err)
 	defer network.Stop()
 
@@ -375,7 +375,7 @@ func TestCryptoPluginsHappyCase(t *testing.T) {
 		PluginDIRs:   []string{cryptoPlugDir, cryptoPlugDir, cryptoPlugDir, cryptoPlugDir},
 	}
 
-	net, err := createNetwork(conf)
+	net, err := createNetwork(conf, numberOfValidators)
 	require.NoError(t, err)
 	defer net.Stop()
 
@@ -395,6 +395,69 @@ func TestCryptoPluginsHappyCase(t *testing.T) {
 
 	symbols := []string{"NTN-USD", "ATN-USD", "NTN-ATN"}
 	endRound := uint64(10)
+
+	var prices []contract.IOracleRoundData
+
+	for {
+		select {
+		case rEvent := <-chRoundEvent:
+			if rEvent.Round.Uint64() <= 3 {
+				continue
+			}
+
+			if rEvent.Round.Uint64() > endRound {
+				return
+			}
+
+			lastRound := new(big.Int).SetUint64(rEvent.Round.Uint64() - 1)
+
+			for _, s := range symbols {
+				p, err := o.GetRoundData(nil, lastRound, s)
+				require.NoError(t, err)
+				prices = append(prices, p)
+			}
+
+			hasBadValue := false
+			for _, p := range prices {
+				if !p.Success || p.Price.Uint64() == 0 {
+					hasBadValue = true
+				}
+			}
+			if !hasBadValue {
+				break
+			}
+		}
+	}
+}
+
+func TestSingleNodeCryptoPluginsHappyCase(t *testing.T) {
+	var conf = &NetworkConfig{
+		EnableL1Logs: false,
+		Symbols:      []string{"NTN-USD", "ATN-USD", "NTN-ATN"},
+		VotePeriod:   defaultVotePeriod,
+		PluginDIRs:   []string{cryptoPlugDir, cryptoPlugDir, cryptoPlugDir, cryptoPlugDir},
+	}
+
+	net, err := createNetwork(conf, 1)
+	require.NoError(t, err)
+	defer net.Stop()
+
+	client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d", net.L1Nodes[0].Host, net.L1Nodes[0].WSPort))
+	require.NoError(t, err)
+	defer client.Close()
+
+	// bind client with oracle contract address
+	o, err := contract.NewOracle(types.OracleContractAddress, client)
+	require.NoError(t, err)
+
+	// subscribe on-chain round rotation event
+	chRoundEvent := make(chan *contract.OracleNewRound)
+	subRoundEvent, err := o.WatchNewRound(new(bind.WatchOpts), chRoundEvent)
+	require.NoError(t, err)
+	defer subRoundEvent.Unsubscribe()
+
+	symbols := []string{"NTN-USD", "ATN-USD", "NTN-ATN"}
+	endRound := uint64(256)
 
 	var prices []contract.IOracleRoundData
 
