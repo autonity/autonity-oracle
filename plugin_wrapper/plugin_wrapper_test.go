@@ -11,7 +11,8 @@ import (
 func TestPluginWrapper(t *testing.T) {
 	t.Run("test finding nearest data sample", func(t *testing.T) {
 		p := PluginWrapper{
-			samples: make(map[string]map[int64]types.Price),
+			samples:          make(map[string]map[int64]types.Price),
+			latestTimestamps: make(map[string]int64),
 		}
 
 		now := time.Now().Unix()
@@ -70,8 +71,8 @@ func TestPluginWrapper(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, now+35, price.Timestamp)
 
-		// test gc
+		// test gc, at least 1 sample is kept in the cache.
 		p.GCSamples()
-		require.Equal(t, 0, len(p.samples))
+		require.Equal(t, 1, len(p.samples))
 	})
 }
