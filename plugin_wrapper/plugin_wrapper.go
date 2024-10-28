@@ -13,6 +13,10 @@ import (
 	"time"
 )
 
+var (
+	sampleTTL = 2 * 3600 // 2 hours
+)
+
 // PluginWrapper is the unified wrapper for the interface of a plugin, it contains metadata of a corresponding
 // plugin, buffers recent data samples measured from the corresponding plugin.
 type PluginWrapper struct {
@@ -132,18 +136,35 @@ func (pw *PluginWrapper) GCSamples() {
 	pw.lockSamples.Lock()
 	defer pw.lockSamples.Unlock()
 
+	currentTime := time.Now().Unix() // Get the current time in seconds
+	threshold := currentTime - int64(sampleTTL)
+
 	for symbol, tsMap := range pw.samples {
 		if len(tsMap) == 0 {
 			continue // Skip if there are no samples for this symbol
 		}
 
-		latestTimestamp := pw.latestTimestamps[symbol]
-
-		// Keep only the latest sample
+		// Remove samples older than 2 hours
 		for ts := range tsMap {
-			if ts != latestTimestamp {
+			if ts < threshold {
 				delete(tsMap, ts)
 			}
+		}
+
+		// If there are still samples left, keep only the latest one
+		if len(tsMap) > 0 {
+			latestTimestamp := pw.latestTimestamps[symbol]
+
+			// Keep only the latest sample
+			for ts := range tsMap {
+				if ts != latestTimestamp {
+					delete(tsMap, ts)
+				}
+			}
+		} else {
+			// If no samples left, remove the symbol from the map
+			delete(pw.samples, symbol)
+			delete(pw.latestTimestamps, symbol) // Also clean up the latest timestamp
 		}
 	}
 }
