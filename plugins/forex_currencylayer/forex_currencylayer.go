@@ -23,7 +23,7 @@ const (
 var defaultConfig = types.PluginConfig{
 	Name:               "forex_currencylayer",
 	Key:                "",
-	Scheme:             "http", // todo: replace the scheme with https once we purchase the service plan.
+	Scheme:             "http",
 	Endpoint:           "api.currencylayer.com",
 	Timeout:            10, //10s
 	DataUpdateInterval: 30, //30s
