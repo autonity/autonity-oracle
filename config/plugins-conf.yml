@@ -11,7 +11,7 @@
 # load it. Configuring the `testnet_dax` plugin does not require an API key; it is an open and
 # free data source.
 
-# More over that, USDC-USD prices are required by the protocol to convert the ATN-USDC and NTN-USDC to ATN-USD and
+# USDC-USD prices are required by the protocol to convert the ATN-USDC and NTN-USDC to ATN-USD and
 # NTN-USD. Thus, we implemented 3 different plugins to source the datapoint from open and free data sources: coinbase,
 # coingecko, and kraken. To prevent single data source failure, we recommend to put all the 3 usdc plugins into your
 # plugin directory, thus oracle server can discovery and load them, otherwise your oracle node might be slashed due to
