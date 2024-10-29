@@ -1,7 +1,8 @@
 package main
 
 import (
-	"autonity-oracle/plugins/atn_uniswap/contract"
+	"autonity-oracle/plugins/atn_uniswap/uniswap/factory"
+	"autonity-oracle/plugins/atn_uniswap/uniswap/pair"
 	"autonity-oracle/plugins/common"
 	"autonity-oracle/types"
 	"fmt"
@@ -13,11 +14,11 @@ import (
 )
 
 var (
-	ATNUSDC            = "ATN-USDC"
-	supportedSymbols   = []string{ATNUSDC}
-	atnTokenAddress    = ecommon.HexToAddress("") // todo: set the wrapped ATN contract address.
-	usdcTokenAddress   = ecommon.HexToAddress("") // todo: set the USDC contract address.
-	atnUsdcPairAddress = ecommon.HexToAddress("") // todo: set the pair contract of ATN-USDC
+	ATNUSDC          = "ATN-USDC"
+	supportedSymbols = []string{ATNUSDC}
+	atnTokenAddress  = ecommon.HexToAddress("") // todo: set the wrapped ATN uniswap address.
+	usdcTokenAddress = ecommon.HexToAddress("") // todo: set the USDC uniswap address.
+	factoryAddress   = ecommon.HexToAddress("") // todo: set the uniswap factor uniswap address
 )
 
 const (
@@ -40,7 +41,7 @@ type EvmClient struct {
 	conf         *types.PluginConfig
 	client       *ethclient.Client
 	logger       hclog.Logger
-	pairContract *contract.Uniswap
+	pairContract *pair.Pair
 	token0       ecommon.Address
 	token1       ecommon.Address
 }
@@ -53,32 +54,39 @@ func NewEVMClient(conf *types.PluginConfig, logger hclog.Logger) (*EvmClient, er
 		return nil, err
 	}
 
-	pairContract, err := contract.NewUniswap(atnUsdcPairAddress, client)
+	factoryContract, err := factory.NewFactory(factoryAddress, client)
 	if err != nil {
-		logger.Error("cannot bind to on-chain pair contract", "error", err)
+		logger.Error("cannot bind uniswap factory contract", "error", err)
+		return nil, err
+	}
+
+	pairAddress, err := factoryContract.GetPair(nil, atnTokenAddress, usdcTokenAddress)
+	if err != nil {
+		logger.Error("cannot find ATN-USDC liquidity pool from uniswap factory contract", "error", err)
+		return nil, err
+	}
+
+	if pairAddress == (ecommon.Address{}) {
+		logger.Error("cannot find ATN-USDC liquidity pool from uniswap factory contract", "address", pairAddress)
+		return nil, fmt.Errorf("ATN-USDC liquidity pair address is empty")
+	}
+
+	pairContract, err := pair.NewPair(pairAddress, client)
+	if err != nil {
+		logger.Error("cannot bind ATN-USDC pair contract", "error", err)
 		return nil, err
 	}
 
 	token0, err := pairContract.Token0(nil)
 	if err != nil {
-		logger.Error("cannot resolve token 0 from liquidity contract", "error", err)
+		logger.Error("cannot resolve token 0 from liquidity uniswap", "error", err)
 		return nil, err
 	}
 
 	token1, err := pairContract.Token1(nil)
 	if err != nil {
-		logger.Error("cannot resolve token 1 from liquidity contract", "error", err)
+		logger.Error("cannot resolve token 1 from liquidity uniswap", "error", err)
 		return nil, err
-	}
-
-	if token0 != atnUsdcPairAddress && token0 != usdcTokenAddress {
-		logger.Error("token0 address is not expected", "address", token0)
-		return nil, fmt.Errorf("token0 address is not expected")
-	}
-
-	if token1 != atnUsdcPairAddress && token1 != usdcTokenAddress {
-		logger.Error("token1 address is not expected", "address", token1)
-		return nil, fmt.Errorf("token1 address is not expected")
 	}
 
 	return &EvmClient{conf: conf, client: client, logger: logger, pairContract: pairContract, token0: token0, token1: token1}, nil
@@ -88,7 +96,7 @@ func (e *EvmClient) KeyRequired() bool {
 	return false
 }
 
-func (e *EvmClient) FetchPrice(symbols []string) (common.Prices, error) {
+func (e *EvmClient) FetchPrice(_ []string) (common.Prices, error) {
 	var prices common.Prices
 	reserves, err := e.pairContract.GetReserves(nil)
 	if err != nil {
