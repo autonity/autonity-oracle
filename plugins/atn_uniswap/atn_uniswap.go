@@ -24,6 +24,9 @@ const (
 	version = "v0.0.1"
 )
 
+// todo: Jason, to keep a high availability of L1 node, who will have the ownership of the operation of this node? Or,
+//
+//	shall we config multiple L1 node endpoints for accessibility?
 var defaultConfig = types.PluginConfig{
 	Name:               "atn_uniswap",
 	Key:                "",
