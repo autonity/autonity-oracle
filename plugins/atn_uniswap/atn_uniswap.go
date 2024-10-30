@@ -19,22 +19,19 @@ var (
 	supportedSymbols = []string{ATNUSDC}
 )
 
-// todo: Jason, to keep a high availability of L1 node, who will have the ownership of the operation of this node? Or,
-//
-//	shall we config multiple L1 node endpoints for accessibility?
 var defaultConfig = types.PluginConfig{
 	Name:               "atn_uniswap",
 	Key:                "",
-	Scheme:             "https", // todo: set the protocol to connect to L1 blockchain node. ws or https
-	Endpoint:           "",      // todo: set the host name or IP address and port for the service endpoint.
-	Timeout:            10,      // 10s
-	DataUpdateInterval: 30,      // todo: resolve the interval by according to the rate limit policy of the service end point.
-	BaseTokenAddress:   "0x",    // todo: set the wrapped ATN erc20 token address
-	QuoteTokenAddress:  "0x",    // todo: set the USDC erc20 token address
-	SwapAddress:        "0x",    // todo: set the uniswap factory contract address
+	Scheme:             "ws", // todo: set the protocol to connect to L1 blockchain node. ws or https
+	Endpoint:           "",   // todo: set the host name or IP address and port for the service endpoint.
+	Timeout:            10,   // 10s
+	DataUpdateInterval: 30,   // todo: resolve the interval by according to the rate limit policy of the service end point.
+	BaseTokenAddress:   "0x", // todo: set the wrapped ATN erc20 token address
+	QuoteTokenAddress:  "0x", // todo: set the USDC erc20 token address
+	SwapAddress:        "0x", // todo: set the uniswap factory contract address
 }
 
-type EvmClient struct {
+type UniswapClient struct {
 	conf         *types.PluginConfig
 	client       *ethclient.Client
 	logger       hclog.Logger
@@ -43,7 +40,7 @@ type EvmClient struct {
 	token1       ecommon.Address
 }
 
-func NewEVMClient(conf *types.PluginConfig, logger hclog.Logger) (*EvmClient, error) {
+func NewUniswapClient(conf *types.PluginConfig, logger hclog.Logger) (*UniswapClient, error) {
 	url := conf.Scheme + "://" + conf.Endpoint
 	client, err := ethclient.Dial(url)
 	if err != nil {
@@ -86,14 +83,14 @@ func NewEVMClient(conf *types.PluginConfig, logger hclog.Logger) (*EvmClient, er
 		return nil, err
 	}
 
-	return &EvmClient{conf: conf, client: client, logger: logger, pairContract: pairContract, token0: token0, token1: token1}, nil
+	return &UniswapClient{conf: conf, client: client, logger: logger, pairContract: pairContract, token0: token0, token1: token1}, nil
 }
 
-func (e *EvmClient) KeyRequired() bool {
+func (e *UniswapClient) KeyRequired() bool {
 	return false
 }
 
-func (e *EvmClient) FetchPrice(_ []string) (common.Prices, error) {
+func (e *UniswapClient) FetchPrice(_ []string) (common.Prices, error) {
 	var prices common.Prices
 	reserves, err := e.pairContract.GetReserves(nil)
 	if err != nil {
@@ -132,11 +129,11 @@ func (e *EvmClient) FetchPrice(_ []string) (common.Prices, error) {
 	return prices, nil
 }
 
-func (e *EvmClient) AvailableSymbols() ([]string, error) {
+func (e *UniswapClient) AvailableSymbols() ([]string, error) {
 	return supportedSymbols, nil
 }
 
-func (e *EvmClient) Close() {
+func (e *UniswapClient) Close() {
 	if e.client != nil {
 		e.client.Close()
 	}
@@ -160,7 +157,7 @@ func main() {
 		Output: os.Stdout,
 	})
 
-	client, err := NewEVMClient(conf, logger)
+	client, err := NewUniswapClient(conf, logger)
 	if err != nil {
 		return
 	}

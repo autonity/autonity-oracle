@@ -95,4 +95,5 @@ type PluginConfig struct {
 	BaseTokenAddress   string `json:"baseTokenAddress" yaml:"baseTokenAddress"`   // The Wrapped ATN erc20 token address or the NTN erc20 token assess.
 	QuoteTokenAddress  string `json:"quoteTokenAddress" yaml:"quoteTokenAddress"` // USDC erc20 token address.
 	SwapAddress        string `json:"swapAddress" yaml:"swapAddress"`             // uniswap factory contract address or airswapERC20 contract address.
+	DataPointStoreDir  string `json:"dataPointStoreDir" yaml:"dataPointStoreDir"` // a directory to save historic aggregated prices for some plugin.
 }
