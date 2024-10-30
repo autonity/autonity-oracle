@@ -37,8 +37,8 @@ var (
 var defaultConfig = types.PluginConfig{
 	Name:               "ntn_airswap",
 	Key:                "",
-	Scheme:             "ws", // todo: set the protocol to connect to L1 blockchain node. ws or https
-	Endpoint:           "",   // todo: set the host name or IP address and port for the service endpoint.
+	Scheme:             "ws", // only ws is supported since we subscribe swap events from L1 airswapERC20 contract.
+	Endpoint:           "",   // todo: set the host name or IP address and port for the web socket service endpoint.
 	Timeout:            10,   // 10s
 	DataUpdateInterval: 30,   // todo: resolve the interval by according to the rate limit policy of the service end point.
 	BaseTokenAddress:   "0x", // todo: set the wrapped NTN erc20 token address
