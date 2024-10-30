@@ -241,6 +241,18 @@ func ResolveConf(cmd string, defConf *types.PluginConfig) *types.PluginConfig {
 		conf.Name = defConf.Name
 	}
 
+	if len(conf.BaseTokenAddress) == 0 {
+		conf.BaseTokenAddress = defConf.BaseTokenAddress
+	}
+
+	if len(conf.QuoteTokenAddress) == 0 {
+		conf.QuoteTokenAddress = defConf.QuoteTokenAddress
+	}
+
+	if len(conf.SwapAddress) == 0 {
+		conf.SwapAddress = defConf.SwapAddress
+	}
+
 	return conf
 }
 

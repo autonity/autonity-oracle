@@ -14,15 +14,9 @@ import (
 )
 
 var (
+	version          = "v0.0.1"
 	ATNUSDC          = "ATN-USDC"
 	supportedSymbols = []string{ATNUSDC}
-	atnTokenAddress  = ecommon.HexToAddress("") // todo: set the wrapped ATN uniswap address.
-	usdcTokenAddress = ecommon.HexToAddress("") // todo: set the USDC uniswap address.
-	factoryAddress   = ecommon.HexToAddress("") // todo: set the uniswap factor uniswap address
-)
-
-const (
-	version = "v0.0.1"
 )
 
 // todo: Jason, to keep a high availability of L1 node, who will have the ownership of the operation of this node? Or,
@@ -35,6 +29,9 @@ var defaultConfig = types.PluginConfig{
 	Endpoint:           "",      // todo: set the host name or IP address and port for the service endpoint.
 	Timeout:            10,      // 10s
 	DataUpdateInterval: 30,      // todo: resolve the interval by according to the rate limit policy of the service end point.
+	BaseTokenAddress:   "0x",    // todo: set the wrapped ATN erc20 token address
+	QuoteTokenAddress:  "0x",    // todo: set the USDC erc20 token address
+	SwapAddress:        "0x",    // todo: set the uniswap factory contract address
 }
 
 type EvmClient struct {
@@ -54,13 +51,13 @@ func NewEVMClient(conf *types.PluginConfig, logger hclog.Logger) (*EvmClient, er
 		return nil, err
 	}
 
-	factoryContract, err := factory.NewFactory(factoryAddress, client)
+	factoryContract, err := factory.NewFactory(ecommon.HexToAddress(conf.SwapAddress), client)
 	if err != nil {
 		logger.Error("cannot bind uniswap factory contract", "error", err)
 		return nil, err
 	}
 
-	pairAddress, err := factoryContract.GetPair(nil, atnTokenAddress, usdcTokenAddress)
+	pairAddress, err := factoryContract.GetPair(nil, ecommon.HexToAddress(conf.BaseTokenAddress), ecommon.HexToAddress(conf.QuoteTokenAddress))
 	if err != nil {
 		logger.Error("cannot find ATN-USDC liquidity pool from uniswap factory contract", "error", err)
 		return nil, err
@@ -111,7 +108,7 @@ func (e *EvmClient) FetchPrice(_ []string) (common.Prices, error) {
 
 	var atnReserve *big.Int
 	var usdcReserve *big.Int
-	if e.token0 == atnTokenAddress {
+	if e.token0 == ecommon.HexToAddress(e.conf.BaseTokenAddress) {
 		// ATN is token0, compute ATN-USDC ratio with reserves0 and reserves1.
 		atnReserve = reserves.Reserve0
 		usdcReserve = reserves.Reserve1
