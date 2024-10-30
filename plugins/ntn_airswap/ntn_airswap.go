@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/hashicorp/go-hclog"
-	lru "github.com/hashicorp/golang-lru"
 	ring "github.com/zfjagann/golang-ring"
 	"math/big"
 	"os"
@@ -23,12 +22,11 @@ import (
 )
 
 var (
-	orderBookCapacity   = 64
-	swapEventCacheLimit = 1024
-	version             = "v0.0.1"
-	NTNUSDC             = "NTN-USDC"
-	supportedSymbols    = []string{NTNUSDC}
-	priceFile           = "NTN-USDC-Price.json"
+	orderBookCapacity = 64
+	version           = "v0.0.1"
+	NTNUSDC           = "NTN-USDC"
+	supportedSymbols  = []string{NTNUSDC}
+	priceFile         = "NTN-USDC-Price.json"
 	// todo: set an initial price of NTN-USDC on genesis, there is no price at all on airswapERC20 on genesis until there
 	// is an exchange/swap happens. Otherwise, the oracle client might be slashed due to the missing of price of a symbol.
 	priceOnGenesis = ""
@@ -53,30 +51,6 @@ type Order struct {
 	timeStamp  int64
 }
 
-type SwapEvent struct {
-	ntnTransfer  *erc20.Erc20Transfer
-	usdcTransfer *erc20.Erc20Transfer
-	airSwap      *swaperc20.Swaperc20SwapERC20
-}
-
-func (d *SwapEvent) fill(src *SwapEvent) {
-	if src.airSwap != nil {
-		d.airSwap = src.airSwap
-	}
-
-	if src.ntnTransfer != nil {
-		d.ntnTransfer = src.ntnTransfer
-	}
-
-	if src.usdcTransfer != nil {
-		d.usdcTransfer = src.ntnTransfer
-	}
-}
-
-func (d *SwapEvent) full() bool {
-	return d.airSwap != nil && d.ntnTransfer != nil && d.usdcTransfer != nil
-}
-
 type AirswapClient struct {
 	conf   *types.PluginConfig
 	client *ethclient.Client
@@ -86,12 +60,6 @@ type AirswapClient struct {
 	usdcContract *erc20.Erc20
 	swapContract *swaperc20.Swaperc20
 
-	chNTNTransferEvent  chan *erc20.Erc20Transfer
-	subNTNTransferEvent event.Subscription
-
-	chUSDCTransferEvent  chan *erc20.Erc20Transfer
-	subUSDCTransferEvent event.Subscription
-
 	chSwapEvent  chan *swaperc20.Swaperc20SwapERC20
 	subSwapEvent event.Subscription
 
@@ -99,8 +67,7 @@ type AirswapClient struct {
 	ticker   *time.Ticker // the clock interval to recover L1 connectivity.
 	lostSync bool
 
-	swapEventCache *lru.Cache
-	orderBooks     ring.Ring
+	orderBooks ring.Ring
 
 	priceMutex          sync.RWMutex
 	lastAggregatedPrice common.Price
@@ -132,22 +99,15 @@ func NewAirswapClient(conf *types.PluginConfig, logger hclog.Logger) (*AirswapCl
 		return nil, err
 	}
 
-	swapEventCache, err := lru.New(swapEventCacheLimit)
-	if err != nil {
-		logger.Error("cannot create swapEventCache", "", err)
-		return nil, err
-	}
-
 	ac := &AirswapClient{
-		conf:           conf,
-		client:         client,
-		logger:         logger,
-		ntnContract:    ntnContract,
-		usdcContract:   usdcContract,
-		swapContract:   swapContract,
-		doneCh:         make(chan struct{}),
-		swapEventCache: swapEventCache,
-		ticker:         time.NewTicker(time.Minute),
+		conf:         conf,
+		client:       client,
+		logger:       logger,
+		ntnContract:  ntnContract,
+		usdcContract: usdcContract,
+		swapContract: swapContract,
+		doneCh:       make(chan struct{}),
+		ticker:       time.NewTicker(time.Minute),
 	}
 
 	ac.initPrice()
@@ -161,20 +121,6 @@ func NewAirswapClient(conf *types.PluginConfig, logger hclog.Logger) (*AirswapCl
 }
 
 func (e *AirswapClient) EventSubscription() error {
-	// subscribe on-chain transfer event of NTN.
-	chNTNTransferEvent := make(chan *erc20.Erc20Transfer)
-	subNTNTransferEvent, err := e.ntnContract.WatchTransfer(new(bind.WatchOpts), chNTNTransferEvent, nil, nil)
-	if err != nil {
-		e.logger.Error("cannot watch NTN transfer event", "error", err)
-		return err
-	}
-	// subscribe on-chain transfer event of USDC.
-	chUSDCTransferEvent := make(chan *erc20.Erc20Transfer)
-	subUSDCTransferEvent, err := e.usdcContract.WatchTransfer(new(bind.WatchOpts), chUSDCTransferEvent, nil, nil)
-	if err != nil {
-		e.logger.Error("cannot watch USDC transfer event", "error", err)
-		return err
-	}
 	// subscribe on-chain swap event of airsapERC20.
 	chSwapEvent := make(chan *swaperc20.Swaperc20SwapERC20)
 	subSwapEvent, err := e.swapContract.WatchSwapERC20(new(bind.WatchOpts), chSwapEvent, nil, nil)
@@ -182,10 +128,6 @@ func (e *AirswapClient) EventSubscription() error {
 		e.logger.Error("cannot watch swap event", "error", err)
 		return err
 	}
-	e.chUSDCTransferEvent = chUSDCTransferEvent
-	e.subUSDCTransferEvent = subUSDCTransferEvent
-	e.chNTNTransferEvent = chNTNTransferEvent
-	e.subNTNTransferEvent = subNTNTransferEvent
 	e.chSwapEvent = chSwapEvent
 	e.subSwapEvent = subSwapEvent
 	return nil
@@ -204,59 +146,32 @@ func (e *AirswapClient) StartWatcher() {
 				e.handleConnectivityError()
 				e.subSwapEvent.Unsubscribe()
 			}
-		case err := <-e.subUSDCTransferEvent.Err():
-			if err != nil {
-				e.logger.Info("subscription error of usdc transfer event", "error", err)
-				e.handleConnectivityError()
-				e.subUSDCTransferEvent.Unsubscribe()
-			}
-		case err := <-e.subSwapEvent.Err():
-			if err != nil {
-				e.logger.Info("subscription error of swap event", "error", err)
-				e.handleConnectivityError()
-				e.subSwapEvent.Unsubscribe()
-			}
-		case ntnTransferEvent := <-e.chNTNTransferEvent:
-			e.logger.Debug("receiving ntn transfer event", "event", ntnTransferEvent)
-			transfer := &SwapEvent{ntnTransfer: ntnTransferEvent}
-			e.handleEvent(ntnTransferEvent.Raw.TxHash, transfer)
-		case usdcTransferEvent := <-e.chUSDCTransferEvent:
-			e.logger.Debug("receiving usdc transfer event", "event", usdcTransferEvent)
-			transfer := &SwapEvent{usdcTransfer: usdcTransferEvent}
-			e.handleEvent(usdcTransferEvent.Raw.TxHash, transfer)
 		case airSwapEvent := <-e.chSwapEvent:
-			e.logger.Debug("receiving air swap event", "event", airSwapEvent)
-			swap := &SwapEvent{airSwap: airSwapEvent}
-			e.handleEvent(airSwapEvent.Raw.TxHash, swap)
+			e.logger.Debug("receiving air swap event", "event", airSwapEvent, "nonce", airSwapEvent.Nonce.Uint64())
+			if err := e.handleSwapEvent(airSwapEvent.Raw.TxHash, airSwapEvent); err != nil {
+				e.logger.Error("handle swap event failed", "error", err)
+				continue
+			}
+
 		case <-e.ticker.C:
 			e.checkHealth()
 		}
 	}
 }
 
-func (e *AirswapClient) handleEvent(txnHash ecommon.Hash, swapEvent *SwapEvent) {
-
-	// if event was cached, fill the sub events, and check if we can push it to the aggregator.
-	if cached, ok := e.swapEventCache.Get(txnHash); ok {
-		swap := cached.(*SwapEvent)
-		swap.fill(swapEvent)
-		// ready for price aggregation.
-		if swap.full() {
-			e.logger.Info("a full swap event received, going to aggregate the price", "event", swap)
-			order := Order{
-				ntnAmount:  swap.ntnTransfer.Value,
-				usdcAmount: swap.usdcTransfer.Value,
-				timeStamp:  time.Now().Unix(),
-			}
-			e.computePrice(order)
-			e.swapEventCache.Remove(txnHash)
-			return
-		}
-		return
+func (e *AirswapClient) handleSwapEvent(txnHash ecommon.Hash, swapEvent *swaperc20.Swaperc20SwapERC20) error {
+	// pull the logs of the txn which issues the swap event.
+	//txnReceipt, err := e.client.TransactionReceipt(context.Background(), txnHash)
+	_, err := e.client.TransactionReceipt(context.Background(), txnHash)
+	if err != nil {
+		e.logger.Error("cannot get transaction receipt", "error", err, "txnHash", txnHash)
+		return err
 	}
 
-	// not cached yet, put it in the cache.
-	e.swapEventCache.Add(txnHash, swapEvent)
+	// todo: parse the logs, and aggregate swap event into single one if there are multiple ones presented in the txn.
+	// then do the computing of price.
+
+	return nil
 }
 
 // compute new price once new settled order comes.
@@ -418,8 +333,6 @@ func (e *AirswapClient) Close() {
 		e.client.Close()
 	}
 	e.subSwapEvent.Unsubscribe()
-	e.subNTNTransferEvent.Unsubscribe()
-	e.subUSDCTransferEvent.Unsubscribe()
 	e.doneCh <- struct{}{}
 }
 
