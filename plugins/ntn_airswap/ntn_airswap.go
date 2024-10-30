@@ -268,7 +268,7 @@ func (e *AirswapClient) computePrice(order Order) {
 		return
 	}
 	e.updatePrice(aggregatedPrice.FloatString(7))
-	e.flushPrice()
+	e.flushPrice() //nolint
 }
 
 func (e *AirswapClient) flushPrice() error {
