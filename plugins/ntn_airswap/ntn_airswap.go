@@ -7,9 +7,11 @@ import (
 	"autonity-oracle/types"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ecommon "github.com/ethereum/go-ethereum/common"
+	types2 "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/hashicorp/go-hclog"
@@ -57,7 +59,9 @@ type AirswapClient struct {
 	logger hclog.Logger
 
 	ntnContract  *erc20.Erc20
+	ntnAddress   ecommon.Address
 	usdcContract *erc20.Erc20
+	usdcAddress  ecommon.Address
 	swapContract *swaperc20.Swaperc20
 
 	chSwapEvent  chan *swaperc20.Swaperc20SwapERC20
@@ -87,13 +91,15 @@ func NewAirswapClient(conf *types.PluginConfig, logger hclog.Logger) (*AirswapCl
 		return nil, err
 	}
 
-	ntnContract, err := erc20.NewErc20(ecommon.HexToAddress(conf.BaseTokenAddress), client)
+	ntnAddress := ecommon.HexToAddress(conf.BaseTokenAddress)
+	ntnContract, err := erc20.NewErc20(ntnAddress, client)
 	if err != nil {
 		logger.Error("cannot bind NTN ERC20 contract", "error", err)
 		return nil, err
 	}
 
-	usdcContract, err := erc20.NewErc20(ecommon.HexToAddress(conf.QuoteTokenAddress), client)
+	usdcAddress := ecommon.HexToAddress(conf.QuoteTokenAddress)
+	usdcContract, err := erc20.NewErc20(usdcAddress, client)
 	if err != nil {
 		logger.Error("cannot bind USDC ERC20 contract", "error", err)
 		return nil, err
@@ -104,7 +110,9 @@ func NewAirswapClient(conf *types.PluginConfig, logger hclog.Logger) (*AirswapCl
 		client:       client,
 		logger:       logger,
 		ntnContract:  ntnContract,
+		ntnAddress:   ntnAddress,
 		usdcContract: usdcContract,
+		usdcAddress:  usdcAddress,
 		swapContract: swapContract,
 		doneCh:       make(chan struct{}),
 		ticker:       time.NewTicker(time.Minute),
@@ -147,7 +155,7 @@ func (e *AirswapClient) StartWatcher() {
 				e.subSwapEvent.Unsubscribe()
 			}
 		case airSwapEvent := <-e.chSwapEvent:
-			e.logger.Debug("receiving air swap event", "event", airSwapEvent, "nonce", airSwapEvent.Nonce.Uint64())
+			e.logger.Debug("receiving an air swap event", "event", airSwapEvent, "nonce", airSwapEvent.Nonce.Uint64())
 			if err := e.handleSwapEvent(airSwapEvent.Raw.TxHash, airSwapEvent); err != nil {
 				e.logger.Error("handle swap event failed", "error", err)
 				continue
@@ -159,31 +167,150 @@ func (e *AirswapClient) StartWatcher() {
 	}
 }
 
+// handleSwapEvent, handles a single swap event at a time, if a txn contains multiple swap events, this function will
+// be called with multiple times as the client subscribe every single swap event from L1. Processing one event at a
+// time also make the logic simple and clear.
 func (e *AirswapClient) handleSwapEvent(txnHash ecommon.Hash, swapEvent *swaperc20.Swaperc20SwapERC20) error {
 	// pull the logs of the txn which issues the swap event.
-	//txnReceipt, err := e.client.TransactionReceipt(context.Background(), txnHash)
-	_, err := e.client.TransactionReceipt(context.Background(), txnHash)
+	txnReceipt, err := e.client.TransactionReceipt(context.Background(), txnHash)
 	if err != nil {
 		e.logger.Error("cannot get transaction receipt", "error", err, "txnHash", txnHash)
 		return err
 	}
 
-	// todo: parse the logs, and aggregate swap event into single one if there are multiple ones presented in the txn.
-	// then do the computing of price.
+	order, err := e.extractOrder(txnReceipt, swapEvent)
+	if err != nil {
+		e.logger.Error("failed to extract the exchanges from txn receipts", "error", err, "txnHash", txnHash)
+		return err
+	}
 
+	// then do the computing of price.
+	lastAggregatedPrice, err := e.computePrice(order)
+	if err != nil {
+		e.logger.Error("failed to compute new price", "error", err, "txnHash", txnHash)
+		return err
+	}
+
+	// update the last aggregated price.
+	e.updatePrice(lastAggregatedPrice.FloatString(7))
+	e.flushPrice() //nolint
 	return nil
 }
 
-// compute new price once new settled order comes.
-func (e *AirswapClient) computePrice(order Order) {
-	e.orderBooks.Enqueue(order)
-	orders := e.orderBooks.Values()
-	aggregatedPrice, err := volumeWeightedPrice(orders)
-	if err != nil {
-		return
+// extract order of the SwapERC20(nonce, signerWallet) event from the logs, as the functions which emits SwapERC20
+// event can be called from any other contracts, thus it is not doable to parse the TXN's input
+// data to get the direct inputs of the swap functions, thus we have to parse the ERC20 transfer events correspond to
+// the airswap.SwapERC20(nonce, signerWallet) event to collect the exchange info.
+// please visit:
+// https://github.com/airswap/airswap-protocols/blob/develop/source/swap-erc20/contracts/SwapERC20.sol to find
+// the details of the atomic swap between the two parties. The ERC20 and SwapERC20 events emitting follow in below
+// patterns:
+/*
+log1: event: senderToken.Transfer(from: msg.sender, to: signerWallet, value: senderAmount);
+log2: event: signerToken.Transfer(from: signerWallet, to: recipient/msg.sender, value: signerAmount);
+log3, optional depends on if the fee > 0:
+       if bonus > 0:
+           event: signerToken.Transfer(from: signerWallet, to: msg.sender, bonus); // if the msg.sender is a staking node.
+	       event: signerToken.Transfer(from: signerWallet, to: protocolFeeWallet, fee-bonus);
+       else:
+           event: signerToken.Transfer(from: signerWallet, to: protocolFeeWallet, fee);
+log4, optional if swapEvent is emitted by a swapLight():
+      event: signerToken.Transfer(from: signerWallet, to: protocolFeeWallet, lightFee);
+log5, event: airswapERC20.SwapERC20(nonce, signerWallet);
+*/
+// From the pattern listed, we can see that log1 and log2 are the exchange of the two tokens, while log5 is the swap
+// event that we subscribed, in between log2 and log5 there are multiple optional signerToken.Transfer events to pay
+// the service fee/bonus in signerToken from signerWallet account to other parties (protocolFeeWallet, msg.Sender). As
+// the fee/bonus are a small fraction of the signerAmount in signerToken of the exchange, thus we can filter out them
+// from the log, and finally paired the log2 with log1 events as the exchange. With the signerWallet address is emitted
+// by the SwapErc20(nonce, signerWallet) event, we can get the senderAmount of senderToken received by signerWallet, and
+// the signerAmount of signerToken transfer by the signerWallet to get the exchange. In this plugin, we only care about
+// the NTN token and the USDC token as our targeting liquidity market.
+func (e *AirswapClient) extractOrder(receipt *types2.Receipt, targetSwapEvent *swaperc20.Swaperc20SwapERC20) (Order, error) {
+	var order Order
+
+	// iterate the logs to address the subscribed swapEvent,
+	index := -1
+	for i := len(receipt.Logs) - 1; i >= 0; i-- {
+		// Check for the SwapERC20 event
+		parsedSwap, err := e.swapContract.ParseSwapERC20(*receipt.Logs[i])
+		if err != nil {
+			e.logger.Debug("failed to parse log with swap event", "error", err)
+			continue
+		}
+
+		// as the nonce is unique, check with nonce.
+		if parsedSwap.Nonce == targetSwapEvent.Nonce {
+			index = i
+			break
+		}
 	}
-	e.updatePrice(aggregatedPrice.FloatString(7))
-	e.flushPrice() //nolint
+
+	if index == -1 {
+		return order, errors.New("failed to find matching swap in receipt")
+	}
+
+	var signerTokenAmount *big.Int
+	var signerTokenAddress ecommon.Address
+	var senderTokenAmount *big.Int
+	var senderTokenAddress ecommon.Address
+
+	// swap event is addressed, find the signerToken.Transfers and the senderToken.Transfer close to it.
+	for i := index - 1; i >= 0; i-- {
+		// just parse the ERC20 transfer events, the events could be NTN transfer events or USDC transfer events.
+		transfer, err := e.ntnContract.ParseTransfer(*receipt.Logs[i])
+		if err != nil {
+			e.logger.Debug("failed to parse log with ERC20 transfer", "error", err)
+			continue
+		}
+
+		eventEmitter := transfer.Raw.Address
+		if eventEmitter != e.usdcAddress || eventEmitter != e.ntnAddress {
+			e.logger.Debug("skip none NTN & USDC swap event")
+			return order, errors.New("skip none NTN & USDC swap event")
+		}
+
+		// now only transfers of NTN or USDC token can come to here.
+		if transfer.From == targetSwapEvent.SignerWallet {
+			if signerTokenAmount == nil || transfer.Value.Cmp(signerTokenAmount) > 0 {
+				signerTokenAmount = transfer.Value
+				signerTokenAddress = eventEmitter
+			}
+		} else {
+			if transfer.To == targetSwapEvent.SignerWallet {
+				senderTokenAmount = transfer.Value
+				senderTokenAddress = eventEmitter
+				break
+			}
+		}
+	}
+
+	if senderTokenAddress == e.usdcAddress && senderTokenAmount != nil {
+		order.usdcAmount = senderTokenAmount
+	}
+
+	if signerTokenAddress == e.ntnAddress && signerTokenAmount != nil {
+		order.ntnAmount = signerTokenAmount
+	}
+
+	if order.ntnAmount == nil || order.usdcAmount == nil {
+		return order, errors.New("failed to find matching USDC swap event")
+	}
+
+	order.timeStamp = time.Now().Unix()
+	return order, nil
+}
+
+// compute new price once new settled order comes.
+func (e *AirswapClient) computePrice(order Order) (*big.Rat, error) {
+	e.orderBooks.Enqueue(order)
+	// pick up all the cached recent orders, and compute the volume weight price.
+	recentOrders := e.orderBooks.Values()
+	aggregatedPrice, err := volumeWeightedPrice(recentOrders)
+	if err != nil {
+		return nil, err
+	}
+	return aggregatedPrice, nil
 }
 
 func (e *AirswapClient) flushPrice() error {
