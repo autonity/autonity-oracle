@@ -265,7 +265,7 @@ func (e *AirswapClient) extractOrder(receipt *types2.Receipt, targetSwapEvent *s
 		}
 
 		eventEmitter := transfer.Raw.Address
-		if eventEmitter != e.usdcAddress || eventEmitter != e.ntnAddress {
+		if eventEmitter != e.usdcAddress && eventEmitter != e.ntnAddress {
 			e.logger.Debug("skip none NTN & USDC swap event")
 			return order, errors.New("skip none NTN & USDC swap event")
 		}
