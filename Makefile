@@ -95,8 +95,8 @@ forex-plugins:
 	chmod +x $(PLUGIN_DIR)/*
 
 amm-plugins:
-	go build -o $(PLUGIN_DIR)/atn_uniswap $(PLUGIN_SRC_DIR)/atn_uniswap/atn_uniswap.go
-	go build -o $(PLUGIN_DIR)/ntn_airswap $(PLUGIN_SRC_DIR)/ntn_airswap/ntn_airswap.go
+	go build -o $(PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/crypto_uniswap.go
+	go build -o $(PLUGIN_DIR)/crypto_airswap $(PLUGIN_SRC_DIR)/crypto_airswap/crypto_airswap.go
 	chmod +x $(PLUGIN_DIR)/*
 
 usdc-plugins:

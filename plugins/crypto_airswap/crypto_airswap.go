@@ -2,8 +2,8 @@ package main
 
 import (
 	"autonity-oracle/plugins/common"
-	"autonity-oracle/plugins/ntn_airswap/erc20"
-	swaperc20 "autonity-oracle/plugins/ntn_airswap/swap_erc20"
+	"autonity-oracle/plugins/crypto_airswap/erc20"
+	swaperc20 "autonity-oracle/plugins/crypto_airswap/swap_erc20"
 	"autonity-oracle/types"
 	"context"
 	"encoding/json"
@@ -26,31 +26,34 @@ import (
 var (
 	orderBookCapacity = 64
 	version           = "v0.0.1"
+	ATNUSDC           = "ATN-USDC"
 	NTNUSDC           = "NTN-USDC"
-	supportedSymbols  = []string{NTNUSDC}
-	priceFile         = "NTN-USDC-Price.json"
+	supportedSymbols  = []string{ATNUSDC, NTNUSDC}
+	priceFile         = "airswap_prices.json"
+	NTNTokenAddress   = types.AutonityContractAddress // Autonity contract is the protocol contract of NTN token
 	// todo: set an initial price of NTN-USDC on genesis, there is no price at all on airswapERC20 on genesis until there
 	// is an exchange/swap happens. Otherwise, the oracle client might be slashed due to the missing of price of a symbol.
-	priceOnGenesis = ""
+	NTNPriceOnGenesis = "" // The NTN-USDC price on the genesis phase
+	ATNPriceOnGenesis = "" // The ATN-USDC price on the genesis phase
 )
 
 var defaultConfig = types.PluginConfig{
-	Name:               "ntn_airswap",
+	Name:               "crypto_airswap",
 	Key:                "",
 	Scheme:             "ws", // only ws is supported since we subscribe swap events from L1 airswapERC20 contract.
 	Endpoint:           "",   // todo: set the host name or IP address and port for the web socket service endpoint.
 	Timeout:            10,   // 10s
 	DataUpdateInterval: 30,   // todo: resolve the interval by according to the rate limit policy of the service end point.
-	BaseTokenAddress:   "0x", // todo: set the wrapped NTN erc20 token address
-	QuoteTokenAddress:  "0x", // todo: set the USDC erc20 token address
+	ATNTokenAddress:    "0x", // todo: set the wrapped ATN erc20 token address
+	USDCTokenAddress:   "0x", // todo: set the USDC erc20 token address
 	SwapAddress:        "0x", // todo: set the airwapERC20 contract address
-	DataPointStoreDir:  ".",  // the default directory to save historic aggregated prices of NTN-USDC from orders of airswapERC20.
+	DataPointStoreDir:  ".",  // the default directory to save historic aggregated prices of ATN-USC and NTN-USDC
 }
 
 type Order struct {
-	ntnAmount  *big.Int
-	usdcAmount *big.Int
-	timeStamp  int64
+	cryptoToken  ecommon.Address
+	cryptoAmount *big.Int
+	usdcAmount   *big.Int
 }
 
 type AirswapClient struct {
@@ -58,10 +61,15 @@ type AirswapClient struct {
 	client *ethclient.Client
 	logger hclog.Logger
 
-	ntnContract  *erc20.Erc20
-	ntnAddress   ecommon.Address
+	atnContract *erc20.Erc20
+	atnAddress  ecommon.Address
+
+	ntnContract *erc20.Erc20
+	ntnAddress  ecommon.Address
+
 	usdcContract *erc20.Erc20
 	usdcAddress  ecommon.Address
+
 	swapContract *swaperc20.Swaperc20
 
 	chSwapEvent  chan *swaperc20.Swaperc20SwapERC20
@@ -71,10 +79,13 @@ type AirswapClient struct {
 	ticker   *time.Ticker // the clock interval to recover L1 connectivity.
 	lostSync bool
 
-	orderBooks ring.Ring
+	ntnOrderBooks ring.Ring
 
-	priceMutex          sync.RWMutex
-	lastAggregatedPrice common.Price
+	atnOrderBooks ring.Ring
+
+	priceMutex sync.RWMutex
+
+	lastAggregatedPrices map[ecommon.Address]common.Price
 }
 
 func NewAirswapClient(conf *types.PluginConfig, logger hclog.Logger) (*AirswapClient, error) {
@@ -91,14 +102,21 @@ func NewAirswapClient(conf *types.PluginConfig, logger hclog.Logger) (*AirswapCl
 		return nil, err
 	}
 
-	ntnAddress := ecommon.HexToAddress(conf.BaseTokenAddress)
+	atnAddress := ecommon.HexToAddress(conf.ATNTokenAddress)
+	atnContract, err := erc20.NewErc20(atnAddress, client)
+	if err != nil {
+		logger.Error("cannot bind ATN ERC20 contract", "error", err)
+		return nil, err
+	}
+
+	ntnAddress := NTNTokenAddress
 	ntnContract, err := erc20.NewErc20(ntnAddress, client)
 	if err != nil {
 		logger.Error("cannot bind NTN ERC20 contract", "error", err)
 		return nil, err
 	}
 
-	usdcAddress := ecommon.HexToAddress(conf.QuoteTokenAddress)
+	usdcAddress := ecommon.HexToAddress(conf.USDCTokenAddress)
 	usdcContract, err := erc20.NewErc20(usdcAddress, client)
 	if err != nil {
 		logger.Error("cannot bind USDC ERC20 contract", "error", err)
@@ -106,21 +124,27 @@ func NewAirswapClient(conf *types.PluginConfig, logger hclog.Logger) (*AirswapCl
 	}
 
 	ac := &AirswapClient{
-		conf:         conf,
-		client:       client,
-		logger:       logger,
-		ntnContract:  ntnContract,
-		ntnAddress:   ntnAddress,
-		usdcContract: usdcContract,
-		usdcAddress:  usdcAddress,
-		swapContract: swapContract,
-		doneCh:       make(chan struct{}),
-		ticker:       time.NewTicker(time.Minute),
+		conf:                 conf,
+		client:               client,
+		logger:               logger,
+		atnContract:          atnContract,
+		atnAddress:           atnAddress,
+		ntnContract:          ntnContract,
+		ntnAddress:           ntnAddress,
+		usdcContract:         usdcContract,
+		usdcAddress:          usdcAddress,
+		swapContract:         swapContract,
+		doneCh:               make(chan struct{}),
+		ticker:               time.NewTicker(time.Minute),
+		lastAggregatedPrices: map[ecommon.Address]common.Price{},
 	}
 
-	ac.initPrice()
+	// load historic prices of ATN-USDC and NTN-USDC or the price of the genesis.
+	ac.initPrices()
 
-	ac.orderBooks.SetCapacity(orderBookCapacity)
+	ac.atnOrderBooks.SetCapacity(orderBookCapacity)
+	ac.ntnOrderBooks.SetCapacity(orderBookCapacity)
+
 	if err = ac.EventSubscription(); err != nil {
 		return nil, err
 	}
@@ -129,7 +153,7 @@ func NewAirswapClient(conf *types.PluginConfig, logger hclog.Logger) (*AirswapCl
 }
 
 func (e *AirswapClient) EventSubscription() error {
-	// subscribe on-chain swap event of airsapERC20.
+	// subscribe on-chain swap event of SwapERC20.
 	chSwapEvent := make(chan *swaperc20.Swaperc20SwapERC20)
 	subSwapEvent, err := e.swapContract.WatchSwapERC20(new(bind.WatchOpts), chSwapEvent, nil, nil)
 	if err != nil {
@@ -155,7 +179,7 @@ func (e *AirswapClient) StartWatcher() {
 				e.subSwapEvent.Unsubscribe()
 			}
 		case airSwapEvent := <-e.chSwapEvent:
-			e.logger.Debug("receiving an air swap event", "event", airSwapEvent, "nonce", airSwapEvent.Nonce.Uint64())
+			e.logger.Debug("receiving a SwapERC20 event", "event", airSwapEvent, "nonce", airSwapEvent.Nonce.Uint64())
 			if err := e.handleSwapEvent(airSwapEvent.Raw.TxHash, airSwapEvent); err != nil {
 				e.logger.Error("handle swap event failed", "error", err)
 				continue
@@ -184,16 +208,23 @@ func (e *AirswapClient) handleSwapEvent(txnHash ecommon.Hash, swapEvent *swaperc
 		return err
 	}
 
-	// then do the computing of price.
-	lastAggregatedPrice, err := e.computePrice(order)
+	// then do the computing of price of ATN-USDC or NTN-USDC
+	var orderBook *ring.Ring
+	if order.cryptoToken == e.atnAddress {
+		orderBook = &e.atnOrderBooks
+	} else {
+		orderBook = &e.ntnOrderBooks
+	}
+
+	lastAggregatedPrice, err := aggregatePrice(orderBook, order)
 	if err != nil {
-		e.logger.Error("failed to compute new price", "error", err, "txnHash", txnHash)
+		e.logger.Error("failed to compute new price", "error", err, "txnHash", txnHash, "order", order)
 		return err
 	}
 
 	// update the last aggregated price.
-	e.updatePrice(lastAggregatedPrice.FloatString(7))
-	e.flushPrice() //nolint
+	e.updatePrice(order.cryptoToken, lastAggregatedPrice.FloatString(7))
+	e.flushPrices() //nolint
 	return nil
 }
 
@@ -229,6 +260,7 @@ log5, event: airswapERC20.SwapERC20(nonce, signerWallet);
 func (e *AirswapClient) extractOrder(receipt *types2.Receipt, targetSwapEvent *swaperc20.Swaperc20SwapERC20) (Order, error) {
 	var order Order
 
+	// todo: Jason, refine this implementation once the comment of https://github.com/airswap/airswap-protocols/issues/1341 is resolved.
 	// iterate the logs to address the subscribed swapEvent,
 	index := -1
 	for i := len(receipt.Logs) - 1; i >= 0; i-- {
@@ -257,7 +289,7 @@ func (e *AirswapClient) extractOrder(receipt *types2.Receipt, targetSwapEvent *s
 
 	// swap event is addressed, find the signerToken.Transfers and the senderToken.Transfer close to it.
 	for i := index - 1; i >= 0; i-- {
-		// just parse the ERC20 transfer events, the events could be NTN transfer events or USDC transfer events.
+		// just parse the ERC20 transfer events, the events could be ATN, NTN or USDC transfer events.
 		transfer, err := e.ntnContract.ParseTransfer(*receipt.Logs[i])
 		if err != nil {
 			e.logger.Debug("failed to parse log with ERC20 transfer", "error", err)
@@ -265,12 +297,12 @@ func (e *AirswapClient) extractOrder(receipt *types2.Receipt, targetSwapEvent *s
 		}
 
 		eventEmitter := transfer.Raw.Address
-		if eventEmitter != e.usdcAddress && eventEmitter != e.ntnAddress {
-			e.logger.Debug("skip none NTN & USDC swap event")
-			return order, errors.New("skip none NTN & USDC swap event")
+		if eventEmitter != e.usdcAddress && eventEmitter != e.ntnAddress && eventEmitter != e.atnAddress {
+			e.logger.Debug("skip none ATN, NTN & USDC swap event")
+			return order, errors.New("skip none ATN, NTN & USDC swap event")
 		}
 
-		// now only transfers of NTN or USDC token can come to here.
+		// now only transfers of ATN, NTN or USDC token can come to here.
 		if transfer.From == targetSwapEvent.SignerWallet {
 			if signerTokenAmount == nil || transfer.Value.Cmp(signerTokenAmount) > 0 {
 				signerTokenAmount = transfer.Value
@@ -285,27 +317,45 @@ func (e *AirswapClient) extractOrder(receipt *types2.Receipt, targetSwapEvent *s
 		}
 	}
 
-	if senderTokenAddress == e.usdcAddress && senderTokenAmount != nil {
-		order.usdcAmount = senderTokenAmount
+	if signerTokenAmount == nil || senderTokenAmount == nil {
+		return order, errors.New("skip none ATN, NTN & USDC swap event")
 	}
 
-	if signerTokenAddress == e.ntnAddress && signerTokenAmount != nil {
-		order.ntnAmount = signerTokenAmount
+	if (signerTokenAddress == e.usdcAddress && senderTokenAddress == e.atnAddress) ||
+		(signerTokenAddress == e.atnAddress && senderTokenAddress == e.usdcAddress) {
+		order.cryptoToken = e.atnAddress
+		if senderTokenAddress == e.atnAddress {
+			order.cryptoAmount = senderTokenAmount
+			order.usdcAmount = signerTokenAmount
+		} else {
+			order.cryptoAmount = signerTokenAmount
+			order.usdcAmount = senderTokenAmount
+		}
+		return order, nil
 	}
 
-	if order.ntnAmount == nil || order.usdcAmount == nil {
-		return order, errors.New("failed to find matching USDC swap event")
+	if (signerTokenAddress == e.usdcAddress && senderTokenAddress == e.ntnAddress) ||
+		(signerTokenAddress == e.ntnAddress && senderTokenAddress == e.usdcAddress) {
+		order.cryptoToken = e.ntnAddress
+		if senderTokenAddress == e.ntnAddress {
+			order.cryptoAmount = senderTokenAmount
+			order.usdcAmount = signerTokenAmount
+		} else {
+			order.cryptoAmount = signerTokenAmount
+			order.usdcAmount = senderTokenAmount
+		}
+		return order, nil
 	}
 
-	order.timeStamp = time.Now().Unix()
-	return order, nil
+	// unexpected pairing, for example: ATN-NTN or NTN-ATN, they should be done by CDP, however if one want to create
+	// ATN-NTN or NTN-ATN on aireswap, it should work. But we skip the pairing here.
+	return order, errors.New("skip unexpected swap of ATN and NTN from airswap")
 }
 
 // compute new price once new settled order comes.
-func (e *AirswapClient) computePrice(order Order) (*big.Rat, error) {
-	e.orderBooks.Enqueue(order)
-	// pick up all the cached recent orders, and compute the volume weight price.
-	recentOrders := e.orderBooks.Values()
+func aggregatePrice(orderBook *ring.Ring, order Order) (*big.Rat, error) {
+	orderBook.Enqueue(order)
+	recentOrders := orderBook.Values()
 	aggregatedPrice, err := volumeWeightedPrice(recentOrders)
 	if err != nil {
 		return nil, err
@@ -313,7 +363,8 @@ func (e *AirswapClient) computePrice(order Order) (*big.Rat, error) {
 	return aggregatedPrice, nil
 }
 
-func (e *AirswapClient) flushPrice() error {
+// flushPrices marshals the latest aggregated Price structs and writes them to a JSON file.
+func (e *AirswapClient) flushPrices() error {
 	e.priceMutex.RLock()
 	defer e.priceMutex.RUnlock()
 
@@ -327,63 +378,83 @@ func (e *AirswapClient) flushPrice() error {
 	}
 	defer file.Close()
 
-	// Marshal the Price struct into JSON
+	// Marshal the slice of Price structs into JSON
 	encoder := json.NewEncoder(file)
-	if err = encoder.Encode(e.lastAggregatedPrice); err != nil {
-		e.logger.Error("failed to flush last aggregated price", "error", err)
+
+	var prices []common.Price
+	for _, v := range e.lastAggregatedPrices {
+		prices = append(prices, v)
+	}
+
+	if err = encoder.Encode(prices); err != nil {
+		e.logger.Error("failed to flush prices", "error", err)
 		return err
 	}
 
 	return nil
 }
 
-// readPriceFromFile reads the Price struct from a specified JSON file.
-func (e *AirswapClient) readPriceFromFile(dir string) (common.Price, error) {
-	var price common.Price
+// historicPricesFromFile reads a slice of Price structs from a specified JSON file.
+func (e *AirswapClient) historicPricesFromFile(dir string) ([]common.Price, error) {
+	var prices []common.Price
 	// Construct the full file path
 	filePath := filepath.Join(dir, priceFile)
 
 	// Open the file for reading
 	file, err := os.Open(filePath)
 	if err != nil {
-		e.logger.Error("No historic aggregated price can be find", "error", err)
-		return common.Price{}, err
+		e.logger.Error("No historic aggregated prices can be found", "error", err)
+		return nil, err
 	}
 	defer file.Close()
 
-	// Decode the JSON data into the Price struct
+	// Decode the JSON data into the slice of Price structs
 	decoder := json.NewDecoder(file)
-	if err = decoder.Decode(&price); err != nil {
-		e.logger.Error("Cannot decode historic price", "error", err)
-		return price, err
+	if err = decoder.Decode(&prices); err != nil {
+		e.logger.Error("Cannot decode historic prices", "error", err)
+		return nil, err
 	}
 
-	return price, nil
+	return prices, nil
 }
 
-func (e *AirswapClient) initPrice() {
-	e.lastAggregatedPrice.Symbol = NTNUSDC
+func (e *AirswapClient) initPrices() {
 
-	historicPrice, err := e.readPriceFromFile(priceFile)
+	historicPrices, err := e.historicPricesFromFile(priceFile)
 	if err != nil {
-		e.logger.Info("cannot find historic price, going to apply the genesis exchange ratio of NTN-USDC")
-		e.lastAggregatedPrice.Price = priceOnGenesis
+		now := time.Now().Unix()
+		e.lastAggregatedPrices[e.atnAddress] = common.Price{
+			Timestamp: now,
+			Symbol:    ATNUSDC,
+			Price:     ATNPriceOnGenesis,
+		}
+
+		e.lastAggregatedPrices[e.ntnAddress] = common.Price{
+			Timestamp: now,
+			Symbol:    NTNUSDC,
+			Price:     NTNPriceOnGenesis,
+		}
+		e.logger.Warn("cannot find historic price, apply the genesis exchange ratio of ATN-USDC & NTN-USDC")
 		return
 	}
 
-	if historicPrice.Symbol != NTNUSDC {
-		e.logger.Info("wrong symbol address from historic price, going to apply the genesis exchange ratio of NTN-USDC")
-		e.lastAggregatedPrice.Price = priceOnGenesis
-		return
-	}
+	for _, p := range historicPrices {
+		price := p
+		if price.Symbol == NTNUSDC {
+			e.lastAggregatedPrices[e.ntnAddress] = price
+			continue
+		}
 
-	e.lastAggregatedPrice.Price = historicPrice.Price
+		if price.Symbol == ATNUSDC {
+			e.lastAggregatedPrices[e.atnAddress] = price
+		}
+	}
 }
 
-// volumeWeightedPrice calculates the volume-weighted exchange ratio of NTN to USDC.
+// volumeWeightedPrice calculates the volume-weighted exchange ratio of ATN or NTN to USDC.
 func volumeWeightedPrice(orders []interface{}) (*big.Rat, error) {
-	// Initialize total NTN and USDC amounts
-	totalNTN := new(big.Int)
+	// Initialize total crypto and USDC amounts
+	totalCrypto := new(big.Int)
 	totalUSDC := new(big.Int)
 
 	// Iterate through the orders to sum up the amounts
@@ -394,7 +465,7 @@ func volumeWeightedPrice(orders []interface{}) (*big.Rat, error) {
 			return nil, fmt.Errorf("invalid order type")
 		}
 
-		totalNTN.Add(totalNTN, order.ntnAmount)
+		totalCrypto.Add(totalCrypto, order.cryptoAmount)
 		totalUSDC.Add(totalUSDC, order.usdcAmount)
 	}
 
@@ -404,15 +475,25 @@ func volumeWeightedPrice(orders []interface{}) (*big.Rat, error) {
 	}
 
 	// Calculate the weighted ratio as a fraction
-	weightedRatio := new(big.Rat).SetFrac(totalNTN, totalUSDC)
+	weightedRatio := new(big.Rat).SetFrac(totalCrypto, totalUSDC)
 
 	return weightedRatio, nil
 }
 
-func (e *AirswapClient) updatePrice(price string) {
+func (e *AirswapClient) updatePrice(tokenAddress ecommon.Address, price string) {
 	e.priceMutex.Lock()
 	defer e.priceMutex.Unlock()
-	e.lastAggregatedPrice.Price = price
+
+	symbol := ATNUSDC
+	if tokenAddress == e.ntnAddress {
+		symbol = NTNUSDC
+	}
+
+	e.lastAggregatedPrices[tokenAddress] = common.Price{
+		Symbol:    symbol,
+		Price:     price,
+		Timestamp: time.Now().Unix(),
+	}
 }
 
 func (e *AirswapClient) checkHealth() {
@@ -447,7 +528,10 @@ func (e *AirswapClient) FetchPrice(_ []string) (common.Prices, error) {
 	e.priceMutex.RLock()
 	defer e.priceMutex.RUnlock()
 	var prices common.Prices
-	prices = append(prices, e.lastAggregatedPrice)
+
+	for _, p := range e.lastAggregatedPrices {
+		prices = append(prices, p)
+	}
 	return prices, nil
 }
 
@@ -476,7 +560,7 @@ func main() {
 		return
 	}
 
-	// start the swap order book watching for price aggregation of NTN-USDC
+	// start the SwapERC20 event watching for price aggregation of NTN-USDC & ATN-USDC
 	go client.StartWatcher()
 
 	adapter := common.NewPlugin(conf, client, version)

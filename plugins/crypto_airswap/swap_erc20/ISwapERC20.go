@@ -210,6 +210,37 @@ func (_Swaperc20 *Swaperc20CallerSession) Authorized(arg0 common.Address) (commo
 	return _Swaperc20.Contract.Authorized(&_Swaperc20.CallOpts, arg0)
 }
 
+// ProtocolFeeWallet is a free data retrieval call binding the contract method 0xcbf7c6c3.
+//
+// Solidity: function protocolFeeWallet() view returns(address)
+func (_Swaperc20 *Swaperc20Caller) ProtocolFeeWallet(opts *bind.CallOpts) (common.Address, error) {
+	var out []interface{}
+	err := _Swaperc20.contract.Call(opts, &out, "protocolFeeWallet")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// ProtocolFeeWallet is a free data retrieval call binding the contract method 0xcbf7c6c3.
+//
+// Solidity: function protocolFeeWallet() view returns(address)
+func (_Swaperc20 *Swaperc20Session) ProtocolFeeWallet() (common.Address, error) {
+	return _Swaperc20.Contract.ProtocolFeeWallet(&_Swaperc20.CallOpts)
+}
+
+// ProtocolFeeWallet is a free data retrieval call binding the contract method 0xcbf7c6c3.
+//
+// Solidity: function protocolFeeWallet() view returns(address)
+func (_Swaperc20 *Swaperc20CallerSession) ProtocolFeeWallet() (common.Address, error) {
+	return _Swaperc20.Contract.ProtocolFeeWallet(&_Swaperc20.CallOpts)
+}
+
 // CalculateProtocolFee is a free data retrieval call binding the contract method 0x52c5f1f5.
 //
 // Solidity: function calculateProtocolFee(address , uint256 ) view returns(uint256)

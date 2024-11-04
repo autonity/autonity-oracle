@@ -24,8 +24,9 @@ var (
 )
 
 type Price struct {
-	Symbol string `json:"symbol,omitempty"`
-	Price  string `json:"price,omitempty"`
+	Symbol    string `json:"symbol,omitempty"`
+	Price     string `json:"price,omitempty"`
+	Timestamp int64  `json:"timestamp,omitempty"`
 }
 
 type Prices []Price
@@ -241,12 +242,12 @@ func ResolveConf(cmd string, defConf *types.PluginConfig) *types.PluginConfig {
 		conf.Name = defConf.Name
 	}
 
-	if len(conf.BaseTokenAddress) == 0 {
-		conf.BaseTokenAddress = defConf.BaseTokenAddress
+	if len(conf.ATNTokenAddress) == 0 {
+		conf.ATNTokenAddress = defConf.ATNTokenAddress
 	}
 
-	if len(conf.QuoteTokenAddress) == 0 {
-		conf.QuoteTokenAddress = defConf.QuoteTokenAddress
+	if len(conf.USDCTokenAddress) == 0 {
+		conf.USDCTokenAddress = defConf.USDCTokenAddress
 	}
 
 	if len(conf.SwapAddress) == 0 {
