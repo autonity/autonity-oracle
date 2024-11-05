@@ -27,7 +27,6 @@ var (
 	ATNUSDC           = "ATN-USDC"
 	NTNUSDC           = "NTN-USDC"
 	supportedSymbols  = []string{ATNUSDC, NTNUSDC}
-	priceFile         = "airswap_prices.json"
 	NTNTokenAddress   = types.AutonityContractAddress // Autonity contract is the protocol contract of NTN token
 )
 
