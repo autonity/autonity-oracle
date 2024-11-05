@@ -35,15 +35,15 @@ var (
 
 var defaultConfig = types.PluginConfig{
 	Name:               "crypto_airswap",
-	Key:                "",
-	Scheme:             "ws", // only ws is supported since we subscribe swap events from L1 airswapERC20 contract.
-	Endpoint:           "",   // todo: set the host name or IP address and port for the web socket service endpoint.
-	Timeout:            10,   // 10s
-	DataUpdateInterval: 30,   // todo: resolve the interval by according to the rate limit policy of the service end point.
-	ATNTokenAddress:    "0x", // todo: set the wrapped ATN erc20 token address
-	USDCTokenAddress:   "0x", // todo: set the USDC erc20 token address
-	SwapAddress:        "0x", // todo: set the airwapERC20 contract address
-	DataPointStoreDir:  ".",  // the default directory to save historic aggregated prices of ATN-USC and NTN-USDC
+	Scheme:             "wss",                             // todo: update this on redeployment of infra
+	Endpoint:           "rpc1.piccadilly.autonity.org/ws", // todo: update this on redeployment of infra
+	Timeout:            10,                                // 10s
+	DataUpdateInterval: 30,                                // 30s
+	// todo: update below protocol contract addresses on redeployment of protocols.
+	ATNTokenAddress:   "0xcE17e51cE4F0417A1aB31a3c5d6831ff3BbFa1d2", // Wrapped ATN ERC20 contract address on Autonity blockchain.
+	USDCTokenAddress:  "0x3a60C03a86eEAe30501ce1af04a6C04Cf0188700", // USDC ERC20 contract address on Autonity blockchain.
+	SwapAddress:       "0x28363983213F88C759b501E3a5888458178cD5E7", // AirSwap SwapERC20 contract address on Autonity blockchain.
+	DataPointStoreDir: ".",
 }
 
 type Order struct {

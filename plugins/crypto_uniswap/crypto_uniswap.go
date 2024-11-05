@@ -23,14 +23,14 @@ var (
 
 var defaultConfig = types.PluginConfig{
 	Name:               "crypto_uniswap",
-	Key:                "",
-	Scheme:             "ws", // todo: set the protocol to connect to L1 blockchain node. ws or https
-	Endpoint:           "",   // todo: set the host name or IP address and port for the service endpoint.
-	Timeout:            10,   // 10s
-	DataUpdateInterval: 30,   // todo: resolve the interval by according to the rate limit policy of the service end point.
-	ATNTokenAddress:    "0x", // todo: set the wrapped ATN erc20 token address
-	USDCTokenAddress:   "0x", // todo: set the USDC erc20 token address
-	SwapAddress:        "0x", // todo: set the uniswap factory contract address
+	Scheme:             "wss",                             // todo: update this on redeployment of infra
+	Endpoint:           "rpc1.piccadilly.autonity.org/ws", // todo: update this on redeployment of infra
+	Timeout:            10,                                // 10s
+	DataUpdateInterval: 30,                                // 30s
+	// todo: update below protocol contract addresses on redeployment of protocols.
+	ATNTokenAddress:  "0xcE17e51cE4F0417A1aB31a3c5d6831ff3BbFa1d2",
+	USDCTokenAddress: "0x3a60C03a86eEAe30501ce1af04a6C04Cf0188700",
+	SwapAddress:      "0x218F76e357594C82Cc29A88B90dd67b180827c88",
 }
 
 type WrappedPair struct {
@@ -187,13 +187,13 @@ func (e *UniswapClient) Close() {
 	}
 }
 
-// ComputeExchangeRatio calculates the exchange ratio based on current reserves
-func ComputeExchangeRatio(reserve0, reserve1 *big.Int) (*big.Float, error) {
-	if reserve1.Cmp(big.NewInt(0)) == 0 {
-		return nil, fmt.Errorf("reserve1 is zero, cannot compute exchange ratio")
+// ComputeExchangeRatio calculates the exchange ratio from ATN or NTN to USDC
+func ComputeExchangeRatio(cryptoReserve, usdcReserve *big.Int) (*big.Float, error) {
+	if usdcReserve.Cmp(big.NewInt(0)) == 0 {
+		return nil, fmt.Errorf("usdcReserve is zero, cannot compute exchange ratio")
 	}
 
-	ratio := new(big.Float).Quo(new(big.Float).SetInt(reserve0), new(big.Float).SetInt(reserve1))
+	ratio := new(big.Float).Quo(new(big.Float).SetInt(cryptoReserve), new(big.Float).SetInt(usdcReserve))
 	return ratio, nil
 }
 
