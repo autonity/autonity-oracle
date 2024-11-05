@@ -254,10 +254,6 @@ func ResolveConf(cmd string, defConf *types.PluginConfig) *types.PluginConfig {
 		conf.SwapAddress = defConf.SwapAddress
 	}
 
-	if len(conf.DataPointStoreDir) == 0 {
-		conf.DataPointStoreDir = defConf.DataPointStoreDir
-	}
-
 	return conf
 }
 

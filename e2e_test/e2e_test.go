@@ -438,7 +438,7 @@ func TestSingleNodeCryptoPluginsHappyCase(t *testing.T) {
 		PluginDIRs:   []string{cryptoPlugDir, cryptoPlugDir, cryptoPlugDir, cryptoPlugDir},
 	}
 
-	net, err := createNetwork(conf, 1)
+	net, err := createNetwork(conf, 2)
 	require.NoError(t, err)
 	defer net.Stop()
 

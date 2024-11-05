@@ -6,7 +6,6 @@ import (
 	swaperc20 "autonity-oracle/plugins/crypto_airswap/swap_erc20"
 	"autonity-oracle/types"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -18,7 +17,6 @@ import (
 	ring "github.com/zfjagann/golang-ring"
 	"math/big"
 	"os"
-	"path/filepath"
 	"sync"
 	"time"
 )
@@ -40,10 +38,9 @@ var defaultConfig = types.PluginConfig{
 	Timeout:            10,                                // 10s
 	DataUpdateInterval: 30,                                // 30s
 	// todo: update below protocol contract addresses on redeployment of protocols.
-	ATNTokenAddress:   "0xcE17e51cE4F0417A1aB31a3c5d6831ff3BbFa1d2", // Wrapped ATN ERC20 contract address on Autonity blockchain.
-	USDCTokenAddress:  "0x3a60C03a86eEAe30501ce1af04a6C04Cf0188700", // USDC ERC20 contract address on Autonity blockchain.
-	SwapAddress:       "0x28363983213F88C759b501E3a5888458178cD5E7", // AirSwap SwapERC20 contract address on Autonity blockchain.
-	DataPointStoreDir: ".",
+	ATNTokenAddress:  "0xcE17e51cE4F0417A1aB31a3c5d6831ff3BbFa1d2", // Wrapped ATN ERC20 contract address on Autonity blockchain.
+	USDCTokenAddress: "0x3a60C03a86eEAe30501ce1af04a6C04Cf0188700", // USDC ERC20 contract address on Autonity blockchain.
+	SwapAddress:      "0x28363983213F88C759b501E3a5888458178cD5E7", // AirSwap SwapERC20 contract address on Autonity blockchain.
 }
 
 type Order struct {
@@ -135,9 +132,6 @@ func NewAirswapClient(conf *types.PluginConfig, logger hclog.Logger) (*AirswapCl
 		lastAggregatedPrices: map[ecommon.Address]common.Price{},
 	}
 
-	// load historic prices of ATN-USDC and NTN-USDC or the price of the genesis.
-	ac.initPrices()
-
 	ac.atnOrderBooks.SetCapacity(orderBookCapacity)
 	ac.ntnOrderBooks.SetCapacity(orderBookCapacity)
 
@@ -220,7 +214,6 @@ func (e *AirswapClient) handleSwapEvent(txnHash ecommon.Hash, swapEvent *swaperc
 
 	// update the last aggregated price.
 	e.updatePrice(order.cryptoToken, lastAggregatedPrice.FloatString(7))
-	e.flushPrices() //nolint
 	return nil
 }
 
@@ -357,82 +350,6 @@ func aggregatePrice(orderBook *ring.Ring, order Order) (*big.Rat, error) {
 		return nil, err
 	}
 	return aggregatedPrice, nil
-}
-
-// flushPrices marshals the latest aggregated Price structs and writes them to a JSON file.
-func (e *AirswapClient) flushPrices() error {
-	e.priceMutex.RLock()
-	defer e.priceMutex.RUnlock()
-
-	// Construct the full file path
-	filePath := filepath.Join(e.conf.DataPointStoreDir, priceFile)
-	// Open the file for writing (create if it doesn't exist)
-	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
-	if err != nil {
-		e.logger.Error("cannot open price file", "error", err)
-		return err
-	}
-	defer file.Close()
-
-	// Marshal the slice of Price structs into JSON
-	encoder := json.NewEncoder(file)
-
-	var prices []common.Price
-	for _, v := range e.lastAggregatedPrices {
-		prices = append(prices, v)
-	}
-
-	if err = encoder.Encode(prices); err != nil {
-		e.logger.Error("failed to flush prices", "error", err)
-		return err
-	}
-
-	return nil
-}
-
-// historicPricesFromFile reads a slice of Price structs from a specified JSON file.
-func (e *AirswapClient) historicPricesFromFile(dir string) ([]common.Price, error) {
-	var prices []common.Price
-	// Construct the full file path
-	filePath := filepath.Join(dir, priceFile)
-
-	// Open the file for reading
-	file, err := os.Open(filePath)
-	if err != nil {
-		e.logger.Error("No historic aggregated prices can be found", "error", err)
-		return nil, err
-	}
-	defer file.Close()
-
-	// Decode the JSON data into the slice of Price structs
-	decoder := json.NewDecoder(file)
-	if err = decoder.Decode(&prices); err != nil {
-		e.logger.Error("Cannot decode historic prices", "error", err)
-		return nil, err
-	}
-
-	return prices, nil
-}
-
-func (e *AirswapClient) initPrices() {
-
-	historicPrices, err := e.historicPricesFromFile(priceFile)
-	if err != nil {
-		e.logger.Error("cannot find historic price, waiting for realtime order book event")
-		return
-	}
-
-	for _, p := range historicPrices {
-		price := p
-		if price.Symbol == NTNUSDC {
-			e.lastAggregatedPrices[e.ntnAddress] = price
-			continue
-		}
-
-		if price.Symbol == ATNUSDC {
-			e.lastAggregatedPrices[e.atnAddress] = price
-		}
-	}
 }
 
 // volumeWeightedPrice calculates the volume-weighted exchange ratio of ATN or NTN to USDC.

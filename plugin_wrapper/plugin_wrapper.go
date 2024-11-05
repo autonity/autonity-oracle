@@ -237,7 +237,7 @@ func (pw *PluginWrapper) start() {
 			go func() {
 				err := pw.fetchPrices(sampleEvent.Symbols, sampleEvent.TS)
 				if err != nil {
-					pw.logger.Error("fetch price routine", "error", err.Error())
+					pw.logger.Warn("fetch price routine", "error", err.Error())
 					return
 				}
 			}()
