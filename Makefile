@@ -2,7 +2,7 @@
 # with Go source code. If you know what GOPATH is then you probably
 # don't need to bother with make.
 
-.PHONY: mkdir oracle-server conf-file e2e-test-stuffs forex-plugins amm-plugins usdc-plugins autoracle test e2e_test clean lint dep all
+.PHONY: mkdir oracle-server conf-file e2e-test-stuffs forex-plugins dex-plugins amm-plugins usdc-plugins autoracle test e2e_test clean lint dep all
 
 SOLC_VERSION = 0.8.2
 BIN_DIR = ./build/bin
@@ -94,9 +94,12 @@ forex-plugins:
 	go build -o $(PLUGIN_DIR)/forex_openexchange $(PLUGIN_SRC_DIR)/forex_openexchange/forex_openexchange.go
 	chmod +x $(PLUGIN_DIR)/*
 
+dex-plugins:
+	go build -o $(PLUGIN_DIR)/crypto_airswap $(PLUGIN_SRC_DIR)/crypto_airswap/crypto_airswap.go
+	chmod +x $(PLUGIN_DIR)/*
+
 amm-plugins:
 	go build -o $(PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/crypto_uniswap.go
-	go build -o $(PLUGIN_DIR)/crypto_airswap $(PLUGIN_SRC_DIR)/crypto_airswap/crypto_airswap.go
 	chmod +x $(PLUGIN_DIR)/*
 
 usdc-plugins:
@@ -119,11 +122,11 @@ bakerloo-sim-plugin:
 	go build -o $(PLUGIN_DIR)/sim_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go
 	chmod +x $(PLUGIN_DIR)/sim_plugin
 
-autoracle-bakerloo: mkdir oracle-server forex-plugins bakerloo-simulator bakerloo-sim-plugin conf-file e2e-test-stuffs
+autoracle-bakerloo: mkdir oracle-server forex-plugins usdc-plugins dex-plugins amm-plugins bakerloo-simulator bakerloo-sim-plugin conf-file e2e-test-stuffs
 	@echo "Done building for bakerloo network."
 	@echo "Run \"$(BIN_DIR)/autoracle\" to launch autonity oracle."
 
-autoracle: mkdir oracle-server forex-plugins piccadilly-cax-plugin usdc-plugins amm-plugins conf-file e2e-test-stuffs
+autoracle: mkdir oracle-server forex-plugins piccadilly-cax-plugin usdc-plugins dex-plugins amm-plugins conf-file e2e-test-stuffs
 	@echo "Done building for piccadilly network."
 	@echo "Run \"$(BIN_DIR)/autoracle\" to launch autonity oracle."
 
