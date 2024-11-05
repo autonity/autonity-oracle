@@ -31,10 +31,6 @@ var (
 	supportedSymbols  = []string{ATNUSDC, NTNUSDC}
 	priceFile         = "airswap_prices.json"
 	NTNTokenAddress   = types.AutonityContractAddress // Autonity contract is the protocol contract of NTN token
-	// todo: set an initial price of NTN-USDC on genesis, there is no price at all on airswapERC20 on genesis until there
-	// is an exchange/swap happens. Otherwise, the oracle client might be slashed due to the missing of price of a symbol.
-	NTNPriceOnGenesis = "" // The NTN-USDC price on the genesis phase
-	ATNPriceOnGenesis = "" // The ATN-USDC price on the genesis phase
 )
 
 var defaultConfig = types.PluginConfig{
@@ -422,19 +418,7 @@ func (e *AirswapClient) initPrices() {
 
 	historicPrices, err := e.historicPricesFromFile(priceFile)
 	if err != nil {
-		now := time.Now().Unix()
-		e.lastAggregatedPrices[e.atnAddress] = common.Price{
-			Timestamp: now,
-			Symbol:    ATNUSDC,
-			Price:     ATNPriceOnGenesis,
-		}
-
-		e.lastAggregatedPrices[e.ntnAddress] = common.Price{
-			Timestamp: now,
-			Symbol:    NTNUSDC,
-			Price:     NTNPriceOnGenesis,
-		}
-		e.logger.Warn("cannot find historic price, apply the genesis exchange ratio of ATN-USDC & NTN-USDC")
+		e.logger.Error("cannot find historic price, waiting for realtime order book event")
 		return
 	}
 
@@ -532,6 +516,11 @@ func (e *AirswapClient) FetchPrice(_ []string) (common.Prices, error) {
 	for _, p := range e.lastAggregatedPrices {
 		prices = append(prices, p)
 	}
+
+	if len(prices) == 0 {
+		return prices, errors.New("dex-pluign hasn't receive any realtime swap event yet")
+	}
+
 	return prices, nil
 }
 
