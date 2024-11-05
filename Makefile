@@ -63,7 +63,7 @@ e2e-test-stuffs:
 	chmod +x $(SIMULATOR_BIN_DIR)/simulator
 	cp $(SIMULATOR_BIN_DIR)/simulator $(E2E_TEST_DIR)/simulator
 
-    # cp plugins for e2e testing
+    # cp template plugins for e2e testing
 	cp $(PLUGIN_SRC_DIR)/template_plugin/bin/template_plugin $(E2E_TEST_MIX_PLUGIN_DIR)/template_plugin
 	cp $(PLUGIN_SRC_DIR)/template_plugin/bin/template_plugin $(E2E_TEST_TEMPLATE_PLUGIN_DIR)/template_plugin
 
@@ -80,6 +80,10 @@ e2e-test-stuffs:
 	cp $(PLUGIN_DIR)/usdc_coinbase $(E2E_TEST_CRYPTO_PLUGIN_DIR)/usdc_coinbase
 	cp $(PLUGIN_DIR)/usdc_coingecko $(E2E_TEST_CRYPTO_PLUGIN_DIR)/usdc_coingecko
 	cp $(PLUGIN_DIR)/usdc_kraken $(E2E_TEST_CRYPTO_PLUGIN_DIR)/usdc_kraken
+
+	# cp amm and dex plugins for e2e testing
+	cp $(PLUGIN_DIR)/crypto_uniswap $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_uniswap
+	cp $(PLUGIN_DIR)/crypto_airswap $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_airswap
 
     # build simulator plugin
 	go build -o $(E2E_TEST_SML_PLUGIN_DIR)/sim_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go

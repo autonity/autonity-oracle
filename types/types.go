@@ -94,6 +94,6 @@ type PluginConfig struct {
 	DataUpdateInterval int    `json:"refresh" yaml:"refresh"`                     // the interval in seconds to fetch data from data provider due to rate limit.
 	ATNTokenAddress    string `json:"atnTokenAddress" yaml:"atnTokenAddress"`     // The Wrapped ATN erc20 token address.
 	USDCTokenAddress   string `json:"usdcTokenAddress" yaml:"usdcTokenAddress"`   // USDC erc20 token address.
-	SwapAddress        string `json:"swapAddress" yaml:"swapAddress"`             // uniswap factory contract address or airswapERC20 contract address.
+	SwapAddress        string `json:"swapAddress" yaml:"swapAddress"`             // uniswap factory contract address or airswap SwapERC20 contract address.
 	DataPointStoreDir  string `json:"dataPointStoreDir" yaml:"dataPointStoreDir"` // a directory to save historic aggregated prices for some plugin.
 }
