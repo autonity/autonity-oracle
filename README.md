@@ -127,7 +127,6 @@ The configuration of plugins are assembled in a yaml file:
 # ATN-USDC and NTN-USDC market data is collected, NTN-ATN market price is derived from that market data,  markets, and USDC pricing is converted to USD. ATN-NTN, ATN-USD, and NTN-USD prices are then submitted on-chain.
 # To retrieve ATN and NTN prices, put the `uniswapv2 plugin` in your plugin directory. Oracle server can then discover and
 # load it. Configuring the `uniswapv2` plugin does not require an API key; it is an open and free data source.
-# free data source.
 
 # USDC-USD prices are required by the protocol to convert the ATN-USDC and NTN-USDC to ATN-USD and
 # NTN-USD. This enables the reporting of ATN and NTN prices in USD to the ASM. To enable this, 3 plugins are implemented to source the USDC-USD datapoint from open and free data sources: coinbase,
