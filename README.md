@@ -129,7 +129,7 @@ The configuration of plugins are assembled in a yaml file:
 # load it. Configuring the `uniswapv2` plugin does not require an API key; it is an open and free data source.
 
 # USDC-USD prices are required by the protocol to convert the ATN-USDC and NTN-USDC to ATN-USD and
-# NTN-USD. This enables the reporting of ATN and NTN prices in USD to the ASM. To enable this, 3 plugins are implemented to source the USDC-USD datapoint from open and free data sources: coinbase,
+# NTN-USD. This enables the reporting of ATN and NTN prices in USD to the ASM. Three plugins are implemented to source the USDC-USD datapoint from open and free data sources: coinbase,
 # coingecko, and kraken. To prevent single data source failure, putting all 3 usdc plugins into your
 # plugin directory is recommended. Oracle server can then discover and load them.
 # You don't need to configure the usdc plugins in your oracle server plugin configuration file.
