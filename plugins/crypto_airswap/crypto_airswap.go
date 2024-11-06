@@ -191,7 +191,8 @@ func (e *AirswapClient) handleSwapEvent(txnHash ecommon.Hash, swapEvent *swaperc
 		return err
 	}
 
-	order, err := e.extractOrder(txnReceipt, swapEvent)
+	logs := txnReceipt.Logs
+	order, err := e.extractOrder(logs, swapEvent)
 	if err != nil {
 		e.logger.Error("failed to extract the exchanges from txn receipts", "error", err, "txnHash", txnHash)
 		return err
@@ -245,22 +246,22 @@ log5, event: airswapERC20.SwapERC20(nonce, signerWallet);
 // by the SwapErc20(nonce, signerWallet) event, we can get the senderAmount of senderToken received by signerWallet, and
 // the signerAmount of signerToken transfer by the signerWallet to get the exchange. In this plugin, we only care about
 // the NTN token and the USDC token as our targeting liquidity market.
-func (e *AirswapClient) extractOrder(receipt *types2.Receipt, targetSwapEvent *swaperc20.Swaperc20SwapERC20) (Order, error) {
+func (e *AirswapClient) extractOrder(logs []*types2.Log, targetSwapEvent *swaperc20.Swaperc20SwapERC20) (Order, error) {
 	var order Order
 
 	// todo: Jason, refine this implementation once the comment of https://github.com/airswap/airswap-protocols/issues/1341 is resolved.
 	// iterate the logs to address the subscribed swapEvent,
 	index := -1
-	for i := len(receipt.Logs) - 1; i >= 0; i-- {
+	for i := len(logs) - 1; i >= 0; i-- {
 		// Check for the SwapERC20 event
-		parsedSwap, err := e.swapContract.ParseSwapERC20(*receipt.Logs[i])
+		parsedSwap, err := e.swapContract.ParseSwapERC20(*logs[i])
 		if err != nil {
 			e.logger.Debug("failed to parse log with swap event", "error", err)
 			continue
 		}
 
 		// as the nonce is unique, check with nonce.
-		if parsedSwap.Nonce == targetSwapEvent.Nonce {
+		if parsedSwap.Nonce.Cmp(targetSwapEvent.Nonce) == 0 {
 			index = i
 			break
 		}
@@ -278,7 +279,7 @@ func (e *AirswapClient) extractOrder(receipt *types2.Receipt, targetSwapEvent *s
 	// swap event is addressed, find the signerToken.Transfers and the senderToken.Transfer close to it.
 	for i := index - 1; i >= 0; i-- {
 		// just parse the ERC20 transfer events, the events could be ATN, NTN or USDC transfer events.
-		transfer, err := e.ntnContract.ParseTransfer(*receipt.Logs[i])
+		transfer, err := e.ntnContract.ParseTransfer(*logs[i])
 		if err != nil {
 			e.logger.Debug("failed to parse log with ERC20 transfer", "error", err)
 			continue
