@@ -4,7 +4,7 @@
 # The selection of which forex data plugin(s) to use is for the end user to decide. The user can use any one of them,
 # or he/she can use multiple forex data plugins in the setup.
 #
-# The crypto data plugins are used to fetch realtime rate of crypto currency pairs: ATN-USDC, NTN-USDC, NTN-ATN and
+# The crypto data plugins are used to fetch market prices for the crypto currency pairs: ATN-USDC, NTN-USDC, NTN-ATN and 
 # USDC-USD. USDC liquidity is bridged to the Autonity public testnet from the Polygon Amoy testnet via a bridge service.
 # ATN-USDC and NTN-USDC market data is collected, NTN-ATN market price is derived from that market data,  markets, and USDC pricing is converted to USD. ATN-NTN, ATN-USD, and NTN-USD prices are then submitted on-chain.
 # To retrieve ATN and NTN prices, put the `uniswapv2 plugin` in your plugin directory. Oracle server can then discover and
