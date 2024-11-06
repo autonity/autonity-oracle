@@ -15,14 +15,18 @@ import (
 )
 
 var (
-	DefaultLogVerbosity   = 3 // 0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error
-	DefaultGasTipCap      = uint64(1)
-	DefaultAutonityWSUrl  = "ws://127.0.0.1:8546"
-	DefaultKeyFile        = "./UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"
-	DefaultKeyPassword    = "123"
-	DefaultPluginDir      = "./plugins"
-	DefaultPluginConfFile = "./plugins-conf.yml"
-	DefaultOracleConfFile = ""
+	ConfidenceStrategyLinear = 0
+	ConfidenceStrategyFixed  = 1
+
+	DefaultConfidenceStrategy = ConfidenceStrategyLinear // 0: linear, 1: fixed.
+	DefaultLogVerbosity       = 3                        // 0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error
+	DefaultGasTipCap          = uint64(1)
+	DefaultAutonityWSUrl      = "ws://127.0.0.1:8546"
+	DefaultKeyFile            = "./UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"
+	DefaultKeyPassword        = "123"
+	DefaultPluginDir          = "./plugins"
+	DefaultPluginConfFile     = "./plugins-conf.yml"
+	DefaultOracleConfFile     = ""
 	// DefaultSymbols are native symbols required by the oracle protocol:
 	DefaultSymbols = []string{"AUD-USD", "CAD-USD", "EUR-USD", "GBP-USD", "JPY-USD", "SEK-USD", "ATN-USD", "NTN-USD", "NTN-ATN"}
 	// BridgerSymbols are helper symbols to convert the ratio of ATN-USDC & NTN-USDC to the required symbols: ATN-USD, NTN-USD.
@@ -44,6 +48,7 @@ const UsageOracleKeyPassword = "Set the password to decrypt oracle server key fi
 const UsageGasTipCap = "Set the gas priority fee cap to issue the oracle data report transactions."
 const UsageWSUrl = "Set the WS-RPC server listening interface and port of the connected Autonity Client node."
 const UsageLogLevel = "Set the logging level, available levels are:  0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error"
+const UsageConfidenceStrategy = "Set the confidence strategy available values are:  0: linear, 1: fixed"
 
 func MakeConfig() *types.OracleServiceConfig {
 	var logLevel int
@@ -54,6 +59,7 @@ func MakeConfig() *types.OracleServiceConfig {
 	var autonityWSUrl string
 	var pluginConfFile string
 	var oracleConfFile string
+	var confidenceStrategy int
 
 	flag.Uint64Var(&gasTipCap, "tip", DefaultGasTipCap, UsageGasTipCap)
 	flag.StringVar(&keyFile, "key.file", DefaultKeyFile, UsageOracleKey)
@@ -63,6 +69,7 @@ func MakeConfig() *types.OracleServiceConfig {
 	flag.StringVar(&pluginConfFile, "plugin.conf", DefaultPluginConfFile, UsagePluginConf)
 	flag.StringVar(&keyPassword, "key.password", DefaultKeyPassword, UsageOracleKeyPassword)
 	flag.StringVar(&oracleConfFile, flag.DefaultConfigFlagname, DefaultOracleConfFile, UsageOracleConf)
+	flag.IntVar(&confidenceStrategy, "confidence.strategy", DefaultConfidenceStrategy, UsageConfidenceStrategy)
 
 	flag.Parse()
 	if len(flag.Args()) == 1 && flag.Args()[0] == "version" {
@@ -83,6 +90,21 @@ func MakeConfig() *types.OracleServiceConfig {
 		logLevel = l
 		if hclog.Level(logLevel) < hclog.NoLevel || hclog.Level(logLevel) > hclog.Error {
 			log.Printf("wrong logging level configed %d, %s", logLevel, UsageLogLevel)
+			helpers.PrintUsage()
+			os.Exit(1)
+		}
+	}
+
+	if cs, presented := os.LookupEnv(types.EnvConfidenceStrategy); presented && confidenceStrategy == DefaultConfidenceStrategy {
+		strategy, err := strconv.Atoi(cs)
+		if err != nil {
+			log.Printf("wrong confidence strategy configed in $CONFIDENCE_STRATEGY")
+			helpers.PrintUsage()
+			os.Exit(1)
+		}
+		confidenceStrategy = strategy
+		if confidenceStrategy < DefaultConfidenceStrategy || confidenceStrategy > ConfidenceStrategyFixed {
+			log.Printf("wrong confidence strategy configed %d, %s", confidenceStrategy, UsageConfidenceStrategy)
 			helpers.PrintUsage()
 			os.Exit(1)
 		}
@@ -125,12 +147,13 @@ func MakeConfig() *types.OracleServiceConfig {
 	}
 
 	return &types.OracleServiceConfig{
-		GasTipCap:      gasTipCap,
-		Key:            key,
-		AutonityWSUrl:  autonityWSUrl,
-		PluginDIR:      pluginDir,
-		PluginConfFile: pluginConfFile,
-		LoggingLevel:   hclog.Level(logLevel),
+		GasTipCap:          gasTipCap,
+		Key:                key,
+		AutonityWSUrl:      autonityWSUrl,
+		PluginDIR:          pluginDir,
+		PluginConfFile:     pluginConfFile,
+		LoggingLevel:       hclog.Level(logLevel),
+		ConfidenceStrategy: confidenceStrategy,
 	}
 }
 
@@ -178,11 +201,13 @@ func FormatVersion(version uint8) string {
 }
 
 // ComputeConfidence calculates the confidence weight based on the number of sources and a scaling factor.
-func ComputeConfidence(numSources int) uint8 {
-	if numSources == 0 {
-		return 0
+func ComputeConfidence(numSources, strategy int) uint8 {
+
+	if strategy == ConfidenceStrategyFixed {
+		return MaxConfidence
 	}
 
+	// linear confidence strategy comes here, the numSource was checked, and it is at least 1.
 	// Use an exponential formula to compute weight
 	weight := BaseConfidence + SourceScalingFactor*uint64(math.Pow(1.75, float64(numSources)))
 

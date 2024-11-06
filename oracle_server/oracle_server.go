@@ -81,9 +81,10 @@ type OracleServer struct {
 	subSymbolsEvent event.Subscription
 	lastSampledTS   int64
 
-	sampleEventFee event.Feed
-	loggingLevel   hclog.Level
-	lostSync       bool // set to true if the connectivity with L1 Autonity network is dropped during runtime.
+	sampleEventFee     event.Feed
+	loggingLevel       hclog.Level
+	confidenceStrategy int
+	lostSync           bool // set to true if the connectivity with L1 Autonity network is dropped during runtime.
 }
 
 func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, client types.Blockchain,
@@ -104,6 +105,7 @@ func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, clien
 		regularTicker:      time.NewTicker(TenSecsInterval),
 		psTicker:           time.NewTicker(OneSecInterval),
 		loggingLevel:       conf.LoggingLevel,
+		confidenceStrategy: conf.ConfidenceStrategy,
 	}
 
 	os.logger = hclog.New(&hclog.LoggerOptions{
@@ -602,7 +604,7 @@ func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, er
 	}
 
 	// compute confidence of the symbol from the num of plugins' samples of it.
-	confidence := config.ComputeConfidence(len(prices))
+	confidence := config.ComputeConfidence(len(prices), os.confidenceStrategy)
 
 	price := &types.Price{
 		Timestamp:  target,

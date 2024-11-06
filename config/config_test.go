@@ -23,6 +23,10 @@ func TestMakeConfigWithEnvironmentVariables(t *testing.T) {
 		require.NoError(t, err)
 		defer os.Unsetenv(types.EnvPluginDIR)
 
+		err = os.Setenv(types.EnvConfidenceStrategy, "1")
+		require.NoError(t, err)
+		defer os.Unsetenv(types.EnvConfidenceStrategy)
+
 		err = os.Setenv(types.EnvLogLevel, "3")
 		require.NoError(t, err)
 		defer os.Unsetenv(types.EnvLogLevel)
@@ -46,6 +50,7 @@ func TestMakeConfigWithEnvironmentVariables(t *testing.T) {
 		require.Equal(t, uint64(30), conf.GasTipCap)
 		require.Equal(t, "ws://127.0.0.1:30303", conf.AutonityWSUrl)
 		require.Equal(t, "./plugin-conf.yml", conf.PluginConfFile)
+		require.Equal(t, ConfidenceStrategyFixed, conf.ConfidenceStrategy)
 	})
 }
 
@@ -63,7 +68,10 @@ func TestFormatVersion(t *testing.T) {
 func TestComputeConfidence(t *testing.T) {
 
 	for i := 1; i <= 4; i++ {
-		confidence := ComputeConfidence(i)
+		confidence := ComputeConfidence(i, ConfidenceStrategyLinear)
 		t.Log(confidence)
 	}
+
+	fixedConfidence := ComputeConfidence(4, ConfidenceStrategyFixed)
+	require.Equal(t, uint8(MaxConfidence), fixedConfidence)
 }

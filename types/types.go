@@ -21,6 +21,7 @@ var (
 	EnvPluginCof            = "PLUGIN_CONF"
 	EnvGasTipCap            = "GAS_TIP_CAP"
 	EnvLogLevel             = "LOG_LEVEL"
+	EnvConfidenceStrategy   = "CONFIDENCE_STRATEGY"
 	SimulatedPrice          = decimal.RequireFromString("11.11")
 	InvalidPrice            = new(big.Int).Sub(math.BigPow(2, 255), big.NewInt(1))
 	InvalidSalt             = big.NewInt(0)
@@ -62,12 +63,13 @@ type RoundData struct {
 
 // OracleServiceConfig is the configuration of the oracle client.
 type OracleServiceConfig struct {
-	LoggingLevel   hclog.Level
-	GasTipCap      uint64
-	Key            *keystore.Key
-	AutonityWSUrl  string
-	PluginDIR      string
-	PluginConfFile string
+	LoggingLevel       hclog.Level
+	GasTipCap          uint64
+	Key                *keystore.Key
+	AutonityWSUrl      string
+	PluginDIR          string
+	PluginConfFile     string
+	ConfidenceStrategy int
 }
 
 // JSONRPCMessage is the JSON spec to carry those data response from the binance data simulator.
