@@ -123,7 +123,7 @@ The configuration of plugins are assembled in a yaml file:
 # or he/she can use multiple forex data plugins in the setup.
 #
 # The crypto data plugins are used to fetch market prices for the crypto currency pairs: ATN-USDC, NTN-USDC, NTN-ATN and 
-# USDC-USD. USDC liquidity is bridged to the Autonity public testnet from the Polygon Amoy testnet via a bridge service. USDC is used as the quote currency for ATN-USDC and NTN-USDC markets which provides
+# USDC-USD. USDC liquidity is bridged to the Autonity public testnet from the Polygon Amoy testnet via a bridge service.
 # open and free data access for the `testnet_dax plugin`, the NTN-ATN price is computed by `testnet_dax plugin` from the price
 # of ATN-USDC and NTN-USDC. To retrieve ATN and NTN prices, put the `testnet_dax plugin` in your plugin directory. Oracle server can then discover and
 # load it. Configuring the `testnet_dax` plugin does not require an API key; it is an open and
