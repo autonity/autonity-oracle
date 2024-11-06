@@ -4,12 +4,10 @@ import (
 	"autonity-oracle/plugins/common"
 	"autonity-oracle/types"
 	"encoding/json"
-	"fmt"
 	"github.com/hashicorp/go-hclog"
 	"io"
 	"net/url"
 	"os"
-	"strings"
 	"time"
 )
 
@@ -58,7 +56,7 @@ func (c *CoinBaseClient) KeyRequired() bool {
 	return false
 }
 
-func (c *CoinBaseClient) FetchPrice(symbols []string) (common.Prices, error) {
+func (c *CoinBaseClient) FetchPrice(_ []string) (common.Prices, error) {
 	var prices common.Prices
 	u := c.buildURL()
 	res, err := c.client.Conn.Request(c.conf.Scheme, u)
@@ -86,43 +84,16 @@ func (c *CoinBaseClient) FetchPrice(symbols []string) (common.Prices, error) {
 		return nil, err
 	}
 
-	for _, s := range symbols {
-		p, err := c.toPrice(s, &data)
-		if err != nil {
-			c.logger.Error("error filling USDC-USD price data", "err", err.Error())
-			continue
-		}
-		prices = append(prices, p)
-	}
+	prices = append(prices, common.Price{
+		Symbol: common.DefaultUSDCSymbol,
+		Price:  data.Data.Amount,
+	})
 
 	return prices, nil
 }
 
-func (c *CoinBaseClient) toPrice(symbol string, res *Response) (common.Price, error) {
-	var price common.Price
-	sep := common.ResolveSeparator(symbol)
-	codes := strings.Split(symbol, sep)
-	if len(codes) != 2 {
-		return price, fmt.Errorf("invalid symbol %s", symbol)
-	}
-
-	from := codes[0]
-	to := codes[1]
-	if to != res.Data.Currency {
-		return price, fmt.Errorf("wrong base %s", to)
-	}
-
-	if from != res.Data.Base {
-		return price, fmt.Errorf("wrong currency %s", from)
-	}
-
-	price.Symbol = symbol
-	price.Price = res.Data.Amount
-	return price, nil
-}
-
 func (c *CoinBaseClient) AvailableSymbols() ([]string, error) {
-	return common.DefaultUSDCSymbols, nil
+	return []string{common.DefaultUSDCSymbol}, nil
 }
 
 func (c *CoinBaseClient) Close() {

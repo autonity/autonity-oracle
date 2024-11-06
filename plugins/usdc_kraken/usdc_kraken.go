@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/url"
 	"os"
-	"strings"
 	"time"
 )
 
@@ -17,8 +16,6 @@ const (
 	version         = "v0.0.1"
 	path            = "0/public/Ticker"
 	queryParam      = "pair"
-	base            = "USDC"
-	quote           = "USD"
 	supportedSymbol = "USDCUSD"
 )
 
@@ -69,7 +66,7 @@ func (k *KrakenClient) KeyRequired() bool {
 	return false
 }
 
-func (k *KrakenClient) FetchPrice(symbols []string) (common.Prices, error) {
+func (k *KrakenClient) FetchPrice(_ []string) (common.Prices, error) {
 	var prices common.Prices
 	u := k.buildURL()
 	res, err := k.client.Conn.Request(k.conf.Scheme, u)
@@ -100,35 +97,18 @@ func (k *KrakenClient) FetchPrice(symbols []string) (common.Prices, error) {
 		return nil, fmt.Errorf("%s", result.Error[0])
 	}
 
-	for _, s := range symbols {
-		p, err := k.toPrice(s, &result)
-		if err != nil {
-			k.logger.Error("error filling USDC-USD price data", "err", err.Error())
-			continue
-		}
-		prices = append(prices, p)
+	p, err := k.toPrice(common.DefaultUSDCSymbol, &result)
+	if err != nil {
+		k.logger.Error("error filling USDC-USD price data", "err", err.Error())
+		return nil, err
 	}
 
+	prices = append(prices, p)
 	return prices, nil
 }
 
 func (k *KrakenClient) toPrice(symbol string, res *Response) (common.Price, error) {
 	var price common.Price
-	sep := common.ResolveSeparator(symbol)
-	codes := strings.Split(symbol, sep)
-	if len(codes) != 2 {
-		return price, fmt.Errorf("invalid symbol %s", symbol)
-	}
-
-	from := codes[0]
-	to := codes[1]
-	if to != quote {
-		return price, fmt.Errorf("wrong base %s", to)
-	}
-
-	if from != base {
-		return price, fmt.Errorf("wrong currency %s", from)
-	}
 
 	usdcResult, ok := res.Result[supportedSymbol]
 	if !ok {
@@ -145,7 +125,7 @@ func (k *KrakenClient) toPrice(symbol string, res *Response) (common.Price, erro
 }
 
 func (k *KrakenClient) AvailableSymbols() ([]string, error) {
-	return common.DefaultUSDCSymbols, nil
+	return []string{common.DefaultUSDCSymbol}, nil
 }
 
 func (k *KrakenClient) Close() {
