@@ -6,7 +6,7 @@
 #
 # The crypto data plugins are used to fetch realtime rate of crypto currency pairs: ATN-USDC, NTN-USDC, NTN-ATN and
 # USDC-USD. USDC liquidity is bridged to the Autonity public testnet from the Polygon Amoy testnet via a bridge service. USDC is used as the quote currency for ATN-USDC and NTN-USDC markets which provides
-# open and free data access for the `testnet_dax plugin`, the NTN-ATN price is computed by `testnet_dax plugin` from the price
+# ATN-USDC and NTN-USDC market data is collected, NTN-ATN market price is derived from that market data,  markets, and USDC pricing is converted to USD. ATN-NTN, ATN-USD, and NTN-USD prices are then submitted on-chain.
 # To retrieve ATN and NTN prices, put the `uniswapv2 plugin` in your plugin directory. Oracle server can then discover and
 # load it. Configuring the `uniswapv2` plugin does not require an API key; it is an open and free data source.
 # free data source.
