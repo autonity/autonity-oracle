@@ -4,13 +4,11 @@ import (
 	"autonity-oracle/plugins/common"
 	"autonity-oracle/types"
 	"encoding/json"
-	"fmt"
 	"github.com/hashicorp/go-hclog"
 	"io"
 	"net/url"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -61,7 +59,7 @@ func (c *CoinGeckoClient) KeyRequired() bool {
 	return false
 }
 
-func (c *CoinGeckoClient) FetchPrice(symbols []string) (common.Prices, error) {
+func (c *CoinGeckoClient) FetchPrice(_ []string) (common.Prices, error) {
 	var prices common.Prices
 	u := c.buildURL()
 	res, err := c.client.Conn.Request(c.conf.Scheme, u)
@@ -87,44 +85,16 @@ func (c *CoinGeckoClient) FetchPrice(symbols []string) (common.Prices, error) {
 		return nil, err
 	}
 
-	for _, s := range symbols {
-		p, err := c.toPrice(s, &result)
-		if err != nil {
-			c.logger.Error("error filling USDC-USD price data", "err", err.Error())
-			continue
-		}
-		prices = append(prices, p)
-	}
+	prices = append(prices, common.Price{
+		Symbol: common.DefaultUSDCSymbol,
+		Price:  strconv.FormatFloat(result.USDCoin.USD, 'f', 6, 64),
+	})
 
 	return prices, nil
 }
 
-func (c *CoinGeckoClient) toPrice(symbol string, res *Response) (common.Price, error) {
-	var price common.Price
-	sep := common.ResolveSeparator(symbol)
-	codes := strings.Split(symbol, sep)
-	if len(codes) != 2 {
-		return price, fmt.Errorf("invalid symbol %s", symbol)
-	}
-
-	from := codes[0]
-	to := codes[1]
-	if to != "USD" {
-		return price, fmt.Errorf("wrong base %s", to)
-	}
-
-	if from != "USDC" {
-		return price, fmt.Errorf("wrong currency %s", from)
-	}
-
-	price.Symbol = symbol
-	value := strconv.FormatFloat(res.USDCoin.USD, 'f', 6, 64)
-	price.Price = value
-	return price, nil
-}
-
 func (c *CoinGeckoClient) AvailableSymbols() ([]string, error) {
-	return common.DefaultUSDCSymbols, nil
+	return []string{common.DefaultUSDCSymbol}, nil
 }
 
 func (c *CoinGeckoClient) Close() {

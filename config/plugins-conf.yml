@@ -4,15 +4,16 @@
 # The selection of which forex data plugin(s) to use is for the end user to decide. The user can use any one of them,
 # or he/she can use multiple forex data plugins in the setup.
 #
-# The crypto data plugins are used to fetch realtime rate of crypto currency pairs: ATN-USDC, NTN-USDC, NTN-ATN and
-# USDC-USD. USDC liquidity is bridged to the Autonity public testnet from the Polygon Amoy testnet via a bridge service. USDC is used as the quote currency for ATN-USDC and NTN-USDC markets which provides
-# open and free data access for the `testnet_dax plugin`, the NTN-ATN price is computed by `testnet_dax plugin` from the price
-# of ATN-USDC and NTN-USDC. To retrieve ATN and NTN prices, put the `testnet_dax plugin` in your plugin directory. Oracle server can then discover and
-# load it. Configuring the `testnet_dax` plugin does not require an API key; it is an open and
+# The crypto data plugins are used to fetch market prices for the crypto currency pairs: ATN-USDC, NTN-USDC, NTN-ATN and 
+# USDC-USD. USDC liquidity is bridged to the Autonity public testnet from the Polygon Amoy testnet via a bridge service.
+# ATN-USDC and NTN-USDC market data is collected, NTN-ATN market price is derived from that market data,  markets, and USDC pricing is converted to USD. ATN-NTN, ATN-USD, and NTN-USD prices are then submitted on-chain.
+# To retrieve ATN and NTN prices, put the `uniswapv2 plugin` in your plugin directory. Oracle server can then discover and
+# load it. Configuring the `uniswapv2` plugin does not require an API key; it is an open and free data source.
 # free data source.
 
 # USDC-USD prices are required by the protocol to convert the ATN-USDC and NTN-USDC to ATN-USD and
-# NTN-USD. This enables the reporting of ATN and NTN prices in USD to the ASM. To enable this, 3 plugins are implemented to source the USDC-USD datapoint from open and free data sources: coinbase,
+# NTN-USD. This enables the reporting of ATN and NTN prices in USD to the ASM. Three plugins are implemented to source the USDC-USD datapoint from open and free data sources: coinbase,
+
 # coingecko, and kraken. To prevent single data source failure, putting all 3 usdc plugins into your
 # plugin directory is recommended. Oracle server can then discover and load them.
 # You don't need to configure the usdc plugins in your oracle server plugin configuration file.

@@ -19,7 +19,7 @@ var (
 	Zero                 = big.NewInt(0)
 	DefaultForexSymbols  = []string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"}
 	DefaultCryptoSymbols = []string{"ATN-USDC", "NTN-USDC", "NTN-ATN"}
-	DefaultUSDCSymbols   = []string{"USDC-USD"}
+	DefaultUSDCSymbol    = "USDC-USD"
 	ErrDataNotAvailable  = fmt.Errorf("data is not available")
 	ErrKnownSymbols      = fmt.Errorf("the data source does not have all the data asked by oracle server")
 	ErrAccessLimited     = fmt.Errorf("access rate is limited, please check your subscription from data provider")
