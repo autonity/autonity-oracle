@@ -31,6 +31,7 @@ var (
 	NTNTokenAddress   = types.AutonityContractAddress // Autonity contract is the protocol contract of NTN token
 )
 
+// Todo: require a config PR to finalize below configuration for the target autonity network.
 var defaultConfig = types.PluginConfig{
 	Name:               "crypto_airswap",
 	Scheme:             "wss",                             // todo: update this on redeployment of infra
