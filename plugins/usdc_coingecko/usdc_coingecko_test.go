@@ -8,6 +8,7 @@ import (
 
 func TestNewCoinGeckoClient(t *testing.T) {
 	client := NewCoinGeckoClient(&defaultConfig)
+	defer client.Close()
 	prices, err := client.FetchPrice([]string{"USDC-USD"})
 	require.NoError(t, err)
 	require.Equal(t, 1, len(prices))

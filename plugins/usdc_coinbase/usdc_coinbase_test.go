@@ -8,6 +8,7 @@ import (
 
 func TestNewCoinBaseClient(t *testing.T) {
 	client := NewCoinBaseClient(&defaultConfig)
+	defer client.Close()
 	prices, err := client.FetchPrice([]string{"USDC-USD"})
 	require.NoError(t, err)
 	require.Equal(t, 1, len(prices))
