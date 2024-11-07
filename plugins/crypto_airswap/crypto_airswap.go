@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/hashicorp/go-hclog"
 	ring "github.com/zfjagann/golang-ring"
+	"math"
 	"math/big"
 	"os"
 	"sync"
@@ -53,15 +54,14 @@ type AirswapClient struct {
 	client *ethclient.Client
 	logger hclog.Logger
 
-	atnContract *erc20.Erc20
 	atnAddress  ecommon.Address
-
-	ntnContract *erc20.Erc20
+	usdcAddress ecommon.Address
 	ntnAddress  ecommon.Address
 
-	usdcContract *erc20.Erc20
-	usdcAddress  ecommon.Address
+	// ERC20 Transfer event parser.
+	erc20LogParser *erc20.Erc20
 
+	// SwapERC20 event watcher and log parser.
 	swapContract *swaperc20.Swaperc20
 
 	chSwapEvent  chan *swaperc20.Swaperc20SwapERC20
@@ -94,24 +94,9 @@ func NewAirswapClient(conf *types.PluginConfig, logger hclog.Logger) (*AirswapCl
 		return nil, err
 	}
 
-	atnAddress := ecommon.HexToAddress(conf.ATNTokenAddress)
-	atnContract, err := erc20.NewErc20(atnAddress, client)
-	if err != nil {
-		logger.Error("cannot bind ATN ERC20 contract", "error", err)
-		return nil, err
-	}
-
-	ntnAddress := NTNTokenAddress
-	ntnContract, err := erc20.NewErc20(ntnAddress, client)
+	erc20LogParser, err := erc20.NewErc20(NTNTokenAddress, client)
 	if err != nil {
 		logger.Error("cannot bind NTN ERC20 contract", "error", err)
-		return nil, err
-	}
-
-	usdcAddress := ecommon.HexToAddress(conf.USDCTokenAddress)
-	usdcContract, err := erc20.NewErc20(usdcAddress, client)
-	if err != nil {
-		logger.Error("cannot bind USDC ERC20 contract", "error", err)
 		return nil, err
 	}
 
@@ -119,12 +104,10 @@ func NewAirswapClient(conf *types.PluginConfig, logger hclog.Logger) (*AirswapCl
 		conf:                 conf,
 		client:               client,
 		logger:               logger,
-		atnContract:          atnContract,
-		atnAddress:           atnAddress,
-		ntnContract:          ntnContract,
-		ntnAddress:           ntnAddress,
-		usdcContract:         usdcContract,
-		usdcAddress:          usdcAddress,
+		atnAddress:           ecommon.HexToAddress(conf.ATNTokenAddress),
+		ntnAddress:           NTNTokenAddress,
+		usdcAddress:          ecommon.HexToAddress(conf.USDCTokenAddress),
+		erc20LogParser:       erc20LogParser,
 		swapContract:         swapContract,
 		doneCh:               make(chan struct{}),
 		ticker:               time.NewTicker(time.Minute),
@@ -213,7 +196,7 @@ func (e *AirswapClient) handleSwapEvent(txnHash ecommon.Hash, swapEvent *swaperc
 	}
 
 	// update the last aggregated price.
-	e.updatePrice(order.cryptoToken, lastAggregatedPrice.FloatString(7))
+	e.updatePrice(order.cryptoToken, lastAggregatedPrice.FloatString(common.CryptoToUsdcDecimals))
 	return nil
 }
 
@@ -260,8 +243,8 @@ func (e *AirswapClient) extractOrder(logs []*types2.Log, targetSwapEvent *swaper
 			continue
 		}
 
-		// as the nonce is unique, check with nonce.
-		if parsedSwap.Nonce.Cmp(targetSwapEvent.Nonce) == 0 {
+		// as the nonce is unique, check with nonce and signer wallet.
+		if parsedSwap.Nonce.Cmp(targetSwapEvent.Nonce) == 0 && parsedSwap.SignerWallet == targetSwapEvent.SignerWallet {
 			index = i
 			break
 		}
@@ -279,7 +262,7 @@ func (e *AirswapClient) extractOrder(logs []*types2.Log, targetSwapEvent *swaper
 	// swap event is addressed, find the signerToken.Transfers and the senderToken.Transfer close to it.
 	for i := index - 1; i >= 0; i-- {
 		// just parse the ERC20 transfer events, the events could be ATN, NTN or USDC transfer events.
-		transfer, err := e.ntnContract.ParseTransfer(*logs[i])
+		transfer, err := e.erc20LogParser.ParseTransfer(*logs[i])
 		if err != nil {
 			e.logger.Debug("failed to parse log with ERC20 transfer", "error", err)
 			continue
@@ -336,9 +319,8 @@ func (e *AirswapClient) extractOrder(logs []*types2.Log, targetSwapEvent *swaper
 		return order, nil
 	}
 
-	// unexpected pairing, for example: ATN-NTN or NTN-ATN, they should be done by CDP, however if one want to create
-	// ATN-NTN or NTN-ATN on aireswap, it should work. But we skip the pairing here.
-	return order, errors.New("skip unexpected swap of ATN and NTN from airswap")
+	// exchange of ATN and NTN is not watched, we skip the order.
+	return order, errors.New("skip process swap event of ATN and NTN from airswap")
 }
 
 // compute new price once new settled order comes.
@@ -375,9 +357,20 @@ func volumeWeightedPrice(orders []interface{}) (*big.Rat, error) {
 		return nil, fmt.Errorf("total USDC amount is zero, cannot compute ratio")
 	}
 
-	// Calculate the weighted ratio as a fraction
-	weightedRatio := new(big.Rat).SetFrac(totalCrypto, totalUSDC)
+	// Define the decimal precision
+	cryptoDecimals := common.AutonityCryptoDecimals
+	usdcDecimals := common.USDCDecimals
 
+	// Scale the totals according to their decimals
+	scaledTotalCrypto := new(big.Int).Div(totalCrypto, big.NewInt(int64(math.Pow(10, float64(cryptoDecimals)))))
+	scaledTotalUSDC := new(big.Int).Div(totalUSDC, big.NewInt(int64(math.Pow(10, float64(usdcDecimals)))))
+
+	// Calculate the weighted ratio as a fraction
+	if scaledTotalUSDC.Cmp(big.NewInt(0)) == 0 {
+		return nil, fmt.Errorf("scaled total USDC amount is zero, cannot compute ratio")
+	}
+
+	weightedRatio := new(big.Rat).SetFrac(scaledTotalCrypto, scaledTotalUSDC)
 	return weightedRatio, nil
 }
 

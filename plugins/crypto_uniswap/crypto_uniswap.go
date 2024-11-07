@@ -9,6 +9,7 @@ import (
 	ecommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/hashicorp/go-hclog"
+	"math"
 	"math/big"
 	"os"
 )
@@ -173,7 +174,7 @@ func (e *UniswapClient) fetchPrice(pair *WrappedPair, symbol string) (common.Pri
 	}
 
 	price.Symbol = symbol
-	price.Price = p.String()
+	price.Price = p
 	return price, nil
 }
 
@@ -188,13 +189,28 @@ func (e *UniswapClient) Close() {
 }
 
 // ComputeExchangeRatio calculates the exchange ratio from ATN or NTN to USDC
-func ComputeExchangeRatio(cryptoReserve, usdcReserve *big.Int) (*big.Float, error) {
+func ComputeExchangeRatio(cryptoReserve, usdcReserve *big.Int) (string, error) {
 	if usdcReserve.Cmp(big.NewInt(0)) == 0 {
-		return nil, fmt.Errorf("usdcReserve is zero, cannot compute exchange ratio")
+		return "", fmt.Errorf("usdcReserve is zero, cannot compute exchange ratio")
 	}
 
-	ratio := new(big.Float).Quo(new(big.Float).SetInt(cryptoReserve), new(big.Float).SetInt(usdcReserve))
-	return ratio, nil
+	// Define the decimal precision
+	cryptoDecimals := common.AutonityCryptoDecimals
+	usdcDecimals := common.USDCDecimals
+
+	// Scale the reserves to the same precision
+	scaledCryptoReserve := new(big.Int).Div(cryptoReserve, big.NewInt(int64(math.Pow(10, float64(cryptoDecimals)))))
+	scaledUsdcReserve := new(big.Int).Div(usdcReserve, big.NewInt(int64(math.Pow(10, float64(usdcDecimals)))))
+
+	if scaledUsdcReserve.Cmp(big.NewInt(0)) == 0 {
+		return "", fmt.Errorf("scaledUsdcReserve is zero, cannot compute exchange ratio")
+	}
+
+	// Calculate the exchange ratio as a big.Rat
+	ratio := new(big.Rat).SetFrac(scaledCryptoReserve, scaledUsdcReserve)
+
+	// Return the string representation of the ratio
+	return ratio.FloatString(common.CryptoToUsdcDecimals), nil
 }
 
 func main() {
