@@ -353,20 +353,16 @@ func volumeWeightedPrice(orders []interface{}) (*big.Rat, error) {
 	}
 
 	// Check if totalUSDC is zero to avoid division by zero
-	if totalUSDC.Cmp(big.NewInt(0)) == 0 {
+	if totalUSDC.Cmp(common.Zero) == 0 {
 		return nil, fmt.Errorf("total USDC amount is zero, cannot compute ratio")
 	}
 
-	// Define the decimal precision
-	cryptoDecimals := common.AutonityCryptoDecimals
-	usdcDecimals := common.USDCDecimals
-
 	// Scale the totals according to their decimals
-	scaledTotalCrypto := new(big.Int).Div(totalCrypto, big.NewInt(int64(math.Pow(10, float64(cryptoDecimals)))))
-	scaledTotalUSDC := new(big.Int).Div(totalUSDC, big.NewInt(int64(math.Pow(10, float64(usdcDecimals)))))
+	scaledTotalCrypto := new(big.Int).Div(totalCrypto, big.NewInt(int64(math.Pow(10, float64(common.AutonityCryptoDecimals)))))
+	scaledTotalUSDC := new(big.Int).Div(totalUSDC, big.NewInt(int64(math.Pow(10, float64(common.USDCDecimals)))))
 
 	// Calculate the weighted ratio as a fraction
-	if scaledTotalUSDC.Cmp(big.NewInt(0)) == 0 {
+	if scaledTotalUSDC.Cmp(common.Zero) == 0 {
 		return nil, fmt.Errorf("scaled total USDC amount is zero, cannot compute ratio")
 	}
 

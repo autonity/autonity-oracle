@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"github.com/shopspring/decimal"
+	"math/big"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -15,15 +16,19 @@ import (
 )
 
 var (
+	Zero                 = big.NewInt(0)
+	DefaultForexSymbols  = []string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"}
+	DefaultCryptoSymbols = []string{"ATN-USDC", "NTN-USDC", "NTN-ATN"}
+	DefaultUSDCSymbols   = []string{"USDC-USD"}
+	ErrDataNotAvailable  = fmt.Errorf("data is not available")
+	ErrKnownSymbols      = fmt.Errorf("the data source does not have all the data asked by oracle server")
+	ErrAccessLimited     = fmt.Errorf("access rate is limited, please check your subscription from data provider")
+)
+
+const (
 	AutonityCryptoDecimals = 18 // both NTN and the Wrapped ATN take 18 as the decimal.
 	USDCDecimals           = 6  // the decimal of USDC coin in autonity L1 network.
 	CryptoToUsdcDecimals   = 7
-	DefaultForexSymbols    = []string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"}
-	DefaultCryptoSymbols   = []string{"ATN-USDC", "NTN-USDC", "NTN-ATN"}
-	DefaultUSDCSymbols     = []string{"USDC-USD"}
-	ErrDataNotAvailable    = fmt.Errorf("data is not available")
-	ErrKnownSymbols        = fmt.Errorf("the data source does not have all the data asked by oracle server")
-	ErrAccessLimited       = fmt.Errorf("access rate is limited, please check your subscription from data provider")
 )
 
 type Price struct {

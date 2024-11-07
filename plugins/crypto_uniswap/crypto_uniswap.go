@@ -190,19 +190,15 @@ func (e *UniswapClient) Close() {
 
 // ComputeExchangeRatio calculates the exchange ratio from ATN or NTN to USDC
 func ComputeExchangeRatio(cryptoReserve, usdcReserve *big.Int) (string, error) {
-	if usdcReserve.Cmp(big.NewInt(0)) == 0 {
+	if usdcReserve.Cmp(common.Zero) == 0 {
 		return "", fmt.Errorf("usdcReserve is zero, cannot compute exchange ratio")
 	}
 
-	// Define the decimal precision
-	cryptoDecimals := common.AutonityCryptoDecimals
-	usdcDecimals := common.USDCDecimals
-
 	// Scale the reserves to the same precision
-	scaledCryptoReserve := new(big.Int).Div(cryptoReserve, big.NewInt(int64(math.Pow(10, float64(cryptoDecimals)))))
-	scaledUsdcReserve := new(big.Int).Div(usdcReserve, big.NewInt(int64(math.Pow(10, float64(usdcDecimals)))))
+	scaledCryptoReserve := new(big.Int).Div(cryptoReserve, big.NewInt(int64(math.Pow(10, float64(common.AutonityCryptoDecimals)))))
+	scaledUsdcReserve := new(big.Int).Div(usdcReserve, big.NewInt(int64(math.Pow(10, float64(common.USDCDecimals)))))
 
-	if scaledUsdcReserve.Cmp(big.NewInt(0)) == 0 {
+	if scaledUsdcReserve.Cmp(common.Zero) == 0 {
 		return "", fmt.Errorf("scaledUsdcReserve is zero, cannot compute exchange ratio")
 	}
 
