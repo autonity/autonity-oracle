@@ -22,7 +22,7 @@ const (
 )
 
 var defaultConfig = types.PluginConfig{
-	Name:               "usdc_coingecko",
+	Name:               "crypto_coingecko",
 	Key:                "",
 	Scheme:             "https",
 	Endpoint:           "api.coingecko.com",

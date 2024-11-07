@@ -2,7 +2,7 @@
 # with Go source code. If you know what GOPATH is then you probably
 # don't need to bother with make.
 
-.PHONY: mkdir oracle-server conf-file e2e-test-stuffs forex-plugins dex-plugins amm-plugins usdc-plugins autoracle test e2e_test clean lint dep all
+.PHONY: mkdir oracle-server conf-file e2e-test-stuffs forex-plugins dex-plugins amm-plugins cex-plugins autoracle test e2e_test clean lint dep all
 
 SOLC_VERSION = 0.8.2
 BIN_DIR = ./build/bin
@@ -76,10 +76,10 @@ e2e-test-stuffs:
 	cp $(PLUGIN_DIR)/forex_exchangerate $(E2E_TEST_FOREX_PLUGIN_DIR)/forex_exchangerate
 	cp $(PLUGIN_DIR)/forex_openexchange $(E2E_TEST_FOREX_PLUGIN_DIR)/forex_openexchange
 
-	# cp usdc plugins for e2e testing
-	cp $(PLUGIN_DIR)/usdc_coinbase $(E2E_TEST_CRYPTO_PLUGIN_DIR)/usdc_coinbase
-	cp $(PLUGIN_DIR)/usdc_coingecko $(E2E_TEST_CRYPTO_PLUGIN_DIR)/usdc_coingecko
-	cp $(PLUGIN_DIR)/usdc_kraken $(E2E_TEST_CRYPTO_PLUGIN_DIR)/usdc_kraken
+	# cp cex plugins for e2e testing
+	cp $(PLUGIN_DIR)/crypto_coinbase $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_coinbase
+	cp $(PLUGIN_DIR)/crypto_coingecko $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_coingecko
+	cp $(PLUGIN_DIR)/crypto_kraken $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_kraken
 
 	# cp amm and dex plugins for e2e testing
 	cp $(PLUGIN_DIR)/crypto_uniswap $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_uniswap
@@ -106,10 +106,10 @@ amm-plugins:
 	go build -o $(PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/crypto_uniswap.go
 	chmod +x $(PLUGIN_DIR)/*
 
-usdc-plugins:
-	go build -o $(PLUGIN_DIR)/usdc_coinbase $(PLUGIN_SRC_DIR)/usdc_coinbase/usdc_coinbase.go
-	go build -o $(PLUGIN_DIR)/usdc_coingecko $(PLUGIN_SRC_DIR)/usdc_coingecko/usdc_coingecko.go
-	go build -o $(PLUGIN_DIR)/usdc_kraken $(PLUGIN_SRC_DIR)/usdc_kraken/usdc_kraken.go
+cex-plugins:
+	go build -o $(PLUGIN_DIR)/crypto_coinbase $(PLUGIN_SRC_DIR)/crypto_coinbase/crypto_coinbase.go
+	go build -o $(PLUGIN_DIR)/crypto_coingecko $(PLUGIN_SRC_DIR)/crypto_coingecko/crypto_coingecko.go
+	go build -o $(PLUGIN_DIR)/crypto_kraken $(PLUGIN_SRC_DIR)/crypto_kraken/crypto_kraken.go
 	chmod +x $(PLUGIN_DIR)/*
 
 piccadilly-cax-plugin:
@@ -126,15 +126,15 @@ bakerloo-sim-plugin:
 	go build -o $(PLUGIN_DIR)/sim_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go
 	chmod +x $(PLUGIN_DIR)/sim_plugin
 
-autoracle-bakerloo: mkdir oracle-server forex-plugins usdc-plugins dex-plugins amm-plugins bakerloo-simulator bakerloo-sim-plugin conf-file e2e-test-stuffs
+autoracle-bakerloo: mkdir oracle-server forex-plugins cex-plugins dex-plugins amm-plugins bakerloo-simulator bakerloo-sim-plugin conf-file e2e-test-stuffs
 	@echo "Done building for bakerloo network."
 	@echo "Run \"$(BIN_DIR)/autoracle\" to launch autonity oracle for backerloo network."
 
-autoracle-piccadilly: mkdir oracle-server forex-plugins piccadilly-cax-plugin usdc-plugins dex-plugins amm-plugins conf-file e2e-test-stuffs
+autoracle-piccadilly: mkdir oracle-server forex-plugins piccadilly-cax-plugin cex-plugins dex-plugins amm-plugins conf-file e2e-test-stuffs
 	@echo "Done building for piccadilly network."
 	@echo "Run \"$(BIN_DIR)/autoracle\" to launch autonity oracle for piccadilly network."
 
-autoracle: mkdir oracle-server forex-plugins usdc-plugins dex-plugins amm-plugins conf-file e2e-test-stuffs
+autoracle: mkdir oracle-server forex-plugins cex-plugins dex-plugins amm-plugins conf-file e2e-test-stuffs
 	@echo "Done building for autonity main network."
 	@echo "Run \"$(BIN_DIR)/autoracle\" to launch autonity oracle for autonity main network."
 
