@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	tp "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/hashicorp/go-hclog"
 	"github.com/modern-go/reflect2"
@@ -81,10 +80,11 @@ type OracleServer struct {
 	subSymbolsEvent event.Subscription
 	lastSampledTS   int64
 
-	sampleEventFee     event.Feed
-	loggingLevel       hclog.Level
-	confidenceStrategy int
-	lostSync           bool // set to true if the connectivity with L1 Autonity network is dropped during runtime.
+	sampleEventFee         event.Feed
+	loggingLevel           hclog.Level
+	confidenceStrategy     int
+	lostSync               bool // set to true if the connectivity with L1 Autonity network is dropped during runtime.
+	commitmentHashComputer *CommitmentHashComputer
 }
 
 func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, client types.Blockchain,
@@ -113,6 +113,13 @@ func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, clien
 		Output: o.Stdout,
 		Level:  conf.LoggingLevel,
 	})
+
+	commitmentHashComputer, err := NewCommitmentHashComputer()
+	if err != nil {
+		os.logger.Error("cannot create commitment hash computer", "err", err)
+		o.Exit(1)
+	}
+	os.commitmentHashComputer = commitmentHashComputer
 
 	// load plugin configs before start them.
 	plugConfs, err := config.LoadPluginsConfig(conf.PluginConfFile)
@@ -200,7 +207,7 @@ func (os *OracleServer) initStates() (uint64, []string, decimal.Decimal, uint64,
 		return 0, nil, precision, 0, err
 	}
 
-	p, err := os.oracleContract.GetPrecision(nil)
+	decimals, err := os.oracleContract.GetDecimals(nil)
 	if err != nil {
 		os.logger.Error("get precision", "error", err.Error())
 		return 0, nil, precision, 0, err
@@ -214,10 +221,10 @@ func (os *OracleServer) initStates() (uint64, []string, decimal.Decimal, uint64,
 
 	if len(symbols) == 0 {
 		os.logger.Error("there are no symbols in Autonity L1 oracle contract")
-		return currentRound.Uint64(), symbols, decimal.NewFromInt(p.Int64()), votePeriod.Uint64(), types.ErrNoSymbolsObserved
+		return currentRound.Uint64(), symbols, decimal.NewFromInt(int64(decimals)), votePeriod.Uint64(), types.ErrNoSymbolsObserved
 	}
 
-	return currentRound.Uint64(), symbols, decimal.NewFromInt(p.Int64()), votePeriod.Uint64(), nil
+	return currentRound.Uint64(), symbols, decimal.NewFromInt(int64(decimals)), votePeriod.Uint64(), nil
 }
 
 func (os *OracleServer) gcDataSamples() {
@@ -418,9 +425,10 @@ func (os *OracleServer) reportWithCommitment(newRound uint64, lastRoundData *typ
 	return nil
 }
 
-// report with last round data but without current round commitment.
+// report with last round data but without current round commitment, voter is leaving from the committee.
 func (os *OracleServer) reportWithoutCommitment(lastRoundData *types.RoundData) error {
 
+	// report with no commitment
 	tx, err := os.doReport(common.Hash{}, lastRoundData)
 	if err != nil {
 		os.logger.Error("do report", "error", err.Error())
@@ -444,7 +452,7 @@ func (os *OracleServer) AddNewSymbols(newSymbols []string) {
 	}
 }
 
-func (os *OracleServer) doReport(curRndCommitHash common.Hash, lastRoundData *types.RoundData) (*tp.Transaction, error) {
+func (os *OracleServer) doReport(curRoundCommitmentHash common.Hash, lastRoundData *types.RoundData) (*tp.Transaction, error) {
 	chainID, err := os.client.ChainID(context.Background())
 	if err != nil {
 		os.logger.Error("get chain id", "error", err.Error())
@@ -462,25 +470,19 @@ func (os *OracleServer) doReport(curRndCommitHash common.Hash, lastRoundData *ty
 	auth.GasLimit = uint64(3000000)
 
 	// if there is no last round data, then we just submit the curRndCommitHash hash of current round.
-	var votes []*big.Int
+	var reports []contract.IOracleReport
 	if lastRoundData == nil {
 		for i := 0; i < len(os.protocolSymbols); i++ {
-			votes = append(votes, types.InvalidPrice)
+			report := contract.IOracleReport{
+				Price: types.InvalidPrice,
+			}
+			reports = append(reports, report)
 		}
-		return os.oracleContract.Vote(auth, new(big.Int).SetBytes(curRndCommitHash.Bytes()), votes, types.InvalidSalt)
+		return os.oracleContract.Vote(auth, new(big.Int).SetBytes(curRoundCommitmentHash.Bytes()), reports, types.InvalidSalt, config.Version)
 	}
 
-	for _, s := range lastRoundData.Symbols {
-		_, ok := lastRoundData.Prices[s]
-		if !ok {
-			votes = append(votes, types.InvalidPrice)
-		} else {
-			price := lastRoundData.Prices[s].Price.Mul(os.pricePrecision).BigInt()
-			votes = append(votes, price)
-		}
-	}
-
-	return os.oracleContract.Vote(auth, new(big.Int).SetBytes(curRndCommitHash.Bytes()), votes, lastRoundData.Salt)
+	// there is last round data, report with current round commitment, and the last round reports and salt to be revealed.
+	return os.oracleContract.Vote(auth, new(big.Int).SetBytes(curRoundCommitmentHash.Bytes()), lastRoundData.Reports, lastRoundData.Salt, config.Version)
 }
 
 func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
@@ -488,8 +490,8 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 		return nil, types.ErrNoSymbolsObserved
 	}
 
+	// aggregate prices by symbol and the corresponding confidence.
 	prices := make(types.PriceBySymbol)
-
 	usdcPrice, err := os.aggregatePrice(USDCUSD, int64(os.curSampleTS))
 	if err != nil {
 		os.logger.Error("aggregate USDC-USD price", "error", err.Error())
@@ -524,38 +526,54 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 		return nil, types.ErrNoAvailablePrice
 	}
 
+	// assemble round data with reports, salt and commitment hash.
+	roundData, err := os.assembleReportData(round, os.protocolSymbols, prices)
+	if err != nil {
+		os.logger.Error("failed to assemble round report data", "error", err.Error())
+		return nil, err
+	}
+	os.logger.Info("assembled round report data", "current round", round, "prices", prices, "commitment hash", roundData.CommitmentHash.String())
+	return roundData, nil
+}
+
+// assemble the final reports, salt and commitment hash.
+func (os *OracleServer) assembleReportData(round uint64, symbols []string, prices types.PriceBySymbol) (*types.RoundData, error) {
+	var roundData = &types.RoundData{
+		RoundID: round,
+		Symbols: symbols,
+		Prices:  prices,
+	}
+
+	var reports []contract.IOracleReport
+	for _, s := range symbols {
+		if pr, ok := prices[s]; ok {
+			reports = append(reports, contract.IOracleReport{
+				Price:      pr.Price.Mul(os.pricePrecision).BigInt(),
+				Confidence: pr.Confidence,
+			})
+		} else {
+			reports = append(reports, contract.IOracleReport{
+				Price:      types.InvalidPrice,
+				Confidence: 0,
+			})
+		}
+	}
+
 	salt, err := rand.Int(rand.Reader, SaltRange)
 	if err != nil {
 		os.logger.Error("generate rand salt", "error", err.Error())
 		return nil, err
 	}
 
-	var roundData = &types.RoundData{
-		RoundID:        round,
-		Symbols:        os.protocolSymbols,
-		Salt:           salt,
-		CommitmentHash: common.Hash{},
-		Prices:         prices,
+	commitmentHash, err := os.commitmentHashComputer.CommitmentHash(reports, salt, os.key.Address)
+	if err != nil {
+		os.logger.Error("failed to compute commitment hash", "error", err.Error())
+		return nil, err
 	}
-	roundData.CommitmentHash = os.commitmentHash(roundData, os.protocolSymbols)
-	os.logger.Info("assembled data report", "current round", round, "prices", prices, "commitment hash", roundData.CommitmentHash.String())
+	roundData.Reports = reports
+	roundData.Salt = salt
+	roundData.CommitmentHash = commitmentHash
 	return roundData, nil
-}
-
-func (os *OracleServer) commitmentHash(roundData *types.RoundData, symbols []string) common.Hash {
-	var source []byte
-	for _, s := range symbols {
-		if pr, ok := roundData.Prices[s]; ok {
-			source = append(source, common.LeftPadBytes(pr.Price.Mul(os.pricePrecision).BigInt().Bytes(), 32)...)
-		} else {
-			source = append(source, common.LeftPadBytes(types.InvalidPrice.Bytes(), 32)...)
-		}
-	}
-	// append the salt at the tail of votes
-	source = append(source, common.LeftPadBytes(roundData.Salt.Bytes(), 32)...)
-	// append the sender address at the tail for commitment hash computing as well
-	source = append(source, os.key.Address.Bytes()...)
-	return crypto.Keccak256Hash(source)
 }
 
 func (os *OracleServer) handleNewSymbolsEvent(symbols []string) {

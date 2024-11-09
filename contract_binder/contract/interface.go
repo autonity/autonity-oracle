@@ -11,7 +11,7 @@ import (
 type ContractAPI interface {
 	SetSymbols(opts *bind.TransactOpts, _symbols []string) (*types.Transaction, error)
 	GetSymbols(opts *bind.CallOpts) ([]string, error)
-	Vote(opts *bind.TransactOpts, _commit *big.Int, _prevotes []*big.Int, _salt *big.Int) (*types.Transaction, error)
+	Vote(opts *bind.TransactOpts, _commit *big.Int, _reports []IOracleReport, _salt *big.Int, _extra uint8) (*types.Transaction, error)
 	GetVotePeriod(opts *bind.CallOpts) (*big.Int, error)
 	GetVoters(opts *bind.CallOpts) ([]common.Address, error)
 	GetRound(opts *bind.CallOpts) (*big.Int, error)
@@ -19,5 +19,5 @@ type ContractAPI interface {
 	WatchNewSymbols(opts *bind.WatchOpts, sink chan<- *OracleNewSymbols) (event.Subscription, error)
 	GetRoundData(opts *bind.CallOpts, _round *big.Int, _symbol string) (IOracleRoundData, error)
 	LatestRoundData(opts *bind.CallOpts, _symbol string) (IOracleRoundData, error)
-	GetPrecision(opts *bind.CallOpts) (*big.Int, error)
+	GetDecimals(opts *bind.CallOpts) (uint8, error)
 }

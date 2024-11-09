@@ -176,7 +176,7 @@ func TestOracleServer(t *testing.T) {
 		require.Equal(t, srv.curRound, srv.roundData[srv.curRound].RoundID)
 		require.Equal(t, tx.Hash(), srv.roundData[srv.curRound].Tx.Hash())
 		require.Equal(t, config.DefaultSymbols, srv.roundData[srv.curRound].Symbols)
-		require.Equal(t, srv.commitmentHash(srv.roundData[srv.curRound], config.DefaultSymbols), srv.roundData[srv.curRound].CommitmentHash)
+		require.Equal(t, srv.assembleReportData(srv.roundData[srv.curRound], config.DefaultSymbols), srv.roundData[srv.curRound].CommitmentHash)
 
 		srv.pluginSet["template_plugin"].Close()
 	})

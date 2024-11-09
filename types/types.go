@@ -1,6 +1,7 @@
 package types
 
 import (
+	contract "autonity-oracle/contract_binder/contract"
 	"encoding/json"
 	"errors"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -59,6 +60,7 @@ type RoundData struct {
 	CommitmentHash common.Hash
 	Prices         PriceBySymbol
 	Symbols        []string
+	Reports        []contract.IOracleReport
 }
 
 // OracleServiceConfig is the configuration of the oracle client.
