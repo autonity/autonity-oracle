@@ -5,6 +5,7 @@ import (
 	contract "autonity-oracle/contract_binder/contract"
 	"autonity-oracle/helpers"
 	pWrapper "autonity-oracle/plugin_wrapper"
+	common2 "autonity-oracle/plugins/common"
 	"autonity-oracle/types"
 	"context"
 	"crypto/rand"
@@ -486,6 +487,54 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 		return nil, types.ErrNoSymbolsObserved
 	}
 
+	prices, err := os.aggregateProtocolSymbolPrices()
+	if err != nil {
+		return nil, err
+	}
+
+	// edge case: if NTN-ATN price was not computable from inside plugin,
+	// try to compute it from NTNprice and ATNprice across from different plugins.
+	if _, ok := prices[common2.NTNATNSymbol]; !ok {
+		ntnPrice, ntnExist := prices[NTNUSD]
+		atnPrice, atnExist := prices[ATNUSD]
+		if ntnExist && atnExist {
+			ntnATNPrice, err := common2.ComputeDerivedPrice(ntnPrice.Price.String(), atnPrice.Price.String())
+			if err == nil {
+				p, err := decimal.NewFromString(ntnATNPrice.Price)
+				if err == nil {
+					prices[common2.NTNATNSymbol] = types.Price{
+						Timestamp: time.Now().Unix(),
+						Price:     p,
+						Symbol:    common2.NTNATNSymbol,
+					}
+				} else {
+					os.logger.Error("cannot parse NTN-ATN price in decimal", "error", err.Error())
+				}
+			} else {
+				os.logger.Error("failed to compute NTN-ATN price", "error", err.Error())
+			}
+		}
+	}
+
+	salt, err := rand.Int(rand.Reader, SaltRange)
+	if err != nil {
+		os.logger.Error("generate rand salt", "error", err.Error())
+		return nil, err
+	}
+
+	var roundData = &types.RoundData{
+		RoundID:        round,
+		Symbols:        os.protocolSymbols,
+		Salt:           salt,
+		CommitmentHash: common.Hash{},
+		Prices:         prices,
+	}
+	roundData.CommitmentHash = os.commitmentHash(roundData, os.protocolSymbols)
+	os.logger.Info("assembled data report", "current round", round, "prices", prices, "commitment hash", roundData.CommitmentHash.String())
+	return roundData, nil
+}
+
+func (os *OracleServer) aggregateProtocolSymbolPrices() (types.PriceBySymbol, error) {
 	prices := make(types.PriceBySymbol)
 
 	usdcPrice, err := os.aggregatePrice(USDCUSD, int64(os.curSampleTS))
@@ -522,22 +571,7 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 		return nil, types.ErrNoAvailablePrice
 	}
 
-	salt, err := rand.Int(rand.Reader, SaltRange)
-	if err != nil {
-		os.logger.Error("generate rand salt", "error", err.Error())
-		return nil, err
-	}
-
-	var roundData = &types.RoundData{
-		RoundID:        round,
-		Symbols:        os.protocolSymbols,
-		Salt:           salt,
-		CommitmentHash: common.Hash{},
-		Prices:         prices,
-	}
-	roundData.CommitmentHash = os.commitmentHash(roundData, os.protocolSymbols)
-	os.logger.Info("assembled data report", "current round", round, "prices", prices, "commitment hash", roundData.CommitmentHash.String())
-	return roundData, nil
+	return prices, nil
 }
 
 func (os *OracleServer) commitmentHash(roundData *types.RoundData, symbols []string) common.Hash {

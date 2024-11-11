@@ -18,7 +18,7 @@ var (
 	version          = "v0.0.1"
 	ATNUSDC          = "ATN-USDC"
 	NTNUSDC          = "NTN-USDC"
-	supportedSymbols = []string{ATNUSDC, NTNUSDC}
+	supportedSymbols = common.DefaultCryptoSymbols
 	NTNTokenAddress  = types.AutonityContractAddress // Autonity protocol contract is the NTN token contract.
 )
 
@@ -138,6 +138,15 @@ func (e *UniswapClient) FetchPrice(_ []string) (common.Prices, error) {
 		prices = append(prices, ntnUSDCPrice)
 	} else {
 		e.logger.Error("failed to fetch NTN-USDC price", "error", err)
+	}
+
+	if len(prices) == 2 {
+		ntnATNPrice, err := common.ComputeDerivedPrice(ntnUSDCPrice.Price, atnUSDCPrice.Price)
+		if err != nil {
+			e.logger.Error("failed to compute NTN-ATN price", "error", err)
+			return prices, nil
+		}
+		prices = append(prices, ntnATNPrice)
 	}
 
 	return prices, nil

@@ -27,7 +27,7 @@ var (
 	version           = "v0.0.1"
 	ATNUSDC           = "ATN-USDC"
 	NTNUSDC           = "NTN-USDC"
-	supportedSymbols  = []string{ATNUSDC, NTNUSDC}
+	supportedSymbols  = common.DefaultCryptoSymbols
 	NTNTokenAddress   = types.AutonityContractAddress // Autonity contract is the protocol contract of NTN token
 )
 
@@ -382,9 +382,8 @@ func (e *AirswapClient) updatePrice(tokenAddress ecommon.Address, price string) 
 	}
 
 	e.lastAggregatedPrices[tokenAddress] = common.Price{
-		Symbol:    symbol,
-		Price:     price,
-		Timestamp: time.Now().Unix(),
+		Symbol: symbol,
+		Price:  price,
 	}
 }
 
@@ -429,6 +428,17 @@ func (e *AirswapClient) FetchPrice(_ []string) (common.Prices, error) {
 		return prices, errors.New("dex-pluign hasn't receive any realtime swap event yet")
 	}
 
+	// both ATN-USDC and NTN-USDC price are collected, compute NTN-ATN price.
+	if len(prices) == 2 {
+		atnPrice, _ := e.lastAggregatedPrices[e.atnAddress]
+		ntnPrice, _ := e.lastAggregatedPrices[e.ntnAddress]
+		ntnATNPrice, err := common.ComputeDerivedPrice(ntnPrice.Price, atnPrice.Price)
+		if err != nil {
+			e.logger.Error("cannot compute NTN-ATN price", "error", err.Error())
+			return prices, nil
+		}
+		prices = append(prices, ntnATNPrice)
+	}
 	return prices, nil
 }
 

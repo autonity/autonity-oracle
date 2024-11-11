@@ -18,7 +18,8 @@ import (
 var (
 	Zero                 = big.NewInt(0)
 	DefaultForexSymbols  = []string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"}
-	DefaultCryptoSymbols = []string{"ATN-USDC", "NTN-USDC", "NTN-ATN"}
+	NTNATNSymbol         = "NTN-ATN"
+	DefaultCryptoSymbols = []string{"ATN-USDC", "NTN-USDC", NTNATNSymbol}
 	DefaultUSDCSymbol    = "USDC-USD"
 	ErrDataNotAvailable  = fmt.Errorf("data is not available")
 	ErrKnownSymbols      = fmt.Errorf("the data source does not have all the data asked by oracle server")
@@ -32,9 +33,8 @@ const (
 )
 
 type Price struct {
-	Symbol    string `json:"symbol,omitempty"`
-	Price     string `json:"price,omitempty"`
-	Timestamp int64  `json:"timestamp,omitempty"`
+	Symbol string `json:"symbol,omitempty"`
+	Price  string `json:"price,omitempty"`
 }
 
 type Prices []Price
@@ -293,4 +293,25 @@ func CheckHTTPStatusCode(code int) error {
 		}
 	}
 	return nil
+}
+
+func ComputeDerivedPrice(ntnUSD, atnUSD string) (Price, error) {
+	var priceNTNATN Price
+	pNTN, err := decimal.NewFromString(ntnUSD)
+	if err != nil {
+		return priceNTNATN, err
+	}
+
+	pATN, err := decimal.NewFromString(atnUSD)
+	if err != nil {
+		return priceNTNATN, err
+	}
+
+	if pATN.IsZero() {
+		return priceNTNATN, fmt.Errorf("div with zero of ATN price")
+	}
+
+	priceNTNATN.Symbol = NTNATNSymbol
+	priceNTNATN.Price = pNTN.Div(pATN).String()
+	return priceNTNATN, nil
 }
