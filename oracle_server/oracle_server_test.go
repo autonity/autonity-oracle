@@ -14,7 +14,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
-	"io/ioutil"
+	"io/ioutil" //nolint
 	"math/big"
 	"os"
 	"strings"
@@ -23,8 +23,7 @@ import (
 )
 
 func TestOracleDecimals(t *testing.T) {
-	var decimals uint8
-	decimals = 18
+	decimals := uint8(18)
 	precision := decimal.NewFromBigInt(common.Big1, int32(decimals))
 	require.Equal(t, "1000000000000000000", precision.String())
 }
@@ -160,7 +159,7 @@ func TestOracleServer(t *testing.T) {
 		srv.curSampleTS = uint64(ts)
 		srv.curSampleHeight = uint64(30)
 		for sec := ts; sec < ts+15; sec++ {
-			err := srv.handlePreSampling(time.Now().Unix())
+			err = srv.handlePreSampling(time.Now().Unix())
 			require.NoError(t, err)
 			time.Sleep(time.Second)
 		}
