@@ -81,7 +81,7 @@ type OracleServer struct {
 	subSymbolsEvent event.Subscription
 	lastSampledTS   int64
 
-	sampleEventFee         event.Feed
+	sampleEventFeed        event.Feed
 	loggingLevel           hclog.Level
 	confidenceStrategy     int
 	lostSync               bool // set to true if the connectivity with L1 Autonity network is dropped during runtime.
@@ -686,7 +686,7 @@ func (os *OracleServer) samplePrice(symbols []string, ts int64) {
 		Symbols: cpSymbols,
 		TS:      ts,
 	}
-	nListener := os.sampleEventFee.Send(e)
+	nListener := os.sampleEventFeed.Send(e)
 	os.logger.Debug("sample event is sent to", "num of plugins", nListener)
 }
 
@@ -839,7 +839,7 @@ func (os *OracleServer) setupNewPlugin(name string, conf *types.PluginConfig) (*
 }
 
 func (os *OracleServer) WatchSampleEvent(sink chan<- *types.SampleEvent) event.Subscription {
-	return os.sampleEventFee.Subscribe(sink)
+	return os.sampleEventFeed.Subscribe(sink)
 }
 
 func (os *OracleServer) ApplyPluginConf(name string, plugConf *types.PluginConfig) error {
