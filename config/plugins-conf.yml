@@ -79,7 +79,7 @@
 
 # - name: crypto_uniswap                           # optional, it is the plugin file name in the plugin directory.
 #    scheme: "wss"                                 # optional, available values are: "http", "https", "ws" or "wss", default value is "wss".
-#    endpoint: "rpc1.piccadilly.autonity.org"   # optional, default value is a rpc public service of an Autonity network.
+#    endpoint: "rpc1.piccadilly.autonity.org"      # optional, default value is a rpc public service of an Autonity network.
 #    ntnTokenAddress: ""                           # optional, NTN ERC20 contract address in hex on the target blockchain
 #    atnTokenAddress: ""                           # optional, Wrapped ATN ERC20 contract address in hex on the target blockchain.
 #    usdcTokenAddress: ""                          # optional, USDC ERC20 contract address in hex on the target blockchain.
