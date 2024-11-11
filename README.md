@@ -177,29 +177,46 @@ The configuration of plugins are assembled in a yaml file:
 #    key: 111f04e4775bb86c20296530           # required, visit https://www.exchangerate-api.com to get your key, and replace it.
 #    refresh: 3600                           # optional, buffered data within 3600s, recommended for API rate limited data source.
 
-# [optional] Un-comment below lines to select your Autonity client websocket service endpoint for crypto plugins.
+# [optional] Un-comment below lines to select your EVM-like blockchain client websocket service endpoint for crypto plugins.
+# Without configuration, below two plugins connects to default network, an Autonity blockchain RPC node with default
+# contract addresses on the target Autonity blockchain.
+#
 # - name: crypto_airswap                           # optional, it is the plugin file name in the plugin directory.
 #    scheme: "wss"                                 # optional, available values are: "ws" or "wss", default value is "wss".
-#    endpoint: "rpc2.piccadilly.autonity.org/ws"   # optional, default value is a rpc public service of an Autonity network.
+#    endpoint: "rpc2.piccadilly.autonity.org"      # optional, default value is a rpc public service of an Autonity network.
+#    ntnTokenAddress: ""                           # optional, NTN ERC20 contract address in hex on the target blockchain
+#    atnTokenAddress: ""                           # optional, Wrapped ATN ERC20 contract address in hex on the target blockchain.
+#    usdcTokenAddress: ""                          # optional, USDC ERC20 contract address in hex on the target blockchain.
+#    swapAddress: ""                               # optional, AirSwap SwapERC20 contract address in hex on the target blockchain.
 
 # - name: crypto_uniswap                           # optional, it is the plugin file name in the plugin directory.
 #    scheme: "wss"                                 # optional, available values are: "http", "https", "ws" or "wss", default value is "wss".
-#    endpoint: "rpc1.piccadilly.autonity.org/ws"   # optional, default value is a rpc public service of an Autonity network.
+#    endpoint: "rpc1.piccadilly.autonity.org"   # optional, default value is a rpc public service of an Autonity network.
+#    ntnTokenAddress: ""                           # optional, NTN ERC20 contract address in hex on the target blockchain
+#    atnTokenAddress: ""                           # optional, Wrapped ATN ERC20 contract address in hex on the target blockchain.
+#    usdcTokenAddress: ""                          # optional, USDC ERC20 contract address in hex on the target blockchain.
+#    swapAddress: ""                               # optional, UniSwap factory contract address in hex on the target blockchain.
 ```
 
 Available configuration fields:
 
 There are multiple configuration fields can be used, it is not required to config each field of them, it depends on your plugin implementation.
 ```go
+
 // PluginConfig carry the configuration of plugins.
 type PluginConfig struct {
-	Name               string `json:"name" yaml:"name"`         // the name of the plugin binary.
-	Key                string `json:"key" yaml:"key"`           // the API key granted by your data provider to access their data API.
-	Scheme             string `json:"scheme" yaml:"scheme"`     // the data service scheme, http or https.
-	Endpoint           string `json:"endpoint" yaml:"endpoint"` // the data service endpoint url of the data provider.
-	Timeout            int    `json:"timeout" yaml:"timeout"`   // the timeout period that an API request is lasting for.
-	DataUpdateInterval int    `json:"refresh" yaml:"refresh"`   // reserved for rate limited provider's plugin, limit the request rate.
+    Name               string `json:"name" yaml:"name"`                         // the name of the plugin binary.
+    Key                string `json:"key" yaml:"key"`                           // the API key granted by your data provider to access their data API.
+    Scheme             string `json:"scheme" yaml:"scheme"`                     // the data service scheme, http or https.
+    Endpoint           string `json:"endpoint" yaml:"endpoint"`                 // the data service endpoint url of the data provider.
+    Timeout            int    `json:"timeout" yaml:"timeout"`                   // the timeout period in seconds that an API request is lasting for.
+    DataUpdateInterval int    `json:"refresh" yaml:"refresh"`                   // the interval in seconds to fetch data from data provider due to rate limit.
+    NTNTokenAddress    string `json:"ntnTokenAddress" yaml:"ntnTokenAddress"`   // The NTN erc20 token address on the target blockchain.
+    ATNTokenAddress    string `json:"atnTokenAddress" yaml:"atnTokenAddress"`   // The Wrapped ATN erc20 token address on the target blockchain.
+    USDCTokenAddress   string `json:"usdcTokenAddress" yaml:"usdcTokenAddress"` // USDC erc20 token address on the target blockchain.
+    SwapAddress        string `json:"swapAddress" yaml:"swapAddress"`           // UniSwap factory contract address or AirSwap SwapERC20 contract address on the target blockchain.
 }
+
 ```
 In the last configuration file, all the forex data vendors need a service key to access their data, thus a key is expected for the corresponding plugins.
 

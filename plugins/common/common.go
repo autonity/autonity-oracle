@@ -250,6 +250,10 @@ func ResolveConf(cmd string, defConf *types.PluginConfig) *types.PluginConfig {
 		conf.Name = defConf.Name
 	}
 
+	if len(conf.NTNTokenAddress) == 0 {
+		conf.NTNTokenAddress = defConf.NTNTokenAddress
+	}
+
 	if len(conf.ATNTokenAddress) == 0 {
 		conf.ATNTokenAddress = defConf.ATNTokenAddress
 	}
