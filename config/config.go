@@ -37,6 +37,7 @@ var (
 )
 
 const Version uint8 = 19
+const OracleDecimals uint8 = 18
 const MaxConfidence = 100
 const BaseConfidence = 40
 const SourceScalingFactor = 10

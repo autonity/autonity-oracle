@@ -221,10 +221,10 @@ func (os *OracleServer) initStates() (uint64, []string, decimal.Decimal, uint64,
 
 	if len(symbols) == 0 {
 		os.logger.Error("there are no symbols in Autonity L1 oracle contract")
-		return currentRound.Uint64(), symbols, decimal.NewFromInt(int64(decimals)), votePeriod.Uint64(), types.ErrNoSymbolsObserved
+		return currentRound.Uint64(), symbols, decimal.NewFromBigInt(common.Big1, int32(decimals)), votePeriod.Uint64(), types.ErrNoSymbolsObserved
 	}
 
-	return currentRound.Uint64(), symbols, decimal.NewFromInt(int64(decimals)), votePeriod.Uint64(), nil
+	return currentRound.Uint64(), symbols, decimal.NewFromBigInt(common.Big1, int32(decimals)), votePeriod.Uint64(), nil
 }
 
 func (os *OracleServer) gcDataSamples() {

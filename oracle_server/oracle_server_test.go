@@ -14,18 +14,24 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
-	"io/ioutil" //nolint
+	"io/ioutil"
 	"math/big"
-	"math/rand"
 	"os"
 	"strings"
 	"testing"
 	"time"
 )
 
+func TestOracleDecimals(t *testing.T) {
+	var decimals uint8
+	decimals = 18
+	precision := decimal.NewFromBigInt(common.Big1, int32(decimals))
+	require.Equal(t, "1000000000000000000", precision.String())
+}
+
 func TestOracleServer(t *testing.T) {
 	currentRound := new(big.Int).SetUint64(1)
-	precision := new(big.Int).SetUint64(10000000)
+	precision := config.OracleDecimals
 	votePeriod := new(big.Int).SetUint64(30)
 	var subRoundEvent event.Subscription
 	var subSymbolsEvent event.Subscription
@@ -43,7 +49,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock := cMock.NewMockContractAPI(ctrl)
 		contractMock.EXPECT().GetRound(nil).Return(currentRound, nil)
 		contractMock.EXPECT().GetSymbols(nil).Return(config.DefaultSymbols, nil)
-		contractMock.EXPECT().GetPrecision(nil).Return(precision, nil)
+		contractMock.EXPECT().GetDecimals(nil).Return(precision, nil)
 		contractMock.EXPECT().GetVotePeriod(nil).Return(votePeriod, nil)
 		contractMock.EXPECT().WatchNewRound(gomock.Any(), gomock.Any()).Return(subRoundEvent, nil)
 		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
@@ -52,7 +58,7 @@ func TestOracleServer(t *testing.T) {
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
 		require.Equal(t, config.DefaultSampledSymbols, srv.samplingSymbols)
-		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromInt(precision.Int64())))
+		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromBigInt(common.Big1, int32(precision))))
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
 		require.Equal(t, 1, len(srv.pluginSet))
 		require.Equal(t, "template_plugin", srv.pluginSet["template_plugin"].Name())
@@ -67,7 +73,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock := cMock.NewMockContractAPI(ctrl)
 		contractMock.EXPECT().GetRound(nil).Return(currentRound, nil)
 		contractMock.EXPECT().GetSymbols(nil).Return(config.DefaultSymbols, nil)
-		contractMock.EXPECT().GetPrecision(nil).Return(precision, nil)
+		contractMock.EXPECT().GetDecimals(nil).Return(precision, nil)
 		contractMock.EXPECT().GetVotePeriod(nil).Return(votePeriod, nil)
 		contractMock.EXPECT().WatchNewRound(gomock.Any(), gomock.Any()).Return(subRoundEvent, nil)
 		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
@@ -116,7 +122,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock := cMock.NewMockContractAPI(ctrl)
 		contractMock.EXPECT().GetRound(nil).Return(currentRound, nil)
 		contractMock.EXPECT().GetSymbols(nil).AnyTimes().Return(config.DefaultSymbols, nil)
-		contractMock.EXPECT().GetPrecision(nil).Return(precision, nil)
+		contractMock.EXPECT().GetDecimals(nil).Return(precision, nil)
 		contractMock.EXPECT().GetVotePeriod(nil).Return(votePeriod, nil)
 		contractMock.EXPECT().WatchNewRound(gomock.Any(), gomock.Any()).Return(subRoundEvent, nil)
 		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
@@ -126,7 +132,7 @@ func TestOracleServer(t *testing.T) {
 
 		txdata := &tp.DynamicFeeTx{ChainID: new(big.Int).SetUint64(1000), Nonce: 1}
 		tx := tp.NewTx(txdata)
-		contractMock.EXPECT().Vote(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(tx, nil)
+		contractMock.EXPECT().Vote(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(tx, nil)
 
 		l1Mock := mock.NewMockBlockchain(ctrl)
 		l1Mock.EXPECT().BlockNumber(gomock.Any()).AnyTimes().Return(chainHeight, nil)
@@ -144,14 +150,9 @@ func TestOracleServer(t *testing.T) {
 				Price:     helpers.ResolveSimulatedPrice(s),
 			}
 		}
-		seed := time.Now().UnixNano()
-		roundData := &types.RoundData{
-			RoundID:        srv.curRound,
-			Symbols:        config.DefaultSymbols,
-			Salt:           new(big.Int).SetUint64(rand.New(rand.NewSource(seed)).Uint64()), // nolint
-			CommitmentHash: common.Hash{},
-			Prices:         prices,
-		}
+
+		roundData, err := srv.assembleReportData(srv.curRound, config.DefaultSymbols, prices)
+		require.NoError(t, err)
 		srv.roundData[srv.curRound] = roundData
 
 		// pre-sampling with data.
@@ -169,14 +170,16 @@ func TestOracleServer(t *testing.T) {
 		srv.curSampleHeight = 60
 		srv.curSampleTS = uint64(time.Now().Unix())
 
-		err := srv.handleRoundVote()
+		err = srv.handleRoundVote()
 		require.NoError(t, err)
 
 		require.Equal(t, 2, len(srv.roundData))
 		require.Equal(t, srv.curRound, srv.roundData[srv.curRound].RoundID)
 		require.Equal(t, tx.Hash(), srv.roundData[srv.curRound].Tx.Hash())
 		require.Equal(t, config.DefaultSymbols, srv.roundData[srv.curRound].Symbols)
-		require.Equal(t, srv.assembleReportData(srv.roundData[srv.curRound], config.DefaultSymbols), srv.roundData[srv.curRound].CommitmentHash)
+		hash, err := srv.commitmentHashComputer.CommitmentHash(srv.roundData[srv.curRound].Reports, srv.roundData[srv.curRound].Salt, srv.key.Address)
+		require.NoError(t, err)
+		require.Equal(t, hash, srv.roundData[srv.curRound].CommitmentHash)
 
 		srv.pluginSet["template_plugin"].Close()
 	})
@@ -189,7 +192,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock := cMock.NewMockContractAPI(ctrl)
 		contractMock.EXPECT().GetRound(nil).Return(currentRound, nil)
 		contractMock.EXPECT().GetSymbols(nil).Return(config.DefaultSymbols, nil)
-		contractMock.EXPECT().GetPrecision(nil).Return(precision, nil)
+		contractMock.EXPECT().GetDecimals(nil).Return(precision, nil)
 		contractMock.EXPECT().GetVotePeriod(nil).Return(votePeriod, nil)
 		contractMock.EXPECT().WatchNewRound(gomock.Any(), gomock.Any()).Return(subRoundEvent, nil)
 		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
@@ -198,7 +201,7 @@ func TestOracleServer(t *testing.T) {
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
 		require.Equal(t, config.DefaultSampledSymbols, srv.samplingSymbols)
-		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromInt(precision.Int64())))
+		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromBigInt(common.Big1, int32(precision))))
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
 		require.Equal(t, 1, len(srv.pluginSet))
 
@@ -216,7 +219,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock := cMock.NewMockContractAPI(ctrl)
 		contractMock.EXPECT().GetRound(nil).Return(currentRound, nil)
 		contractMock.EXPECT().GetSymbols(nil).Return(config.DefaultSymbols, nil)
-		contractMock.EXPECT().GetPrecision(nil).Return(precision, nil)
+		contractMock.EXPECT().GetDecimals(nil).Return(precision, nil)
 		contractMock.EXPECT().GetVotePeriod(nil).Return(votePeriod, nil)
 		contractMock.EXPECT().WatchNewRound(gomock.Any(), gomock.Any()).Return(subRoundEvent, nil)
 		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
@@ -225,7 +228,7 @@ func TestOracleServer(t *testing.T) {
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
 		require.Equal(t, config.DefaultSampledSymbols, srv.samplingSymbols)
-		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromInt(precision.Int64())))
+		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromBigInt(common.Big1, int32(precision))))
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
 		require.Equal(t, 1, len(srv.pluginSet))
 
@@ -255,7 +258,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock := cMock.NewMockContractAPI(ctrl)
 		contractMock.EXPECT().GetRound(nil).Return(currentRound, nil)
 		contractMock.EXPECT().GetSymbols(nil).Return(config.DefaultSymbols, nil)
-		contractMock.EXPECT().GetPrecision(nil).Return(precision, nil)
+		contractMock.EXPECT().GetDecimals(nil).Return(precision, nil)
 		contractMock.EXPECT().GetVotePeriod(nil).Return(votePeriod, nil)
 		contractMock.EXPECT().WatchNewRound(gomock.Any(), gomock.Any()).Return(subRoundEvent, nil)
 		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
@@ -264,7 +267,7 @@ func TestOracleServer(t *testing.T) {
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
 		require.Equal(t, config.DefaultSampledSymbols, srv.samplingSymbols)
-		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromInt(precision.Int64())))
+		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromBigInt(common.Big1, int32(precision))))
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
 		require.Equal(t, 1, len(srv.pluginSet))
 		firstStart := srv.pluginSet["template_plugin"].StartTime()
