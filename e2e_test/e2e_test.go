@@ -40,9 +40,9 @@ func TestHappyCase(t *testing.T) {
 	o, err := contract.NewOracle(types.OracleContractAddress, client)
 	require.NoError(t, err)
 
-	p, err := o.GetPrecision(nil)
+	p, err := o.GetDecimals(nil)
 	require.NoError(t, err)
-	pricePrecision := decimal.NewFromInt(p.Int64())
+	pricePrecision := decimal.NewFromBigInt(common.Big1, int32(p))
 
 	// first test happy case.
 	endRound := uint64(10)
@@ -93,9 +93,9 @@ func TestAddNewSymbol(t *testing.T) {
 	o, err := contract.NewOracle(types.OracleContractAddress, client)
 	require.NoError(t, err)
 
-	p, err := o.GetPrecision(nil)
+	p, err := o.GetDecimals(nil)
 	require.NoError(t, err)
-	pricePrecision := decimal.NewFromInt(p.Int64())
+	pricePrecision := decimal.NewFromBigInt(common.Big1, int32(p))
 
 	// test to add new symbols.
 	endRound := uint64(5)
@@ -121,9 +121,9 @@ func TestRMSymbol(t *testing.T) {
 	o, err := contract.NewOracle(types.OracleContractAddress, client)
 	require.NoError(t, err)
 
-	p, err := o.GetPrecision(nil)
+	p, err := o.GetDecimals(nil)
 	require.NoError(t, err)
-	pricePrecision := decimal.NewFromInt(p.Int64())
+	pricePrecision := decimal.NewFromBigInt(common.Big1, int32(p))
 
 	// test to remove symbols.
 	endRound := uint64(5)
@@ -153,9 +153,9 @@ func TestRMCommitteeMember(t *testing.T) {
 	aut, err := autonity.NewAutonity(types.AutonityContractAddress, client)
 	require.NoError(t, err)
 
-	p, err := o.GetPrecision(nil)
+	p, err := o.GetDecimals(nil)
 	require.NoError(t, err)
-	pricePrecision := decimal.NewFromInt(p.Int64())
+	pricePrecision := decimal.NewFromBigInt(common.Big1, int32(p))
 
 	// test to remove validator from current committee.
 	endRound := uint64(10)
@@ -185,9 +185,9 @@ func TestAddCommitteeMember(t *testing.T) {
 	aut, err := autonity.NewAutonity(types.AutonityContractAddress, client)
 	require.NoError(t, err)
 
-	p, err := o.GetPrecision(nil)
+	p, err := o.GetDecimals(nil)
 	require.NoError(t, err)
-	pricePrecision := decimal.NewFromInt(p.Int64())
+	pricePrecision := decimal.NewFromBigInt(common.Big1, int32(p))
 
 	// test to add validator into current committee.
 	endRound := uint64(10)
@@ -288,9 +288,9 @@ func TestWithBinanceSimulatorOff(t *testing.T) {
 	symbols, err := o.GetSymbols(nil)
 	require.NoError(t, err)
 
-	pre, err := o.GetPrecision(nil)
+	p, err := o.GetDecimals(nil)
 	require.NoError(t, err)
-	pricePrecision := decimal.NewFromInt(pre.Int64())
+	pricePrecision := decimal.NewFromBigInt(common.Big1, int32(p))
 
 	for _, s := range symbols {
 		d, err := o.LatestRoundData(nil, s)
@@ -358,9 +358,9 @@ func TestForexPluginsHappyCase(t *testing.T) {
 	o, err := contract.NewOracle(types.OracleContractAddress, client)
 	require.NoError(t, err)
 
-	p, err := o.GetPrecision(nil)
+	p, err := o.GetDecimals(nil)
 	require.NoError(t, err)
-	pricePrecision := decimal.NewFromInt(p.Int64())
+	pricePrecision := decimal.NewFromBigInt(common.Big1, int32(p))
 
 	// first test happy case.
 	endRound := uint64(10)
@@ -369,7 +369,7 @@ func TestForexPluginsHappyCase(t *testing.T) {
 
 func TestCryptoPluginsHappyCase(t *testing.T) {
 	var conf = &NetworkConfig{
-		EnableL1Logs: false,
+		EnableL1Logs: true,
 		Symbols:      []string{"NTN-USD", "ATN-USD", "NTN-ATN"},
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{cryptoPlugDir, cryptoPlugDir, cryptoPlugDir, cryptoPlugDir},
