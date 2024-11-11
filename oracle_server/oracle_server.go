@@ -498,9 +498,9 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 		ntnPrice, ntnExist := prices[NTNUSD]
 		atnPrice, atnExist := prices[ATNUSD]
 		if ntnExist && atnExist {
-			ntnATNPrice, err := common2.ComputeDerivedPrice(ntnPrice.Price.String(), atnPrice.Price.String())
+			ntnATNPrice, err := common2.ComputeDerivedPrice(ntnPrice.Price.String(), atnPrice.Price.String()) //nolint
 			if err == nil {
-				p, err := decimal.NewFromString(ntnATNPrice.Price)
+				p, err := decimal.NewFromString(ntnATNPrice.Price) // nolint
 				if err == nil {
 					prices[common2.NTNATNSymbol] = types.Price{
 						Timestamp: time.Now().Unix(),

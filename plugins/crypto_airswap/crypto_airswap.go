@@ -430,8 +430,8 @@ func (e *AirswapClient) FetchPrice(_ []string) (common.Prices, error) {
 
 	// both ATN-USDC and NTN-USDC price are collected, compute NTN-ATN price.
 	if len(prices) == 2 {
-		atnPrice, _ := e.lastAggregatedPrices[e.atnAddress]
-		ntnPrice, _ := e.lastAggregatedPrices[e.ntnAddress]
+		atnPrice := e.lastAggregatedPrices[e.atnAddress]
+		ntnPrice := e.lastAggregatedPrices[e.ntnAddress]
 		ntnATNPrice, err := common.ComputeDerivedPrice(ntnPrice.Price, atnPrice.Price)
 		if err != nil {
 			e.logger.Error("cannot compute NTN-ATN price", "error", err.Error())
