@@ -107,7 +107,7 @@ func (cc *CAXClient) FetchPrice(symbols []string) (common.Prices, error) {
 		}
 
 		// since only 3 symbols are supported, thus we assume the collected two symbols are NTN-USDC and ATN-USDC.
-		pNTNATN, err := cc.computeDerivedPrice(pNTN, pATN)
+		pNTNATN, err := common.ComputeDerivedPrice(pNTN.Price, pATN.Price)
 		if err != nil {
 			cc.logger.Error("compute derived price NTN-ATN", "error", err.Error())
 			return prices, nil
@@ -173,24 +173,6 @@ func (cc *CAXClient) buildURL(symbol string) *url.URL {
 	endpoint := &url.URL{}
 	endpoint.Path = strings.Join([]string{routers, symbol, quote}, "/")
 	return endpoint
-}
-
-// for autonity round4 game, "NTN-ATN" is derived from NTN-USDC and ATN-USDC.
-func (cc *CAXClient) computeDerivedPrice(ntnUSD, atnUSD common.Price) (common.Price, error) {
-	var priceNTNATN common.Price
-	pNTN, err := decimal.NewFromString(ntnUSD.Price)
-	if err != nil {
-		return priceNTNATN, err
-	}
-
-	pATN, err := decimal.NewFromString(atnUSD.Price)
-	if err != nil {
-		return priceNTNATN, err
-	}
-
-	priceNTNATN.Symbol = NTNATN
-	priceNTNATN.Price = pNTN.Div(pATN).String()
-	return priceNTNATN, nil
 }
 
 func (cc *CAXClient) AvailableSymbols() ([]string, error) {

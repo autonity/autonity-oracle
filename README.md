@@ -125,18 +125,21 @@ The configuration of plugins are assembled in a yaml file:
 # The selection of which forex data plugin(s) to use is for the end user to decide. The user can use any one of them,
 # or he/she can use multiple forex data plugins in the setup.
 #
-# The crypto data plugins are used to fetch realtime rate of crypto currency pairs: ATN-USDC, NTN-USDC, NTN-ATN and
-# USDC-USD. USDC liquidity is bridged to the Autonity public testnet from the Polygon Amoy testnet via a bridge service. USDC is used as the quote currency for ATN-USDC and NTN-USDC markets which provides
-# open and free data access for the `testnet_dax plugin`, the NTN-ATN price is computed by `testnet_dax plugin` from the price
-# of ATN-USDC and NTN-USDC. To retrieve ATN and NTN prices, put the `testnet_dax plugin` in your plugin directory. Oracle server can then discover and
-# load it. Configuring the `testnet_dax` plugin does not require an API key; it is an open and
-# free data source.
+# The crypto data plugins are used to fetch market prices for the crypto currency pairs: ATN-USDC, NTN-USDC, NTN-ATN and
+# USDC-USD. USDC liquidity is bridged to the Autonity public testnet from the Polygon Amoy testnet via a bridge service.
+# ATN-USDC and NTN-USDC market data is collected from both UniSwap and AirSwap, NTN-ATN market price is derived from
+# that market data, and USDC pricing is converted to USD. ATN-NTN, ATN-USD, and NTN-USD prices are then submitted on-chain.
+# To retrieve ATN and NTN prices, put the `crypto_uniswap` plugin and `crypto_airswap` plugin in your plugin directory.
+# Oracle server can then discover and load them. Configuring the `crypto_uniswap` and `crypto_airswap` plugin does not
+# require an API key, it is an open and free data source of a standard Autonity client websocket service endpoint. The
+# end user can connect to specific endpoint on demand.
 
-# USDC-USD prices are required by the protocol to convert the ATN-USDC and NTN-USDC to ATN-USD and
-# NTN-USD. This enables the reporting of ATN and NTN prices in USD to the ASM. To enable this, 3 plugins are implemented to source the USDC-USD datapoint from open and free data sources: coinbase,
-# coingecko, and kraken. To prevent single data source failure, putting all 3 usdc plugins into your
-# plugin directory is recommended. Oracle server can then discover and load them.
-# You don't need to configure the usdc plugins in your oracle server plugin configuration file.
+# USDC-USD prices are required by the protocol to convert the ATN-USDC and NTN-USDC to ATN-USD and NTN-USD. This enables
+# the reporting of ATN and NTN prices in USD to the ASM. Three plugins are implemented to source the USDC-USD datapoint
+# from open and free data sources: coinbase, coingecko, and kraken. To prevent single data source failure, putting all
+# 3 plugins of CEX into your plugin directory is recommended. Oracle server can then discover and load them.
+# You don't need to configure the CEX plugins (crypto_coinbase, crypto_coingecko, crypto_kraken) in your oracle server
+# plugin configuration file.
 
 # For the forex data plugin default configuration is set, so the end user just needs to configure required settings,
 # namely `name` and `key`. The configuration settings of a plugin are:
@@ -177,21 +180,46 @@ The configuration of plugins are assembled in a yaml file:
 #    key: 111f04e4775bb86c20296530           # required, visit https://www.exchangerate-api.com to get your key, and replace it.
 #    refresh: 3600                           # optional, buffered data within 3600s, recommended for API rate limited data source.
 
+# [optional] Un-comment below lines to select your EVM-like blockchain client websocket service endpoint for crypto plugins.
+# Without configuration, below two plugins connects to default network, an Autonity blockchain RPC node with default
+# contract addresses on the target Autonity blockchain.
+#
+# - name: crypto_airswap                           # optional, it is the plugin file name in the plugin directory.
+#    scheme: "wss"                                 # optional, available values are: "ws" or "wss", default value is "wss".
+#    endpoint: "rpc2.piccadilly.autonity.org"      # optional, default value is a rpc public service of an Autonity network.
+#    ntnTokenAddress: ""                           # optional, NTN ERC20 contract address in hex on the target blockchain
+#    atnTokenAddress: ""                           # optional, Wrapped ATN ERC20 contract address in hex on the target blockchain.
+#    usdcTokenAddress: ""                          # optional, USDC ERC20 contract address in hex on the target blockchain.
+#    swapAddress: ""                               # optional, AirSwap SwapERC20 contract address in hex on the target blockchain.
+
+# - name: crypto_uniswap                           # optional, it is the plugin file name in the plugin directory.
+#    scheme: "wss"                                 # optional, available values are: "http", "https", "ws" or "wss", default value is "wss".
+#    endpoint: "rpc1.piccadilly.autonity.org"   # optional, default value is a rpc public service of an Autonity network.
+#    ntnTokenAddress: ""                           # optional, NTN ERC20 contract address in hex on the target blockchain
+#    atnTokenAddress: ""                           # optional, Wrapped ATN ERC20 contract address in hex on the target blockchain.
+#    usdcTokenAddress: ""                          # optional, USDC ERC20 contract address in hex on the target blockchain.
+#    swapAddress: ""                               # optional, UniSwap factory contract address in hex on the target blockchain.
 ```
 
 Available configuration fields:
 
 There are multiple configuration fields can be used, it is not required to config each field of them, it depends on your plugin implementation.
 ```go
+
 // PluginConfig carry the configuration of plugins.
 type PluginConfig struct {
-	Name               string `json:"name" yaml:"name"`         // the name of the plugin binary.
-	Key                string `json:"key" yaml:"key"`           // the API key granted by your data provider to access their data API.
-	Scheme             string `json:"scheme" yaml:"scheme"`     // the data service scheme, http or https.
-	Endpoint           string `json:"endpoint" yaml:"endpoint"` // the data service endpoint url of the data provider.
-	Timeout            int    `json:"timeout" yaml:"timeout"`   // the timeout period that an API request is lasting for.
-	DataUpdateInterval int    `json:"refresh" yaml:"refresh"`   // reserved for rate limited provider's plugin, limit the request rate.
+    Name               string `json:"name" yaml:"name"`                         // the name of the plugin binary.
+    Key                string `json:"key" yaml:"key"`                           // the API key granted by your data provider to access their data API.
+    Scheme             string `json:"scheme" yaml:"scheme"`                     // the data service scheme, http or https.
+    Endpoint           string `json:"endpoint" yaml:"endpoint"`                 // the data service endpoint url of the data provider.
+    Timeout            int    `json:"timeout" yaml:"timeout"`                   // the timeout period in seconds that an API request is lasting for.
+    DataUpdateInterval int    `json:"refresh" yaml:"refresh"`                   // the interval in seconds to fetch data from data provider due to rate limit.
+    NTNTokenAddress    string `json:"ntnTokenAddress" yaml:"ntnTokenAddress"`   // The NTN erc20 token address on the target blockchain.
+    ATNTokenAddress    string `json:"atnTokenAddress" yaml:"atnTokenAddress"`   // The Wrapped ATN erc20 token address on the target blockchain.
+    USDCTokenAddress   string `json:"usdcTokenAddress" yaml:"usdcTokenAddress"` // USDC erc20 token address on the target blockchain.
+    SwapAddress        string `json:"swapAddress" yaml:"swapAddress"`           // UniSwap factory contract address or AirSwap SwapERC20 contract address on the target blockchain.
 }
+
 ```
 In the last configuration file, all the forex data vendors need a service key to access their data, thus a key is expected for the corresponding plugins.
 

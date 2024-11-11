@@ -7,6 +7,7 @@ import (
 
 func TestNewSIMClient(t *testing.T) {
 	client := NewSIMClient(&defaultConfig)
+	defer client.Close()
 	prices, err := client.FetchPrice([]string{"ATN-USDC", "NTN-USDC", "NTN-ATN"})
 	require.NoError(t, err)
 	require.Equal(t, 3, len(prices))
@@ -14,6 +15,7 @@ func TestNewSIMClient(t *testing.T) {
 
 func TestSIMClient_AvailableSymbols(t *testing.T) {
 	client := NewSIMClient(&defaultConfig)
+	defer client.Close()
 	symbols, err := client.AvailableSymbols()
 	require.NoError(t, err)
 
