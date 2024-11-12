@@ -74,6 +74,9 @@ type OracleServer struct {
 
 	gasTipCap uint64
 
+	chPenalizedEvent  chan *contract.OraclePenalized
+	subPenalizedEvent event.Subscription
+
 	chRoundEvent  chan *contract.OracleNewRound
 	subRoundEvent event.Subscription
 
@@ -186,6 +189,14 @@ func (os *OracleServer) syncStates() error {
 	os.subSymbolsEvent, err = os.oracleContract.WatchNewSymbols(new(bind.WatchOpts), os.chSymbolsEvent)
 	if err != nil {
 		os.logger.Error("failed to subscribe new symbol event", "error", err.Error())
+		return err
+	}
+
+	// subscribe on-chain penalize event
+	os.chPenalizedEvent = make(chan *contract.OraclePenalized)
+	os.subPenalizedEvent, err = os.oracleContract.WatchPenalized(new(bind.WatchOpts), os.chPenalizedEvent)
+	if err != nil {
+		os.logger.Error("failed to subscribe penalized event", "error", err.Error())
 		return err
 	}
 
@@ -711,6 +722,12 @@ func (os *OracleServer) Start() {
 				os.handleConnectivityError()
 				os.subRoundEvent.Unsubscribe()
 			}
+		case err := <-os.subPenalizedEvent.Err():
+			if err != nil {
+				os.logger.Info("subscription error of new rEvent event", err)
+				os.handleConnectivityError()
+				os.subPenalizedEvent.Unsubscribe()
+			}
 		case <-os.psTicker.C:
 			preSampleTS := time.Now().Unix()
 			err := os.handlePreSampling(preSampleTS)
@@ -718,6 +735,21 @@ func (os *OracleServer) Start() {
 				os.logger.Error("handle pre-sampling", "error", err.Error())
 			}
 			os.lastSampledTS = preSampleTS
+		case penalizeEvent := <-os.chPenalizedEvent:
+			if penalizeEvent.Participant == os.key.Address {
+				os.logger.Info("Your oracle client get penalized as an outlier")
+				os.logger.Info("observed oracle penalize event", "participant", penalizeEvent.Participant,
+					"symbol", penalizeEvent.Symbol, "median", penalizeEvent.Median.String(), "reported", penalizeEvent.Reported.String())
+				if os.confidenceStrategy == config.ConfidenceStrategyFixed {
+					os.logger.Info("confidence strategy switch to linear from fixed to reduce the penalty risk")
+					os.confidenceStrategy = config.ConfidenceStrategyLinear
+				}
+
+				if os.confidenceStrategy == config.ConfidenceStrategyLinear && config.SourceScalingFactor > 0 {
+					config.SourceScalingFactor--
+					os.logger.Info("reduce the source scaling factor to reduce the penalty risk", "scaling factor", config.SourceScalingFactor)
+				}
+			}
 		case rEvent := <-os.chRoundEvent:
 			os.logger.Info("handle new round", "round", rEvent.Round.Uint64(), "required sampling TS",
 				rEvent.Timestamp.Uint64(), "height", rEvent.Height.Uint64(), "round period", rEvent.VotePeriod.Uint64())
@@ -757,6 +789,7 @@ func (os *OracleServer) Stop() {
 	os.client.Close()
 	os.subRoundEvent.Unsubscribe()
 	os.subSymbolsEvent.Unsubscribe()
+	os.subPenalizedEvent.Unsubscribe()
 
 	os.doneCh <- struct{}{}
 	for _, c := range os.pluginSet {

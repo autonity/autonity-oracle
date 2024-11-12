@@ -17,6 +17,7 @@ type ContractAPI interface {
 	GetRound(opts *bind.CallOpts) (*big.Int, error)
 	WatchNewRound(opts *bind.WatchOpts, sink chan<- *OracleNewRound) (event.Subscription, error)
 	WatchNewSymbols(opts *bind.WatchOpts, sink chan<- *OracleNewSymbols) (event.Subscription, error)
+	WatchPenalized(opts *bind.WatchOpts, sink chan<- *OraclePenalized) (event.Subscription, error)
 	GetRoundData(opts *bind.CallOpts, _round *big.Int, _symbol string) (IOracleRoundData, error)
 	LatestRoundData(opts *bind.CallOpts, _symbol string) (IOracleRoundData, error)
 	GetDecimals(opts *bind.CallOpts) (uint8, error)

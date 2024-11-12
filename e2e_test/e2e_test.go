@@ -369,7 +369,7 @@ func TestForexPluginsHappyCase(t *testing.T) {
 
 func TestCryptoPluginsHappyCase(t *testing.T) {
 	var conf = &NetworkConfig{
-		EnableL1Logs: true,
+		EnableL1Logs: false,
 		Symbols:      []string{"NTN-USD", "ATN-USD", "NTN-ATN"},
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{cryptoPlugDir, cryptoPlugDir, cryptoPlugDir, cryptoPlugDir},
@@ -432,7 +432,7 @@ func TestCryptoPluginsHappyCase(t *testing.T) {
 
 func TestSingleNodeCryptoPluginsHappyCase(t *testing.T) {
 	var conf = &NetworkConfig{
-		EnableL1Logs: false,
+		EnableL1Logs: true,
 		Symbols:      []string{"NTN-USD", "ATN-USD", "NTN-ATN"},
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{cryptoPlugDir, cryptoPlugDir, cryptoPlugDir, cryptoPlugDir},

@@ -15,6 +15,7 @@ import (
 )
 
 var (
+	SourceScalingFactor      = uint64(10)
 	ConfidenceStrategyLinear = 0
 	ConfidenceStrategyFixed  = 1
 
@@ -40,7 +41,6 @@ const Version uint8 = 19
 const OracleDecimals uint8 = 18
 const MaxConfidence = 100
 const BaseConfidence = 40
-const SourceScalingFactor = 10
 const UsageOracleKey = "Set the oracle server key file path."
 const UsagePluginConf = "Set the plugin's configuration file path."
 const UsageOracleConf = "Set the oracle server configuration file path."
