@@ -25,7 +25,7 @@ var (
 // Todo: require a config PR to finalize below configuration for the target autonity network.
 var defaultConfig = types.PluginConfig{
 	Name:               "crypto_uniswap",
-	Scheme:             "wss",                             // todo: update this on redeployment of infra
+	Scheme:             "wss",                             // both http/s ws/s works for this plugin, todo: update this on redeployment of infra
 	Endpoint:           "rpc1.piccadilly.autonity.org/ws", // todo: update this on redeployment of infra
 	Timeout:            10,                                // 10s
 	DataUpdateInterval: 30,                                // 30s
