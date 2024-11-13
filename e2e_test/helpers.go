@@ -8,11 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/hashicorp/go-hclog"
@@ -53,121 +49,6 @@ var (
 
 // ErrZeroKey describes an error due to a zero secret key.
 var ErrZeroKey = errors.New("generated secret key is zero")
-
-type AutonityContractGenesis struct {
-	Bytecode         hexutil.Bytes  `json:"bytecode,omitempty" toml:",omitempty"`
-	ABI              *abi.ABI       `json:"abi,omitempty" toml:",omitempty"`
-	MinBaseFee       uint64         `json:"minBaseFee"`
-	EpochPeriod      uint64         `json:"epochPeriod"`
-	UnbondingPeriod  uint64         `json:"unbondingPeriod"`
-	BlockPeriod      uint64         `json:"blockPeriod"`
-	MaxCommitteeSize uint64         `json:"maxCommitteeSize"`
-	Operator         common.Address `json:"operator"`
-	Treasury         common.Address `json:"treasury"`
-	TreasuryFee      uint64         `json:"treasuryFee"`
-	DelegationRate   uint64         `json:"delegationRate"`
-	Validators       []*Validator   `json:"validators"`
-}
-
-type AccountabilityGenesis struct {
-	InnocenceProofSubmissionWindow uint64 `json:"innocenceProofSubmissionWindow"`
-	// Slashing parameters
-	BaseSlashingRateLow   uint64 `json:"baseSlashingRateLow"`
-	BaseSlashingRateMid   uint64 `json:"baseSlashingRateMid"`
-	CollusionFactor       uint64 `json:"collusionFactor"`
-	HistoryFactor         uint64 `json:"historyFactor"`
-	JailFactor            uint64 `json:"jailFactor"`
-	SlashingRatePrecision uint64 `json:"slashingRatePrecision"`
-}
-
-// OracleContractGenesis Autonity contract config. It'is used for deployment.
-type OracleContractGenesis struct {
-	Bytecode   hexutil.Bytes `json:"bytecode,omitempty" toml:",omitempty"`
-	ABI        *abi.ABI      `json:"abi,omitempty" toml:",omitempty"`
-	Symbols    []string      `json:"symbols"`
-	VotePeriod uint64        `json:"votePeriod"`
-}
-
-type AsmConfig struct {
-	ACUContractConfig           *AcuContractGenesis           `json:"acu,omitempty"`
-	StabilizationContractConfig *StabilizationContractGenesis `json:"stabilization,omitempty"`
-	SupplyControlConfig         *SupplyControlGenesis         `json:"supplyControl,omitempty"`
-}
-
-type AcuContractGenesis struct {
-	Symbols    []string
-	Quantities []uint64
-	Scale      uint64
-}
-
-type StabilizationContractGenesis struct {
-	BorrowInterestRate        *math.HexOrDecimal256
-	LiquidationRatio          *math.HexOrDecimal256
-	MinCollateralizationRatio *math.HexOrDecimal256
-	MinDebtRequirement        *math.HexOrDecimal256
-	TargetPrice               *math.HexOrDecimal256
-}
-
-type SupplyControlGenesis struct {
-	InitialAllocation *math.HexOrDecimal256
-}
-
-// EthashConfig is the consensus engine configs for proof-of-work based sealing.
-type EthashConfig struct{}
-
-// ChainConfig is the core config which determines the blockchain settings.
-//
-// ChainConfig is stored in the database on a per block basis. This means
-// that any network, identified by its genesis block, can have its own
-// set of configuration options.
-type ChainConfig struct {
-	ChainID *big.Int `json:"chainId"` // chainId identifies the current chain and is used for replay protection
-
-	HomesteadBlock *big.Int `json:"homesteadBlock,omitempty"` // Homestead switch block (nil = no fork, 0 = already homestead)
-
-	DAOForkBlock   *big.Int `json:"daoForkBlock,omitempty"`   // TheDAO hard-fork switch block (nil = no fork)
-	DAOForkSupport bool     `json:"daoForkSupport,omitempty"` // Whether the nodes supports or opposes the DAO hard-fork
-
-	// EIP150 implements the Gas price changes (https://github.com/ethereum/EIPs/issues/150)
-	EIP150Block *big.Int    `json:"eip150Block,omitempty"` // EIP150 HF block (nil = no fork)
-	EIP150Hash  common.Hash `json:"eip150Hash,omitempty"`  // EIP150 HF hash (needed for header only clients as only gas pricing changed)
-
-	EIP155Block *big.Int `json:"eip155Block,omitempty"` // EIP155 HF block
-	EIP158Block *big.Int `json:"eip158Block,omitempty"` // EIP158 HF block
-
-	ByzantiumBlock      *big.Int `json:"byzantiumBlock,omitempty"`      // Byzantium switch block (nil = no fork, 0 = already on byzantium)
-	ConstantinopleBlock *big.Int `json:"constantinopleBlock,omitempty"` // Constantinople switch block (nil = no fork, 0 = already activated)
-	PetersburgBlock     *big.Int `json:"petersburgBlock,omitempty"`     // Petersburg switch block (nil = same as Constantinople)
-	IstanbulBlock       *big.Int `json:"istanbulBlock,omitempty"`       // Istanbul switch block (nil = no fork, 0 = already on istanbul)
-	MuirGlacierBlock    *big.Int `json:"muirGlacierBlock,omitempty"`    // Eip-2384 (bomb delay) switch block (nil = no fork, 0 = already activated)
-	BerlinBlock         *big.Int `json:"berlinBlock,omitempty"`         // Berlin switch block (nil = no fork, 0 = already on berlin)
-	LondonBlock         *big.Int `json:"londonBlock,omitempty"`         // London switch block (nil = no fork, 0 = already on london)
-	ArrowGlacierBlock   *big.Int `json:"arrowGlacierBlock,omitempty"`   // Eip-4345 (bomb delay) switch block (nil = no fork, 0 = already activated)
-	MergeForkBlock      *big.Int `json:"mergeForkBlock,omitempty"`      // EIP-3675 (TheMerge) switch block (nil = no fork, 0 = already in merge proceedings)
-
-	// TerminalTotalDifficulty is the amount of total difficulty reached by
-	// the network that triggers the consensus upgrade.
-	TerminalTotalDifficulty *big.Int `json:"terminalTotalDifficulty,omitempty"`
-
-	// Various consensus engines
-	Ethash                 *EthashConfig            `json:"ethash,omitempty"`
-	AutonityContractConfig *AutonityContractGenesis `json:"autonity,omitempty"`
-	AccountabilityConfig   *AccountabilityGenesis   `json:"accountability,omitempty"`
-	OracleContractConfig   *OracleContractGenesis   `json:"oracle,omitempty"`
-
-	ASM AsmConfig `json:"asm,omitempty"`
-
-	// true if run in test-mode, false by default
-	TestMode bool `json:"testMode,omitempty"`
-}
-
-type Validator struct {
-	Treasury      common.Address `json:"treasury"`
-	Enode         string         `json:"enode"`
-	OracleAddress common.Address `json:"oracleAddress"`
-	BondedStake   *big.Int       `json:"bondedStake"`
-	ConsensusKey  string         `json:"consensusKey"`
-}
 
 type DataSimulator struct {
 	Command    *exec.Cmd
