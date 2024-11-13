@@ -35,7 +35,7 @@ func TestNewUniswapClient(t *testing.T) {
 
 	prices, err := client.FetchPrice(supportedSymbols)
 	require.NoError(t, err)
-	require.Equal(t, 2, len(prices))
+	require.Equal(t, 3, len(prices))
 	for _, price := range prices {
 		_, err := decimal.NewFromString(price.Price)
 		require.NoError(t, err)
