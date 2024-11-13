@@ -486,7 +486,8 @@ func (os *OracleServer) doReport(curRoundCommitmentHash common.Hash, lastRoundDa
 	if lastRoundData == nil {
 		for i := 0; i < len(os.protocolSymbols); i++ {
 			report := contract.IOracleReport{
-				Price: types.InvalidPrice,
+				Price:      types.InvalidPrice,
+				Confidence: config.BaseConfidence,
 			}
 			reports = append(reports, report)
 		}
@@ -518,9 +519,10 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 				p, err := decimal.NewFromString(ntnATNPrice.Price) // nolint
 				if err == nil {
 					prices[common2.NTNATNSymbol] = types.Price{
-						Timestamp: time.Now().Unix(),
-						Price:     p,
-						Symbol:    common2.NTNATNSymbol,
+						Timestamp:  time.Now().Unix(),
+						Price:      p,
+						Symbol:     common2.NTNATNSymbol,
+						Confidence: ntnPrice.Confidence,
 					}
 				} else {
 					os.logger.Error("cannot parse NTN-ATN price in decimal", "error", err.Error())
@@ -598,7 +600,7 @@ func (os *OracleServer) assembleReportData(round uint64, symbols []string, price
 		} else {
 			reports = append(reports, contract.IOracleReport{
 				Price:      types.InvalidPrice,
-				Confidence: 0,
+				Confidence: config.BaseConfidence,
 			})
 		}
 	}

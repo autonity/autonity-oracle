@@ -6,7 +6,6 @@ import (
 	"errors"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/hashicorp/go-hclog"
@@ -24,7 +23,7 @@ var (
 	EnvLogLevel             = "LOG_LEVEL"
 	EnvConfidenceStrategy   = "CONFIDENCE_STRATEGY"
 	SimulatedPrice          = decimal.RequireFromString("11.11")
-	InvalidPrice            = new(big.Int).Sub(math.BigPow(2, 255), big.NewInt(1))
+	InvalidPrice            = big.NewInt(0)
 	InvalidSalt             = big.NewInt(0)
 	Deployer                = common.Address{}
 	AutonityContractAddress = crypto.CreateAddress(Deployer, 0)
