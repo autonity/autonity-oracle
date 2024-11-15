@@ -126,6 +126,7 @@ type AutonityContractGenesis struct {
 	DelegationRate          uint64                `json:"delegationRate"`
 	WithholdingThreshold    uint64                `json:"withholdingThreshold"`
 	ProposerRewardRate      uint64                `json:"proposerRewardRate"`
+	OracleRewardRate        uint64                `json:"oracleRewardRate"`
 	InitialInflationReserve *math.HexOrDecimal256 `json:"initialInflationReserve"`
 	Validators              []*Validator          `json:"validators"` // todo: Can we change that to []Validator
 	Schedules               []Schedule            `json:"schedules"`
@@ -135,11 +136,14 @@ type AccountabilityGenesis struct {
 	InnocenceProofSubmissionWindow uint64 `json:"innocenceProofSubmissionWindow"`
 
 	// Slashing parameters
-	BaseSlashingRateLow uint64 `json:"baseSlashingRateLow"`
-	BaseSlashingRateMid uint64 `json:"baseSlashingRateMid"`
-	CollusionFactor     uint64 `json:"collusionFactor"`
-	HistoryFactor       uint64 `json:"historyFactor"`
-	JailFactor          uint64 `json:"jailFactor"`
+	BaseSlashingRateLow  uint64 `json:"baseSlashingRateLow"`
+	BaseSlashingRateMid  uint64 `json:"baseSlashingRateMid"`
+	BaseSlashingRateHigh uint64 `json:"baseSlashingRateHigh"`
+
+	// Factors
+	CollusionFactor uint64 `json:"collusionFactor"`
+	HistoryFactor   uint64 `json:"historyFactor"`
+	JailFactor      uint64 `json:"jailFactor"`
 }
 
 // OmissionAccountabilityGenesis defines the omission fault detection parameters
@@ -155,10 +159,13 @@ type OmissionAccountabilityGenesis struct {
 
 // OracleContractGenesis Autonity contract config. It is used for deployment.
 type OracleContractGenesis struct {
-	Bytecode   hexutil.Bytes `json:"bytecode,omitempty" toml:",omitempty"`
-	ABI        *abi.ABI      `json:"abi,omitempty" toml:",omitempty"`
-	Symbols    []string      `json:"symbols"`
-	VotePeriod uint64        `json:"votePeriod"`
+	Bytecode                  hexutil.Bytes `json:"bytecode,omitempty" toml:",omitempty"`
+	ABI                       *abi.ABI      `json:"abi,omitempty" toml:",omitempty"`
+	Symbols                   []string      `json:"symbols"`
+	VotePeriod                uint64        `json:"votePeriod"`
+	OutlierDetectionThreshold uint64        `json:"outlierDetectionThreshold"`
+	OutlierSlashingThreshold  uint64        `json:"outlierSlashingThreshold"`
+	BaseSlashingRate          uint64        `json:"baseSlashingRate"`
 }
 
 type AsmConfig struct {

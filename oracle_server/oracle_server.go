@@ -113,7 +113,7 @@ func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, clien
 	}
 
 	os.logger = hclog.New(&hclog.LoggerOptions{
-		Name:   reflect2.TypeOfPtr(os).String(),
+		Name:   reflect2.TypeOfPtr(os).String() + conf.Key.Address.String(),
 		Output: o.Stdout,
 		Level:  conf.LoggingLevel,
 	})
@@ -194,7 +194,7 @@ func (os *OracleServer) syncStates() error {
 
 	// subscribe on-chain penalize event
 	os.chPenalizedEvent = make(chan *contract.OraclePenalized)
-	os.subPenalizedEvent, err = os.oracleContract.WatchPenalized(new(bind.WatchOpts), os.chPenalizedEvent)
+	os.subPenalizedEvent, err = os.oracleContract.WatchPenalized(new(bind.WatchOpts), os.chPenalizedEvent, nil)
 	if err != nil {
 		os.logger.Error("failed to subscribe penalized event", "error", err.Error())
 		return err
@@ -482,15 +482,8 @@ func (os *OracleServer) doReport(curRoundCommitmentHash common.Hash, lastRoundDa
 	auth.GasLimit = uint64(3000000)
 
 	// if there is no last round data, then we just submit the curRndCommitHash hash of current round.
-	var reports []contract.IOracleReport
 	if lastRoundData == nil {
-		for i := 0; i < len(os.protocolSymbols); i++ {
-			report := contract.IOracleReport{
-				Price:      types.InvalidPrice,
-				Confidence: config.BaseConfidence,
-			}
-			reports = append(reports, report)
-		}
+		var reports []contract.IOracleReport
 		return os.oracleContract.Vote(auth, new(big.Int).SetBytes(curRoundCommitmentHash.Bytes()), reports, types.InvalidSalt, config.Version)
 	}
 
@@ -539,7 +532,7 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 		os.logger.Error("failed to assemble round report data", "error", err.Error())
 		return nil, err
 	}
-	os.logger.Info("assembled round report data", "current round", round, "prices", prices, "commitment hash", roundData.CommitmentHash.String())
+	os.logger.Info("assembled round report data", "current round", round, "prices", roundData)
 	return roundData, nil
 }
 
@@ -599,8 +592,7 @@ func (os *OracleServer) assembleReportData(round uint64, symbols []string, price
 			})
 		} else {
 			reports = append(reports, contract.IOracleReport{
-				Price:      types.InvalidPrice,
-				Confidence: config.BaseConfidence,
+				Price: types.InvalidPrice,
 			})
 		}
 	}
@@ -753,6 +745,11 @@ func (os *OracleServer) Start() {
 				}
 			}
 		case rEvent := <-os.chRoundEvent:
+			if os.curRound == rEvent.Round.Uint64() {
+				os.logger.Debug("skip duplicated round event", "round", rEvent.Round)
+				continue
+			}
+
 			os.logger.Info("handle new round", "round", rEvent.Round.Uint64(), "required sampling TS",
 				rEvent.Timestamp.Uint64(), "height", rEvent.Height.Uint64(), "round period", rEvent.VotePeriod.Uint64())
 

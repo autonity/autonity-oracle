@@ -53,7 +53,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock.EXPECT().GetVotePeriod(nil).Return(votePeriod, nil)
 		contractMock.EXPECT().WatchNewRound(gomock.Any(), gomock.Any()).Return(subRoundEvent, nil)
 		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
-		contractMock.EXPECT().WatchPenalized(gomock.Any(), gomock.Any()).Return(subPenalizeEvent, nil)
+		contractMock.EXPECT().WatchPenalized(gomock.Any(), gomock.Any(), gomock.Any()).Return(subPenalizeEvent, nil)
 		l1Mock := mock.NewMockBlockchain(ctrl)
 
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
@@ -78,7 +78,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock.EXPECT().GetVotePeriod(nil).Return(votePeriod, nil)
 		contractMock.EXPECT().WatchNewRound(gomock.Any(), gomock.Any()).Return(subRoundEvent, nil)
 		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
-		contractMock.EXPECT().WatchPenalized(gomock.Any(), gomock.Any()).Return(subPenalizeEvent, nil)
+		contractMock.EXPECT().WatchPenalized(gomock.Any(), gomock.Any(), gomock.Any()).Return(subPenalizeEvent, nil)
 		l1Mock := mock.NewMockBlockchain(ctrl)
 		l1Mock.EXPECT().BlockNumber(gomock.Any()).AnyTimes().Return(chainHeight, nil)
 
@@ -128,7 +128,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock.EXPECT().GetVotePeriod(nil).Return(votePeriod, nil)
 		contractMock.EXPECT().WatchNewRound(gomock.Any(), gomock.Any()).Return(subRoundEvent, nil)
 		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
-		contractMock.EXPECT().WatchPenalized(gomock.Any(), gomock.Any()).Return(subPenalizeEvent, nil)
+		contractMock.EXPECT().WatchPenalized(gomock.Any(), gomock.Any(), gomock.Any()).Return(subPenalizeEvent, nil)
 		contractMock.EXPECT().GetVoters(nil).Return(voters, nil)
 		contractMock.EXPECT().GetRoundData(nil, new(big.Int).SetUint64(1), gomock.Any()).AnyTimes().Return(price, nil)
 		contractMock.EXPECT().LatestRoundData(nil, gomock.Any()).AnyTimes().Return(price, nil)
@@ -199,7 +199,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock.EXPECT().GetVotePeriod(nil).Return(votePeriod, nil)
 		contractMock.EXPECT().WatchNewRound(gomock.Any(), gomock.Any()).Return(subRoundEvent, nil)
 		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
-		contractMock.EXPECT().WatchPenalized(gomock.Any(), gomock.Any()).Return(subPenalizeEvent, nil)
+		contractMock.EXPECT().WatchPenalized(gomock.Any(), gomock.Any(), gomock.Any()).Return(subPenalizeEvent, nil)
 		l1Mock := mock.NewMockBlockchain(ctrl)
 
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
@@ -227,7 +227,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock.EXPECT().GetVotePeriod(nil).Return(votePeriod, nil)
 		contractMock.EXPECT().WatchNewRound(gomock.Any(), gomock.Any()).Return(subRoundEvent, nil)
 		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
-		contractMock.EXPECT().WatchPenalized(gomock.Any(), gomock.Any()).Return(subPenalizeEvent, nil)
+		contractMock.EXPECT().WatchPenalized(gomock.Any(), gomock.Any(), gomock.Any()).Return(subPenalizeEvent, nil)
 		l1Mock := mock.NewMockBlockchain(ctrl)
 
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
@@ -267,7 +267,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock.EXPECT().GetVotePeriod(nil).Return(votePeriod, nil)
 		contractMock.EXPECT().WatchNewRound(gomock.Any(), gomock.Any()).Return(subRoundEvent, nil)
 		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
-		contractMock.EXPECT().WatchPenalized(gomock.Any(), gomock.Any()).Return(subPenalizeEvent, nil)
+		contractMock.EXPECT().WatchPenalized(gomock.Any(), gomock.Any(), gomock.Any()).Return(subPenalizeEvent, nil)
 		l1Mock := mock.NewMockBlockchain(ctrl)
 
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)

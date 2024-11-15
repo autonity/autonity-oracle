@@ -174,6 +174,51 @@ func (mr *MockContractAPIMockRecorder) Vote(opts, _commit, _reports, _salt, _ext
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Vote", reflect.TypeOf((*MockContractAPI)(nil).Vote), opts, _commit, _reports, _salt, _extra)
 }
 
+// WatchLastVoteRoundIsZero mocks base method.
+func (m *MockContractAPI) WatchLastVoteRoundIsZero(opts *bind.WatchOpts, sink chan<- *oracle.OracleLastVoteRoundIsZero) (event.Subscription, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WatchLastVoteRoundIsZero", opts, sink)
+	ret0, _ := ret[0].(event.Subscription)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// WatchLastVoteRoundIsZero indicates an expected call of WatchLastVoteRoundIsZero.
+func (mr *MockContractAPIMockRecorder) WatchLastVoteRoundIsZero(opts, sink interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchLastVoteRoundIsZero", reflect.TypeOf((*MockContractAPI)(nil).WatchLastVoteRoundIsZero), opts, sink)
+}
+
+// WatchMismatchHash mocks base method.
+func (m *MockContractAPI) WatchMismatchHash(opts *bind.WatchOpts, sink chan<- *oracle.OracleMismatchHash) (event.Subscription, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WatchMismatchHash", opts, sink)
+	ret0, _ := ret[0].(event.Subscription)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// WatchMismatchHash indicates an expected call of WatchMismatchHash.
+func (mr *MockContractAPIMockRecorder) WatchMismatchHash(opts, sink interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchMismatchHash", reflect.TypeOf((*MockContractAPI)(nil).WatchMismatchHash), opts, sink)
+}
+
+// WatchMismatchRound mocks base method.
+func (m *MockContractAPI) WatchMismatchRound(opts *bind.WatchOpts, sink chan<- *oracle.OracleMismatchRound) (event.Subscription, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WatchMismatchRound", opts, sink)
+	ret0, _ := ret[0].(event.Subscription)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// WatchMismatchRound indicates an expected call of WatchMismatchRound.
+func (mr *MockContractAPIMockRecorder) WatchMismatchRound(opts, sink interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchMismatchRound", reflect.TypeOf((*MockContractAPI)(nil).WatchMismatchRound), opts, sink)
+}
+
 // WatchNewRound mocks base method.
 func (m *MockContractAPI) WatchNewRound(opts *bind.WatchOpts, sink chan<- *oracle.OracleNewRound) (event.Subscription, error) {
 	m.ctrl.T.Helper()
@@ -205,16 +250,31 @@ func (mr *MockContractAPIMockRecorder) WatchNewSymbols(opts, sink interface{}) *
 }
 
 // WatchPenalized mocks base method.
-func (m *MockContractAPI) WatchPenalized(opts *bind.WatchOpts, sink chan<- *oracle.OraclePenalized) (event.Subscription, error) {
+func (m *MockContractAPI) WatchPenalized(opts *bind.WatchOpts, sink chan<- *oracle.OraclePenalized, _participant []common.Address) (event.Subscription, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WatchPenalized", opts, sink)
+	ret := m.ctrl.Call(m, "WatchPenalized", opts, sink, _participant)
 	ret0, _ := ret[0].(event.Subscription)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // WatchPenalized indicates an expected call of WatchPenalized.
-func (mr *MockContractAPIMockRecorder) WatchPenalized(opts, sink interface{}) *gomock.Call {
+func (mr *MockContractAPIMockRecorder) WatchPenalized(opts, sink, _participant interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchPenalized", reflect.TypeOf((*MockContractAPI)(nil).WatchPenalized), opts, sink)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchPenalized", reflect.TypeOf((*MockContractAPI)(nil).WatchPenalized), opts, sink, _participant)
+}
+
+// WatchVoted mocks base method.
+func (m *MockContractAPI) WatchVoted(opts *bind.WatchOpts, sink chan<- *oracle.OracleVoted, _voter []common.Address) (event.Subscription, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WatchVoted", opts, sink, _voter)
+	ret0, _ := ret[0].(event.Subscription)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// WatchVoted indicates an expected call of WatchVoted.
+func (mr *MockContractAPIMockRecorder) WatchVoted(opts, sink, _voter interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchVoted", reflect.TypeOf((*MockContractAPI)(nil).WatchVoted), opts, sink, _voter)
 }

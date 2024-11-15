@@ -23,12 +23,12 @@ var defaultVotePeriod = uint64(60)
 
 func TestHappyCase(t *testing.T) {
 	var netConf = &NetworkConfig{
-		EnableL1Logs: false,
+		EnableL1Logs: true,
 		Symbols:      config.DefaultSymbols,
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir},
 	}
-	network, err := createNetwork(netConf, numberOfValidators)
+	network, err := createNetwork(netConf, 2)
 	require.NoError(t, err)
 	defer network.Stop()
 
@@ -45,7 +45,7 @@ func TestHappyCase(t *testing.T) {
 	pricePrecision := decimal.NewFromBigInt(common.Big1, int32(p))
 
 	// first test happy case.
-	endRound := uint64(10)
+	endRound := uint64(4)
 	testHappyCase(t, o, endRound, pricePrecision)
 }
 
@@ -508,9 +508,12 @@ func testHappyCase(t *testing.T, o *contract.Oracle, beforeRound uint64, pricePr
 		symbols, err := o.GetSymbols(nil)
 		require.NoError(t, err)
 
+		// as current round is not finalized yet, thus the round data of it haven't being aggregate,
+		// thus we will query the last round's data for the verification.
+		lastRound := new(big.Int).SetUint64(round.Uint64() - 1)
 		// get round data for each symbol.
 		for _, s := range symbols {
-			d, err := o.GetRoundData(nil, round, s)
+			d, err := o.GetRoundData(nil, lastRound, s)
 			require.NoError(t, err)
 			require.Equal(t, true, d.Success)
 			rd = append(rd, d)

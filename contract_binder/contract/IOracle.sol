@@ -67,6 +67,13 @@ interface IOracle {
      */
     function finalize() external returns (bool);
 
+
+    /**
+    * @dev Signal that rewards are available. Only accessible from the autonity contract.
+    *
+    */
+    function receiveRewards() external payable returns (bool);
+
     /**
      * @notice Called to update the list of the oracle voters.
      * @dev Only accessible from the Autonity Contract.
@@ -98,10 +105,11 @@ interface IOracle {
     */
     function getDecimals() external view returns (uint8);
 
+
     /**
      * @dev Emitted when a vote has been succesfully accounted after a {vote} call.
      */
-    event Voted(address indexed _voter, int[] _votes);
+    event Voted(address indexed _voter, uint120[] _votes);
 
     /**
      * @dev Emitted when a vote has been succesfully accounted after a {vote} call.
@@ -125,5 +133,10 @@ interface IOracle {
      * @param _median Median price calculate for this symbol.
      * @param _reported Reported outlier price.
      */
-    event Penalized(address _participant, string _symbol, int256 _median, uint120 _reported);
+    event Penalized(address indexed _participant, string _symbol, int256 _median, uint120 _reported);
+
+    // debugger events
+    event LastVoteRoundIsZero(uint256 lastVoteRound, address msgSender);
+    event MismatchRound(uint256 lastVoteRound, uint256 roundMinusOne, address msgSender);
+    event MismatchHash(uint256 lastHash, uint256 computedHash, address msgSender);
 }
