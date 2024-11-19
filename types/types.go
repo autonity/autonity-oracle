@@ -1,16 +1,18 @@
 package types
 
 import (
-	contract "autonity-oracle/contract_binder/contract"
 	"encoding/json"
 	"errors"
+	"math/big"
+
+	contract "autonity-oracle/contract_binder/contract"
+
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/hashicorp/go-hclog"
 	"github.com/shopspring/decimal"
-	"math/big"
 )
 
 var (
@@ -70,6 +72,7 @@ type OracleServiceConfig struct {
 	Key                *keystore.Key
 	AutonityWSUrl      string
 	PluginDIR          string
+	ProfileDir         string
 	PluginConfFile     string
 	ConfidenceStrategy int
 }
