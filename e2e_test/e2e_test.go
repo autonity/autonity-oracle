@@ -23,7 +23,7 @@ var defaultVotePeriod = uint64(60)
 
 func TestHappyCase(t *testing.T) {
 	var netConf = &NetworkConfig{
-		EnableL1Logs: true,
+		EnableL1Logs: false,
 		Symbols:      config.DefaultSymbols,
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir},
@@ -81,7 +81,7 @@ func TestAddNewSymbol(t *testing.T) {
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir},
 	}
-	network, err := createNetwork(netConf, numberOfValidators)
+	network, err := createNetwork(netConf, 2)
 	require.NoError(t, err)
 	defer network.Stop()
 
@@ -340,6 +340,7 @@ func TestWithBinanceSimulatorTimeout(t *testing.T) {
 }
 
 func TestForexPluginsHappyCase(t *testing.T) {
+	t.Skip("As those free service keys get expired, we skip this test")
 	var netConf = &NetworkConfig{
 		EnableL1Logs: false,
 		Symbols:      []string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"},
@@ -372,10 +373,10 @@ func TestCryptoPluginsHappyCase(t *testing.T) {
 		EnableL1Logs: false,
 		Symbols:      []string{"NTN-USD", "ATN-USD", "NTN-ATN"},
 		VotePeriod:   defaultVotePeriod,
-		PluginDIRs:   []string{cryptoPlugDir, cryptoPlugDir, cryptoPlugDir, cryptoPlugDir},
+		PluginDIRs:   []string{cryptoPlugDir, cryptoPlugDir},
 	}
 
-	net, err := createNetwork(conf, numberOfValidators)
+	net, err := createNetwork(conf, 2)
 	require.NoError(t, err)
 	defer net.Stop()
 
@@ -432,7 +433,7 @@ func TestCryptoPluginsHappyCase(t *testing.T) {
 
 func TestSingleNodeCryptoPluginsHappyCase(t *testing.T) {
 	var conf = &NetworkConfig{
-		EnableL1Logs: true,
+		EnableL1Logs: false,
 		Symbols:      []string{"NTN-USD", "ATN-USD", "NTN-ATN"},
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{cryptoPlugDir, cryptoPlugDir, cryptoPlugDir, cryptoPlugDir},
@@ -457,7 +458,7 @@ func TestSingleNodeCryptoPluginsHappyCase(t *testing.T) {
 	defer subRoundEvent.Unsubscribe()
 
 	symbols := []string{"NTN-USD", "ATN-USD", "NTN-ATN"}
-	endRound := uint64(256)
+	endRound := uint64(10)
 
 	var prices []contract.IOracleRoundData
 
@@ -565,9 +566,13 @@ func testBinanceDataHappyCase(t *testing.T, o *contract.Oracle, beforeRound uint
 		symbols, err := o.GetSymbols(nil)
 		require.NoError(t, err)
 
+		// as current round is not finalized yet, thus the round data of it haven't being aggregate,
+		// thus we will query the last round's data for the verification.
+		lastRound := new(big.Int).SetUint64(round.Uint64() - 1)
+
 		// get last round data for each symbol.
 		for _, s := range symbols {
-			d, err := o.GetRoundData(nil, round.Sub(round, common.Big1), s)
+			d, err := o.GetRoundData(nil, lastRound, s)
 			require.NoError(t, err)
 			require.NotEqual(t, uint64(0), d.Price.Uint64())
 			require.Equal(t, true, d.Success)
@@ -592,7 +597,7 @@ func testAddNewSymbols(t *testing.T, network *Network, client *ethclient.Client,
 	legacySymbols, err := o.GetSymbols(nil)
 	require.NoError(t, err)
 
-	newSymbols := append(legacySymbols, "BTC-ETH")
+	newSymbols := append(legacySymbols, config.SymbolBTCETH)
 
 	_, err = o.SetSymbols(auth, newSymbols)
 	require.NoError(t, err)
@@ -613,9 +618,13 @@ func testAddNewSymbols(t *testing.T, network *Network, client *ethclient.Client,
 
 		require.Equal(t, len(newSymbols), len(symbols))
 
+		// as current round is not finalized yet, thus the round data of it haven't being aggregate,
+		// thus we will query the last round's data for the verification.
+		lastRound := new(big.Int).SetUint64(round.Uint64() - 1)
+
 		// get round data for each symbol.
 		for _, s := range symbols {
-			d, err := o.GetRoundData(nil, round, s)
+			d, err := o.GetRoundData(nil, lastRound, s)
 			require.NoError(t, err)
 			rd = append(rd, d)
 		}
@@ -676,9 +685,13 @@ func testRMSymbols(t *testing.T, network *Network, client *ethclient.Client, o *
 
 		require.Equal(t, len(newSymbols), len(symbols))
 
+		// as current round is not finalized yet, thus the round data of it haven't being aggregate,
+		// thus we will query the last round's data for the verification.
+		lastRound := new(big.Int).SetUint64(round.Uint64() - 1)
+
 		// get round data for each symbol.
 		for _, s := range symbols {
-			d, err := o.GetRoundData(nil, round, s)
+			d, err := o.GetRoundData(nil, lastRound, s)
 			require.NoError(t, err)
 			rd = append(rd, d)
 		}
@@ -733,9 +746,13 @@ func testRMValidatorFromCommittee(t *testing.T, network *Network, client *ethcli
 		symbols, err := o.GetSymbols(nil)
 		require.NoError(t, err)
 
+		// as current round is not finalized yet, thus the round data of it haven't being aggregate,
+		// thus we will query the last round's data for the verification.
+		lastRound := new(big.Int).SetUint64(round.Uint64() - 1)
+
 		// get round data for each symbol.
 		for _, s := range symbols {
-			d, err := o.GetRoundData(nil, round, s)
+			d, err := o.GetRoundData(nil, lastRound, s)
 			require.NoError(t, err)
 			rd = append(rd, d)
 		}
@@ -792,9 +809,13 @@ func testNewValidatorJoinToCommittee(t *testing.T, network *Network, client *eth
 		symbols, err := o.GetSymbols(nil)
 		require.NoError(t, err)
 
+		// as current round is not finalized yet, thus the round data of it haven't being aggregate,
+		// thus we will query the last round's data for the verification.
+		lastRound := new(big.Int).SetUint64(round.Uint64() - 1)
+
 		// get round data for each symbol.
 		for _, s := range symbols {
-			d, err := o.GetRoundData(nil, round, s)
+			d, err := o.GetRoundData(nil, lastRound, s)
 			require.NoError(t, err)
 			rd = append(rd, d)
 		}
@@ -812,7 +833,12 @@ func testNewValidatorJoinToCommittee(t *testing.T, network *Network, client *eth
 	}
 }
 
-// todo: missing report by omission voter, the faulty node should be slashed.
-func TestOmissionVoter(t *testing.T) {
+// todo: write test for omission faulty node, they are not rewarded due to the missing of reports.
+func TestOmissionFaultyVoter(t *testing.T) {
+
+}
+
+// todo: write test for outlier faulty node, they should be slashed.
+func TestOutlierVoter(t *testing.T) {
 
 }

@@ -23,6 +23,7 @@ var (
 	pATNUSD  = decimal.RequireFromString("1.0")
 	pUSDCUSD = decimal.RequireFromString("1.0")
 	pNTNUSD  = decimal.RequireFromString("10.0")
+	pBTCETH  = decimal.RequireFromString("29.41")
 )
 
 func PrintUsage() {
@@ -57,6 +58,8 @@ func ResolveSimulatedPrice(s string) decimal.Decimal {
 		defaultPrice = pNTNUSD
 	case "USDC-USD":
 		defaultPrice = pUSDCUSD
+	case "BTC-ETH":
+		defaultPrice = pBTCETH
 	}
 	return defaultPrice
 }
