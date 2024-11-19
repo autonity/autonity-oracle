@@ -597,7 +597,7 @@ func testAddNewSymbols(t *testing.T, network *Network, client *ethclient.Client,
 	legacySymbols, err := o.GetSymbols(nil)
 	require.NoError(t, err)
 
-	newSymbols := append(legacySymbols, config.SymbolBTCETH)
+	newSymbols := append(legacySymbols, types.SymbolBTCETH)
 
 	_, err = o.SetSymbols(auth, newSymbols)
 	require.NoError(t, err)

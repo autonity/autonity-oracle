@@ -1,7 +1,6 @@
 package main
 
 import (
-	"autonity-oracle/config"
 	"autonity-oracle/helpers"
 	"autonity-oracle/plugins/common"
 	"autonity-oracle/types"
@@ -257,7 +256,7 @@ func (tc *TemplateClient) AvailableSymbols() ([]string, error) {
 	// in this template, we just return the simulated symbols inside this plugin.
 	res := append(common.DefaultForexSymbols, common.DefaultCryptoSymbols...)
 	res = append(res, common.DefaultUSDCSymbol)
-	res = append(res, config.SymbolBTCETH)
+	res = append(res, types.SymbolBTCETH)
 	return res, nil
 }
 

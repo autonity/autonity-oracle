@@ -58,7 +58,7 @@ func ResolveSimulatedPrice(s string) decimal.Decimal {
 		defaultPrice = pNTNUSD
 	case "USDC-USD":
 		defaultPrice = pUSDCUSD
-	case "BTC-ETH":
+	case types.SymbolBTCETH:
 		defaultPrice = pBTCETH
 	}
 	return defaultPrice
