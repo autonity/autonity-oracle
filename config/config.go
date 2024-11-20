@@ -35,6 +35,16 @@ var (
 	BridgerSymbols = []string{"ATN-USDC", "NTN-USDC", "USDC-USD"}
 
 	DefaultSampledSymbols = []string{"AUD-USD", "CAD-USD", "EUR-USD", "GBP-USD", "JPY-USD", "SEK-USD", "ATN-USD", "NTN-USD", "NTN-ATN", "ATN-USDC", "NTN-USDC", "USDC-USD"}
+
+	// ForexCurrencies nominates the required forex currencies in ACU's basket.
+	ForexCurrencies = map[string]struct{}{
+		"AUD-USD": {},
+		"CAD-USD": {},
+		"EUR-USD": {},
+		"GBP-USD": {},
+		"JPY-USD": {},
+		"SEK-USD": {},
+	}
 )
 
 const Version uint8 = 19
@@ -201,16 +211,25 @@ func FormatVersion(version uint8) string {
 	return fmt.Sprintf("v%d.%d.%d", major, minor, patch)
 }
 
-// ComputeConfidence calculates the confidence weight based on the number of sources and a scaling factor.
-func ComputeConfidence(numSources, strategy int) uint8 {
+// ComputeConfidence calculates the confidence weight based on the number of data samples and a scaling factor.
+func ComputeConfidence(symbol string, numOfSamples, strategy int) uint8 {
 
+	// If it is a crypto symbol, just return fixed confidence since in current network bootstrapping phase,
+	// we'll have very limited data source of on-chain AMM and DEX, thus for those cryptos.
+	// Todo: once the community have more extensive AMM and DEX markets, we will remove this to enable linear
+	//  strategy as well for cryptos.
+	if _, is := ForexCurrencies[symbol]; !is {
+		return MaxConfidence
+	}
+
+	// Only forex currencies come here, the confidence strategy config is available only for them.
 	if strategy == ConfidenceStrategyFixed {
 		return MaxConfidence
 	}
 
 	// linear confidence strategy comes here, the numSource was checked, and it is at least 1.
 	// Use an exponential formula to compute weight
-	weight := BaseConfidence + SourceScalingFactor*uint64(math.Pow(1.75, float64(numSources)))
+	weight := BaseConfidence + SourceScalingFactor*uint64(math.Pow(1.75, float64(numOfSamples)))
 
 	if weight > MaxConfidence {
 		weight = MaxConfidence

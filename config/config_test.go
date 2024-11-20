@@ -5,6 +5,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
+	"math"
 	"os"
 	"testing"
 )
@@ -65,13 +66,47 @@ func TestFormatVersion(t *testing.T) {
 	require.Equal(t, "v2.5.5", FormatVersion(255))
 }
 
+// TestComputeConfidence tests the ComputeConfidence function.
 func TestComputeConfidence(t *testing.T) {
+	tests := []struct {
+		symbol       string
+		numOfSamples int
+		strategy     int
+		expected     uint8
+	}{
+		// Forex symbols with ConfidenceStrategyFixed, max confidence are expected.
+		{"AUD-USD", 1, ConfidenceStrategyFixed, MaxConfidence},
+		{"CAD-USD", 2, ConfidenceStrategyFixed, MaxConfidence},
+		{"EUR-USD", 3, ConfidenceStrategyFixed, MaxConfidence},
+		{"GBP-USD", 4, ConfidenceStrategyFixed, MaxConfidence},
+		{"JPY-USD", 5, ConfidenceStrategyFixed, MaxConfidence},
+		{"SEK-USD", 10, ConfidenceStrategyFixed, MaxConfidence},
 
-	for i := 1; i <= 4; i++ {
-		confidence := ComputeConfidence(i, ConfidenceStrategyLinear)
-		t.Log(confidence)
+		// Forex symbols with ConfidenceStrategyLinear
+		{"AUD-USD", 1, ConfidenceStrategyLinear, uint8(BaseConfidence + SourceScalingFactor*uint64(math.Pow(1.75, 1)))}, // Calculate weight
+		{"CAD-USD", 2, ConfidenceStrategyLinear, uint8(BaseConfidence + SourceScalingFactor*uint64(math.Pow(1.75, 2)))}, // Calculate weight
+		{"EUR-USD", 3, ConfidenceStrategyLinear, uint8(BaseConfidence + SourceScalingFactor*uint64(math.Pow(1.75, 3)))}, // Calculate weight
+		{"GBP-USD", 4, ConfidenceStrategyLinear, MaxConfidence},
+		{"JPY-USD", 5, ConfidenceStrategyLinear, MaxConfidence},
+		{"SEK-USD", 10, ConfidenceStrategyLinear, MaxConfidence},
+
+		// Non-forex symbols with ConfidenceStrategyLinear, max confidence are expected.
+		{"ATN-USD", 1, ConfidenceStrategyLinear, MaxConfidence},
+		{"NTN-USD", 1, ConfidenceStrategyLinear, MaxConfidence},
+		{"NTN-ATN", 1, ConfidenceStrategyLinear, MaxConfidence},
+
+		// Non-forex symbols with ConfidenceStrategyFixed, max confidence are expected.
+		{"ATN-USD", 1, ConfidenceStrategyFixed, MaxConfidence},
+		{"NTN-USD", 1, ConfidenceStrategyFixed, MaxConfidence},
+		{"NTN-ATN", 1, ConfidenceStrategyFixed, MaxConfidence},
 	}
 
-	fixedConfidence := ComputeConfidence(4, ConfidenceStrategyFixed)
-	require.Equal(t, uint8(MaxConfidence), fixedConfidence)
+	for _, tt := range tests {
+		t.Run(tt.symbol, func(t *testing.T) {
+			got := ComputeConfidence(tt.symbol, tt.numOfSamples, tt.strategy)
+			if got != tt.expected {
+				t.Errorf("ComputeConfidence(%q, %d, %d) = %d; want %d", tt.symbol, tt.numOfSamples, tt.strategy, got, tt.expected)
+			}
+		})
+	}
 }

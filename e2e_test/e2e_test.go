@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-var defaultVotePeriod = uint64(60)
+var defaultVotePeriod = uint64(30)
 
 func TestHappyCase(t *testing.T) {
 	var netConf = &NetworkConfig{

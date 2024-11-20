@@ -660,7 +660,7 @@ func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, er
 	}
 
 	// compute confidence of the symbol from the num of plugins' samples of it.
-	confidence := config.ComputeConfidence(len(prices), os.confidenceStrategy)
+	confidence := config.ComputeConfidence(s, len(prices), os.confidenceStrategy)
 
 	price := &types.Price{
 		Timestamp:  target,
