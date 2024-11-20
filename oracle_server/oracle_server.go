@@ -411,6 +411,12 @@ func (os *OracleServer) reportWithCommitment(newRound uint64, lastRoundData *typ
 		return err
 	}
 
+	// save current round data.
+	os.roundData[newRound] = curRoundData
+
+	// Todo: check if the current round data is same or similar comparing to the last round, then we can skip the reporting.
+	//  However, it is going to impact the performance score of the oracle node that cause reward/incentive losing for node.
+
 	// prepare the transaction which carry current round's commitment, and last round's data.
 	curRoundData.Tx, err = os.doReport(curRoundData.CommitmentHash, lastRoundData)
 	if err != nil {
@@ -418,8 +424,6 @@ func (os *OracleServer) reportWithCommitment(newRound uint64, lastRoundData *typ
 		return err
 	}
 
-	// save current round data.
-	os.roundData[newRound] = curRoundData
 	os.logger.Info("reported last round data and with current round commitment", "TX hash", curRoundData.Tx.Hash(), "Nonce", curRoundData.Tx.Nonce(), "Cost", curRoundData.Tx.Cost())
 
 	// alert in case of balance reach the warning value.
