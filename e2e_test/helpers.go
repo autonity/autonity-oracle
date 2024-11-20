@@ -40,8 +40,8 @@ var (
 	defaultDataDirRoot = "./autonity_l1_config/nodes"
 	defaultPlugConf    = "./plugins/plugins-conf.yml"
 
-	defaultBondedStake = new(big.Int).SetUint64(1000)
-
+	defaultBondedStake        = new(big.Int).SetUint64(1000)
+	defaultEpochPeriod        = uint64(300) // set to 5 minutes in this e2e test framework.
 	numberOfKeys              = 10
 	numberOfValidators        = 4
 	numberOfPortsForBindNodes = 3
@@ -242,6 +242,7 @@ type NetworkConfig struct {
 	VotePeriod      uint64
 	PluginDIRs      []string // different oracle can have different plugins configured.
 	SimulateTimeout int      // to simulate timeout in seconds at data source simulator when processing http request.
+	EpochPeriod     uint64
 }
 
 type Network struct {
@@ -254,6 +255,7 @@ type Network struct {
 	Simulator    *DataSimulator
 	Symbols      []string
 	VotePeriod   uint64
+	EpochPeriod  uint64
 	PluginDirs   []string // different oracle can have different plugins configured.
 	PluginConf   []string // different oracle can have different plugin conf.
 }
@@ -294,12 +296,32 @@ func (net *Network) Start() {
 	}
 }
 
+func (net *Network) StopL2Node(index int) {
+	for i, n := range net.L2Nodes {
+		if i == index {
+			n.Stop()
+			break
+		}
+	}
+}
+
+func (net *Network) StartL2Node(index int) {
+	for i, n := range net.L2Nodes {
+		if i == index {
+			n.ConfigOracleServer(fmt.Sprintf("ws://%s:%d", net.L1Nodes[i].Host, net.L1Nodes[i].WSPort))
+			go n.Start()
+			break
+		}
+	}
+}
+
 func (net *Network) ResetL1Node(index int) {
 	for i, n := range net.L1Nodes {
 		if i == index {
 			n.Stop()
 			n.GenCMD(net.GenesisFile)
 			go n.Start()
+			break
 		}
 	}
 }
@@ -346,12 +368,18 @@ func createNetwork(netConf *NetworkConfig, numOfValidators int) (*Network, error
 		}
 	}
 
+	epochPeriod := defaultEpochPeriod
+	if netConf.EpochPeriod != 0 {
+		epochPeriod = netConf.EpochPeriod
+	}
+
 	var network = &Network{
 		EnableL1Logs: netConf.EnableL1Logs,
 		OperatorKey:  keys[0],
 		TreasuryKey:  keys[1],
 		Symbols:      netConf.Symbols,
 		VotePeriod:   netConf.VotePeriod,
+		EpochPeriod:  epochPeriod,
 		PluginDirs:   pluginDIRs,
 		PluginConf:   pluginConfs,
 		Simulator:    simulator,
@@ -433,6 +461,7 @@ func makeGenesisConfig(srcTemplate string, dstFile string, vals []*Validator, ne
 	if err = json.NewDecoder(file).Decode(genesis); err != nil {
 		return err
 	}
+	genesis.Config.AutonityContractConfig.EpochPeriod = net.EpochPeriod
 	genesis.Config.AutonityContractConfig.Operator = net.OperatorKey.Key.Address
 	genesis.Config.AutonityContractConfig.Treasury = net.TreasuryKey.Key.Address
 	genesis.Config.AutonityContractConfig.Validators = append(genesis.Config.AutonityContractConfig.Validators, vals...)

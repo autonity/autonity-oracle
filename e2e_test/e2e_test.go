@@ -5,6 +5,7 @@ import (
 	contract "autonity-oracle/contract_binder/contract"
 	autonity "autonity-oracle/e2e_test/contracts"
 	"autonity-oracle/helpers"
+	"autonity-oracle/plugins/crypto_airswap/erc20"
 	"autonity-oracle/types"
 	"context"
 	"fmt"
@@ -833,9 +834,73 @@ func testNewValidatorJoinToCommittee(t *testing.T, network *Network, client *eth
 	}
 }
 
+func testStopL2Node(t *testing.T, net *Network, index int, o *contract.Oracle, resetRound, beforeRound uint64) {
+	for {
+		time.Sleep(20 * time.Second)
+		round, err := o.GetRound(nil)
+		require.NoError(t, err)
+
+		if round.Uint64() == resetRound {
+			net.StopL2Node(index)
+		}
+
+		// continue to wait until end round.
+		if round.Uint64() < beforeRound {
+			continue
+		}
+
+		// recover L2 node at the end.
+		net.StartL2Node(index)
+		break
+	}
+}
+
 // todo: write test for omission faulty node, they are not rewarded due to the missing of reports.
 func TestOmissionFaultyVoter(t *testing.T) {
+	var netConf = &NetworkConfig{
+		EnableL1Logs: false,
+		Symbols:      config.DefaultSymbols,
+		VotePeriod:   20,     // 20s to shorten this test.
+		EpochPeriod:  60 * 4, // 4 minutes to shorten this test.
+		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir, defaultPlugDir, defaultPlugDir},
+	}
+	network, err := createNetwork(netConf, numberOfValidators)
+	require.NoError(t, err)
+	defer network.Stop()
 
+	client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d", network.L1Nodes[0].Host, network.L1Nodes[0].WSPort))
+	require.NoError(t, err)
+	defer client.Close()
+
+	// bind client with oracle contract address
+	o, err := contract.NewOracle(types.OracleContractAddress, client)
+	require.NoError(t, err)
+
+	resetRound := uint64(3)
+	endRound := uint64(120)
+	nodeIndex := 2
+	testStopL2Node(t, network, nodeIndex, o, resetRound, endRound)
+
+	// todo: get voter info and verify the incentive losing of the omission faulty node, it shouldn't be slashed by
+	//  according to current protocol.
+	for _, n := range network.L2Nodes {
+		account := n.Key.Key.Address
+		atnBalance, err := client.BalanceAt(context.Background(), account, nil)
+		require.NoError(t, err)
+		t.Log("get oracle ATN reward", "address", account.Hex(), "atn balance", atnBalance.String())
+		//require.Equal(t, true, atnBalance.Cmp(big.NewInt(0)) > 0)
+	}
+
+	// bind client with autonity contract address
+	ntnContract, err := erc20.NewErc20(types.AutonityContractAddress, client)
+	require.NoError(t, err)
+	for _, n := range network.L2Nodes {
+		account := n.Key.Key.Address
+		ntnBalance, err := ntnContract.BalanceOf(nil, account)
+		require.NoError(t, err)
+		t.Log("get oracle NTN reward", "address", account.Hex(), "ntn balance", ntnBalance.String())
+		//require.Equal(t, true, ntnBalance.Cmp(big.NewInt(0)) > 0)
+	}
 }
 
 // todo: write test for outlier faulty node, they should be slashed.
