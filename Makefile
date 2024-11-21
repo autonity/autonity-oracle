@@ -128,7 +128,7 @@ bakerloo-sim-plugin:
 
 autoracle-bakerloo: mkdir oracle-server forex-plugins cex-plugins dex-plugins amm-plugins bakerloo-simulator bakerloo-sim-plugin conf-file e2e-test-stuffs
 	@echo "Done building for bakerloo network."
-	@echo "Run \"$(BIN_DIR)/autoracle\" to launch autonity oracle for backerloo network."
+	@echo "Run \"$(BIN_DIR)/autoracle\" to launch autonity oracle for bakerloo network."
 
 autoracle-piccadilly: mkdir oracle-server forex-plugins piccadilly-cax-plugin cex-plugins dex-plugins amm-plugins conf-file e2e-test-stuffs
 	@echo "Done building for piccadilly network."
