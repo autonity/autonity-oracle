@@ -194,7 +194,7 @@ func (os *OracleServer) syncStates() error {
 
 	// subscribe on-chain penalize event
 	os.chPenalizedEvent = make(chan *contract.OraclePenalized)
-	os.subPenalizedEvent, err = os.oracleContract.WatchPenalized(new(bind.WatchOpts), os.chPenalizedEvent, nil)
+	os.subPenalizedEvent, err = os.oracleContract.WatchPenalized(new(bind.WatchOpts), os.chPenalizedEvent, []common.Address{os.key.Address})
 	if err != nil {
 		os.logger.Error("failed to subscribe penalized event", "error", err.Error())
 		return err
@@ -734,19 +734,16 @@ func (os *OracleServer) Start() {
 			}
 			os.lastSampledTS = preSampleTS
 		case penalizeEvent := <-os.chPenalizedEvent:
-			if penalizeEvent.Participant == os.key.Address {
-				os.logger.Info("Your oracle client get penalized as an outlier")
-				os.logger.Info("observed oracle penalize event", "participant", penalizeEvent.Participant,
-					"symbol", penalizeEvent.Symbol, "median", penalizeEvent.Median.String(), "reported", penalizeEvent.Reported.String())
-				if os.confidenceStrategy == config.ConfidenceStrategyFixed {
-					os.logger.Info("confidence strategy switch to linear from fixed to reduce the penalty risk")
-					os.confidenceStrategy = config.ConfidenceStrategyLinear
-				}
+			os.logger.Info("Oracle client get penalized as an outlier", "oracle node", penalizeEvent.Participant,
+				"currency symbol", penalizeEvent.Symbol, "median value", penalizeEvent.Median.String(), "reported value", penalizeEvent.Reported.String())
+			if os.confidenceStrategy == config.ConfidenceStrategyFixed {
+				os.logger.Info("confidence strategy switch to linear from fixed to reduce the penalty risk")
+				os.confidenceStrategy = config.ConfidenceStrategyLinear
+			}
 
-				if os.confidenceStrategy == config.ConfidenceStrategyLinear && config.SourceScalingFactor > 0 {
-					config.SourceScalingFactor--
-					os.logger.Info("reduce the source scaling factor to reduce the penalty risk", "scaling factor", config.SourceScalingFactor)
-				}
+			if os.confidenceStrategy == config.ConfidenceStrategyLinear && config.SourceScalingFactor > 0 {
+				config.SourceScalingFactor--
+				os.logger.Info("reduce the source scaling factor to reduce the penalty risk", "scaling factor", config.SourceScalingFactor)
 			}
 		case rEvent := <-os.chRoundEvent:
 			if os.curRound == rEvent.Round.Uint64() {
