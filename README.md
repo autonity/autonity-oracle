@@ -218,7 +218,7 @@ type PluginConfig struct {
 }
 
 ```
-In the last configuration file, all the forex data vendors need a service key to access their data, thus a key is expected for the corresponding plugins.
+In the last configuration file, all the forex data vendors need a service key to access their data. Thus a key is expected for the corresponding plugins.
 
 
 ## Deployment
