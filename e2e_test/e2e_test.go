@@ -834,27 +834,6 @@ func testNewValidatorJoinToCommittee(t *testing.T, network *Network, client *eth
 	}
 }
 
-func testStopL2Node(t *testing.T, net *Network, index int, o *contract.Oracle, resetRound, beforeRound uint64) {
-	for {
-		time.Sleep(20 * time.Second)
-		round, err := o.GetRound(nil)
-		require.NoError(t, err)
-
-		if round.Uint64() == resetRound {
-			net.StopL2Node(index)
-		}
-
-		// continue to wait until end round.
-		if round.Uint64() < beforeRound {
-			continue
-		}
-
-		// recover L2 node at the end.
-		net.StartL2Node(index)
-		break
-	}
-}
-
 func TestOmissionFaultyVoter(t *testing.T) {
 	var netConf = &NetworkConfig{
 		EnableL1Logs: false,
@@ -875,14 +854,21 @@ func TestOmissionFaultyVoter(t *testing.T) {
 	o, err := contract.NewOracle(types.OracleContractAddress, client)
 	require.NoError(t, err)
 
-	resetRound := uint64(3)
 	endRound := uint64(90)
-	nodeIndex := 2
+	stopRound := uint64(5)
 
-	testStopL2Node(t, network, nodeIndex, o, resetRound, endRound)
+	doneCh := make(chan struct{})
 
-	// todo: get voter info and verify the incentive losing of the omission faulty node, it shouldn't be slashed by
-	//  according to current protocol.
+	// Start watching the round event and stop oracle client on the stop round.
+	go L2NodeResetEventLoop(t, 0, network, doneCh, o, endRound, stopRound)
+
+	// Start a timeout to wait for the ending for the test.
+	timeout := time.After(40 * time.Minute) // Adjust the timeout as needed
+	select {
+	case <-timeout:
+		close(doneCh)
+	}
+
 	for _, n := range network.L2Nodes {
 		account := n.Key.Key.Address
 		atnBalance, err := client.BalanceAt(context.Background(), account, nil)
@@ -980,6 +966,36 @@ func penalizeEventListener(t *testing.T, nodeAddress common.Address, done chan s
 			t.Log("round event received", "round", roundEvent.Round)
 			if roundEvent.Round.Uint64() > endRound {
 				return penalized
+			}
+		}
+	}
+}
+
+func L2NodeResetEventLoop(t *testing.T, nodeIndex int, network *Network, done chan struct{}, oracle *contract.Oracle, endRound uint64, stopRound uint64) {
+
+	// Subscribe to the round event
+	chRoundEvent := make(chan *contract.OracleNewRound)
+	subRoundEvent, err := oracle.WatchNewRound(new(bind.WatchOpts), chRoundEvent)
+	require.NoError(t, err)
+	defer subRoundEvent.Unsubscribe()
+
+	for {
+		select {
+		case <-done:
+			return
+		case err = <-subRoundEvent.Err():
+			if err != nil {
+				t.Fatal(err)
+			}
+		case roundEvent := <-chRoundEvent:
+			t.Log("round event received", "round", roundEvent.Round)
+			if roundEvent.Round.Uint64() == stopRound {
+				t.Log("stopping oracle client", "node address", network.L2Nodes[nodeIndex].Key.Key.Address)
+				network.StopL2Node(nodeIndex)
+			}
+
+			if roundEvent.Round.Uint64() > endRound {
+				return
 			}
 		}
 	}
