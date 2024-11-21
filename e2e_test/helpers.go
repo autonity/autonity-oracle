@@ -90,7 +90,8 @@ type Oracle struct {
 func (o *Oracle) Start() {
 	err := o.Command.Run()
 	if err != nil {
-		panic(err)
+		log.Warn("oracle client is off now", "error", err.Error())
+		//panic(err)
 	}
 }
 

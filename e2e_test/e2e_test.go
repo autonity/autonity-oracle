@@ -838,8 +838,8 @@ func TestOmissionFaultyVoter(t *testing.T) {
 	var netConf = &NetworkConfig{
 		EnableL1Logs: false,
 		Symbols:      config.DefaultSymbols,
-		VotePeriod:   20,     // 20s to shorten this test.
-		EpochPeriod:  60 * 4, // 4 minutes to shorten this test.
+		VotePeriod:   20,      // 20s to shorten this test.
+		EpochPeriod:  20 * 12, // 4 minutes to shorten this test.
 		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir, defaultPlugDir, defaultPlugDir},
 	}
 	network, err := createNetwork(netConf, numberOfValidators)
@@ -855,7 +855,7 @@ func TestOmissionFaultyVoter(t *testing.T) {
 	require.NoError(t, err)
 
 	endRound := uint64(90)
-	stopRound := uint64(5)
+	stopRound := uint64(2)
 
 	doneCh := make(chan struct{})
 
@@ -863,7 +863,7 @@ func TestOmissionFaultyVoter(t *testing.T) {
 	go L2NodeResetEventLoop(t, 0, network, doneCh, o, endRound, stopRound)
 
 	// Start a timeout to wait for the ending for the test.
-	timeout := time.After(40 * time.Minute) // Adjust the timeout as needed
+	timeout := time.After(7 * time.Minute) // Adjust the timeout as needed
 	select {
 	case <-timeout:
 		close(doneCh)
