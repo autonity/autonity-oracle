@@ -29,6 +29,7 @@ var (
 	keyStoreDir        = "./autonity_l1_config/keystore"
 	defaultHost        = "127.0.0.1"
 	defaultPlugDir     = "./plugins/template_plugins"
+	outlierPlugDir     = "./plugins/outlier_plugins"
 	forexPlugDir       = "./plugins/forex_plugins"
 	cryptoPlugDir      = "./plugins/crypto_plugins"
 	binancePlugDir     = "./plugins/production_plugins"

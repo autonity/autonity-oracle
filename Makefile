@@ -13,6 +13,7 @@ E2E_TEST_PLUGIN_DIR = $(E2E_TEST_DIR)/plugins
 E2E_TEST_TEMPLATE_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/template_plugins
 E2E_TEST_PRD_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/production_plugins
 E2E_TEST_SML_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/simulator_plugins
+E2E_TEST_OUTLIER_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/outlier_plugins
 E2E_TEST_MIX_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/mix_plugins
 E2E_TEST_FOREX_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/forex_plugins
 E2E_TEST_CRYPTO_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/crypto_plugins
@@ -89,7 +90,13 @@ e2e-test-stuffs:
 	go build -o $(E2E_TEST_SML_PLUGIN_DIR)/sim_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go
 	chmod +x $(E2E_TEST_SML_PLUGIN_DIR)/sim_plugin
 
+	# cp simulator plugins for e2e test.
 	cp  $(E2E_TEST_SML_PLUGIN_DIR)/sim_plugin $(E2E_TEST_MIX_PLUGIN_DIR)/sim_plugin
+
+	# build outlier tester plugin for e2e test
+	mkdir -p $(E2E_TEST_OUTLIER_PLUGIN_DIR)
+	go build -o $(E2E_TEST_OUTLIER_PLUGIN_DIR)/outlier_plugin $(PLUGIN_SRC_DIR)/outlier_tester/outlier_tester.go
+	chmod +x $(E2E_TEST_OUTLIER_PLUGIN_DIR)/outlier_plugin
 
 forex-plugins:
 	go build -o $(PLUGIN_DIR)/forex_currencyfreaks $(PLUGIN_SRC_DIR)/forex_currencyfreaks/forex_currencyfreaks.go

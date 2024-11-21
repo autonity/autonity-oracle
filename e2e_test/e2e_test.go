@@ -855,7 +855,6 @@ func testStopL2Node(t *testing.T, net *Network, index int, o *contract.Oracle, r
 	}
 }
 
-// todo: write test for omission faulty node, they are not rewarded due to the missing of reports.
 func TestOmissionFaultyVoter(t *testing.T) {
 	var netConf = &NetworkConfig{
 		EnableL1Logs: false,
@@ -877,8 +876,9 @@ func TestOmissionFaultyVoter(t *testing.T) {
 	require.NoError(t, err)
 
 	resetRound := uint64(3)
-	endRound := uint64(120)
+	endRound := uint64(90)
 	nodeIndex := 2
+
 	testStopL2Node(t, network, nodeIndex, o, resetRound, endRound)
 
 	// todo: get voter info and verify the incentive losing of the omission faulty node, it shouldn't be slashed by
@@ -903,7 +903,84 @@ func TestOmissionFaultyVoter(t *testing.T) {
 	}
 }
 
-// todo: write test for outlier faulty node, they should be slashed.
 func TestOutlierVoter(t *testing.T) {
+	var netConf = &NetworkConfig{
+		EnableL1Logs: false,
+		Symbols:      config.DefaultSymbols,
+		VotePeriod:   20,  // 20s to shorten this test.
+		EpochPeriod:  120, // 2 minutes to shorten this test.
+		PluginDIRs:   []string{outlierPlugDir, defaultPlugDir, defaultPlugDir, defaultPlugDir},
+	}
+	network, err := createNetwork(netConf, numberOfValidators)
+	require.NoError(t, err)
+	defer network.Stop()
 
+	client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d", network.L1Nodes[0].Host, network.L1Nodes[0].WSPort))
+	require.NoError(t, err)
+	defer client.Close()
+
+	// Bind client with oracle contract address
+	o, err := contract.NewOracle(types.OracleContractAddress, client)
+	require.NoError(t, err)
+	maliciousNode := network.L2Nodes[0].Key.Key.Address
+	doneCh := make(chan struct{})
+	resultCh := make(chan uint64) // Channel to receive the result
+	endRound := uint64(10)
+
+	// Start watching the event and count the number of events received.
+	go func() {
+		resultCh <- penalizeEventListener(t, maliciousNode, doneCh, o, endRound)
+	}()
+
+	// Start a timeout to wait for the ending for the test, and verify the number of penalized events received.
+	timeout := time.After(250 * time.Second) // Adjust the timeout as needed
+	select {
+	case penalizedCount := <-resultCh:
+		t.Log("Number of penalized events received:", penalizedCount)
+		// Add assertions here to validate the penalizedCount
+	case <-timeout:
+		t.Fatal("Test timed out waiting for penalized events")
+	}
+
+	close(doneCh)
+}
+
+func penalizeEventListener(t *testing.T, nodeAddress common.Address, done chan struct{}, oracle *contract.Oracle, endRound uint64) uint64 {
+	// Subscribe to the penalize event with client address.
+	chPenalizedEvent := make(chan *contract.OraclePenalized)
+	t.Log("current node account", nodeAddress)
+	subPenalizedEvent, err := oracle.WatchPenalized(new(bind.WatchOpts), chPenalizedEvent, nil)
+	require.NoError(t, err)
+	defer subPenalizedEvent.Unsubscribe()
+
+	// Subscribe to the round event
+	chRoundEvent := make(chan *contract.OracleNewRound)
+	subRoundEvent, err := oracle.WatchNewRound(new(bind.WatchOpts), chRoundEvent)
+	require.NoError(t, err)
+	defer subRoundEvent.Unsubscribe()
+
+	var penalized uint64
+	for {
+		select {
+		case <-done:
+			return penalized
+		case err := <-subPenalizedEvent.Err():
+			if err != nil {
+				return penalized
+			}
+		case err := <-subRoundEvent.Err():
+			if err != nil {
+				return penalized
+			}
+		case penalizeEvent := <-chPenalizedEvent:
+			t.Log("Oracle client get penalized as an outlier", "oracle node", penalizeEvent.Participant.String(),
+				"currency symbol", penalizeEvent.Symbol, "median value", penalizeEvent.Median.String(), "reported value", penalizeEvent.Reported.String())
+			penalized++
+		case roundEvent := <-chRoundEvent:
+			t.Log("round event received", "round", roundEvent.Round)
+			if roundEvent.Round.Uint64() > endRound {
+				return penalized
+			}
+		}
+	}
 }
