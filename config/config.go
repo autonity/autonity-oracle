@@ -99,7 +99,7 @@ func MakeConfig() *types.OracleServiceConfig {
 			os.Exit(1)
 		}
 		logLevel = l
-		if hclog.Level(logLevel) < hclog.NoLevel || hclog.Level(logLevel) > hclog.Error {
+		if hclog.Level(logLevel) < hclog.NoLevel || hclog.Level(logLevel) > hclog.Error { //nolint
 			log.Printf("wrong logging level configed %d, %s", logLevel, UsageLogLevel)
 			helpers.PrintUsage()
 			os.Exit(1)
@@ -163,7 +163,7 @@ func MakeConfig() *types.OracleServiceConfig {
 		AutonityWSUrl:      autonityWSUrl,
 		PluginDIR:          pluginDir,
 		PluginConfFile:     pluginConfFile,
-		LoggingLevel:       hclog.Level(logLevel),
+		LoggingLevel:       hclog.Level(logLevel), //nolint
 		ConfidenceStrategy: confidenceStrategy,
 	}
 }
@@ -235,5 +235,5 @@ func ComputeConfidence(symbol string, numOfSamples, strategy int) uint8 {
 		weight = MaxConfidence
 	}
 
-	return uint8(weight)
+	return uint8(weight) //nolint
 }

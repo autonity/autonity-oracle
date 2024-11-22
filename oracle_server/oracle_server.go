@@ -28,7 +28,7 @@ import (
 var (
 	TenSecsInterval  = 10 * time.Second // 10s ticker job to check health with l1, plugin discovery and regular data sampling.
 	OneSecInterval   = 1 * time.Second  // 1s ticker job to check if we need to do pre-sampling.
-	PreSamplingRange = 5                // pre-sampling starts in 5 blocks in advance.
+	PreSamplingRange = uint64(5)        // pre-sampling starts in 5 blocks in advance.
 	SaltRange        = new(big.Int).SetUint64(math.MaxInt64)
 	AlertBalance     = new(big.Int).SetUint64(2000000000000) // 2000 Gwei, 0.000002 Ether
 )
@@ -62,7 +62,7 @@ type OracleServer struct {
 
 	curRound        uint64 //round ID.
 	votePeriod      uint64 //vote period.
-	curSampleTS     uint64 //the data sample TS of the current round.
+	curSampleTS     int64  //the data sample TS of the current round.
 	curSampleHeight uint64 //The block height on which the round rotation happens.
 
 	protocolSymbols []string //symbols required for the voting on the oracle contract protocol.
@@ -343,7 +343,7 @@ func (os *OracleServer) handlePreSampling(preSampleTS int64) error {
 		os.logger.Error("handle pre-sampling", "error", err.Error())
 		return err
 	}
-	if nSampleHeight-curHeight > uint64(PreSamplingRange) {
+	if nSampleHeight-curHeight > PreSamplingRange {
 		return nil
 	}
 
@@ -542,7 +542,7 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 
 func (os *OracleServer) aggregateProtocolSymbolPrices() (types.PriceBySymbol, error) {
 	prices := make(types.PriceBySymbol)
-	usdcPrice, err := os.aggregatePrice(USDCUSD, int64(os.curSampleTS))
+	usdcPrice, err := os.aggregatePrice(USDCUSD, os.curSampleTS)
 	if err != nil {
 		os.logger.Error("aggregate USDC-USD price", "error", err.Error())
 	}
@@ -554,7 +554,7 @@ func (os *OracleServer) aggregateProtocolSymbolPrices() (types.PriceBySymbol, er
 				continue
 			}
 
-			p, e := os.aggregateBridgedPrice(s, int64(os.curSampleTS), usdcPrice)
+			p, e := os.aggregateBridgedPrice(s, os.curSampleTS, usdcPrice)
 			if e != nil {
 				os.logger.Error("aggregate bridged price", "error", e.Error(), "symbol", s)
 				continue
@@ -564,7 +564,7 @@ func (os *OracleServer) aggregateProtocolSymbolPrices() (types.PriceBySymbol, er
 		}
 
 		// aggregate none bridged symbols
-		p, e := os.aggregatePrice(s, int64(os.curSampleTS))
+		p, e := os.aggregatePrice(s, os.curSampleTS)
 		if e != nil {
 			os.logger.Debug("no data for aggregation", "reason", e.Error(), "symbol", s)
 			continue
@@ -758,7 +758,7 @@ func (os *OracleServer) Start() {
 			os.curRound = rEvent.Round.Uint64()
 			os.votePeriod = rEvent.VotePeriod.Uint64()
 			os.curSampleHeight = rEvent.Height.Uint64()
-			os.curSampleTS = rEvent.Timestamp.Uint64()
+			os.curSampleTS = rEvent.Timestamp.Int64()
 
 			err := os.handleRoundVote()
 			if err != nil {

@@ -85,7 +85,7 @@ func TestOracleServer(t *testing.T) {
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 
 		ts := time.Now().Unix()
-		srv.curSampleTS = uint64(ts)
+		srv.curSampleTS = ts
 		srv.curSampleHeight = uint64(30)
 
 		for sec := ts; sec < ts+15; sec++ {
@@ -160,7 +160,7 @@ func TestOracleServer(t *testing.T) {
 
 		// pre-sampling with data.
 		ts := time.Now().Unix()
-		srv.curSampleTS = uint64(ts)
+		srv.curSampleTS = ts
 		srv.curSampleHeight = uint64(30)
 		for sec := ts; sec < ts+15; sec++ {
 			err = srv.handlePreSampling(time.Now().Unix())
@@ -171,7 +171,7 @@ func TestOracleServer(t *testing.T) {
 		// handle vote event that change to next round with
 		srv.curRound = srv.curRound + 1
 		srv.curSampleHeight = 60
-		srv.curSampleTS = uint64(time.Now().Unix())
+		srv.curSampleTS = time.Now().Unix()
 
 		err = srv.handleRoundVote()
 		require.NoError(t, err)

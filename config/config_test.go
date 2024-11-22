@@ -83,9 +83,9 @@ func TestComputeConfidence(t *testing.T) {
 		{"SEK-USD", 10, ConfidenceStrategyFixed, MaxConfidence},
 
 		// Forex symbols with ConfidenceStrategyLinear
-		{"AUD-USD", 1, ConfidenceStrategyLinear, uint8(BaseConfidence + SourceScalingFactor*uint64(math.Pow(1.75, 1)))}, // Calculate weight
-		{"CAD-USD", 2, ConfidenceStrategyLinear, uint8(BaseConfidence + SourceScalingFactor*uint64(math.Pow(1.75, 2)))}, // Calculate weight
-		{"EUR-USD", 3, ConfidenceStrategyLinear, uint8(BaseConfidence + SourceScalingFactor*uint64(math.Pow(1.75, 3)))}, // Calculate weight
+		{"AUD-USD", 1, ConfidenceStrategyLinear, uint8(BaseConfidence + SourceScalingFactor*uint64(math.Pow(1.75, 1)))}, //nolint
+		{"CAD-USD", 2, ConfidenceStrategyLinear, uint8(BaseConfidence + SourceScalingFactor*uint64(math.Pow(1.75, 2)))}, //nolint
+		{"EUR-USD", 3, ConfidenceStrategyLinear, uint8(BaseConfidence + SourceScalingFactor*uint64(math.Pow(1.75, 3)))}, //nolint
 		{"GBP-USD", 4, ConfidenceStrategyLinear, MaxConfidence},
 		{"JPY-USD", 5, ConfidenceStrategyLinear, MaxConfidence},
 		{"SEK-USD", 10, ConfidenceStrategyLinear, MaxConfidence},
