@@ -50,6 +50,7 @@ mkdir:
 	mkdir -p $(E2E_TEST_MIX_PLUGIN_DIR)
 	mkdir -p $(E2E_TEST_FOREX_PLUGIN_DIR)
 	mkdir -p $(E2E_TEST_CRYPTO_PLUGIN_DIR)
+	mkdir -p $(E2E_TEST_OUTLIER_PLUGIN_DIR)
 
 oracle-server:
     # build oracle client
@@ -58,7 +59,7 @@ oracle-server:
 	cp $(BIN_DIR)/autoracle $(E2E_TEST_DIR)/autoracle
 
 conf-file:
-	# copy example plugin-conf
+    # copy example plugin-conf
 	cp $(PLUGIN_CONF_FILE) $(BIN_DIR)
 	# copy example oracle-server.conf
 	cp $(CONF_FILE) $(BIN_DIR)
@@ -74,11 +75,11 @@ e2e-test-stuffs:
 	go build -o $(E2E_TEST_DIR)/simulator $(SIMULATOR_SRC_DIR)/main.go
 	chmod +x $(E2E_TEST_DIR)/simulator
 
-	# build binance plugin for e2e test.
+    # build binance plugin for e2e test.
 	go build -o $(E2E_TEST_PRD_PLUGIN_DIR)/binance $(PLUGIN_SRC_DIR)/binance/binance.go
 	chmod +x $(E2E_TEST_PRD_PLUGIN_DIR)/binance
 
-	# build amm and dex plugins for e2e test.
+    # build amm and dex plugins for e2e test.
 	go build -o $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/crypto_uniswap.go
 	go build -o $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_airswap $(PLUGIN_SRC_DIR)/crypto_airswap/crypto_airswap.go
 	chmod +x $(E2E_TEST_CRYPTO_PLUGIN_DIR)/*
@@ -88,32 +89,20 @@ e2e-test-stuffs:
 	chmod +x $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin
 	cp  $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin $(E2E_TEST_MIX_PLUGIN_DIR)/simulator_plugin
 
-	# cp forex plugins for e2e testing
+    # build outlier tester plugin for e2e test
+	go build -o $(E2E_TEST_OUTLIER_PLUGIN_DIR)/outlier_plugin $(PLUGIN_SRC_DIR)/outlier_tester/outlier_tester.go
+	chmod +x $(E2E_TEST_OUTLIER_PLUGIN_DIR)/outlier_plugin
+
+    # cp forex plugins for e2e testing
 	cp $(PLUGIN_DIR)/forex_currencyfreaks $(E2E_TEST_FOREX_PLUGIN_DIR)/forex_currencyfreaks
 	cp $(PLUGIN_DIR)/forex_currencylayer $(E2E_TEST_FOREX_PLUGIN_DIR)/forex_currencylayer
 	cp $(PLUGIN_DIR)/forex_exchangerate $(E2E_TEST_FOREX_PLUGIN_DIR)/forex_exchangerate
 	cp $(PLUGIN_DIR)/forex_openexchange $(E2E_TEST_FOREX_PLUGIN_DIR)/forex_openexchange
 
-	# cp cex plugins for e2e testing
+    # cp cex plugins for e2e testing
 	cp $(PLUGIN_DIR)/crypto_coinbase $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_coinbase
 	cp $(PLUGIN_DIR)/crypto_coingecko $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_coingecko
 	cp $(PLUGIN_DIR)/crypto_kraken $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_kraken
-
-	# cp amm and dex plugins for e2e testing
-	cp $(PLUGIN_DIR)/crypto_uniswap $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_uniswap
-	cp $(PLUGIN_DIR)/crypto_airswap $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_airswap
-
-    # build simulator plugin
-	go build -o $(E2E_TEST_SML_PLUGIN_DIR)/sim_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go
-	chmod +x $(E2E_TEST_SML_PLUGIN_DIR)/sim_plugin
-
-	# cp simulator plugins for e2e test.
-	cp  $(E2E_TEST_SML_PLUGIN_DIR)/sim_plugin $(E2E_TEST_MIX_PLUGIN_DIR)/sim_plugin
-
-	# build outlier tester plugin for e2e test
-	mkdir -p $(E2E_TEST_OUTLIER_PLUGIN_DIR)
-	go build -o $(E2E_TEST_OUTLIER_PLUGIN_DIR)/outlier_plugin $(PLUGIN_SRC_DIR)/outlier_tester/outlier_tester.go
-	chmod +x $(E2E_TEST_OUTLIER_PLUGIN_DIR)/outlier_plugin
 
 forex-plugins:
 	go build -o $(PLUGIN_DIR)/forex_currencyfreaks $(PLUGIN_SRC_DIR)/forex_currencyfreaks/forex_currencyfreaks.go
@@ -128,11 +117,12 @@ cex-plugins:
 	go build -o $(PLUGIN_DIR)/crypto_kraken $(PLUGIN_SRC_DIR)/crypto_kraken/crypto_kraken.go
 	chmod +x $(PLUGIN_DIR)/*
 
-# amm and dex plugins are not officially release yet.
+# dex plugins are not officially release yet.
 dex-plugins:
 	go build -o $(PLUGIN_DIR)/crypto_airswap $(PLUGIN_SRC_DIR)/crypto_airswap/crypto_airswap.go
 	chmod +x $(PLUGIN_DIR)/*
 
+# amm plugins are not officially release yet.
 amm-plugins:
 	go build -o $(PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/crypto_uniswap.go
 	chmod +x $(PLUGIN_DIR)/*
