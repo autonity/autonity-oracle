@@ -86,10 +86,14 @@ type SampleEvent struct {
 
 // PluginConfig carry the configuration of plugins.
 type PluginConfig struct {
-	Name               string `json:"name" yaml:"name"`         // the name of the plugin binary.
-	Key                string `json:"key" yaml:"key"`           // the API key granted by your data provider to access their data API.
-	Scheme             string `json:"scheme" yaml:"scheme"`     // the data service scheme, http or https.
-	Endpoint           string `json:"endpoint" yaml:"endpoint"` // the data service endpoint url of the data provider.
-	Timeout            int    `json:"timeout" yaml:"timeout"`   // the timeout period in seconds that an API request is lasting for.
-	DataUpdateInterval int    `json:"refresh" yaml:"refresh"`   // the interval in seconds to fetch data from data provider due to rate limit.
+	Name               string `json:"name" yaml:"name"`                         // the name of the plugin binary.
+	Key                string `json:"key" yaml:"key"`                           // the API key granted by your data provider to access their data API.
+	Scheme             string `json:"scheme" yaml:"scheme"`                     // the data service scheme, http or https.
+	Endpoint           string `json:"endpoint" yaml:"endpoint"`                 // the data service endpoint url of the data provider.
+	Timeout            int    `json:"timeout" yaml:"timeout"`                   // the timeout period in seconds that an API request is lasting for.
+	DataUpdateInterval int    `json:"refresh" yaml:"refresh"`                   // the interval in seconds to fetch data from data provider due to rate limit.
+	NTNTokenAddress    string `json:"ntnTokenAddress" yaml:"ntnTokenAddress"`   // The NTN erc20 token address on the target blockchain.
+	ATNTokenAddress    string `json:"atnTokenAddress" yaml:"atnTokenAddress"`   // The Wrapped ATN erc20 token address on the target blockchain.
+	USDCTokenAddress   string `json:"usdcTokenAddress" yaml:"usdcTokenAddress"` // USDC erc20 token address on the target blockchain.
+	SwapAddress        string `json:"swapAddress" yaml:"swapAddress"`           // UniSwap factory contract address or AirSwap SwapERC20 contract address on the target blockchain.
 }

@@ -20,6 +20,7 @@ const (
 )
 
 var defaultConfig = types.PluginConfig{
+	Name:               "forex_exchangerate",
 	Key:                "",
 	Scheme:             "https",
 	Endpoint:           "v6.exchangerate-api.com",

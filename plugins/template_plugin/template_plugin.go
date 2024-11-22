@@ -18,6 +18,7 @@ const (
 )
 
 var defaultConfig = types.PluginConfig{
+	Name:               "pluginBinaryName",
 	Key:                "",
 	Scheme:             "https",
 	Endpoint:           "127.0.0.1:8080",
@@ -254,6 +255,7 @@ func (tc *TemplateClient) AvailableSymbols() ([]string, error) {
 		}*/
 	// in this template, we just return the simulated symbols inside this plugin.
 	res := append(common.DefaultForexSymbols, common.DefaultCryptoSymbols...)
+	res = append(res, common.DefaultUSDCSymbol)
 	return res, nil
 }
 

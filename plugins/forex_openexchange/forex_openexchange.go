@@ -22,6 +22,7 @@ const (
 )
 
 var defaultConfig = types.PluginConfig{
+	Name:               "forex_openexchange",
 	Key:                "",
 	Scheme:             "https",
 	Endpoint:           "openexchangerates.org",

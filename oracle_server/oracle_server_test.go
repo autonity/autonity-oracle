@@ -51,7 +51,7 @@ func TestOracleServer(t *testing.T) {
 
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
-		require.Equal(t, config.DefaultSymbols, srv.symbols)
+		require.Equal(t, config.DefaultSampledSymbols, srv.samplingSymbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromInt(precision.Int64())))
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
 		require.Equal(t, 1, len(srv.pluginSet))
@@ -86,20 +86,15 @@ func TestOracleServer(t *testing.T) {
 			time.Sleep(time.Second)
 		}
 
-		target := ts + 15
-		for _, s := range config.DefaultSymbols {
-			p, err := srv.aggregatePrice(s, target)
-			require.NoError(t, err)
-			require.Equal(t, true, p.Price.Equal(helpers.ResolveSimulatedPrice(s)))
-		}
-
-		// gc data samples
+		roundData, err := srv.buildRoundData(1)
+		require.NoError(t, err)
+		require.Equal(t, uint64(1), roundData.RoundID)
+		require.Equal(t, config.DefaultSymbols, roundData.Symbols)
+		require.Equal(t, len(config.DefaultSymbols), len(roundData.Prices))
+		require.Equal(t, true, helpers.ResolveSimulatedPrice(NTNUSD).Equal(roundData.Prices[NTNUSD].Price))
+		require.Equal(t, true, helpers.ResolveSimulatedPrice(ATNUSD).Equal(roundData.Prices[ATNUSD].Price))
+		t.Log(roundData)
 		srv.gcDataSamples()
-		for _, s := range config.DefaultSymbols {
-			_, err := srv.aggregatePrice(s, target)
-			require.Error(t, err)
-		}
-
 		srv.pluginSet["template_plugin"].Close()
 	})
 
@@ -202,15 +197,14 @@ func TestOracleServer(t *testing.T) {
 
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
-		require.Equal(t, config.DefaultSymbols, srv.symbols)
+		require.Equal(t, config.DefaultSampledSymbols, srv.samplingSymbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromInt(precision.Int64())))
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
 		require.Equal(t, 1, len(srv.pluginSet))
 
 		nSymbols := append(config.DefaultSymbols, "NTNETH", "NTNBTC", "NTNCNY")
 		srv.handleNewSymbolsEvent(nSymbols)
-		require.Equal(t, len(nSymbols), len(srv.symbols))
-		require.Equal(t, nSymbols, srv.symbols)
+		require.Equal(t, len(nSymbols)+len(config.BridgerSymbols), len(srv.samplingSymbols))
 		srv.pluginSet["template_plugin"].Close()
 	})
 
@@ -230,7 +224,7 @@ func TestOracleServer(t *testing.T) {
 
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
-		require.Equal(t, config.DefaultSymbols, srv.symbols)
+		require.Equal(t, config.DefaultSampledSymbols, srv.samplingSymbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromInt(precision.Int64())))
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
 		require.Equal(t, 1, len(srv.pluginSet))
@@ -269,7 +263,7 @@ func TestOracleServer(t *testing.T) {
 
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
-		require.Equal(t, config.DefaultSymbols, srv.symbols)
+		require.Equal(t, config.DefaultSampledSymbols, srv.samplingSymbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromInt(precision.Int64())))
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
 		require.Equal(t, 1, len(srv.pluginSet))

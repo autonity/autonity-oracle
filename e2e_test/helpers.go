@@ -34,7 +34,7 @@ var (
 	defaultHost        = "127.0.0.1"
 	defaultPlugDir     = "./plugins/template_plugins"
 	forexPlugDir       = "./plugins/forex_plugins"
-	caxPlugDir         = "./plugins/pcgc_cax_plugins"
+	cryptoPlugDir      = "./plugins/crypto_plugins"
 	binancePlugDir     = "./plugins/production_plugins"
 	simulatorPlugDir   = "./plugins/simulator_plugins"
 	mixPluginDir       = "./plugins/mix_plugins"
@@ -439,7 +439,7 @@ func (net *Network) Stop() {
 
 // create with a four-nodes autonity l1 network for the integration of oracle service, with each of validator bind with
 // an oracle node.
-func createNetwork(netConf *NetworkConfig) (*Network, error) {
+func createNetwork(netConf *NetworkConfig, numOfValidators int) (*Network, error) {
 	keys, err := loadKeys(keyStoreDir, defaultPassword)
 	if err != nil {
 		return nil, err
@@ -451,9 +451,10 @@ func createNetwork(netConf *NetworkConfig) (*Network, error) {
 
 	var pluginConfs = []string{defaultPlugConf, defaultPlugConf, defaultPlugConf, defaultPlugConf}
 	var pluginDIRs = []string{defaultPlugDir, defaultPlugDir, defaultPlugDir, defaultPlugDir}
+
 	var simulator *DataSimulator
 	for i, d := range netConf.PluginDIRs {
-		if i >= numberOfValidators {
+		if i >= numOfValidators {
 			break
 		}
 		if len(d) != 0 {
@@ -475,12 +476,12 @@ func createNetwork(netConf *NetworkConfig) (*Network, error) {
 		Simulator:    simulator,
 	}
 
-	freePorts, err := getFreePost(numberOfValidators * numberOfPortsForBindNodes)
+	freePorts, err := getFreePost(numOfValidators * numberOfPortsForBindNodes)
 	if err != nil {
 		return nil, err
 	}
 
-	network, err = configNetwork(network, keys[2:], freePorts, numberOfValidators)
+	network, err = configNetwork(network, keys[2:], freePorts, numOfValidators)
 	if err != nil {
 		return nil, err
 	}

@@ -13,19 +13,25 @@ import (
 	"time"
 )
 
+var (
+	sampleTTL = 2 * 3600 // 2 hours
+)
+
 // PluginWrapper is the unified wrapper for the interface of a plugin, it contains metadata of a corresponding
 // plugin, buffers recent data samples measured from the corresponding plugin.
 type PluginWrapper struct {
-	version     string
-	conf        *types.PluginConfig
-	lockService sync.RWMutex
-	lockSamples sync.RWMutex
-	samples     map[string]map[int64]types.Price
-	plugin      *plugin.Client
-	adapter     types.Adapter
-	name        string
-	startAt     time.Time
-	logger      hclog.Logger
+	version          string
+	conf             *types.PluginConfig
+	lockService      sync.RWMutex
+	lockSamples      sync.RWMutex
+	samples          map[string]map[int64]types.Price
+	latestTimestamps map[string]int64 // to track latest timestamps of samples
+
+	plugin  *plugin.Client
+	adapter types.Adapter
+	name    string
+	startAt time.Time
+	logger  hclog.Logger
 
 	doneCh         chan struct{}
 	chSampleEvent  chan *types.SampleEvent
@@ -55,15 +61,16 @@ func NewPluginWrapper(logLevel hclog.Level, name string, pluginDir string, sub t
 	})
 
 	p := &PluginWrapper{
-		name:          name,
-		plugin:        pg,
-		conf:          conf,
-		samplingSub:   sub,
-		startAt:       time.Now(),
-		doneCh:        make(chan struct{}),
-		samples:       make(map[string]map[int64]types.Price),
-		chSampleEvent: make(chan *types.SampleEvent),
-		logger:        logger,
+		name:             name,
+		plugin:           pg,
+		conf:             conf,
+		samplingSub:      sub,
+		startAt:          time.Now(),
+		doneCh:           make(chan struct{}),
+		samples:          make(map[string]map[int64]types.Price),
+		latestTimestamps: make(map[string]int64),
+		chSampleEvent:    make(chan *types.SampleEvent),
+		logger:           logger,
 	}
 
 	return p
@@ -76,11 +83,14 @@ func (pw *PluginWrapper) AddSample(prices []types.Price, ts int64) {
 		tsMap, ok := pw.samples[p.Symbol]
 		if !ok {
 			tsMap = make(map[int64]types.Price)
-			tsMap[ts] = p
 			pw.samples[p.Symbol] = tsMap
-			return
 		}
 		tsMap[ts] = p
+
+		// Update the latest timestamp
+		if latestTs, exists := pw.latestTimestamps[p.Symbol]; !exists || ts > latestTs {
+			pw.latestTimestamps[p.Symbol] = ts
+		}
 	}
 }
 
@@ -92,14 +102,21 @@ func (pw *PluginWrapper) GetSample(symbol string, target int64) (types.Price, er
 		return types.Price{}, types.ErrNoAvailablePrice
 	}
 
+	// Short-circuit if there's only one sample
+	if len(tsMap) == 1 {
+		for _, price := range tsMap {
+			return price, nil // Return the only sample
+		}
+	}
+
+	// If the target timestamp exists, return it
 	if p, ok := tsMap[target]; ok {
 		return p, nil
 	}
 
-	// find return the nearest sampled price to the timestamp.
+	// Find and return the nearest sampled price to the timestamp.
 	var nearestKey int64
-	var minDistance int64
-	minDistance = math.MaxInt64
+	var minDistance int64 = math.MaxInt64
 	for ts := range tsMap {
 		distance := target - ts
 		if distance < 0 {
@@ -118,8 +135,37 @@ func (pw *PluginWrapper) GetSample(symbol string, target int64) (types.Price, er
 func (pw *PluginWrapper) GCSamples() {
 	pw.lockSamples.Lock()
 	defer pw.lockSamples.Unlock()
-	for k := range pw.samples {
-		delete(pw.samples, k)
+
+	currentTime := time.Now().Unix() // Get the current time in seconds
+	threshold := currentTime - int64(sampleTTL)
+
+	for symbol, tsMap := range pw.samples {
+		if len(tsMap) == 0 {
+			continue // Skip if there are no samples for this symbol
+		}
+
+		// Remove samples older than 2 hours
+		for ts := range tsMap {
+			if ts < threshold {
+				delete(tsMap, ts)
+			}
+		}
+
+		// If there are still samples left, keep only the latest one
+		if len(tsMap) > 0 {
+			latestTimestamp := pw.latestTimestamps[symbol]
+
+			// Keep only the latest sample
+			for ts := range tsMap {
+				if ts != latestTimestamp {
+					delete(tsMap, ts)
+				}
+			}
+		} else {
+			// If no samples left, remove the symbol from the map
+			delete(pw.samples, symbol)
+			delete(pw.latestTimestamps, symbol) // Also clean up the latest timestamp
+		}
 	}
 }
 
@@ -191,7 +237,7 @@ func (pw *PluginWrapper) start() {
 			go func() {
 				err := pw.fetchPrices(sampleEvent.Symbols, sampleEvent.TS)
 				if err != nil {
-					pw.logger.Error("fetch price routine", "error", err.Error())
+					pw.logger.Warn("fetch price routine", "error", err.Error())
 					return
 				}
 			}()
