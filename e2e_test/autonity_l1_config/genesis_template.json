@@ -4,6 +4,7 @@
     "autonity": {
       "minBaseFee": 5000,
       "delegationRate": 1000,
+      "oracleRewardRate": 1000,
       "blockPeriod": 1,
       "maxCommitteeSize": 7,
       "unbondingPeriod": 120,

@@ -8,9 +8,12 @@ import (
 	"autonity-oracle/plugins/crypto_airswap/erc20"
 	"autonity-oracle/types"
 	"context"
+	"crypto/ecdsa"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	types2 "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
@@ -21,6 +24,7 @@ import (
 )
 
 var defaultVotePeriod = uint64(30)
+var defaultTransferAmount = uint64(100000000000000000)
 
 func TestHappyCase(t *testing.T) {
 	var netConf = &NetworkConfig{
@@ -850,6 +854,9 @@ func TestOmissionFaultyVoter(t *testing.T) {
 	require.NoError(t, err)
 	defer client.Close()
 
+	aut, err := autonity.NewAutonity(types.AutonityContractAddress, client)
+	require.NoError(t, err)
+
 	// bind client with oracle contract address
 	o, err := contract.NewOracle(types.OracleContractAddress, client)
 	require.NoError(t, err)
@@ -860,10 +867,10 @@ func TestOmissionFaultyVoter(t *testing.T) {
 	doneCh := make(chan struct{})
 
 	// Start watching the round event and stop oracle client on the stop round.
-	go L2NodeResetEventLoop(t, 0, network, doneCh, o, endRound, stopRound)
+	go L2NodeResetEventLoop(t, 0, network, doneCh, o, endRound, stopRound, aut, client)
 
 	// Start a timeout to wait for the ending for the test.
-	timeout := time.After(7 * time.Minute) // Adjust the timeout as needed
+	timeout := time.After(35 * time.Minute) // Adjust the timeout as needed
 	select {
 	case <-timeout:
 		close(doneCh)
@@ -971,7 +978,18 @@ func penalizeEventListener(t *testing.T, nodeAddress common.Address, done chan s
 	}
 }
 
-func L2NodeResetEventLoop(t *testing.T, nodeIndex int, network *Network, done chan struct{}, oracle *contract.Oracle, endRound uint64, stopRound uint64) {
+func L2NodeResetEventLoop(t *testing.T, nodeIndex int, network *Network, done chan struct{}, oracle *contract.Oracle, endRound uint64, stopRound uint64, aut *autonity.Autonity, client *ethclient.Client) {
+	// Watch height events, let it trigger some ATN transfers to let the TXN fee rewards(in ATN) to be shared.
+	chHeadEvent := make(chan *types2.Header)
+	subHeadEvent, err := client.SubscribeNewHead(context.Background(), chHeadEvent)
+	require.NoError(t, err)
+	defer subHeadEvent.Unsubscribe()
+
+	// Subscribe to the epoch event
+	chEpochEvent := make(chan *autonity.AutonityNewEpoch)
+	subEpochEvent, err := aut.WatchNewEpoch(new(bind.WatchOpts), chEpochEvent)
+	require.NoError(t, err)
+	defer subEpochEvent.Unsubscribe()
 
 	// Subscribe to the round event
 	chRoundEvent := make(chan *contract.OracleNewRound)
@@ -983,9 +1001,39 @@ func L2NodeResetEventLoop(t *testing.T, nodeIndex int, network *Network, done ch
 		select {
 		case <-done:
 			return
-		case err = <-subRoundEvent.Err():
-			if err != nil {
-				t.Fatal(err)
+		case headEvent := <-chHeadEvent:
+			t.Log("new head event", headEvent.Number.Uint64())
+			amount := new(big.Int).SetUint64(defaultTransferAmount)
+			for _, v := range network.L1Nodes {
+				err = transferATN(client, v.NodeKey.Key.PrivateKey, types.OracleContractAddress, amount, headEvent.BaseFee)
+				require.NoError(t, err)
+			}
+		case epochEvent := <-chEpochEvent:
+			t.Log("received epoch event", "epoch id", epochEvent.Epoch.Uint64())
+			atnOracleContract, err := client.BalanceAt(context.Background(), types.OracleContractAddress, nil)
+			require.NoError(t, err)
+			t.Log("oracle contract have atn balance", atnOracleContract.Uint64())
+			// bind client with autonity contract address
+			ntnContract, err := erc20.NewErc20(types.AutonityContractAddress, client)
+			require.NoError(t, err)
+			ntnOracleContract, err := ntnContract.BalanceOf(nil, types.OracleContractAddress)
+			require.NoError(t, err)
+			t.Log("oracle contract have ntn balance", ntnOracleContract.Uint64())
+
+			for _, n := range network.L2Nodes {
+				account := n.Key.Key.Address
+				atnBalance, err := client.BalanceAt(context.Background(), account, nil)
+				require.NoError(t, err)
+				t.Log("get oracle ATN reward", "address", account.Hex(), "atn balance", atnBalance.String())
+				//require.Equal(t, true, atnBalance.Cmp(big.NewInt(0)) > 0)
+			}
+
+			for _, n := range network.L2Nodes {
+				account := n.Key.Key.Address
+				ntnBalance, err := ntnContract.BalanceOf(nil, account)
+				require.NoError(t, err)
+				t.Log("get oracle NTN reward", "address", account.Hex(), "ntn balance", ntnBalance.String())
+				//require.Equal(t, true, ntnBalance.Cmp(big.NewInt(0)) > 0)
 			}
 		case roundEvent := <-chRoundEvent:
 			t.Log("round event received", "round", roundEvent.Round)
@@ -999,4 +1047,46 @@ func L2NodeResetEventLoop(t *testing.T, nodeIndex int, network *Network, done ch
 			}
 		}
 	}
+}
+
+func transferATN(client *ethclient.Client, privateKey *ecdsa.PrivateKey, receiverAddress common.Address, value *big.Int, baseFee *big.Int) error {
+
+	fromAddress := crypto.PubkeyToAddress(privateKey.PublicKey)
+	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
+	if err != nil {
+		return err
+	}
+	gasTip, err := client.SuggestGasTipCap(context.Background())
+	if err != nil {
+		return err
+	}
+
+	gasFeeCap := new(big.Int).Add(gasTip, new(big.Int).Mul(baseFee, big.NewInt(2)))
+
+	signer := types2.NewLondonSigner(common.Big1)
+	signedTX, err := newDynamicTX(nonce, gasTip, gasFeeCap, 21000, receiverAddress, value, signer, privateKey)
+	if err != nil {
+		return err
+	}
+
+	// Send the transaction
+	err = client.SendTransaction(context.Background(), signedTX)
+	if err != nil {
+		panic(err)
+	}
+
+	return nil
+}
+
+func newDynamicTX(nonce uint64, tip *big.Int, feeCap *big.Int, gas uint64, to common.Address, value *big.Int,
+	signer types2.Signer, sender *ecdsa.PrivateKey) (*types2.Transaction, error) {
+	tx, err := types2.SignTx(types2.NewTx(&types2.DynamicFeeTx{
+		Nonce:     nonce,
+		GasTipCap: tip,
+		GasFeeCap: feeCap,
+		Gas:       gas,
+		To:        &to,
+		Value:     value,
+	}), signer, sender)
+	return tx, err
 }
