@@ -56,8 +56,6 @@ jobs:
   lint:
     needs: prepare-cache
     runs-on: ubuntu-latest
-    skip-dirs:
-      - e2e_test/contracts
     steps:
       - uses: actions/setup-go@v1
         with:

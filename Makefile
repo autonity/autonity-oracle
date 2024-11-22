@@ -4,6 +4,8 @@
 
 .PHONY: mkdir oracle-server conf-file e2e-test-stuffs forex-plugins dex-plugins amm-plugins cex-plugins autoracle test e2e_test clean lint dep all
 
+LINTER = ./bin/golangci-lint
+GOLANGCI_LINT_VERSION = v1.62.0 # Change this to the desired version
 SOLC_VERSION = 0.8.2
 BIN_DIR = ./build/bin
 CONF_FILE = ./config/oracle-server.config
@@ -28,6 +30,14 @@ LATEST_COMMIT ?= $(shell git log -n 1 master --pretty=format:"%H")
 ifeq ($(LATEST_COMMIT),)
 LATEST_COMMIT := $(shell git log -n 1 HEAD~1 --pretty=format:"%H")
 endif
+
+# Download golangci-lint if not installed
+.PHONY: install-linter
+install-linter:
+	@if [ ! -f $(LINTER) ]; then \
+		echo "Downloading golangci-lint..."; \
+		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b ./bin $(GOLANGCI_LINT_VERSION); \
+	fi
 
 mkdir:
 	mkdir -p $(BIN_DIR)
@@ -170,8 +180,9 @@ e2e-test: autoracle
 dep:
 	go mod download
 
-lint:
-	@./.github/tools/golangci-lint run --config ./.golangci.yml
+# Run the linter
+lint: install-linter
+	@$(LINTER) run --config ./.golangci.yml
 
 mock:
 	mockgen -package=mock -source=contract_binder/contract/interface.go > contract_binder/contract/mock/contract_mock.go
