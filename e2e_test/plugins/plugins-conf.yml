@@ -45,5 +45,5 @@
 #  - name: forex_exchangerate                # visit https://www.exchangerate-api.com to apply for your key
 #    key: 111f04e4775bb86c20296530           # replace it with your own key
 
-  - name: sim_plugin
-    endpoint: 127.0.0.1:50991
+- name: simulator_plugin
+  endpoint: 127.0.0.1:50991
