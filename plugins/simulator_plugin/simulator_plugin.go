@@ -17,11 +17,14 @@ const (
 	symbol  = "symbols"
 )
 
+// set to bakerloo feed service by default.
+var defaultEndpoint = "simfeed.bakerloo.autonity.org"
+
 var defaultConfig = types.PluginConfig{
 	Name:               "simulator_plugin",
 	Key:                "",
 	Scheme:             "https",
-	Endpoint:           "simfeed.bakerloo.autonity.org",
+	Endpoint:           defaultEndpoint,
 	Timeout:            10, //10s
 	DataUpdateInterval: 10, //10s
 }

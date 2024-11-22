@@ -127,7 +127,7 @@ The configuration of plugins are assembled in a yaml file:
 #
 # The crypto data plugins are used to fetch market prices for the crypto currency pairs: ATN-USDC, NTN-USDC, NTN-ATN and
 # USDC-USD. USDC liquidity is bridged to the Autonity public testnet from the Polygon Amoy testnet via a bridge service.
-# ATN-USDC and NTN-USDC market data is collected from both UniSwap and AirSwap, NTN-ATN market price is derived from
+# Out-the-box plugins for collecting ATN-USDC and NTN-USDC market data are available for UniSwap V2 and AirSwap protocols.  NTN-ATN market price is derived from
 # that market data, and USDC pricing is converted to USD. ATN-NTN, ATN-USD, and NTN-USD prices are then submitted on-chain.
 # To retrieve ATN and NTN prices, put the `crypto_uniswap` plugin and `crypto_airswap` plugin in your plugin directory.
 # Oracle server can then discover and load them. Configuring the `crypto_uniswap` and `crypto_airswap` plugin does not
@@ -221,7 +221,7 @@ type PluginConfig struct {
 }
 
 ```
-In the last configuration file, all the forex data vendors need a service key to access their data, thus a key is expected for the corresponding plugins.
+In the last configuration file, all the forex data vendors need a service key to access their data. Thus a key is expected for the corresponding plugins.
 
 
 ## Deployment

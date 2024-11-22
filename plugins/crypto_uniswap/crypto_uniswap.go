@@ -25,7 +25,7 @@ var (
 // Todo: require a config PR to finalize below configuration for the target autonity network.
 var defaultConfig = types.PluginConfig{
 	Name:               "crypto_uniswap",
-	Scheme:             "wss",                             // todo: update this on redeployment of infra
+	Scheme:             "wss",                             // both http/s ws/s works for this plugin, todo: update this on redeployment of infra
 	Endpoint:           "rpc1.piccadilly.autonity.org/ws", // todo: update this on redeployment of infra
 	Timeout:            10,                                // 10s
 	DataUpdateInterval: 30,                                // 30s
@@ -91,7 +91,7 @@ func bindWithPairContract(factoryContract *factory.Factory, client *ethclient.Cl
 
 	if pairAddress == (ecommon.Address{}) {
 		logger.Error("cannot find pair contract from uniswap factory contract", "error", err, "token1", tokenAddress1, "token2", tokenAddress2)
-		return nil, fmt.Errorf("ATN-USDC liquidity pair address is empty")
+		return nil, fmt.Errorf("pair contract from uniswap factory not found, pair: %s, %s", tokenAddress1, tokenAddress2)
 	}
 
 	pairContract, err := pair.NewPair(pairAddress, client)
@@ -205,13 +205,10 @@ func ComputeExchangeRatio(cryptoReserve, usdcReserve *big.Int) (string, error) {
 		return "", fmt.Errorf("usdcReserve is zero, cannot compute exchange ratio")
 	}
 
-	// Scale the reserves to the same precision
-	scaledCryptoReserve := new(big.Int).Div(cryptoReserve, big.NewInt(int64(math.Pow(10, float64(common.AutonityCryptoDecimals)))))
-	scaledUsdcReserve := new(big.Int).Div(usdcReserve, big.NewInt(int64(math.Pow(10, float64(common.USDCDecimals)))))
-
-	if scaledUsdcReserve.Cmp(common.Zero) == 0 {
-		return "", fmt.Errorf("scaledUsdcReserve is zero, cannot compute exchange ratio")
-	}
+	// ratio == (cryptoReserve/cryptoDecimals) / (usdcReserve/usdcDecimals)
+	//       == (cryptoReserve*usdcDecimals) / (usdcReserve*cryptoDecimals)
+	scaledCryptoReserve := new(big.Int).Mul(cryptoReserve, big.NewInt(int64(math.Pow(10, float64(common.USDCDecimals)))))
+	scaledUsdcReserve := new(big.Int).Mul(usdcReserve, big.NewInt(int64(math.Pow(10, float64(common.AutonityCryptoDecimals)))))
 
 	// Calculate the exchange ratio as a big.Rat
 	ratio := new(big.Rat).SetFrac(scaledCryptoReserve, scaledUsdcReserve)
