@@ -8,7 +8,6 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/hashicorp/go-hclog v0.14.1
 	github.com/hashicorp/go-plugin v1.4.8
-	github.com/hashicorp/golang-lru v1.0.2
 	github.com/modern-go/reflect2 v1.0.2
 	github.com/namsral/flag v1.7.4-pre
 	github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5
