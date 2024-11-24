@@ -21,9 +21,5 @@ type ContractAPI interface {
 	GetRoundData(opts *bind.CallOpts, _round *big.Int, _symbol string) (IOracleRoundData, error)
 	LatestRoundData(opts *bind.CallOpts, _symbol string) (IOracleRoundData, error)
 	GetDecimals(opts *bind.CallOpts) (uint8, error)
-	// debuggers
-	WatchLastVoteRoundIsZero(opts *bind.WatchOpts, sink chan<- *OracleLastVoteRoundIsZero) (event.Subscription, error)
-	WatchMismatchHash(opts *bind.WatchOpts, sink chan<- *OracleMismatchHash) (event.Subscription, error)
-	WatchMismatchRound(opts *bind.WatchOpts, sink chan<- *OracleMismatchRound) (event.Subscription, error)
 	WatchVoted(opts *bind.WatchOpts, sink chan<- *OracleVoted, _voter []common.Address) (event.Subscription, error)
 }

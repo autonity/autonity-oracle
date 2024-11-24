@@ -17,7 +17,10 @@
       "validators": []
     },
     "oracle": {
-      "votePeriod": 30
+      "votePeriod": 30,
+      "outlierDetectionThreshold": 15,
+      "outlierSlashingThreshold": 20,
+      "baseSlashingRate": 10
     },
     "accountability": {
       "innocenceProofSubmissionWindow": 30,

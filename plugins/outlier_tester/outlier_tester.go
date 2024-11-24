@@ -1,14 +1,13 @@
 package main
 
 import (
+	"autonity-oracle/helpers"
 	"autonity-oracle/plugins/common"
 	"autonity-oracle/types"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"github.com/shopspring/decimal"
-	"math/big"
 	"os"
 	"time"
 )
@@ -200,8 +199,9 @@ func (tc *OutlierClient) FetchPrice(symbols []string) (common.Prices, error) {
 	for _, s := range symbols {
 		var price common.Price
 		price.Symbol = s
-		// it is a malicious behaviour to set the price into an outlier range.
-		price.Price = new(big.Int).SetUint64(math.MaxUint64).String()
+		// it is a malicious behaviour to set the price into an outlier range by multiply with 3.0
+		p := helpers.ResolveSimulatedPrice(s).Mul(decimal.RequireFromString("3.0"))
+		price.Price = p.String()
 		prices = append(prices, price)
 	}
 

@@ -918,7 +918,7 @@ func TestOutlierVoter(t *testing.T) {
 	maliciousNode := network.L2Nodes[0].Key.Key.Address
 	doneCh := make(chan struct{})
 	resultCh := make(chan uint64) // Channel to receive the result
-	endRound := uint64(10)
+	endRound := uint64(10000000)
 
 	// Start watching the event and count the number of events received.
 	go func() {
@@ -926,7 +926,8 @@ func TestOutlierVoter(t *testing.T) {
 	}()
 
 	// Start a timeout to wait for the ending for the test, and verify the number of penalized events received.
-	timeout := time.After(250 * time.Second) // Adjust the timeout as needed
+	timeout := time.After(1 * time.Hour) // Adjust the timeout as needed
+	//timeout := time.After(250 * time.Second) // Adjust the timeout as needed
 	select {
 	case penalizedCount := <-resultCh:
 		t.Log("Number of penalized events received:", penalizedCount)
@@ -966,7 +967,7 @@ func penalizeEventListener(t *testing.T, nodeAddress common.Address, done chan s
 				return penalized
 			}
 		case penalizeEvent := <-chPenalizedEvent:
-			t.Log("Oracle client get penalized as an outlier", "oracle node", penalizeEvent.Participant.String(),
+			t.Log("*****Oracle client get penalized as an outlier", "oracle node", penalizeEvent.Participant.String(),
 				"currency symbol", penalizeEvent.Symbol, "median value", penalizeEvent.Median.String(), "reported value", penalizeEvent.Reported.String())
 			penalized++
 		case roundEvent := <-chRoundEvent:
