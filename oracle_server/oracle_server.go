@@ -110,6 +110,7 @@ func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, clien
 		psTicker:           time.NewTicker(OneSecInterval),
 		loggingLevel:       conf.LoggingLevel,
 		confidenceStrategy: conf.ConfidenceStrategy,
+		pricePrecision:     decimal.NewFromBigInt(common.Big1, int32(config.OracleDecimals)),
 	}
 
 	os.logger = hclog.New(&hclog.LoggerOptions{
@@ -165,7 +166,7 @@ func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, clien
 func (os *OracleServer) syncStates() error {
 	var err error
 	// get initial states from on-chain oracle contract.
-	os.curRound, os.protocolSymbols, os.pricePrecision, os.votePeriod, err = os.initStates()
+	os.curRound, os.protocolSymbols, os.votePeriod, err = os.initStates()
 	if err != nil {
 		os.logger.Error("synchronize oracle contract state", "error", err.Error())
 		return err
@@ -204,39 +205,32 @@ func (os *OracleServer) syncStates() error {
 }
 
 // initStates returns round id, symbols and committees on current chain, it is called on the startup of client.
-func (os *OracleServer) initStates() (uint64, []string, decimal.Decimal, uint64, error) {
-	var precision decimal.Decimal
+func (os *OracleServer) initStates() (uint64, []string, uint64, error) {
 	// on the startup, we need to sync the round id, symbols and committees from contract.
 	currentRound, err := os.oracleContract.GetRound(nil)
 	if err != nil {
 		os.logger.Error("get round", "error", err.Error())
-		return 0, nil, precision, 0, err
+		return 0, nil, 0, err
 	}
 
 	symbols, err := os.oracleContract.GetSymbols(nil)
 	if err != nil {
 		os.logger.Error("get symbols", "error", err.Error())
-		return 0, nil, precision, 0, err
-	}
-
-	decimals, err := os.oracleContract.GetDecimals(nil)
-	if err != nil {
-		os.logger.Error("get precision", "error", err.Error())
-		return 0, nil, precision, 0, err
+		return 0, nil, 0, err
 	}
 
 	votePeriod, err := os.oracleContract.GetVotePeriod(nil)
 	if err != nil {
 		os.logger.Error("get vote period", "error", err.Error())
-		return 0, nil, precision, 0, nil
+		return 0, nil, 0, nil
 	}
 
 	if len(symbols) == 0 {
 		os.logger.Error("there are no symbols in Autonity L1 oracle contract")
-		return currentRound.Uint64(), symbols, decimal.NewFromBigInt(common.Big1, int32(decimals)), votePeriod.Uint64(), types.ErrNoSymbolsObserved
+		return currentRound.Uint64(), symbols, votePeriod.Uint64(), types.ErrNoSymbolsObserved
 	}
 
-	return currentRound.Uint64(), symbols, decimal.NewFromBigInt(common.Big1, int32(decimals)), votePeriod.Uint64(), nil
+	return currentRound.Uint64(), symbols, votePeriod.Uint64(), nil
 }
 
 func (os *OracleServer) gcDataSamples() {

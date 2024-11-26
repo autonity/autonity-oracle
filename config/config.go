@@ -36,7 +36,7 @@ var (
 
 	DefaultSampledSymbols = []string{"AUD-USD", "CAD-USD", "EUR-USD", "GBP-USD", "JPY-USD", "SEK-USD", "ATN-USD", "NTN-USD", "NTN-ATN", "ATN-USDC", "NTN-USDC", "USDC-USD"}
 
-	// ForexCurrencies nominates the required forex currencies in ACU's basket.
+	// ForexCurrencies in this map can be applied with linear or fixed confidence, cryptos take fixed strategy right now.
 	ForexCurrencies = map[string]struct{}{
 		"AUD-USD": {},
 		"CAD-USD": {},
@@ -59,7 +59,7 @@ const UsageOracleKeyPassword = "Set the password to decrypt oracle server key fi
 const UsageGasTipCap = "Set the gas priority fee cap to issue the oracle data report transactions."
 const UsageWSUrl = "Set the WS-RPC server listening interface and port of the connected Autonity Client node."
 const UsageLogLevel = "Set the logging level, available levels are:  0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error"
-const UsageConfidenceStrategy = "Set the confidence strategy available values are:  0: linear, 1: fixed"
+const UsageConfidenceStrategy = "Set the confidence strategy, available values are:  0: linear, 1: fixed"
 
 func MakeConfig() *types.OracleServiceConfig {
 	var logLevel int
@@ -85,7 +85,7 @@ func MakeConfig() *types.OracleServiceConfig {
 	flag.Parse()
 	if len(flag.Args()) == 1 && flag.Args()[0] == "version" {
 		log.SetFlags(0)
-		log.Println(FormatVersion(Version))
+		log.Println(VersionString(Version))
 		os.Exit(0)
 	}
 
@@ -204,31 +204,30 @@ func LoadPluginsConfig(file string) (map[string]types.PluginConfig, error) {
 	return confs, nil
 }
 
-func FormatVersion(version uint8) string {
+func VersionString(version uint8) string {
 	major := version / 100
 	minor := (version / 10) % 10
 	patch := version % 10
 	return fmt.Sprintf("v%d.%d.%d", major, minor, patch)
 }
 
-// ComputeConfidence calculates the confidence weight based on the number of data samples and a scaling factor.
+// ComputeConfidence calculates the confidence weight based on the number of data samples. Note! Cryptos take
+// fixed strategy as we have very limited number of data sources at the genesis phase. Thus, the confidence
+// computing is just for forex currencies for the time being.
 func ComputeConfidence(symbol string, numOfSamples, strategy int) uint8 {
 
-	// If it is a crypto symbol, just return fixed confidence since in current network bootstrapping phase,
-	// we'll have very limited data source of on-chain AMM and DEX, thus for those cryptos.
 	// Todo: once the community have more extensive AMM and DEX markets, we will remove this to enable linear
 	//  strategy as well for cryptos.
 	if _, is := ForexCurrencies[symbol]; !is {
 		return MaxConfidence
 	}
 
-	// Only forex currencies come here, the confidence strategy config is available only for them.
+	// Forex currencies with fixed strategy.
 	if strategy == ConfidenceStrategyFixed {
 		return MaxConfidence
 	}
 
-	// linear confidence strategy comes here, the numSource was checked, and it is at least 1.
-	// Use an exponential formula to compute weight
+	// Forex currencies with linear strategy.
 	weight := BaseConfidence + SourceScalingFactor*uint64(math.Pow(1.75, float64(numOfSamples)))
 
 	if weight > MaxConfidence {

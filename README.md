@@ -68,7 +68,7 @@ ws ws://127.0.0.1:8546
 plugin.dir ./plugins
 #Set the plugins' configuration file
 plugin.conf ./plugins-conf.yml
-#Set the confidence rule, available strategies are: 0: linear, 1: fixed.
+#Set the confidence rule, available strategies are: 0: linear, 1: fixed. (For cryptos, fixed strategy is taken for the time being).
 confidence.strategy 0
 ```
 Start oracle server with a config file:
@@ -86,7 +86,7 @@ A set of system environment variables can be used too to config oracle server:
 | `AUTONITY_WS` | Yes | The web socket RPC URL of your Autonity L1 Node that the oracle client communicates with. | "ws://127.0.0.1:8546"                                                                                | the web socket rpc endpoint url of the Autonity client. |
 | `PLUGIN_CONF` | Yes | The plugins' configuration file in YAML. | "./plugins-conf.yml"                                                               | the configuration file of the oracle plugins. |
 | `CONFIG` | No | Use a configuration file to start oracle server. | ""                                                               | the configuration file of the oracle server. |
-| `CONFIDENCE_STRATEGY` | No | The confidence strategy for data reporting | 0                                                               | Available values are: 0: linear, 1: fixed. |
+| `CONFIDENCE_STRATEGY` | No | The confidence strategy for data reporting | 0                                                               | Available values are: 0: linear, 1: fixed. Cryptos take fixed strategy for the time being. |
 | `GAS_TIP_CAP` | No | The gas priority fee cap to issue the oracle data report transactions | 1                                                               | A non-zero value per gas to prioritize your data report TX to be mined. |
 | `LOG_LEVEL` | No | The logging level of the oracle server | 3                                                              | available levels are:  0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error. |
 
