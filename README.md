@@ -105,6 +105,7 @@ Flags:
   -log.level=2: Set the logging level, available levels are:  0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error
   -plugin.conf="./plugins-conf.yml": Set the plugins' configuration file
   -plugin.dir="./plugins": Set the directory of the data plugins.
+  -profile.dir=".": Set the directory of the profile dump.
   -tip=1: Set the gas priority fee cap to issue the oracle data report transactions.
   -ws="ws://127.0.0.1:8546": Set the WS-RPC server listening interface and port of the connected Autonity Client node
 
