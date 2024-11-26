@@ -1,15 +1,17 @@
 package main
 
 import (
-	"autonity-oracle/config"
-	contract "autonity-oracle/contract_binder/contract"
-	"autonity-oracle/helpers"
-	"autonity-oracle/oracle_server"
-	"autonity-oracle/types"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"autonity-oracle/config"
+	contract "autonity-oracle/contract_binder/contract"
+	"autonity-oracle/helpers"
+	"autonity-oracle/monitor"
+	"autonity-oracle/oracle_server"
+	"autonity-oracle/types"
 )
 
 func main() { //nolint
@@ -37,6 +39,9 @@ func main() { //nolint
 	go oracle.Start()
 	defer oracle.Stop()
 
+	monitorConfig := monitor.DefaultMonitorConfig
+	ms := monitor.New(&monitorConfig, config.DefaultProfileDir)
+	ms.Start()
 	// Wait for interrupt signal to gracefully shut down the server with
 	// a timeout of 5 seconds.
 	quit := make(chan os.Signal, 1)
@@ -45,5 +50,6 @@ func main() { //nolint
 	// kill -9 is syscall.SIGKILL but can't be caught, so don't need to add it
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
+	ms.Stop()
 	log.Println("shutting down oracle server...")
 }

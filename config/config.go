@@ -26,6 +26,7 @@ var (
 	DefaultKeyFile            = "./UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"
 	DefaultKeyPassword        = "123"
 	DefaultPluginDir          = "./plugins"
+	DefaultProfileDir         = "."
 	DefaultPluginConfFile     = "./plugins-conf.yml"
 	DefaultOracleConfFile     = ""
 	// DefaultSymbols are native symbols required by the oracle protocol:
@@ -55,6 +56,7 @@ const UsageOracleKey = "Set the oracle server key file path."
 const UsagePluginConf = "Set the plugin's configuration file path."
 const UsageOracleConf = "Set the oracle server configuration file path."
 const UsagePluginDir = "Set the directory path of the data plugins."
+const UsageProfileDir = "Set the directory path to dump profile data."
 const UsageOracleKeyPassword = "Set the password to decrypt oracle server key file."
 const UsageGasTipCap = "Set the gas priority fee cap to issue the oracle data report transactions."
 const UsageWSUrl = "Set the WS-RPC server listening interface and port of the connected Autonity Client node."
@@ -66,6 +68,7 @@ func MakeConfig() *types.OracleServiceConfig {
 	var keyFile string
 	var gasTipCap uint64
 	var pluginDir string
+	var profileDir string
 	var keyPassword string
 	var autonityWSUrl string
 	var pluginConfFile string
@@ -77,6 +80,7 @@ func MakeConfig() *types.OracleServiceConfig {
 	flag.IntVar(&logLevel, "log.level", DefaultLogVerbosity, UsageLogLevel)
 	flag.StringVar(&autonityWSUrl, "ws", DefaultAutonityWSUrl, UsageWSUrl)
 	flag.StringVar(&pluginDir, "plugin.dir", DefaultPluginDir, UsagePluginDir)
+	flag.StringVar(&profileDir, "profile.dir", DefaultProfileDir, UsageProfileDir)
 	flag.StringVar(&pluginConfFile, "plugin.conf", DefaultPluginConfFile, UsagePluginConf)
 	flag.StringVar(&keyPassword, "key.password", DefaultKeyPassword, UsageOracleKeyPassword)
 	flag.StringVar(&oracleConfFile, flag.DefaultConfigFlagname, DefaultOracleConfFile, UsageOracleConf)
@@ -162,6 +166,7 @@ func MakeConfig() *types.OracleServiceConfig {
 		Key:                key,
 		AutonityWSUrl:      autonityWSUrl,
 		PluginDIR:          pluginDir,
+		ProfileDir:         profileDir,
 		PluginConfFile:     pluginConfFile,
 		LoggingLevel:       hclog.Level(logLevel), //nolint
 		ConfidenceStrategy: confidenceStrategy,
