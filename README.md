@@ -361,7 +361,17 @@ Jan 19 02:42:19 autoracle[14568]: 2023-01-19T02:42:19.168Z [DEBUG] fakeplugin: u
 Jan 19 02:42:19 autoracle[14568]: 2023-01-19T02:42:19.170Z [INFO] fakeplugin: plugin initialized: fakeplugin=v0.0.1  
 Jan 19 02:42:29 autoracle[14568]: 2023-01-19T02:42:29.156Z [DEBUG] fakeplugin.fakeplugin: receive request from oracle service, send data response: timestamp=2023-01-19T02:42:29.156Z  
 Jan 19 02:43:19 autoracle[14568]: 2023-01-19T02:43:19.156Z [DEBUG] fakeplugin.fakeplugin: receive request from oracle service, send data response: timestamp=2023-01-19T02:43:19.156Z  
-```  
+```
+#### example of profile data directory, if monitor service triggered a profile dump
+
+```
+── profiles
+ └── 2024-11-19
+     ├── cpu.profile_1
+     ├── goroutines.txt_1
+     ├── mem.profile_1
+     └── trace.out_1
+```
 
 ### Runtime plugin management
 #### Adding new plugins
