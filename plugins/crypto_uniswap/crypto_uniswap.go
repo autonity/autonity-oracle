@@ -33,7 +33,7 @@ var defaultConfig = types.PluginConfig{
 	NTNTokenAddress:  NTNTokenAddress.Hex(),                        // NTN ERC20 token address on the target blockchain.
 	ATNTokenAddress:  "0xcE17e51cE4F0417A1aB31a3c5d6831ff3BbFa1d2", // Wrapped ATN ERC20 contract address on the target blockchain.
 	USDCTokenAddress: "0x3a60C03a86eEAe30501ce1af04a6C04Cf0188700", // USDC ERC20 contract address on the target blockchain.
-	SwapAddress:      "0x218F76e357594C82Cc29A88B90dd67b180827c88", // AirSwap SwapERC20 contract address on the target blockchain.
+	SwapAddress:      "0x218F76e357594C82Cc29A88B90dd67b180827c88", // UniSwap SwapERC20 contract address on the target blockchain.
 }
 
 type WrappedPair struct {
