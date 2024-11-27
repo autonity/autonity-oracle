@@ -36,7 +36,7 @@ var (
 	ErrNoDataRound       = errors.New("no data collected at current round")
 	ErrNoSymbolsObserved = errors.New("no symbols observed from oracle contract")
 	ErrMissingServiceKey = errors.New("the key to access the data source is missing, please check the plugin config")
-	SymbolBTCETH         = "BTC-ETH"
+	SymbolBTCETH         = "BTC-ETH" // for simulation and tests only.
 )
 
 // MaxBufferedRounds is the number of round data to be buffered.

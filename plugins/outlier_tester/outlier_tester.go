@@ -22,7 +22,8 @@ var defaultConfig = types.PluginConfig{
 	DataUpdateInterval: 30, //30s
 }
 
-// OutlierTesterPlugin Here is an implementation of a plugin which returns simulated data points.
+// OutlierTesterPlugin is only used for internal e2e testing,
+// it simulates invalid data points for all the symbols in the protocol.
 type OutlierTesterPlugin struct {
 	version          string
 	availableSymbols map[string]struct{}
