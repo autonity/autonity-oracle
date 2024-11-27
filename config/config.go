@@ -37,7 +37,8 @@ var (
 
 	DefaultSampledSymbols = []string{"AUD-USD", "CAD-USD", "EUR-USD", "GBP-USD", "JPY-USD", "SEK-USD", "ATN-USD", "NTN-USD", "NTN-ATN", "ATN-USDC", "NTN-USDC", "USDC-USD"}
 
-	// ForexCurrencies in this map can be applied with linear or fixed confidence, cryptos take fixed strategy right now.
+	// ForexCurrencies contain forex currencies which is applied with linear or fixed confidence strategy,
+	// while for cryptos, fixed strategy is taken as we have limited AMM sources at the genesis phase.
 	ForexCurrencies = map[string]struct{}{
 		"AUD-USD": {},
 		"CAD-USD": {},
@@ -48,10 +49,21 @@ var (
 	}
 )
 
+// Version number of the oracle server in uint8. It is required
+// for data reporting interface to collect oracle clients version.
 const Version uint8 = 19
+
+// OracleDecimals describe the price precision in oracle protocol,
+// it is a fixed number in oracle contract.
 const OracleDecimals uint8 = 18
+
+// MaxConfidence caps the confidence factor of the data point report,
+// it is a fixed number in oracle contract.
 const MaxConfidence = 100
+
+// BaseConfidence is the base confidence for the linear calculation of confidence.
 const BaseConfidence = 40
+
 const UsageOracleKey = "Set the oracle server key file path."
 const UsagePluginConf = "Set the plugin's configuration file path."
 const UsageOracleConf = "Set the oracle server configuration file path."
@@ -110,6 +122,7 @@ func MakeConfig() *types.OracleServiceConfig {
 		}
 	}
 
+	// Try to resolve confidence strategy from environment variable.
 	if cs, presented := os.LookupEnv(types.EnvConfidenceStrategy); presented && confidenceStrategy == DefaultConfidenceStrategy {
 		strategy, err := strconv.Atoi(cs)
 		if err != nil {
