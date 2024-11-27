@@ -918,7 +918,7 @@ func TestOutlierVoter(t *testing.T) {
 	maliciousNode := network.L2Nodes[0].Key.Key.Address
 	doneCh := make(chan struct{})
 	resultCh := make(chan uint64) // Channel to receive the result
-	endRound := uint64(10000000)
+	endRound := uint64(15)
 
 	// Start watching the event and count the number of events received.
 	go func() {
@@ -929,9 +929,9 @@ func TestOutlierVoter(t *testing.T) {
 	timeout := time.After(1 * time.Hour) // Adjust the timeout as needed
 	//timeout := time.After(250 * time.Second) // Adjust the timeout as needed
 	select {
-	case penalizedCount := <-resultCh:
-		t.Log("Number of penalized events received:", penalizedCount)
-		// Add assertions here to validate the penalizedCount
+	case penalizedCounter := <-resultCh:
+		t.Log("Number of penalized events received:", penalizedCounter)
+		require.Greater(t, penalizedCounter, uint64(0))
 	case <-timeout:
 		t.Fatal("Test timed out waiting for penalized events")
 	}

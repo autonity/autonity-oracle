@@ -728,17 +728,10 @@ func (os *OracleServer) Start() {
 			}
 			os.lastSampledTS = preSampleTS
 		case penalizeEvent := <-os.chPenalizedEvent:
-			os.logger.Info("Oracle client get penalized as an outlier", "oracle node", penalizeEvent.Participant,
+			// Just keep a warning for the node operator, and let them check the live-ness of data source providers.
+			os.logger.Warn("Oracle client get penalized as an outlier", "oracle node", penalizeEvent.Participant,
 				"currency symbol", penalizeEvent.Symbol, "median value", penalizeEvent.Median.String(), "reported value", penalizeEvent.Reported.String())
-			if os.confidenceStrategy == config.ConfidenceStrategyFixed {
-				os.logger.Info("confidence strategy switch to linear from fixed to reduce the penalty risk")
-				os.confidenceStrategy = config.ConfidenceStrategyLinear
-			}
 
-			if os.confidenceStrategy == config.ConfidenceStrategyLinear && config.SourceScalingFactor > 0 {
-				config.SourceScalingFactor--
-				os.logger.Info("reduce the source scaling factor to reduce the penalty risk", "scaling factor", config.SourceScalingFactor)
-			}
 		case rEvent := <-os.chRoundEvent:
 			if os.curRound == rEvent.Round.Uint64() {
 				os.logger.Debug("skip duplicated round event", "round", rEvent.Round)
