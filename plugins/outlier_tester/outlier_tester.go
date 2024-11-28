@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	version = "v0.0.1"
+	version = "v0.2.0"
 )
 
 var defaultConfig = types.PluginConfig{

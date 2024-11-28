@@ -441,7 +441,7 @@ func TestSingleNodeCryptoPluginsHappyCase(t *testing.T) {
 		EnableL1Logs: false,
 		Symbols:      []string{"NTN-USD", "ATN-USD", "NTN-ATN"},
 		VotePeriod:   defaultVotePeriod,
-		PluginDIRs:   []string{cryptoPlugDir, cryptoPlugDir, cryptoPlugDir, cryptoPlugDir},
+		PluginDIRs:   []string{cryptoPlugDir, cryptoPlugDir},
 	}
 
 	net, err := createNetwork(conf, 2)
