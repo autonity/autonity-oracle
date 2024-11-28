@@ -733,11 +733,6 @@ func (os *OracleServer) Start() {
 				"currency symbol", penalizeEvent.Symbol, "median value", penalizeEvent.Median.String(), "reported value", penalizeEvent.Reported.String())
 
 		case rEvent := <-os.chRoundEvent:
-			if os.curRound == rEvent.Round.Uint64() {
-				os.logger.Debug("skip duplicated round event", "round", rEvent.Round)
-				continue
-			}
-
 			os.logger.Info("handle new round", "round", rEvent.Round.Uint64(), "required sampling TS",
 				rEvent.Timestamp.Uint64(), "height", rEvent.Height.Uint64(), "round period", rEvent.VotePeriod.Uint64())
 
