@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	version    = "v0.0.1"
+	version    = "v0.2.0"
 	apiVersion = "v2.0/rates/latest"
 	apiKey     = "apikey"
 )

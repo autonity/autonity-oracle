@@ -3,14 +3,16 @@ package types
 import (
 	"encoding/json"
 	"errors"
+	"math/big"
+
+	contract "autonity-oracle/contract_binder/contract"
+
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/hashicorp/go-hclog"
 	"github.com/shopspring/decimal"
-	"math/big"
 )
 
 var (
@@ -21,8 +23,9 @@ var (
 	EnvPluginCof            = "PLUGIN_CONF"
 	EnvGasTipCap            = "GAS_TIP_CAP"
 	EnvLogLevel             = "LOG_LEVEL"
+	EnvConfidenceStrategy   = "CONFIDENCE_STRATEGY"
 	SimulatedPrice          = decimal.RequireFromString("11.11")
-	InvalidPrice            = new(big.Int).Sub(math.BigPow(2, 255), big.NewInt(1))
+	InvalidPrice            = big.NewInt(0)
 	InvalidSalt             = big.NewInt(0)
 	Deployer                = common.Address{}
 	AutonityContractAddress = crypto.CreateAddress(Deployer, 0)
@@ -33,6 +36,7 @@ var (
 	ErrNoDataRound       = errors.New("no data collected at current round")
 	ErrNoSymbolsObserved = errors.New("no symbols observed from oracle contract")
 	ErrMissingServiceKey = errors.New("the key to access the data source is missing, please check the plugin config")
+	SymbolBTCETH         = "BTC-ETH" // for simulation and tests only.
 )
 
 // MaxBufferedRounds is the number of round data to be buffered.
@@ -40,9 +44,10 @@ const MaxBufferedRounds = 10
 
 // Price is the structure contains the exchange rate of a symbol with a timestamp at which the sampling happens.
 type Price struct {
-	Timestamp int64 // TS on when the data is being sampled in time's seconds since Jan 1 1970 (Unix time).
-	Symbol    string
-	Price     decimal.Decimal
+	Timestamp  int64 // TS on when the data is being sampled in time's seconds since Jan 1 1970 (Unix time).
+	Symbol     string
+	Price      decimal.Decimal
+	Confidence uint8 // to be resolved on the aggregation phase, depends on how many data samples.
 }
 
 // PriceBySymbol group the price by symbols.
@@ -57,16 +62,19 @@ type RoundData struct {
 	CommitmentHash common.Hash
 	Prices         PriceBySymbol
 	Symbols        []string
+	Reports        []contract.IOracleReport
 }
 
 // OracleServiceConfig is the configuration of the oracle client.
 type OracleServiceConfig struct {
-	LoggingLevel   hclog.Level
-	GasTipCap      uint64
-	Key            *keystore.Key
-	AutonityWSUrl  string
-	PluginDIR      string
-	PluginConfFile string
+	LoggingLevel       hclog.Level
+	GasTipCap          uint64
+	Key                *keystore.Key
+	AutonityWSUrl      string
+	PluginDIR          string
+	ProfileDir         string
+	PluginConfFile     string
+	ConfidenceStrategy int
 }
 
 // JSONRPCMessage is the JSON spec to carry those data response from the binance data simulator.

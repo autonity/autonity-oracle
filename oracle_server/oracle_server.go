@@ -14,7 +14,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	tp "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/hashicorp/go-hclog"
 	"github.com/modern-go/reflect2"
@@ -29,7 +28,7 @@ import (
 var (
 	TenSecsInterval  = 10 * time.Second // 10s ticker job to check health with l1, plugin discovery and regular data sampling.
 	OneSecInterval   = 1 * time.Second  // 1s ticker job to check if we need to do pre-sampling.
-	PreSamplingRange = 5                // pre-sampling starts in 5 blocks in advance.
+	PreSamplingRange = uint64(5)        // pre-sampling starts in 5 blocks in advance.
 	SaltRange        = new(big.Int).SetUint64(math.MaxInt64)
 	AlertBalance     = new(big.Int).SetUint64(2000000000000) // 2000 Gwei, 0.000002 Ether
 )
@@ -63,7 +62,7 @@ type OracleServer struct {
 
 	curRound        uint64 //round ID.
 	votePeriod      uint64 //vote period.
-	curSampleTS     uint64 //the data sample TS of the current round.
+	curSampleTS     int64  //the data sample TS of the current round.
 	curSampleHeight uint64 //The block height on which the round rotation happens.
 
 	protocolSymbols []string //symbols required for the voting on the oracle contract protocol.
@@ -75,6 +74,9 @@ type OracleServer struct {
 
 	gasTipCap uint64
 
+	chPenalizedEvent  chan *contract.OraclePenalized
+	subPenalizedEvent event.Subscription
+
 	chRoundEvent  chan *contract.OracleNewRound
 	subRoundEvent event.Subscription
 
@@ -82,9 +84,11 @@ type OracleServer struct {
 	subSymbolsEvent event.Subscription
 	lastSampledTS   int64
 
-	sampleEventFee event.Feed
-	loggingLevel   hclog.Level
-	lostSync       bool // set to true if the connectivity with L1 Autonity network is dropped during runtime.
+	sampleEventFeed        event.Feed
+	loggingLevel           hclog.Level
+	confidenceStrategy     int
+	lostSync               bool // set to true if the connectivity with L1 Autonity network is dropped during runtime.
+	commitmentHashComputer *CommitmentHashComputer
 }
 
 func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, client types.Blockchain,
@@ -105,13 +109,22 @@ func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, clien
 		regularTicker:      time.NewTicker(TenSecsInterval),
 		psTicker:           time.NewTicker(OneSecInterval),
 		loggingLevel:       conf.LoggingLevel,
+		confidenceStrategy: conf.ConfidenceStrategy,
+		pricePrecision:     decimal.NewFromBigInt(common.Big1, int32(config.OracleDecimals)),
 	}
 
 	os.logger = hclog.New(&hclog.LoggerOptions{
-		Name:   reflect2.TypeOfPtr(os).String(),
+		Name:   reflect2.TypeOfPtr(os).String() + conf.Key.Address.String(),
 		Output: o.Stdout,
 		Level:  conf.LoggingLevel,
 	})
+
+	commitmentHashComputer, err := NewCommitmentHashComputer()
+	if err != nil {
+		os.logger.Error("cannot create commitment hash computer", "err", err)
+		o.Exit(1)
+	}
+	os.commitmentHashComputer = commitmentHashComputer
 
 	// load plugin configs before start them.
 	plugConfs, err := config.LoadPluginsConfig(conf.PluginConfFile)
@@ -153,7 +166,7 @@ func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, clien
 func (os *OracleServer) syncStates() error {
 	var err error
 	// get initial states from on-chain oracle contract.
-	os.curRound, os.protocolSymbols, os.pricePrecision, os.votePeriod, err = os.initStates()
+	os.curRound, os.protocolSymbols, os.votePeriod, err = os.initStates()
 	if err != nil {
 		os.logger.Error("synchronize oracle contract state", "error", err.Error())
 		return err
@@ -180,43 +193,44 @@ func (os *OracleServer) syncStates() error {
 		return err
 	}
 
+	// subscribe on-chain penalize event
+	os.chPenalizedEvent = make(chan *contract.OraclePenalized)
+	os.subPenalizedEvent, err = os.oracleContract.WatchPenalized(new(bind.WatchOpts), os.chPenalizedEvent, []common.Address{os.key.Address})
+	if err != nil {
+		os.logger.Error("failed to subscribe penalized event", "error", err.Error())
+		return err
+	}
+
 	return nil
 }
 
 // initStates returns round id, symbols and committees on current chain, it is called on the startup of client.
-func (os *OracleServer) initStates() (uint64, []string, decimal.Decimal, uint64, error) {
-	var precision decimal.Decimal
+func (os *OracleServer) initStates() (uint64, []string, uint64, error) {
 	// on the startup, we need to sync the round id, symbols and committees from contract.
 	currentRound, err := os.oracleContract.GetRound(nil)
 	if err != nil {
 		os.logger.Error("get round", "error", err.Error())
-		return 0, nil, precision, 0, err
+		return 0, nil, 0, err
 	}
 
 	symbols, err := os.oracleContract.GetSymbols(nil)
 	if err != nil {
 		os.logger.Error("get symbols", "error", err.Error())
-		return 0, nil, precision, 0, err
-	}
-
-	p, err := os.oracleContract.GetPrecision(nil)
-	if err != nil {
-		os.logger.Error("get precision", "error", err.Error())
-		return 0, nil, precision, 0, err
+		return 0, nil, 0, err
 	}
 
 	votePeriod, err := os.oracleContract.GetVotePeriod(nil)
 	if err != nil {
 		os.logger.Error("get vote period", "error", err.Error())
-		return 0, nil, precision, 0, nil
+		return 0, nil, 0, nil
 	}
 
 	if len(symbols) == 0 {
 		os.logger.Error("there are no symbols in Autonity L1 oracle contract")
-		return currentRound.Uint64(), symbols, decimal.NewFromInt(p.Int64()), votePeriod.Uint64(), types.ErrNoSymbolsObserved
+		return currentRound.Uint64(), symbols, votePeriod.Uint64(), types.ErrNoSymbolsObserved
 	}
 
-	return currentRound.Uint64(), symbols, decimal.NewFromInt(p.Int64()), votePeriod.Uint64(), nil
+	return currentRound.Uint64(), symbols, votePeriod.Uint64(), nil
 }
 
 func (os *OracleServer) gcDataSamples() {
@@ -323,7 +337,7 @@ func (os *OracleServer) handlePreSampling(preSampleTS int64) error {
 		os.logger.Error("handle pre-sampling", "error", err.Error())
 		return err
 	}
-	if nSampleHeight-curHeight > uint64(PreSamplingRange) {
+	if nSampleHeight-curHeight > PreSamplingRange {
 		return nil
 	}
 
@@ -391,6 +405,12 @@ func (os *OracleServer) reportWithCommitment(newRound uint64, lastRoundData *typ
 		return err
 	}
 
+	// save current round data.
+	os.roundData[newRound] = curRoundData
+
+	// Todo: check if the current round data is same or similar comparing to the last round, then we can skip the reporting.
+	//  However, it is going to impact the performance score of the oracle node that cause reward/incentive losing for node.
+
 	// prepare the transaction which carry current round's commitment, and last round's data.
 	curRoundData.Tx, err = os.doReport(curRoundData.CommitmentHash, lastRoundData)
 	if err != nil {
@@ -398,8 +418,6 @@ func (os *OracleServer) reportWithCommitment(newRound uint64, lastRoundData *typ
 		return err
 	}
 
-	// save current round data.
-	os.roundData[newRound] = curRoundData
 	os.logger.Info("reported last round data and with current round commitment", "TX hash", curRoundData.Tx.Hash(), "Nonce", curRoundData.Tx.Nonce(), "Cost", curRoundData.Tx.Cost())
 
 	// alert in case of balance reach the warning value.
@@ -417,9 +435,10 @@ func (os *OracleServer) reportWithCommitment(newRound uint64, lastRoundData *typ
 	return nil
 }
 
-// report with last round data but without current round commitment.
+// report with last round data but without current round commitment, voter is leaving from the committee.
 func (os *OracleServer) reportWithoutCommitment(lastRoundData *types.RoundData) error {
 
+	// report with no commitment
 	tx, err := os.doReport(common.Hash{}, lastRoundData)
 	if err != nil {
 		os.logger.Error("do report", "error", err.Error())
@@ -443,7 +462,7 @@ func (os *OracleServer) AddNewSymbols(newSymbols []string) {
 	}
 }
 
-func (os *OracleServer) doReport(curRndCommitHash common.Hash, lastRoundData *types.RoundData) (*tp.Transaction, error) {
+func (os *OracleServer) doReport(curRoundCommitmentHash common.Hash, lastRoundData *types.RoundData) (*tp.Transaction, error) {
 	chainID, err := os.client.ChainID(context.Background())
 	if err != nil {
 		os.logger.Error("get chain id", "error", err.Error())
@@ -461,25 +480,13 @@ func (os *OracleServer) doReport(curRndCommitHash common.Hash, lastRoundData *ty
 	auth.GasLimit = uint64(3000000)
 
 	// if there is no last round data, then we just submit the curRndCommitHash hash of current round.
-	var votes []*big.Int
 	if lastRoundData == nil {
-		for i := 0; i < len(os.protocolSymbols); i++ {
-			votes = append(votes, types.InvalidPrice)
-		}
-		return os.oracleContract.Vote(auth, new(big.Int).SetBytes(curRndCommitHash.Bytes()), votes, types.InvalidSalt)
+		var reports []contract.IOracleReport
+		return os.oracleContract.Vote(auth, new(big.Int).SetBytes(curRoundCommitmentHash.Bytes()), reports, types.InvalidSalt, config.Version)
 	}
 
-	for _, s := range lastRoundData.Symbols {
-		_, ok := lastRoundData.Prices[s]
-		if !ok {
-			votes = append(votes, types.InvalidPrice)
-		} else {
-			price := lastRoundData.Prices[s].Price.Mul(os.pricePrecision).BigInt()
-			votes = append(votes, price)
-		}
-	}
-
-	return os.oracleContract.Vote(auth, new(big.Int).SetBytes(curRndCommitHash.Bytes()), votes, lastRoundData.Salt)
+	// there is last round data, report with current round commitment, and the last round reports and salt to be revealed.
+	return os.oracleContract.Vote(auth, new(big.Int).SetBytes(curRoundCommitmentHash.Bytes()), lastRoundData.Reports, lastRoundData.Salt, config.Version)
 }
 
 func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
@@ -503,9 +510,10 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 				p, err := decimal.NewFromString(ntnATNPrice.Price) // nolint
 				if err == nil {
 					prices[common2.NTNATNSymbol] = types.Price{
-						Timestamp: time.Now().Unix(),
-						Price:     p,
-						Symbol:    common2.NTNATNSymbol,
+						Timestamp:  time.Now().Unix(),
+						Price:      p,
+						Symbol:     common2.NTNATNSymbol,
+						Confidence: ntnPrice.Confidence,
 					}
 				} else {
 					os.logger.Error("cannot parse NTN-ATN price in decimal", "error", err.Error())
@@ -516,28 +524,19 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 		}
 	}
 
-	salt, err := rand.Int(rand.Reader, SaltRange)
+	// assemble round data with reports, salt and commitment hash.
+	roundData, err := os.assembleReportData(round, os.protocolSymbols, prices)
 	if err != nil {
-		os.logger.Error("generate rand salt", "error", err.Error())
+		os.logger.Error("failed to assemble round report data", "error", err.Error())
 		return nil, err
 	}
-
-	var roundData = &types.RoundData{
-		RoundID:        round,
-		Symbols:        os.protocolSymbols,
-		Salt:           salt,
-		CommitmentHash: common.Hash{},
-		Prices:         prices,
-	}
-	roundData.CommitmentHash = os.commitmentHash(roundData, os.protocolSymbols)
-	os.logger.Info("assembled data report", "current round", round, "prices", prices, "commitment hash", roundData.CommitmentHash.String())
+	os.logger.Info("assembled round report data", "current round", round, "prices", roundData)
 	return roundData, nil
 }
 
 func (os *OracleServer) aggregateProtocolSymbolPrices() (types.PriceBySymbol, error) {
 	prices := make(types.PriceBySymbol)
-
-	usdcPrice, err := os.aggregatePrice(USDCUSD, int64(os.curSampleTS))
+	usdcPrice, err := os.aggregatePrice(USDCUSD, os.curSampleTS)
 	if err != nil {
 		os.logger.Error("aggregate USDC-USD price", "error", err.Error())
 	}
@@ -549,7 +548,7 @@ func (os *OracleServer) aggregateProtocolSymbolPrices() (types.PriceBySymbol, er
 				continue
 			}
 
-			p, e := os.aggregateBridgedPrice(s, int64(os.curSampleTS), usdcPrice)
+			p, e := os.aggregateBridgedPrice(s, os.curSampleTS, usdcPrice)
 			if e != nil {
 				os.logger.Error("aggregate bridged price", "error", e.Error(), "symbol", s)
 				continue
@@ -559,7 +558,7 @@ func (os *OracleServer) aggregateProtocolSymbolPrices() (types.PriceBySymbol, er
 		}
 
 		// aggregate none bridged symbols
-		p, e := os.aggregatePrice(s, int64(os.curSampleTS))
+		p, e := os.aggregatePrice(s, os.curSampleTS)
 		if e != nil {
 			os.logger.Debug("no data for aggregation", "reason", e.Error(), "symbol", s)
 			continue
@@ -574,20 +573,43 @@ func (os *OracleServer) aggregateProtocolSymbolPrices() (types.PriceBySymbol, er
 	return prices, nil
 }
 
-func (os *OracleServer) commitmentHash(roundData *types.RoundData, symbols []string) common.Hash {
-	var source []byte
+// assemble the final reports, salt and commitment hash.
+func (os *OracleServer) assembleReportData(round uint64, symbols []string, prices types.PriceBySymbol) (*types.RoundData, error) {
+	var roundData = &types.RoundData{
+		RoundID: round,
+		Symbols: symbols,
+		Prices:  prices,
+	}
+
+	var reports []contract.IOracleReport
 	for _, s := range symbols {
-		if pr, ok := roundData.Prices[s]; ok {
-			source = append(source, common.LeftPadBytes(pr.Price.Mul(os.pricePrecision).BigInt().Bytes(), 32)...)
+		if pr, ok := prices[s]; ok {
+			reports = append(reports, contract.IOracleReport{
+				Price:      pr.Price.Mul(os.pricePrecision).BigInt(),
+				Confidence: pr.Confidence,
+			})
 		} else {
-			source = append(source, common.LeftPadBytes(types.InvalidPrice.Bytes(), 32)...)
+			reports = append(reports, contract.IOracleReport{
+				Price: types.InvalidPrice,
+			})
 		}
 	}
-	// append the salt at the tail of votes
-	source = append(source, common.LeftPadBytes(roundData.Salt.Bytes(), 32)...)
-	// append the sender address at the tail for commitment hash computing as well
-	source = append(source, os.key.Address.Bytes()...)
-	return crypto.Keccak256Hash(source)
+
+	salt, err := rand.Int(rand.Reader, SaltRange)
+	if err != nil {
+		os.logger.Error("generate rand salt", "error", err.Error())
+		return nil, err
+	}
+
+	commitmentHash, err := os.commitmentHashComputer.CommitmentHash(reports, salt, os.key.Address)
+	if err != nil {
+		os.logger.Error("failed to compute commitment hash", "error", err.Error())
+		return nil, err
+	}
+	roundData.Reports = reports
+	roundData.Salt = salt
+	roundData.CommitmentHash = commitmentHash
+	return roundData, nil
 }
 
 func (os *OracleServer) handleNewSymbolsEvent(symbols []string) {
@@ -613,10 +635,11 @@ func (os *OracleServer) aggregateBridgedPrice(srcSymbol string, target int64, us
 		return nil, err
 	}
 
-	// reset the symbol with source symbol, and update price with: ATN-USD=ATN-USDC*USDC-USD / NTN-USD=NTN-USDC*USDC-USD
+	// reset the symbol with source symbol,
+	// and update price with: ATN-USD=ATN-USDC*USDC-USD / NTN-USD=NTN-USDC*USDC-USD
+	// the confidence of ATN-USD and NTN-USD are inherit from ATN-USDC and NTN-USDC.
 	p.Symbol = srcSymbol
 	p.Price = p.Price.Mul(usdcPrice.Price)
-
 	return p, nil
 }
 
@@ -634,10 +657,14 @@ func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, er
 		return nil, types.ErrNoDataRound
 	}
 
+	// compute confidence of the symbol from the num of plugins' samples of it.
+	confidence := config.ComputeConfidence(s, len(prices), os.confidenceStrategy)
+
 	price := &types.Price{
-		Timestamp: target,
-		Price:     prices[0],
-		Symbol:    s,
+		Timestamp:  target,
+		Price:      prices[0],
+		Symbol:     s,
+		Confidence: confidence,
 	}
 
 	// we have multiple provider provide prices for this symbol, we have to aggregate it.
@@ -662,7 +689,7 @@ func (os *OracleServer) samplePrice(symbols []string, ts int64) {
 		Symbols: cpSymbols,
 		TS:      ts,
 	}
-	nListener := os.sampleEventFee.Send(e)
+	nListener := os.sampleEventFeed.Send(e)
 	os.logger.Debug("sample event is sent to", "num of plugins", nListener)
 }
 
@@ -687,6 +714,12 @@ func (os *OracleServer) Start() {
 				os.handleConnectivityError()
 				os.subRoundEvent.Unsubscribe()
 			}
+		case err := <-os.subPenalizedEvent.Err():
+			if err != nil {
+				os.logger.Info("subscription error of new rEvent event", err)
+				os.handleConnectivityError()
+				os.subPenalizedEvent.Unsubscribe()
+			}
 		case <-os.psTicker.C:
 			preSampleTS := time.Now().Unix()
 			err := os.handlePreSampling(preSampleTS)
@@ -694,6 +727,11 @@ func (os *OracleServer) Start() {
 				os.logger.Error("handle pre-sampling", "error", err.Error())
 			}
 			os.lastSampledTS = preSampleTS
+		case penalizeEvent := <-os.chPenalizedEvent:
+			// Just keep a warning for the node operator, and let them check the live-ness of data source providers.
+			os.logger.Warn("Oracle client get penalized as an outlier", "oracle node", penalizeEvent.Participant,
+				"currency symbol", penalizeEvent.Symbol, "median value", penalizeEvent.Median.String(), "reported value", penalizeEvent.Reported.String())
+
 		case rEvent := <-os.chRoundEvent:
 			os.logger.Info("handle new round", "round", rEvent.Round.Uint64(), "required sampling TS",
 				rEvent.Timestamp.Uint64(), "height", rEvent.Height.Uint64(), "round period", rEvent.VotePeriod.Uint64())
@@ -702,7 +740,7 @@ func (os *OracleServer) Start() {
 			os.curRound = rEvent.Round.Uint64()
 			os.votePeriod = rEvent.VotePeriod.Uint64()
 			os.curSampleHeight = rEvent.Height.Uint64()
-			os.curSampleTS = rEvent.Timestamp.Uint64()
+			os.curSampleTS = rEvent.Timestamp.Int64()
 
 			err := os.handleRoundVote()
 			if err != nil {
@@ -733,6 +771,7 @@ func (os *OracleServer) Stop() {
 	os.client.Close()
 	os.subRoundEvent.Unsubscribe()
 	os.subSymbolsEvent.Unsubscribe()
+	os.subPenalizedEvent.Unsubscribe()
 
 	os.doneCh <- struct{}{}
 	for _, c := range os.pluginSet {
@@ -815,7 +854,7 @@ func (os *OracleServer) setupNewPlugin(name string, conf *types.PluginConfig) (*
 }
 
 func (os *OracleServer) WatchSampleEvent(sink chan<- *types.SampleEvent) event.Subscription {
-	return os.sampleEventFee.Subscribe(sink)
+	return os.sampleEventFeed.Subscribe(sink)
 }
 
 func (os *OracleServer) ApplyPluginConf(name string, plugConf *types.PluginConfig) error {

@@ -3,24 +3,32 @@ package config
 import (
 	"autonity-oracle/helpers"
 	"autonity-oracle/types"
+	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/hashicorp/go-hclog"
 	"github.com/namsral/flag"
 	"gopkg.in/yaml.v2"
 	"log"
+	"math"
 	"os"
 	"strconv"
 )
 
 var (
-	DefaultLogVerbosity   = 3 // 0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error
-	DefaultGasTipCap      = uint64(1)
-	DefaultAutonityWSUrl  = "ws://127.0.0.1:8546"
-	DefaultKeyFile        = "./UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"
-	DefaultKeyPassword    = "123"
-	DefaultPluginDir      = "./plugins"
-	DefaultPluginConfFile = "./plugins-conf.yml"
-	DefaultOracleConfFile = ""
+	SourceScalingFactor      = uint64(10)
+	ConfidenceStrategyLinear = 0
+	ConfidenceStrategyFixed  = 1
+
+	DefaultConfidenceStrategy = ConfidenceStrategyLinear // 0: linear, 1: fixed.
+	DefaultLogVerbosity       = 3                        // 0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error
+	DefaultGasTipCap          = uint64(1)
+	DefaultAutonityWSUrl      = "ws://127.0.0.1:8546"
+	DefaultKeyFile            = "./UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"
+	DefaultKeyPassword        = "123"
+	DefaultPluginDir          = "./plugins"
+	DefaultProfileDir         = "."
+	DefaultPluginConfFile     = "./plugins-conf.yml"
+	DefaultOracleConfFile     = ""
 	// DefaultSymbols are native symbols required by the oracle protocol:
 	DefaultSymbols = []string{"AUD-USD", "CAD-USD", "EUR-USD", "GBP-USD", "JPY-USD", "SEK-USD", "ATN-USD", "NTN-USD", "NTN-ATN"}
 	// BridgerSymbols are helper symbols to convert the ratio of ATN-USDC & NTN-USDC to the required symbols: ATN-USD, NTN-USD.
@@ -28,41 +36,72 @@ var (
 	BridgerSymbols = []string{"ATN-USDC", "NTN-USDC", "USDC-USD"}
 
 	DefaultSampledSymbols = []string{"AUD-USD", "CAD-USD", "EUR-USD", "GBP-USD", "JPY-USD", "SEK-USD", "ATN-USD", "NTN-USD", "NTN-ATN", "ATN-USDC", "NTN-USDC", "USDC-USD"}
+
+	// ForexCurrencies contain forex currencies which is applied with linear or fixed confidence strategy,
+	// while for cryptos, fixed strategy is taken as we have limited AMM sources at the genesis phase.
+	ForexCurrencies = map[string]struct{}{
+		"AUD-USD": {},
+		"CAD-USD": {},
+		"EUR-USD": {},
+		"GBP-USD": {},
+		"JPY-USD": {},
+		"SEK-USD": {},
+	}
 )
 
-const Version = "v0.1.9"
+// Version number of the oracle server in uint8. It is required
+// for data reporting interface to collect oracle clients version.
+const Version uint8 = 20
+
+// OracleDecimals describe the price precision in oracle protocol,
+// it is a fixed number in oracle contract.
+const OracleDecimals uint8 = 18
+
+// MaxConfidence caps the confidence factor of the data point report,
+// it is a fixed number in oracle contract.
+const MaxConfidence = 100
+
+// BaseConfidence is the base confidence for the linear calculation of confidence.
+const BaseConfidence = 40
+
 const UsageOracleKey = "Set the oracle server key file path."
 const UsagePluginConf = "Set the plugin's configuration file path."
 const UsageOracleConf = "Set the oracle server configuration file path."
 const UsagePluginDir = "Set the directory path of the data plugins."
+const UsageProfileDir = "Set the directory path to dump profile data."
 const UsageOracleKeyPassword = "Set the password to decrypt oracle server key file."
 const UsageGasTipCap = "Set the gas priority fee cap to issue the oracle data report transactions."
 const UsageWSUrl = "Set the WS-RPC server listening interface and port of the connected Autonity Client node."
 const UsageLogLevel = "Set the logging level, available levels are:  0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error"
+const UsageConfidenceStrategy = "Set the confidence strategy, available values are:  0: linear, 1: fixed"
 
 func MakeConfig() *types.OracleServiceConfig {
 	var logLevel int
 	var keyFile string
 	var gasTipCap uint64
 	var pluginDir string
+	var profileDir string
 	var keyPassword string
 	var autonityWSUrl string
 	var pluginConfFile string
 	var oracleConfFile string
+	var confidenceStrategy int
 
 	flag.Uint64Var(&gasTipCap, "tip", DefaultGasTipCap, UsageGasTipCap)
 	flag.StringVar(&keyFile, "key.file", DefaultKeyFile, UsageOracleKey)
 	flag.IntVar(&logLevel, "log.level", DefaultLogVerbosity, UsageLogLevel)
 	flag.StringVar(&autonityWSUrl, "ws", DefaultAutonityWSUrl, UsageWSUrl)
 	flag.StringVar(&pluginDir, "plugin.dir", DefaultPluginDir, UsagePluginDir)
+	flag.StringVar(&profileDir, "profile.dir", DefaultProfileDir, UsageProfileDir)
 	flag.StringVar(&pluginConfFile, "plugin.conf", DefaultPluginConfFile, UsagePluginConf)
 	flag.StringVar(&keyPassword, "key.password", DefaultKeyPassword, UsageOracleKeyPassword)
 	flag.StringVar(&oracleConfFile, flag.DefaultConfigFlagname, DefaultOracleConfFile, UsageOracleConf)
+	flag.IntVar(&confidenceStrategy, "confidence.strategy", DefaultConfidenceStrategy, UsageConfidenceStrategy)
 
 	flag.Parse()
 	if len(flag.Args()) == 1 && flag.Args()[0] == "version" {
 		log.SetFlags(0)
-		log.Println(Version)
+		log.Println(VersionString(Version))
 		os.Exit(0)
 	}
 
@@ -76,8 +115,24 @@ func MakeConfig() *types.OracleServiceConfig {
 			os.Exit(1)
 		}
 		logLevel = l
-		if hclog.Level(logLevel) < hclog.NoLevel || hclog.Level(logLevel) > hclog.Error {
+		if hclog.Level(logLevel) < hclog.NoLevel || hclog.Level(logLevel) > hclog.Error { //nolint
 			log.Printf("wrong logging level configed %d, %s", logLevel, UsageLogLevel)
+			helpers.PrintUsage()
+			os.Exit(1)
+		}
+	}
+
+	// Try to resolve confidence strategy from environment variable.
+	if cs, presented := os.LookupEnv(types.EnvConfidenceStrategy); presented && confidenceStrategy == DefaultConfidenceStrategy {
+		strategy, err := strconv.Atoi(cs)
+		if err != nil {
+			log.Printf("wrong confidence strategy configed in $CONFIDENCE_STRATEGY")
+			helpers.PrintUsage()
+			os.Exit(1)
+		}
+		confidenceStrategy = strategy
+		if confidenceStrategy < DefaultConfidenceStrategy || confidenceStrategy > ConfidenceStrategyFixed {
+			log.Printf("wrong confidence strategy configed %d, %s", confidenceStrategy, UsageConfidenceStrategy)
 			helpers.PrintUsage()
 			os.Exit(1)
 		}
@@ -120,12 +175,14 @@ func MakeConfig() *types.OracleServiceConfig {
 	}
 
 	return &types.OracleServiceConfig{
-		GasTipCap:      gasTipCap,
-		Key:            key,
-		AutonityWSUrl:  autonityWSUrl,
-		PluginDIR:      pluginDir,
-		PluginConfFile: pluginConfFile,
-		LoggingLevel:   hclog.Level(logLevel),
+		GasTipCap:          gasTipCap,
+		Key:                key,
+		AutonityWSUrl:      autonityWSUrl,
+		PluginDIR:          pluginDir,
+		ProfileDir:         profileDir,
+		PluginConfFile:     pluginConfFile,
+		LoggingLevel:       hclog.Level(logLevel), //nolint
+		ConfidenceStrategy: confidenceStrategy,
 	}
 }
 
@@ -163,4 +220,37 @@ func LoadPluginsConfig(file string) (map[string]types.PluginConfig, error) {
 	}
 
 	return confs, nil
+}
+
+func VersionString(version uint8) string {
+	major := version / 100
+	minor := (version / 10) % 10
+	patch := version % 10
+	return fmt.Sprintf("v%d.%d.%d", major, minor, patch)
+}
+
+// ComputeConfidence calculates the confidence weight based on the number of data samples. Note! Cryptos take
+// fixed strategy as we have very limited number of data sources at the genesis phase. Thus, the confidence
+// computing is just for forex currencies for the time being.
+func ComputeConfidence(symbol string, numOfSamples, strategy int) uint8 {
+
+	// Todo: once the community have more extensive AMM and DEX markets, we will remove this to enable linear
+	//  strategy as well for cryptos.
+	if _, is := ForexCurrencies[symbol]; !is {
+		return MaxConfidence
+	}
+
+	// Forex currencies with fixed strategy.
+	if strategy == ConfidenceStrategyFixed {
+		return MaxConfidence
+	}
+
+	// Forex currencies with linear strategy.
+	weight := BaseConfidence + SourceScalingFactor*uint64(math.Pow(1.75, float64(numOfSamples)))
+
+	if weight > MaxConfidence {
+		weight = MaxConfidence
+	}
+
+	return uint8(weight) //nolint
 }

@@ -16,7 +16,7 @@ import (
 // This plugin is only used for autonity round 4 game purpose, the data of NTN-USDC & ATN-USDC come from a simulated
 // exchange service build by Clearmatics.
 const (
-	version = "v0.0.1"
+	version = "v0.2.0"
 	quote   = "quote"
 	NTNATN  = "NTN-ATN"
 	NTNUSDC = "NTN-USDC"

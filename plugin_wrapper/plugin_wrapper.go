@@ -266,10 +266,11 @@ func (pw *PluginWrapper) fetchPrices(symbols []string, ts int64) error {
 	}
 
 	if len(report.UnRecognizableSymbols) != 0 {
-		pw.logger.Debug("the data source cannot recognize some symbol", "report", report)
+		pw.logger.Debug("some symbol are not supported yet in this plugin", "unsupported", report.UnRecognizableSymbols)
 	}
 
 	if len(report.Prices) > 0 {
+		pw.logger.Debug("sampled symbols", "data points", report.Prices)
 		pw.AddSample(report.Prices, ts)
 	}
 	return nil

@@ -15,16 +15,14 @@ linters:
     - errcheck
     - goconst
     - gofmt
-    - deadcode
+    - unused
     - govet
     - misspell
     - megacheck
     - unconvert
-    - varcheck
     - nakedret
     - gosec
     - ineffassign
-    - depguard
     - typecheck
 
   disable-all: true
