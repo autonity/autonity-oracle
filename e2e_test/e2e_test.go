@@ -34,6 +34,7 @@ func TestHappyCase(t *testing.T) {
 		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir},
 	}
 	network, err := createNetwork(netConf, 2)
+
 	require.NoError(t, err)
 	defer network.Stop()
 
@@ -87,6 +88,7 @@ func TestAddNewSymbol(t *testing.T) {
 		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir},
 	}
 	network, err := createNetwork(netConf, 2)
+
 	require.NoError(t, err)
 	defer network.Stop()
 

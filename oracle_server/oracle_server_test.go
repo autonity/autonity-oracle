@@ -59,6 +59,7 @@ func TestOracleServer(t *testing.T) {
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
 		require.Equal(t, config.DefaultSampledSymbols, srv.samplingSymbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromBigInt(common.Big1, int32(precision))))
+
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
 		require.Equal(t, 1, len(srv.pluginSet))
 		require.Equal(t, "template_plugin", srv.pluginSet["template_plugin"].Name())
@@ -202,6 +203,7 @@ func TestOracleServer(t *testing.T) {
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
 		require.Equal(t, config.DefaultSampledSymbols, srv.samplingSymbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromBigInt(common.Big1, int32(precision))))
+
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
 		require.Equal(t, 1, len(srv.pluginSet))
 
@@ -229,6 +231,7 @@ func TestOracleServer(t *testing.T) {
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
 		require.Equal(t, config.DefaultSampledSymbols, srv.samplingSymbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromBigInt(common.Big1, int32(precision))))
+
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
 		require.Equal(t, 1, len(srv.pluginSet))
 
@@ -268,6 +271,7 @@ func TestOracleServer(t *testing.T) {
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
 		require.Equal(t, config.DefaultSampledSymbols, srv.samplingSymbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromBigInt(common.Big1, int32(precision))))
+
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
 		require.Equal(t, 1, len(srv.pluginSet))
 		firstStart := srv.pluginSet["template_plugin"].StartTime()

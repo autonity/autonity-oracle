@@ -75,14 +75,19 @@ e2e-test-stuffs:
 	go build -o $(E2E_TEST_DIR)/simulator $(SIMULATOR_SRC_DIR)/main.go
 	chmod +x $(E2E_TEST_DIR)/simulator
 
-    # build binance plugin for e2e test.
+	# build binance plugin for e2e test.
 	go build -o $(E2E_TEST_PRD_PLUGIN_DIR)/binance $(PLUGIN_SRC_DIR)/binance/binance.go
 	chmod +x $(E2E_TEST_PRD_PLUGIN_DIR)/binance
 
-    # build amm and dex plugins for e2e test.
+	# build amm and dex plugins for e2e test.
 	go build -o $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/crypto_uniswap.go
 	go build -o $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_airswap $(PLUGIN_SRC_DIR)/crypto_airswap/crypto_airswap.go
 	chmod +x $(E2E_TEST_CRYPTO_PLUGIN_DIR)/*
+
+    # build bakerloo simulator plugin for e2e test.
+	go build -o $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go
+	chmod +x $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin
+	cp  $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin $(E2E_TEST_MIX_PLUGIN_DIR)/simulator_plugin
 
     # build bakerloo simulator plugin for e2e test.
 	go build -o $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go

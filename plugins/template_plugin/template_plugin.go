@@ -258,6 +258,7 @@ func (tc *TemplateClient) AvailableSymbols() ([]string, error) {
 	res := append(common.DefaultForexSymbols, common.DefaultCryptoSymbols...)
 	res = append(res, common.DefaultUSDCSymbol)
 	res = append(res, types.SymbolBTCETH)
+
 	return res, nil
 }
 

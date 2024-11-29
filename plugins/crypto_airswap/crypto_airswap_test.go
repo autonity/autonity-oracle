@@ -56,7 +56,11 @@ func TestAirswapClientWithPiccadilly(t *testing.T) {
 			},
 			expectErr: false,
 			symbol:    NTNUSDC,
+<<<<<<< HEAD
 			ratio:     "0.100200400801603206",
+=======
+			ratio:     "0.1002004",
+>>>>>>> master
 		},
 
 		{
@@ -67,7 +71,11 @@ func TestAirswapClientWithPiccadilly(t *testing.T) {
 			},
 			expectErr: false,
 			symbol:    NTNUSDC,
+<<<<<<< HEAD
 			ratio:     "0.111093347776012320",
+=======
+			ratio:     "0.1110933",
+>>>>>>> master
 		},
 	}
 
