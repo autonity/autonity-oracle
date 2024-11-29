@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	version = "v0.0.2"
+	version = "v0.2.0"
 )
 
 var defaultConfig = types.PluginConfig{
@@ -253,9 +253,12 @@ func (tc *TemplateClient) AvailableSymbols() ([]string, error) {
 		for _, p := range prices {
 			res = append(res, p.Symbol)
 		}*/
-	// in this template, we just return the simulated symbols inside this plugin.
+	// Put all the supported symbols here, as this template plugin is used by simulations and e2e testing,
+	// we add some symbols required for the test as well.
 	res := append(common.DefaultForexSymbols, common.DefaultCryptoSymbols...)
 	res = append(res, common.DefaultUSDCSymbol)
+	res = append(res, types.SymbolBTCETH)
+
 	return res, nil
 }
 

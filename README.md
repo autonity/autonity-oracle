@@ -68,6 +68,8 @@ ws ws://127.0.0.1:8546
 plugin.dir ./plugins
 #Set the plugins' configuration file
 plugin.conf ./plugins-conf.yml
+#Set the confidence rule, available strategies are: 0: linear, 1: fixed. (For cryptos, fixed strategy is taken for the time being).
+confidence.strategy 0
 ```
 Start oracle server with a config file:
 ```shell
@@ -84,6 +86,7 @@ A set of system environment variables can be used too to config oracle server:
 | `AUTONITY_WS` | Yes | The web socket RPC URL of your Autonity L1 Node that the oracle client communicates with. | "ws://127.0.0.1:8546"                                                                                | the web socket rpc endpoint url of the Autonity client. |
 | `PLUGIN_CONF` | Yes | The plugins' configuration file in YAML. | "./plugins-conf.yml"                                                               | the configuration file of the oracle plugins. |
 | `CONFIG` | No | Use a configuration file to start oracle server. | ""                                                               | the configuration file of the oracle server. |
+| `CONFIDENCE_STRATEGY` | No | The confidence strategy for data reporting | 0                                                               | Available values are: 0: linear, 1: fixed. Cryptos take fixed strategy for the time being. |
 | `GAS_TIP_CAP` | No | The gas priority fee cap to issue the oracle data report transactions | 1                                                               | A non-zero value per gas to prioritize your data report TX to be mined. |
 | `LOG_LEVEL` | No | The logging level of the oracle server | 3                                                              | available levels are:  0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error. |
 
@@ -102,6 +105,7 @@ Flags:
   -log.level=2: Set the logging level, available levels are:  0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error
   -plugin.conf="./plugins-conf.yml": Set the plugins' configuration file
   -plugin.dir="./plugins": Set the directory of the data plugins.
+  -profile.dir=".": Set the directory of the profile dump.
   -tip=1: Set the gas priority fee cap to issue the oracle data report transactions.
   -ws="ws://127.0.0.1:8546": Set the WS-RPC server listening interface and port of the connected Autonity Client node
 
@@ -357,7 +361,17 @@ Jan 19 02:42:19 autoracle[14568]: 2023-01-19T02:42:19.168Z [DEBUG] fakeplugin: u
 Jan 19 02:42:19 autoracle[14568]: 2023-01-19T02:42:19.170Z [INFO] fakeplugin: plugin initialized: fakeplugin=v0.0.1  
 Jan 19 02:42:29 autoracle[14568]: 2023-01-19T02:42:29.156Z [DEBUG] fakeplugin.fakeplugin: receive request from oracle service, send data response: timestamp=2023-01-19T02:42:29.156Z  
 Jan 19 02:43:19 autoracle[14568]: 2023-01-19T02:43:19.156Z [DEBUG] fakeplugin.fakeplugin: receive request from oracle service, send data response: timestamp=2023-01-19T02:43:19.156Z  
-```  
+```
+#### example of profile data directory, if monitor service triggered a profile dump
+
+```
+── profiles
+ └── 2024-11-19
+     ├── cpu.profile_1
+     ├── goroutines.txt_1
+     ├── mem.profile_1
+     └── trace.out_1
+```
 
 ### Runtime plugin management
 #### Adding new plugins

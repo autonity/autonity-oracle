@@ -24,7 +24,7 @@ import (
 
 var (
 	orderBookCapacity = 64
-	version           = "v0.0.1"
+	version           = "v0.2.0"
 	ATNUSDC           = "ATN-USDC"
 	NTNUSDC           = "NTN-USDC"
 	supportedSymbols  = common.DefaultCryptoSymbols

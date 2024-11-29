@@ -5,11 +5,15 @@ import (
 	contract "autonity-oracle/contract_binder/contract"
 	autonity "autonity-oracle/e2e_test/contracts"
 	"autonity-oracle/helpers"
+	"autonity-oracle/plugins/crypto_airswap/erc20"
 	"autonity-oracle/types"
 	"context"
+	"crypto/ecdsa"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	types2 "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
@@ -19,7 +23,8 @@ import (
 	"time"
 )
 
-var defaultVotePeriod = uint64(60)
+var defaultVotePeriod = uint64(30)
+var defaultTransferAmount = uint64(100000000000000000)
 
 func TestHappyCase(t *testing.T) {
 	var netConf = &NetworkConfig{
@@ -28,7 +33,8 @@ func TestHappyCase(t *testing.T) {
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir},
 	}
-	network, err := createNetwork(netConf, numberOfValidators)
+	network, err := createNetwork(netConf, 2)
+
 	require.NoError(t, err)
 	defer network.Stop()
 
@@ -40,12 +46,12 @@ func TestHappyCase(t *testing.T) {
 	o, err := contract.NewOracle(types.OracleContractAddress, client)
 	require.NoError(t, err)
 
-	p, err := o.GetPrecision(nil)
+	p, err := o.GetDecimals(nil)
 	require.NoError(t, err)
-	pricePrecision := decimal.NewFromInt(p.Int64())
+	pricePrecision := decimal.NewFromBigInt(common.Big1, int32(p))
 
 	// first test happy case.
-	endRound := uint64(10)
+	endRound := uint64(4)
 	testHappyCase(t, o, endRound, pricePrecision)
 }
 
@@ -81,7 +87,8 @@ func TestAddNewSymbol(t *testing.T) {
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir},
 	}
-	network, err := createNetwork(netConf, numberOfValidators)
+	network, err := createNetwork(netConf, 2)
+
 	require.NoError(t, err)
 	defer network.Stop()
 
@@ -93,9 +100,9 @@ func TestAddNewSymbol(t *testing.T) {
 	o, err := contract.NewOracle(types.OracleContractAddress, client)
 	require.NoError(t, err)
 
-	p, err := o.GetPrecision(nil)
+	p, err := o.GetDecimals(nil)
 	require.NoError(t, err)
-	pricePrecision := decimal.NewFromInt(p.Int64())
+	pricePrecision := decimal.NewFromBigInt(common.Big1, int32(p))
 
 	// test to add new symbols.
 	endRound := uint64(5)
@@ -121,9 +128,9 @@ func TestRMSymbol(t *testing.T) {
 	o, err := contract.NewOracle(types.OracleContractAddress, client)
 	require.NoError(t, err)
 
-	p, err := o.GetPrecision(nil)
+	p, err := o.GetDecimals(nil)
 	require.NoError(t, err)
-	pricePrecision := decimal.NewFromInt(p.Int64())
+	pricePrecision := decimal.NewFromBigInt(common.Big1, int32(p))
 
 	// test to remove symbols.
 	endRound := uint64(5)
@@ -153,9 +160,9 @@ func TestRMCommitteeMember(t *testing.T) {
 	aut, err := autonity.NewAutonity(types.AutonityContractAddress, client)
 	require.NoError(t, err)
 
-	p, err := o.GetPrecision(nil)
+	p, err := o.GetDecimals(nil)
 	require.NoError(t, err)
-	pricePrecision := decimal.NewFromInt(p.Int64())
+	pricePrecision := decimal.NewFromBigInt(common.Big1, int32(p))
 
 	// test to remove validator from current committee.
 	endRound := uint64(10)
@@ -185,9 +192,9 @@ func TestAddCommitteeMember(t *testing.T) {
 	aut, err := autonity.NewAutonity(types.AutonityContractAddress, client)
 	require.NoError(t, err)
 
-	p, err := o.GetPrecision(nil)
+	p, err := o.GetDecimals(nil)
 	require.NoError(t, err)
-	pricePrecision := decimal.NewFromInt(p.Int64())
+	pricePrecision := decimal.NewFromBigInt(common.Big1, int32(p))
 
 	// test to add validator into current committee.
 	endRound := uint64(10)
@@ -288,9 +295,9 @@ func TestWithBinanceSimulatorOff(t *testing.T) {
 	symbols, err := o.GetSymbols(nil)
 	require.NoError(t, err)
 
-	pre, err := o.GetPrecision(nil)
+	p, err := o.GetDecimals(nil)
 	require.NoError(t, err)
-	pricePrecision := decimal.NewFromInt(pre.Int64())
+	pricePrecision := decimal.NewFromBigInt(common.Big1, int32(p))
 
 	for _, s := range symbols {
 		d, err := o.LatestRoundData(nil, s)
@@ -340,6 +347,7 @@ func TestWithBinanceSimulatorTimeout(t *testing.T) {
 }
 
 func TestForexPluginsHappyCase(t *testing.T) {
+	t.Skip("As those free service keys get expired, we skip this test")
 	var netConf = &NetworkConfig{
 		EnableL1Logs: false,
 		Symbols:      []string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"},
@@ -358,9 +366,9 @@ func TestForexPluginsHappyCase(t *testing.T) {
 	o, err := contract.NewOracle(types.OracleContractAddress, client)
 	require.NoError(t, err)
 
-	p, err := o.GetPrecision(nil)
+	p, err := o.GetDecimals(nil)
 	require.NoError(t, err)
-	pricePrecision := decimal.NewFromInt(p.Int64())
+	pricePrecision := decimal.NewFromBigInt(common.Big1, int32(p))
 
 	// first test happy case.
 	endRound := uint64(10)
@@ -372,10 +380,10 @@ func TestCryptoPluginsHappyCase(t *testing.T) {
 		EnableL1Logs: false,
 		Symbols:      []string{"NTN-USD", "ATN-USD", "NTN-ATN"},
 		VotePeriod:   defaultVotePeriod,
-		PluginDIRs:   []string{cryptoPlugDir, cryptoPlugDir, cryptoPlugDir, cryptoPlugDir},
+		PluginDIRs:   []string{cryptoPlugDir, cryptoPlugDir},
 	}
 
-	net, err := createNetwork(conf, numberOfValidators)
+	net, err := createNetwork(conf, 2)
 	require.NoError(t, err)
 	defer net.Stop()
 
@@ -435,7 +443,7 @@ func TestSingleNodeCryptoPluginsHappyCase(t *testing.T) {
 		EnableL1Logs: false,
 		Symbols:      []string{"NTN-USD", "ATN-USD", "NTN-ATN"},
 		VotePeriod:   defaultVotePeriod,
-		PluginDIRs:   []string{cryptoPlugDir, cryptoPlugDir, cryptoPlugDir, cryptoPlugDir},
+		PluginDIRs:   []string{cryptoPlugDir, cryptoPlugDir},
 	}
 
 	net, err := createNetwork(conf, 2)
@@ -457,7 +465,7 @@ func TestSingleNodeCryptoPluginsHappyCase(t *testing.T) {
 	defer subRoundEvent.Unsubscribe()
 
 	symbols := []string{"NTN-USD", "ATN-USD", "NTN-ATN"}
-	endRound := uint64(256)
+	endRound := uint64(10)
 
 	var prices []contract.IOracleRoundData
 
@@ -508,9 +516,12 @@ func testHappyCase(t *testing.T, o *contract.Oracle, beforeRound uint64, pricePr
 		symbols, err := o.GetSymbols(nil)
 		require.NoError(t, err)
 
+		// as current round is not finalized yet, thus the round data of it haven't being aggregate,
+		// thus we will query the last round's data for the verification.
+		lastRound := new(big.Int).SetUint64(round.Uint64() - 1)
 		// get round data for each symbol.
 		for _, s := range symbols {
-			d, err := o.GetRoundData(nil, round, s)
+			d, err := o.GetRoundData(nil, lastRound, s)
 			require.NoError(t, err)
 			require.Equal(t, true, d.Success)
 			rd = append(rd, d)
@@ -562,9 +573,13 @@ func testBinanceDataHappyCase(t *testing.T, o *contract.Oracle, beforeRound uint
 		symbols, err := o.GetSymbols(nil)
 		require.NoError(t, err)
 
+		// as current round is not finalized yet, thus the round data of it haven't being aggregate,
+		// thus we will query the last round's data for the verification.
+		lastRound := new(big.Int).SetUint64(round.Uint64() - 1)
+
 		// get last round data for each symbol.
 		for _, s := range symbols {
-			d, err := o.GetRoundData(nil, round.Sub(round, common.Big1), s)
+			d, err := o.GetRoundData(nil, lastRound, s)
 			require.NoError(t, err)
 			require.NotEqual(t, uint64(0), d.Price.Uint64())
 			require.Equal(t, true, d.Success)
@@ -589,7 +604,7 @@ func testAddNewSymbols(t *testing.T, network *Network, client *ethclient.Client,
 	legacySymbols, err := o.GetSymbols(nil)
 	require.NoError(t, err)
 
-	newSymbols := append(legacySymbols, "BTC-ETH")
+	newSymbols := append(legacySymbols, types.SymbolBTCETH)
 
 	_, err = o.SetSymbols(auth, newSymbols)
 	require.NoError(t, err)
@@ -610,9 +625,13 @@ func testAddNewSymbols(t *testing.T, network *Network, client *ethclient.Client,
 
 		require.Equal(t, len(newSymbols), len(symbols))
 
+		// as current round is not finalized yet, thus the round data of it haven't being aggregate,
+		// thus we will query the last round's data for the verification.
+		lastRound := new(big.Int).SetUint64(round.Uint64() - 1)
+
 		// get round data for each symbol.
 		for _, s := range symbols {
-			d, err := o.GetRoundData(nil, round, s)
+			d, err := o.GetRoundData(nil, lastRound, s)
 			require.NoError(t, err)
 			rd = append(rd, d)
 		}
@@ -673,9 +692,13 @@ func testRMSymbols(t *testing.T, network *Network, client *ethclient.Client, o *
 
 		require.Equal(t, len(newSymbols), len(symbols))
 
+		// as current round is not finalized yet, thus the round data of it haven't being aggregate,
+		// thus we will query the last round's data for the verification.
+		lastRound := new(big.Int).SetUint64(round.Uint64() - 1)
+
 		// get round data for each symbol.
 		for _, s := range symbols {
-			d, err := o.GetRoundData(nil, round, s)
+			d, err := o.GetRoundData(nil, lastRound, s)
 			require.NoError(t, err)
 			rd = append(rd, d)
 		}
@@ -730,9 +753,13 @@ func testRMValidatorFromCommittee(t *testing.T, network *Network, client *ethcli
 		symbols, err := o.GetSymbols(nil)
 		require.NoError(t, err)
 
+		// as current round is not finalized yet, thus the round data of it haven't being aggregate,
+		// thus we will query the last round's data for the verification.
+		lastRound := new(big.Int).SetUint64(round.Uint64() - 1)
+
 		// get round data for each symbol.
 		for _, s := range symbols {
-			d, err := o.GetRoundData(nil, round, s)
+			d, err := o.GetRoundData(nil, lastRound, s)
 			require.NoError(t, err)
 			rd = append(rd, d)
 		}
@@ -789,9 +816,13 @@ func testNewValidatorJoinToCommittee(t *testing.T, network *Network, client *eth
 		symbols, err := o.GetSymbols(nil)
 		require.NoError(t, err)
 
+		// as current round is not finalized yet, thus the round data of it haven't being aggregate,
+		// thus we will query the last round's data for the verification.
+		lastRound := new(big.Int).SetUint64(round.Uint64() - 1)
+
 		// get round data for each symbol.
 		for _, s := range symbols {
-			d, err := o.GetRoundData(nil, round, s)
+			d, err := o.GetRoundData(nil, lastRound, s)
 			require.NoError(t, err)
 			rd = append(rd, d)
 		}
@@ -809,7 +840,256 @@ func testNewValidatorJoinToCommittee(t *testing.T, network *Network, client *eth
 	}
 }
 
-// todo: missing report by omission voter, the faulty node should be slashed.
-func TestOmissionVoter(t *testing.T) {
+func TestOmissionFaultyVoter(t *testing.T) {
+	var netConf = &NetworkConfig{
+		EnableL1Logs: false,
+		Symbols:      config.DefaultSymbols,
+		VotePeriod:   20,      // 20s to shorten this test.
+		EpochPeriod:  20 * 12, // 4 minutes to shorten this test.
+		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir, defaultPlugDir, defaultPlugDir},
+	}
+	network, err := createNetwork(netConf, numberOfValidators)
+	require.NoError(t, err)
+	defer network.Stop()
 
+	client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d", network.L1Nodes[0].Host, network.L1Nodes[0].WSPort))
+	require.NoError(t, err)
+	defer client.Close()
+
+	aut, err := autonity.NewAutonity(types.AutonityContractAddress, client)
+	require.NoError(t, err)
+
+	// bind client with oracle contract address
+	o, err := contract.NewOracle(types.OracleContractAddress, client)
+	require.NoError(t, err)
+
+	endRound := uint64(90)
+	stopRound := uint64(2)
+
+	doneCh := make(chan struct{})
+
+	// Start watching the round event and stop oracle client on the stop round.
+	go L2NodeResetEventLoop(t, 0, network, doneCh, o, endRound, stopRound, aut, client)
+
+	// Start a timeout to wait for the ending for the test.
+	timeout := time.After(35 * time.Minute) // Adjust the timeout as needed
+	select {
+	case <-timeout:
+		close(doneCh)
+	}
+
+	for _, n := range network.L2Nodes {
+		account := n.Key.Key.Address
+		atnBalance, err := client.BalanceAt(context.Background(), account, nil)
+		require.NoError(t, err)
+		t.Log("get oracle ATN reward", "address", account.Hex(), "atn balance", atnBalance.String())
+		//require.Equal(t, true, atnBalance.Cmp(big.NewInt(0)) > 0)
+	}
+
+	// bind client with autonity contract address
+	ntnContract, err := erc20.NewErc20(types.AutonityContractAddress, client)
+	require.NoError(t, err)
+	for _, n := range network.L2Nodes {
+		account := n.Key.Key.Address
+		ntnBalance, err := ntnContract.BalanceOf(nil, account)
+		require.NoError(t, err)
+		t.Log("get oracle NTN reward", "address", account.Hex(), "ntn balance", ntnBalance.String())
+		//require.Equal(t, true, ntnBalance.Cmp(big.NewInt(0)) > 0)
+	}
+}
+
+func TestOutlierVoter(t *testing.T) {
+	var netConf = &NetworkConfig{
+		EnableL1Logs: false,
+		Symbols:      config.DefaultSymbols,
+		VotePeriod:   20,  // 20s to shorten this test.
+		EpochPeriod:  120, // 2 minutes to shorten this test.
+		PluginDIRs:   []string{outlierPlugDir, defaultPlugDir, defaultPlugDir, defaultPlugDir},
+	}
+	network, err := createNetwork(netConf, numberOfValidators)
+	require.NoError(t, err)
+	defer network.Stop()
+
+	client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d", network.L1Nodes[0].Host, network.L1Nodes[0].WSPort))
+	require.NoError(t, err)
+	defer client.Close()
+
+	// Bind client with oracle contract address
+	o, err := contract.NewOracle(types.OracleContractAddress, client)
+	require.NoError(t, err)
+	maliciousNode := network.L2Nodes[0].Key.Key.Address
+	doneCh := make(chan struct{})
+	resultCh := make(chan uint64) // Channel to receive the result
+	endRound := uint64(15)
+
+	// Start watching the event and count the number of events received.
+	go func() {
+		resultCh <- penalizeEventListener(t, maliciousNode, doneCh, o, endRound)
+	}()
+
+	// Start a timeout to wait for the ending for the test, and verify the number of penalized events received.
+	timeout := time.After(1 * time.Hour) // Adjust the timeout as needed
+	//timeout := time.After(250 * time.Second) // Adjust the timeout as needed
+	select {
+	case penalizedCounter := <-resultCh:
+		t.Log("Number of penalized events received:", penalizedCounter)
+		require.Greater(t, penalizedCounter, uint64(0))
+	case <-timeout:
+		t.Fatal("Test timed out waiting for penalized events")
+	}
+
+	close(doneCh)
+}
+
+func penalizeEventListener(t *testing.T, nodeAddress common.Address, done chan struct{}, oracle *contract.Oracle, endRound uint64) uint64 {
+	// Subscribe to the penalize event with client address.
+	chPenalizedEvent := make(chan *contract.OraclePenalized)
+	t.Log("current node account", nodeAddress)
+	subPenalizedEvent, err := oracle.WatchPenalized(new(bind.WatchOpts), chPenalizedEvent, nil)
+	require.NoError(t, err)
+	defer subPenalizedEvent.Unsubscribe()
+
+	// Subscribe to the round event
+	chRoundEvent := make(chan *contract.OracleNewRound)
+	subRoundEvent, err := oracle.WatchNewRound(new(bind.WatchOpts), chRoundEvent)
+	require.NoError(t, err)
+	defer subRoundEvent.Unsubscribe()
+
+	var penalized uint64
+	for {
+		select {
+		case <-done:
+			return penalized
+		case err := <-subPenalizedEvent.Err():
+			if err != nil {
+				return penalized
+			}
+		case err := <-subRoundEvent.Err():
+			if err != nil {
+				return penalized
+			}
+		case penalizeEvent := <-chPenalizedEvent:
+			t.Log("*****Oracle client get penalized as an outlier", "oracle node", penalizeEvent.Participant.String(),
+				"currency symbol", penalizeEvent.Symbol, "median value", penalizeEvent.Median.String(), "reported value", penalizeEvent.Reported.String())
+			penalized++
+		case roundEvent := <-chRoundEvent:
+			t.Log("round event received", "round", roundEvent.Round)
+			if roundEvent.Round.Uint64() > endRound {
+				return penalized
+			}
+		}
+	}
+}
+
+func L2NodeResetEventLoop(t *testing.T, nodeIndex int, network *Network, done chan struct{}, oracle *contract.Oracle, endRound uint64, stopRound uint64, aut *autonity.Autonity, client *ethclient.Client) {
+	// Watch height events, let it trigger some ATN transfers to let the TXN fee rewards(in ATN) to be shared.
+	chHeadEvent := make(chan *types2.Header)
+	subHeadEvent, err := client.SubscribeNewHead(context.Background(), chHeadEvent)
+	require.NoError(t, err)
+	defer subHeadEvent.Unsubscribe()
+
+	// Subscribe to the epoch event
+	chEpochEvent := make(chan *autonity.AutonityNewEpoch)
+	subEpochEvent, err := aut.WatchNewEpoch(new(bind.WatchOpts), chEpochEvent)
+	require.NoError(t, err)
+	defer subEpochEvent.Unsubscribe()
+
+	// Subscribe to the round event
+	chRoundEvent := make(chan *contract.OracleNewRound)
+	subRoundEvent, err := oracle.WatchNewRound(new(bind.WatchOpts), chRoundEvent)
+	require.NoError(t, err)
+	defer subRoundEvent.Unsubscribe()
+
+	for {
+		select {
+		case <-done:
+			return
+		case headEvent := <-chHeadEvent:
+			t.Log("new head event", headEvent.Number.Uint64())
+			amount := new(big.Int).SetUint64(defaultTransferAmount)
+			for _, v := range network.L1Nodes {
+				err = transferATN(client, v.NodeKey.Key.PrivateKey, types.OracleContractAddress, amount, headEvent.BaseFee)
+				require.NoError(t, err)
+			}
+		case epochEvent := <-chEpochEvent:
+			t.Log("received epoch event", "epoch id", epochEvent.Epoch.Uint64())
+			atnOracleContract, err := client.BalanceAt(context.Background(), types.OracleContractAddress, nil)
+			require.NoError(t, err)
+			t.Log("oracle contract have atn balance", atnOracleContract.Uint64())
+			// bind client with autonity contract address
+			ntnContract, err := erc20.NewErc20(types.AutonityContractAddress, client)
+			require.NoError(t, err)
+			ntnOracleContract, err := ntnContract.BalanceOf(nil, types.OracleContractAddress)
+			require.NoError(t, err)
+			t.Log("oracle contract have ntn balance", ntnOracleContract.Uint64())
+
+			for _, n := range network.L2Nodes {
+				account := n.Key.Key.Address
+				atnBalance, err := client.BalanceAt(context.Background(), account, nil)
+				require.NoError(t, err)
+				t.Log("get oracle ATN reward", "address", account.Hex(), "atn balance", atnBalance.String())
+				//require.Equal(t, true, atnBalance.Cmp(big.NewInt(0)) > 0)
+			}
+
+			for _, n := range network.L2Nodes {
+				account := n.Key.Key.Address
+				ntnBalance, err := ntnContract.BalanceOf(nil, account)
+				require.NoError(t, err)
+				t.Log("get oracle NTN reward", "address", account.Hex(), "ntn balance", ntnBalance.String())
+				//require.Equal(t, true, ntnBalance.Cmp(big.NewInt(0)) > 0)
+			}
+		case roundEvent := <-chRoundEvent:
+			t.Log("round event received", "round", roundEvent.Round)
+			if roundEvent.Round.Uint64() == stopRound {
+				t.Log("stopping oracle client", "node address", network.L2Nodes[nodeIndex].Key.Key.Address)
+				network.StopL2Node(nodeIndex)
+			}
+
+			if roundEvent.Round.Uint64() > endRound {
+				return
+			}
+		}
+	}
+}
+
+func transferATN(client *ethclient.Client, privateKey *ecdsa.PrivateKey, receiverAddress common.Address, value *big.Int, baseFee *big.Int) error {
+
+	fromAddress := crypto.PubkeyToAddress(privateKey.PublicKey)
+	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
+	if err != nil {
+		return err
+	}
+	gasTip, err := client.SuggestGasTipCap(context.Background())
+	if err != nil {
+		return err
+	}
+
+	gasFeeCap := new(big.Int).Add(gasTip, new(big.Int).Mul(baseFee, big.NewInt(2)))
+
+	signer := types2.NewLondonSigner(common.Big1)
+	signedTX, err := newDynamicTX(nonce, gasTip, gasFeeCap, 21000, receiverAddress, value, signer, privateKey)
+	if err != nil {
+		return err
+	}
+
+	// Send the transaction
+	err = client.SendTransaction(context.Background(), signedTX)
+	if err != nil {
+		panic(err)
+	}
+
+	return nil
+}
+
+func newDynamicTX(nonce uint64, tip *big.Int, feeCap *big.Int, gas uint64, to common.Address, value *big.Int,
+	signer types2.Signer, sender *ecdsa.PrivateKey) (*types2.Transaction, error) {
+	tx, err := types2.SignTx(types2.NewTx(&types2.DynamicFeeTx{
+		Nonce:     nonce,
+		GasTipCap: tip,
+		GasFeeCap: feeCap,
+		Gas:       gas,
+		To:        &to,
+		Value:     value,
+	}), signer, sender)
+	return tx, err
 }

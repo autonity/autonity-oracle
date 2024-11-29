@@ -39,19 +39,19 @@ func (m *MockContractAPI) EXPECT() *MockContractAPIMockRecorder {
 	return m.recorder
 }
 
-// GetPrecision mocks base method.
-func (m *MockContractAPI) GetPrecision(opts *bind.CallOpts) (*big.Int, error) {
+// GetDecimals mocks base method.
+func (m *MockContractAPI) GetDecimals(opts *bind.CallOpts) (uint8, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetPrecision", opts)
-	ret0, _ := ret[0].(*big.Int)
+	ret := m.ctrl.Call(m, "GetDecimals", opts)
+	ret0, _ := ret[0].(uint8)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetPrecision indicates an expected call of GetPrecision.
-func (mr *MockContractAPIMockRecorder) GetPrecision(opts interface{}) *gomock.Call {
+// GetDecimals indicates an expected call of GetDecimals.
+func (mr *MockContractAPIMockRecorder) GetDecimals(opts interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPrecision", reflect.TypeOf((*MockContractAPI)(nil).GetPrecision), opts)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDecimals", reflect.TypeOf((*MockContractAPI)(nil).GetDecimals), opts)
 }
 
 // GetRound mocks base method.
@@ -160,18 +160,18 @@ func (mr *MockContractAPIMockRecorder) SetSymbols(opts, _symbols interface{}) *g
 }
 
 // Vote mocks base method.
-func (m *MockContractAPI) Vote(opts *bind.TransactOpts, _commit *big.Int, _prevotes []*big.Int, _salt *big.Int) (*types.Transaction, error) {
+func (m *MockContractAPI) Vote(opts *bind.TransactOpts, _commit *big.Int, _reports []oracle.IOracleReport, _salt *big.Int, _extra uint8) (*types.Transaction, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Vote", opts, _commit, _prevotes, _salt)
+	ret := m.ctrl.Call(m, "Vote", opts, _commit, _reports, _salt, _extra)
 	ret0, _ := ret[0].(*types.Transaction)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Vote indicates an expected call of Vote.
-func (mr *MockContractAPIMockRecorder) Vote(opts, _commit, _prevotes, _salt interface{}) *gomock.Call {
+func (mr *MockContractAPIMockRecorder) Vote(opts, _commit, _reports, _salt, _extra interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Vote", reflect.TypeOf((*MockContractAPI)(nil).Vote), opts, _commit, _prevotes, _salt)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Vote", reflect.TypeOf((*MockContractAPI)(nil).Vote), opts, _commit, _reports, _salt, _extra)
 }
 
 // WatchNewRound mocks base method.
@@ -202,4 +202,34 @@ func (m *MockContractAPI) WatchNewSymbols(opts *bind.WatchOpts, sink chan<- *ora
 func (mr *MockContractAPIMockRecorder) WatchNewSymbols(opts, sink interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchNewSymbols", reflect.TypeOf((*MockContractAPI)(nil).WatchNewSymbols), opts, sink)
+}
+
+// WatchPenalized mocks base method.
+func (m *MockContractAPI) WatchPenalized(opts *bind.WatchOpts, sink chan<- *oracle.OraclePenalized, _participant []common.Address) (event.Subscription, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WatchPenalized", opts, sink, _participant)
+	ret0, _ := ret[0].(event.Subscription)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// WatchPenalized indicates an expected call of WatchPenalized.
+func (mr *MockContractAPIMockRecorder) WatchPenalized(opts, sink, _participant interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchPenalized", reflect.TypeOf((*MockContractAPI)(nil).WatchPenalized), opts, sink, _participant)
+}
+
+// WatchVoted mocks base method.
+func (m *MockContractAPI) WatchVoted(opts *bind.WatchOpts, sink chan<- *oracle.OracleVoted, _voter []common.Address) (event.Subscription, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WatchVoted", opts, sink, _voter)
+	ret0, _ := ret[0].(event.Subscription)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// WatchVoted indicates an expected call of WatchVoted.
+func (mr *MockContractAPIMockRecorder) WatchVoted(opts, sink, _voter interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchVoted", reflect.TypeOf((*MockContractAPI)(nil).WatchVoted), opts, sink, _voter)
 }

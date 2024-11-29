@@ -1,7 +1,6 @@
 package helpers
 
 import (
-	"autonity-oracle/types"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -25,7 +24,7 @@ func TestParsePlaybookHeader(t *testing.T) {
 func TestResolveSimulatedPrice(t *testing.T) {
 	symbol := "BTC-ETH"
 	price := ResolveSimulatedPrice(symbol)
-	require.Equal(t, true, types.SimulatedPrice.Equal(price))
+	require.Equal(t, true, pBTCETH.Equal(price))
 
 	symbol = "NTN-USDC"
 	p := ResolveSimulatedPrice(symbol)
