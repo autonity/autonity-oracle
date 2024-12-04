@@ -477,7 +477,7 @@ func (os *OracleServer) doReport(curRoundCommitmentHash common.Hash, lastRoundDa
 	auth.GasLimit = uint64(3000000)
 
 	// if there is no last round data or there were missing datapoint in last round data, then we just submit the
-	// commitment hash of current round as data might recover at current round. This vote will be reimbursed by the
+	// commitment hash of current round as data might be available at current round. This vote will be reimbursed by the
 	// protocol, however it won't be abused as it is limited by the 1 vote per round rule.
 	if lastRoundData == nil || lastRoundData.MissingData {
 		var reports []contract.IOracleReport
