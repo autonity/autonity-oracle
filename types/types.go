@@ -63,6 +63,7 @@ type RoundData struct {
 	Prices         PriceBySymbol
 	Symbols        []string
 	Reports        []contract.IOracleReport
+	MissingData    bool
 }
 
 // OracleServiceConfig is the configuration of the oracle client.
