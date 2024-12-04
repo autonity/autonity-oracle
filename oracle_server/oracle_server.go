@@ -604,8 +604,14 @@ func (os *OracleServer) assembleReportData(round uint64, symbols []string, price
 	var reports []contract.IOracleReport
 	for _, s := range symbols {
 		if pr, ok := prices[s]; ok {
+			// This is an edge case, which means there is no liquidity in the market for this symbol.
+			price := pr.Price.Mul(os.pricePrecision).BigInt()
+			if price.Cmp(types.InvalidPrice) == 0 {
+				os.logger.Info("zero price measured from market", "symbol", s)
+				missingData = true
+			}
 			reports = append(reports, contract.IOracleReport{
-				Price:      pr.Price.Mul(os.pricePrecision).BigInt(),
+				Price:      price,
 				Confidence: pr.Confidence,
 			})
 		} else {
