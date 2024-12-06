@@ -408,9 +408,6 @@ func (os *OracleServer) reportWithCommitment(newRound uint64, lastRoundData *typ
 	// save current round data.
 	os.roundData[newRound] = curRoundData
 
-	// Todo: check if the current round data is same or similar comparing to the last round, then we can skip the reporting.
-	//  However, it is going to impact the performance score of the oracle node that cause reward/incentive losing for node.
-
 	// prepare the transaction which carry current round's commitment, and last round's data.
 	curRoundData.Tx, err = os.doReport(curRoundData.CommitmentHash, lastRoundData)
 	if err != nil {
@@ -438,7 +435,7 @@ func (os *OracleServer) reportWithCommitment(newRound uint64, lastRoundData *typ
 // report with last round data but without current round commitment, voter is leaving from the committee.
 func (os *OracleServer) reportWithoutCommitment(lastRoundData *types.RoundData) error {
 
-	// report with no commitment
+	// report with no commitment of current round as voter is leaving from the committee.
 	tx, err := os.doReport(common.Hash{}, lastRoundData)
 	if err != nil {
 		os.logger.Error("do report", "error", err.Error())
@@ -479,8 +476,10 @@ func (os *OracleServer) doReport(curRoundCommitmentHash common.Hash, lastRoundDa
 	auth.GasTipCap = new(big.Int).SetUint64(os.gasTipCap)
 	auth.GasLimit = uint64(3000000)
 
-	// if there is no last round data, then we just submit the curRndCommitHash hash of current round.
-	if lastRoundData == nil {
+	// if there is no last round data or there were missing datapoint in last round data, then we just submit the
+	// commitment hash of current round as data might be available at current round. This vote will be reimbursed by the
+	// protocol, however it won't be abused as it is limited by the 1 vote per round rule.
+	if lastRoundData == nil || lastRoundData.MissingData {
 		var reports []contract.IOracleReport
 		return os.oracleContract.Vote(auth, new(big.Int).SetBytes(curRoundCommitmentHash.Bytes()), reports, types.InvalidSalt, config.Version)
 	}
@@ -601,14 +600,24 @@ func (os *OracleServer) assembleReportData(round uint64, symbols []string, price
 		Prices:  prices,
 	}
 
+	var missingData bool
 	var reports []contract.IOracleReport
 	for _, s := range symbols {
 		if pr, ok := prices[s]; ok {
+			// This is an edge case, which means there is no liquidity in the market for this symbol.
+			price := pr.Price.Mul(os.pricePrecision).BigInt()
+			if price.Cmp(types.InvalidPrice) == 0 {
+				os.logger.Info("zero price measured from market", "symbol", s)
+				missingData = true
+			}
 			reports = append(reports, contract.IOracleReport{
-				Price:      pr.Price.Mul(os.pricePrecision).BigInt(),
+				Price:      price,
 				Confidence: pr.Confidence,
 			})
 		} else {
+			// logging the missing of data points for all symbols
+			missingData = true
+			os.logger.Info("round report miss data point for symbol", "symbol", s)
 			reports = append(reports, contract.IOracleReport{
 				Price: types.InvalidPrice,
 			})
@@ -626,6 +635,8 @@ func (os *OracleServer) assembleReportData(round uint64, symbols []string, price
 		os.logger.Error("failed to compute commitment hash", "error", err.Error())
 		return nil, err
 	}
+
+	roundData.MissingData = missingData
 	roundData.Reports = reports
 	roundData.Salt = salt
 	roundData.CommitmentHash = commitmentHash
