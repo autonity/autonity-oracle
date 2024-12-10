@@ -74,7 +74,7 @@
 #    endpoint: "rpc2.piccadilly.autonity.org"      # optional, default value is a rpc public service of an Autonity network.
 #    ntnTokenAddress: ""                           # optional, NTN ERC20 contract address in hex on the target blockchain
 #    atnTokenAddress: ""                           # optional, Wrapped ATN ERC20 contract address in hex on the target blockchain.
-#    usdcTokenAddress: ""                          # optional, USDC ERC20 contract address in hex on the target blockchain.
+#    usdTokenAddress: ""                           # optional, could be USDC/USDX ERC20 contract address in hex on the target blockchain.
 #    swapAddress: ""                               # optional, AirSwap SwapERC20 contract address in hex on the target blockchain.
 
 # - name: crypto_uniswap                           # optional, it is the plugin file name in the plugin directory.
@@ -82,5 +82,5 @@
 #    endpoint: "rpc1.piccadilly.autonity.org"      # optional, default value is a rpc public service of an Autonity network.
 #    ntnTokenAddress: ""                           # optional, NTN ERC20 contract address in hex on the target blockchain
 #    atnTokenAddress: ""                           # optional, Wrapped ATN ERC20 contract address in hex on the target blockchain.
-#    usdcTokenAddress: ""                          # optional, USDC ERC20 contract address in hex on the target blockchain.
+#    usdTokenAddress: ""                           # optional, could be USDC/USDX ERC20 contract address in hex on the target blockchain.
 #    swapAddress: ""                               # optional, UniSwap factory contract address in hex on the target blockchain.
