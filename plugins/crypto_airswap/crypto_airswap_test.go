@@ -55,7 +55,7 @@ func TestAirswapClientWithPiccadilly(t *testing.T) {
 				SignerWallet: common.HexToAddress("0x4a2f43996d1fc03b054d89963f395c6ebff02cad"),
 			},
 			expectErr: false,
-			symbol:    NTNUSDC,
+			symbol:    NTNPairToStableCoin,
 			ratio:     "0.100200400801603206",
 		},
 
@@ -66,7 +66,7 @@ func TestAirswapClientWithPiccadilly(t *testing.T) {
 				SignerWallet: common.HexToAddress("0x4a2f43996d1fc03b054d89963f395c6ebff02cad"),
 			},
 			expectErr: false,
-			symbol:    NTNUSDC,
+			symbol:    NTNPairToStableCoin,
 			ratio:     "0.111093347776012320",
 		},
 	}

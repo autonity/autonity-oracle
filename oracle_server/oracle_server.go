@@ -10,6 +10,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
@@ -39,6 +40,8 @@ const (
 	USDCUSD = "USDC-USD"
 	ATNUSDC = "ATN-USDC"
 	NTNUSDC = "NTN-USDC"
+	ATNUSDX = "ATN-USDX"
+	NTNUSDX = "NTN-USDX"
 )
 
 // OracleServer coordinates the plugin discovery, the data sampling, and do the health checking with L1 connectivity.
@@ -498,31 +501,6 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 		return nil, err
 	}
 
-	// edge case: if NTN-ATN price was not computable from inside plugin,
-	// try to compute it from NTNprice and ATNprice across from different plugins.
-	if _, ok := prices[common2.NTNATNSymbol]; !ok {
-		ntnPrice, ntnExist := prices[NTNUSD]
-		atnPrice, atnExist := prices[ATNUSD]
-		if ntnExist && atnExist {
-			ntnATNPrice, err := common2.ComputeDerivedPrice(ntnPrice.Price.String(), atnPrice.Price.String()) //nolint
-			if err == nil {
-				p, err := decimal.NewFromString(ntnATNPrice.Price) // nolint
-				if err == nil {
-					prices[common2.NTNATNSymbol] = types.Price{
-						Timestamp:  time.Now().Unix(),
-						Price:      p,
-						Symbol:     common2.NTNATNSymbol,
-						Confidence: ntnPrice.Confidence,
-					}
-				} else {
-					os.logger.Error("cannot parse NTN-ATN price in decimal", "error", err.Error())
-				}
-			} else {
-				os.logger.Error("failed to compute NTN-ATN price", "error", err.Error())
-			}
-		}
-	}
-
 	// assemble round data with reports, salt and commitment hash.
 	roundData, err := os.assembleReportData(round, os.protocolSymbols, prices)
 	if err != nil {
@@ -533,8 +511,11 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 	return roundData, nil
 }
 
+// Todo: Jason, refine this function.
 func (os *OracleServer) aggregateProtocolSymbolPrices() (types.PriceBySymbol, error) {
 	prices := make(types.PriceBySymbol)
+
+	// usdc price will be used to compute the price of ATN-USD and NTN-USD from ATN-USDC and NTN-USDC price.
 	usdcPrice, err := os.aggregatePrice(USDCUSD, os.curSampleTS)
 	if err != nil {
 		os.logger.Error("aggregate USDC-USD price", "error", err.Error())
@@ -543,16 +524,51 @@ func (os *OracleServer) aggregateProtocolSymbolPrices() (types.PriceBySymbol, er
 	for _, s := range os.protocolSymbols {
 		// aggregate bridged symbols
 		if s == ATNUSD || s == NTNUSD {
-			if usdcPrice == nil {
+
+			// ATN or NTN price from usdc market
+			pUSDC, e := os.aggTokenPriceFromUsdcMarket(s, os.curSampleTS, usdcPrice)
+			if e != nil {
+				os.logger.Warn("aggregate bridged price", "error", e.Error(), "symbol", s)
+			}
+
+			// ATN or NTN price from usdx market
+			pUSDX, e := os.aggTokenPriceFromUsdxMarket(s, os.curSampleTS)
+			if e != nil {
+				os.logger.Warn("aggregate bridged price", "error", e.Error(), "symbol", s)
+			}
+
+			if pUSDC == nil && pUSDX == nil {
+				os.logger.Error("no available market price for symbol", "symbol", s)
 				continue
 			}
 
-			p, e := os.aggregateBridgedPrice(s, os.curSampleTS, usdcPrice)
-			if e != nil {
-				os.logger.Error("aggregate bridged price", "error", e.Error(), "symbol", s)
+			// merge the two market price if we have two markets prices fetched.
+			if pUSDC != nil && pUSDX != nil {
+				mergedPrice, err := helpers.Median([]decimal.Decimal{pUSDC.Price, pUSDX.Price})
+				if err != nil {
+					os.logger.Error("merge token price from USDC and USDX market failed", "error", err.Error())
+					continue
+				}
+
+				os.logger.Debug("merged price from USDC and USDX market", "price", mergedPrice)
+
+				prices[s] = types.Price{
+					Timestamp:  pUSDX.Timestamp,
+					Symbol:     s,
+					Price:      mergedPrice,
+					Confidence: pUSDX.Confidence,
+				}
 				continue
 			}
-			prices[s] = *p
+
+			// only usdc market price is available.
+			if pUSDC != nil {
+				prices[s] = *pUSDC
+				continue
+			}
+
+			// only usdx market price is available.
+			prices[s] = *pUSDX
 			continue
 		}
 
@@ -566,7 +582,7 @@ func (os *OracleServer) aggregateProtocolSymbolPrices() (types.PriceBySymbol, er
 	}
 
 	// edge case: if NTN-ATN price was not computable from inside plugin,
-	// try to compute it from NTNprice and ATNprice across from different plugins.
+	// try to compute it from NTNPrice and ATNPrice across from different plugins.
 	if _, ok := prices[common2.NTNATNSymbol]; !ok {
 		ntnPrice, ntnExist := prices[NTNUSD]
 		atnPrice, atnExist := prices[ATNUSD]
@@ -576,9 +592,10 @@ func (os *OracleServer) aggregateProtocolSymbolPrices() (types.PriceBySymbol, er
 				p, err := decimal.NewFromString(ntnATNPrice.Price) // nolint
 				if err == nil {
 					prices[common2.NTNATNSymbol] = types.Price{
-						Timestamp: time.Now().Unix(),
-						Price:     p,
-						Symbol:    common2.NTNATNSymbol,
+						Timestamp:  time.Now().Unix(),
+						Price:      p,
+						Symbol:     common2.NTNATNSymbol,
+						Confidence: ntnPrice.Confidence,
 					}
 				} else {
 					os.logger.Error("cannot parse NTN-ATN price in decimal", "error", err.Error())
@@ -648,9 +665,12 @@ func (os *OracleServer) handleNewSymbolsEvent(symbols []string) {
 	os.AddNewSymbols(symbols)
 }
 
-// aggregateBridgedPrice ATN-USD or NTN-USD from bridged ATN-USDC or NTN-USDC with USDC-USD price,
-// it assumes the input usdcPrice is not nil.
-func (os *OracleServer) aggregateBridgedPrice(srcSymbol string, target int64, usdcPrice *types.Price) (*types.Price, error) {
+// aggTokenPriceFromUsdcMarket aggregate price of ATN-USD or NTN-USD from bridged ATN-USDC or NTN-USDC with USDC-USD price,
+func (os *OracleServer) aggTokenPriceFromUsdcMarket(srcSymbol string, target int64, usdcPrice *types.Price) (*types.Price, error) {
+	if usdcPrice == nil {
+		return nil, errors.New("usdc price is nil")
+	}
+
 	var bridgedSymbol string
 	if srcSymbol == ATNUSD {
 		bridgedSymbol = ATNUSDC
@@ -666,11 +686,32 @@ func (os *OracleServer) aggregateBridgedPrice(srcSymbol string, target int64, us
 		return nil, err
 	}
 
-	// reset the symbol with source symbol,
-	// and update price with: ATN-USD=ATN-USDC*USDC-USD / NTN-USD=NTN-USDC*USDC-USD
-	// the confidence of ATN-USD and NTN-USD are inherit from ATN-USDC and NTN-USDC.
+	// reset the symbol with source symbol and update price with exchange ratio of USDC-USD.
 	p.Symbol = srcSymbol
 	p.Price = p.Price.Mul(usdcPrice.Price)
+	return p, nil
+}
+
+// aggTokenPriceFromUsdxMarket aggregate price of ATN-USD or NTN-USD from bridged ATN-USDX or NTN-USDX price.
+func (os *OracleServer) aggTokenPriceFromUsdxMarket(srcSymbol string, target int64) (*types.Price, error) {
+
+	var bridgedSymbol string
+	if srcSymbol == ATNUSD {
+		bridgedSymbol = ATNUSDX
+	}
+
+	if srcSymbol == NTNUSD {
+		bridgedSymbol = NTNUSDX
+	}
+
+	p, err := os.aggregatePrice(bridgedSymbol, target)
+	if err != nil {
+		os.logger.Error("aggregate bridged price", "error", err.Error(), "symbol", bridgedSymbol)
+		return nil, err
+	}
+
+	// reset the symbol with source symbol without price change, as we peg USDX to USD with 1:1.
+	p.Symbol = srcSymbol
 	return p, nil
 }
 

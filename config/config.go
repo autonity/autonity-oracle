@@ -32,11 +32,10 @@ var (
 
 	// DefaultSymbols are native symbols required by the oracle protocol:
 	DefaultSymbols = []string{"AUD-USD", "CAD-USD", "EUR-USD", "GBP-USD", "JPY-USD", "SEK-USD", "ATN-USD", "NTN-USD", "NTN-ATN"}
+
 	// BridgerSymbols are helper symbols to convert the ratio of ATN-USDC & NTN-USDC to the required symbols: ATN-USD, NTN-USD.
 	// They are always attached into the sampled symbols set which is used for data sampling.
-	BridgerSymbols = []string{"ATN-USDC", "NTN-USDC", "USDC-USD"}
-
-	DefaultSampledSymbols = []string{"AUD-USD", "CAD-USD", "EUR-USD", "GBP-USD", "JPY-USD", "SEK-USD", "ATN-USD", "NTN-USD", "NTN-ATN", "ATN-USDC", "NTN-USDC", "USDC-USD"}
+	BridgerSymbols = []string{"ATN-USDC", "NTN-USDC", "USDC-USD", "ATN-USDX", "NTN-USDX"}
 
 	// ForexCurrencies contain forex currencies which is applied with linear or fixed confidence strategy,
 	// while for cryptos, fixed strategy is taken as we have limited AMM sources at the genesis phase.

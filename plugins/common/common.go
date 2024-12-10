@@ -16,19 +16,19 @@ import (
 )
 
 var (
-	Zero                 = big.NewInt(0)
-	DefaultForexSymbols  = []string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"}
-	NTNATNSymbol         = "NTN-ATN"
-	DefaultCryptoSymbols = []string{"ATN-USDC", "NTN-USDC", NTNATNSymbol}
-	DefaultUSDCSymbol    = "USDC-USD"
-	ErrDataNotAvailable  = fmt.Errorf("data is not available")
-	ErrKnownSymbols      = fmt.Errorf("the data source does not have all the data asked by oracle server")
-	ErrAccessLimited     = fmt.Errorf("access rate is limited, please check your subscription from data provider")
+	Zero                = big.NewInt(0)
+	DefaultForexSymbols = []string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"}
+	NTNATNSymbol        = "NTN-ATN"
+	DefaultUSDCSymbol   = "USDC-USD"
+	ErrDataNotAvailable = fmt.Errorf("data is not available")
+	ErrKnownSymbols     = fmt.Errorf("the data source does not have all the data asked by oracle server")
+	ErrAccessLimited    = fmt.Errorf("access rate is limited, please check your subscription from data provider")
 )
 
 const (
 	AutonityCryptoDecimals = 18 // both NTN and the Wrapped ATN take 18 as the decimal.
 	USDCDecimals           = 6  // the decimal of USDC coin in autonity L1 network.
+	USDXDecimals           = 6  // the decimal of USDX coin in autonity L1 network.
 	CryptoToUsdcDecimals   = 18 // the data precision in oracle contract.
 )
 
@@ -258,8 +258,8 @@ func ResolveConf(cmd string, defConf *types.PluginConfig) *types.PluginConfig {
 		conf.ATNTokenAddress = defConf.ATNTokenAddress
 	}
 
-	if len(conf.USDCTokenAddress) == 0 {
-		conf.USDCTokenAddress = defConf.USDCTokenAddress
+	if len(conf.USDTokenAddress) == 0 {
+		conf.USDTokenAddress = defConf.USDTokenAddress
 	}
 
 	if len(conf.SwapAddress) == 0 {

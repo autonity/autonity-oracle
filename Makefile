@@ -80,7 +80,8 @@ e2e-test-stuffs:
 	chmod +x $(E2E_TEST_PRD_PLUGIN_DIR)/binance
 
 	# build amm and dex plugins for e2e test.
-	go build -o $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/crypto_uniswap.go
+	go build -o $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_uniswap_usdc $(PLUGIN_SRC_DIR)/crypto_uniswap/crypto_uniswap.go
+	go build -o $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_uniswap_usdx -tags usdx $(PLUGIN_SRC_DIR)/crypto_uniswap/crypto_uniswap.go
 	go build -o $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_airswap $(PLUGIN_SRC_DIR)/crypto_airswap/crypto_airswap.go
 	chmod +x $(E2E_TEST_CRYPTO_PLUGIN_DIR)/*
 
@@ -129,7 +130,8 @@ dex-plugins:
 
 # amm plugins are not officially release yet.
 amm-plugins:
-	go build -o $(PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/crypto_uniswap.go
+	go build -o $(PLUGIN_DIR)/crypto_uniswap_usdc $(PLUGIN_SRC_DIR)/crypto_uniswap/crypto_uniswap.go
+	go build -o $(PLUGIN_DIR)/crypto_uniswap_usdx -tags usdx $(PLUGIN_SRC_DIR)/crypto_uniswap/crypto_uniswap.go
 	chmod +x $(PLUGIN_DIR)/*
 
 # legacy piccadilly cax plugin, it sources order books from a CEX service built in python.

@@ -23,12 +23,13 @@ import (
 )
 
 var (
-	orderBookCapacity = 64
-	version           = "v0.2.0"
-	ATNUSDC           = "ATN-USDC"
-	NTNUSDC           = "NTN-USDC"
-	supportedSymbols  = common.DefaultCryptoSymbols
-	NTNTokenAddress   = types.AutonityContractAddress // Autonity contract is the protocol contract of NTN token
+	orderBookCapacity     = 64
+	version               = "v0.2.0"
+	ATNPairToStableCoin   = "ATN-USDC"
+	NTNPairToStableCoin   = "NTN-USDC"
+	supportedSymbols      = []string{ATNPairToStableCoin, NTNPairToStableCoin, common.NTNATNSymbol}
+	NTNTokenAddress       = types.AutonityContractAddress // Autonity contract is the protocol contract of NTN token
+	usdStableCoinDecimals = common.USDCDecimals
 )
 
 // Todo: require a config PR to finalize below configuration for the target autonity network.
@@ -39,16 +40,16 @@ var defaultConfig = types.PluginConfig{
 	Timeout:            10,                                // 10s
 	DataUpdateInterval: 30,                                // 30s
 	// todo: update below protocol contract addresses on redeployment of protocols.
-	NTNTokenAddress:  NTNTokenAddress.Hex(),                        // NTN ERC20 token address on the target blockchain.
-	ATNTokenAddress:  "0xcE17e51cE4F0417A1aB31a3c5d6831ff3BbFa1d2", // Wrapped ATN ERC20 contract address on the target blockchain.
-	USDCTokenAddress: "0x3a60C03a86eEAe30501ce1af04a6C04Cf0188700", // USDC ERC20 contract address on the target blockchain.
-	SwapAddress:      "0x28363983213F88C759b501E3a5888458178cD5E7", // AirSwap SwapERC20 contract address on the target blockchain.
+	NTNTokenAddress: NTNTokenAddress.Hex(),                        // NTN ERC20 token address on the target blockchain.
+	ATNTokenAddress: "0xcE17e51cE4F0417A1aB31a3c5d6831ff3BbFa1d2", // Wrapped ATN ERC20 contract address on the target blockchain.
+	USDTokenAddress: "0x3a60C03a86eEAe30501ce1af04a6C04Cf0188700", // The USD stable coins' ERC20 contract address, could be USDC or USDX.
+	SwapAddress:     "0x28363983213F88C759b501E3a5888458178cD5E7", // AirSwap SwapERC20 contract address on the target blockchain.
 }
 
 type Order struct {
 	cryptoToken  ecommon.Address
 	cryptoAmount *big.Int
-	usdcAmount   *big.Int
+	usdAmount    *big.Int
 }
 
 type AirswapClient struct {
@@ -56,9 +57,9 @@ type AirswapClient struct {
 	client *ethclient.Client
 	logger hclog.Logger
 
-	atnAddress  ecommon.Address
-	usdcAddress ecommon.Address
-	ntnAddress  ecommon.Address
+	atnAddress ecommon.Address
+	usdAddress ecommon.Address // the USD stable coins' address. Could be usdc or usdx erc 20 token address.
+	ntnAddress ecommon.Address
 
 	// ERC20 Transfer event parser.
 	erc20LogParser *erc20.Erc20
@@ -108,7 +109,7 @@ func NewAirswapClient(conf *types.PluginConfig, logger hclog.Logger) (*AirswapCl
 		logger:               logger,
 		atnAddress:           ecommon.HexToAddress(conf.ATNTokenAddress),
 		ntnAddress:           NTNTokenAddress,
-		usdcAddress:          ecommon.HexToAddress(conf.USDCTokenAddress),
+		usdAddress:           ecommon.HexToAddress(conf.USDTokenAddress),
 		erc20LogParser:       erc20LogParser,
 		swapContract:         swapContract,
 		doneCh:               make(chan struct{}),
@@ -183,7 +184,7 @@ func (e *AirswapClient) handleSwapEvent(txnHash ecommon.Hash, swapEvent *swaperc
 		return err
 	}
 
-	// then do the computing of price of ATN-USDC or NTN-USDC
+	// then do the computing of price of supported symbols.
 	var orderBook *ring.Ring
 	if order.cryptoToken == e.atnAddress {
 		orderBook = &e.atnOrderBooks
@@ -230,7 +231,7 @@ log5, event: airswapERC20.SwapERC20(nonce, signerWallet);
 // from the log, and finally paired the log2 with log1 events as the exchange. With the signerWallet address is emitted
 // by the SwapErc20(nonce, signerWallet) event, we can get the senderAmount of senderToken received by signerWallet, and
 // the signerAmount of signerToken transfer by the signerWallet to get the exchange. In this plugin, we only care about
-// the NTN token and the USDC token as our targeting liquidity market.
+// the NTN token and the USDC(X) token as our targeting liquidity market.
 func (e *AirswapClient) extractOrder(logs []*types2.Log, targetSwapEvent *swaperc20.Swaperc20SwapERC20) (Order, error) {
 	var order Order
 
@@ -263,7 +264,7 @@ func (e *AirswapClient) extractOrder(logs []*types2.Log, targetSwapEvent *swaper
 
 	// swap event is addressed, find the signerToken.Transfers and the senderToken.Transfer close to it.
 	for i := index - 1; i >= 0; i-- {
-		// just parse the ERC20 transfer events, the events could be ATN, NTN or USDC transfer events.
+		// just parse the ERC20 transfer events, the events could be ATN, NTN or the pegged USD stable coin transfer events.
 		transfer, err := e.erc20LogParser.ParseTransfer(*logs[i])
 		if err != nil {
 			e.logger.Debug("failed to parse log with ERC20 transfer", "error", err)
@@ -271,12 +272,12 @@ func (e *AirswapClient) extractOrder(logs []*types2.Log, targetSwapEvent *swaper
 		}
 
 		eventEmitter := transfer.Raw.Address
-		if eventEmitter != e.usdcAddress && eventEmitter != e.ntnAddress && eventEmitter != e.atnAddress {
-			e.logger.Debug("skip none ATN, NTN & USDC swap event")
-			return order, errors.New("skip none ATN, NTN & USDC swap event")
+		if eventEmitter != e.usdAddress && eventEmitter != e.ntnAddress && eventEmitter != e.atnAddress {
+			e.logger.Debug("skip none ATN, NTN & pegged USD stable coin swap event")
+			return order, errors.New("skip none ATN, NTN & pegged USD stable coin swap event")
 		}
 
-		// now only transfers of ATN, NTN or USDC token can come to here.
+		// now only transfers of ATN, NTN or USDC(X) token can come to here.
 		if transfer.From == targetSwapEvent.SignerWallet {
 			if signerTokenAmount == nil || transfer.Value.Cmp(signerTokenAmount) > 0 {
 				signerTokenAmount = transfer.Value
@@ -292,31 +293,31 @@ func (e *AirswapClient) extractOrder(logs []*types2.Log, targetSwapEvent *swaper
 	}
 
 	if signerTokenAmount == nil || senderTokenAmount == nil {
-		return order, errors.New("skip none ATN, NTN & USDC swap event")
+		return order, errors.New("skip none ATN, NTN & pegged USD stable coin swap event")
 	}
 
-	if (signerTokenAddress == e.usdcAddress && senderTokenAddress == e.atnAddress) ||
-		(signerTokenAddress == e.atnAddress && senderTokenAddress == e.usdcAddress) {
+	if (signerTokenAddress == e.usdAddress && senderTokenAddress == e.atnAddress) ||
+		(signerTokenAddress == e.atnAddress && senderTokenAddress == e.usdAddress) {
 		order.cryptoToken = e.atnAddress
 		if senderTokenAddress == e.atnAddress {
 			order.cryptoAmount = senderTokenAmount
-			order.usdcAmount = signerTokenAmount
+			order.usdAmount = signerTokenAmount
 		} else {
 			order.cryptoAmount = signerTokenAmount
-			order.usdcAmount = senderTokenAmount
+			order.usdAmount = senderTokenAmount
 		}
 		return order, nil
 	}
 
-	if (signerTokenAddress == e.usdcAddress && senderTokenAddress == e.ntnAddress) ||
-		(signerTokenAddress == e.ntnAddress && senderTokenAddress == e.usdcAddress) {
+	if (signerTokenAddress == e.usdAddress && senderTokenAddress == e.ntnAddress) ||
+		(signerTokenAddress == e.ntnAddress && senderTokenAddress == e.usdAddress) {
 		order.cryptoToken = e.ntnAddress
 		if senderTokenAddress == e.ntnAddress {
 			order.cryptoAmount = senderTokenAmount
-			order.usdcAmount = signerTokenAmount
+			order.usdAmount = signerTokenAmount
 		} else {
 			order.cryptoAmount = signerTokenAmount
-			order.usdcAmount = senderTokenAmount
+			order.usdAmount = senderTokenAmount
 		}
 		return order, nil
 	}
@@ -336,11 +337,11 @@ func aggregatePrice(orderBook *ring.Ring, order Order) (*big.Rat, error) {
 	return aggregatedPrice, nil
 }
 
-// volumeWeightedPrice calculates the volume-weighted exchange ratio of ATN or NTN to USDC.
+// volumeWeightedPrice calculates the volume-weighted exchange ratio of ATN or NTN to the pegged USD stable coin.
 func volumeWeightedPrice(orders []interface{}) (*big.Rat, error) {
-	// Initialize total crypto and USDC amounts
+	// Initialize total crypto and the pegged USD stable coin amounts
 	totalCrypto := new(big.Int)
-	totalUSDC := new(big.Int)
+	totalUSDStableCoin := new(big.Int)
 
 	// Iterate through the orders to sum up the amounts
 	for _, orderInterface := range orders {
@@ -351,24 +352,24 @@ func volumeWeightedPrice(orders []interface{}) (*big.Rat, error) {
 		}
 
 		totalCrypto.Add(totalCrypto, order.cryptoAmount)
-		totalUSDC.Add(totalUSDC, order.usdcAmount)
+		totalUSDStableCoin.Add(totalUSDStableCoin, order.usdAmount)
 	}
 
-	// Check if totalUSDC is zero to avoid division by zero
-	if totalUSDC.Cmp(common.Zero) == 0 {
-		return nil, fmt.Errorf("total USDC amount is zero, cannot compute ratio")
+	// Check if totalUSDStableCoin is zero to avoid division by zero
+	if totalUSDStableCoin.Cmp(common.Zero) == 0 {
+		return nil, fmt.Errorf("total USDC(X) amount is zero, cannot compute ratio")
 	}
 
 	// Scale the totals according to their decimals
 	scaledTotalCrypto := new(big.Int).Div(totalCrypto, big.NewInt(int64(math.Pow(10, float64(common.AutonityCryptoDecimals)))))
-	scaledTotalUSDC := new(big.Int).Div(totalUSDC, big.NewInt(int64(math.Pow(10, float64(common.USDCDecimals)))))
+	scaledTotalUSD := new(big.Int).Div(totalUSDStableCoin, big.NewInt(int64(math.Pow(10, float64(usdStableCoinDecimals)))))
 
 	// Calculate the weighted ratio as a fraction
-	if scaledTotalUSDC.Cmp(common.Zero) == 0 {
+	if scaledTotalUSD.Cmp(common.Zero) == 0 {
 		return nil, fmt.Errorf("scaled total USDC amount is zero, cannot compute ratio")
 	}
 
-	weightedRatio := new(big.Rat).SetFrac(scaledTotalCrypto, scaledTotalUSDC)
+	weightedRatio := new(big.Rat).SetFrac(scaledTotalCrypto, scaledTotalUSD)
 	return weightedRatio, nil
 }
 
@@ -376,9 +377,9 @@ func (e *AirswapClient) updatePrice(tokenAddress ecommon.Address, price string) 
 	e.priceMutex.Lock()
 	defer e.priceMutex.Unlock()
 
-	symbol := ATNUSDC
+	symbol := ATNPairToStableCoin
 	if tokenAddress == e.ntnAddress {
-		symbol = NTNUSDC
+		symbol = NTNPairToStableCoin
 	}
 
 	e.lastAggregatedPrices[tokenAddress] = common.Price{
@@ -428,7 +429,7 @@ func (e *AirswapClient) FetchPrice(_ []string) (common.Prices, error) {
 		return prices, errors.New("dex-pluign hasn't receive any realtime swap event yet")
 	}
 
-	// both ATN-USDC and NTN-USDC price are collected, compute NTN-ATN price.
+	// both ATN-USDC(X) and NTN-USDC(X) price are collected, compute NTN-ATN price.
 	if len(prices) == 2 {
 		atnPrice := e.lastAggregatedPrices[e.atnAddress]
 		ntnPrice := e.lastAggregatedPrices[e.ntnAddress]
@@ -467,7 +468,7 @@ func main() {
 		return
 	}
 
-	// start the SwapERC20 event watching for price aggregation of NTN-USDC & ATN-USDC
+	// start the SwapERC20 event watching for price aggregation of supported symbols.
 	go client.StartWatcher()
 
 	adapter := common.NewPlugin(conf, client, version)

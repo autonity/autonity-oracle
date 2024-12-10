@@ -82,6 +82,8 @@ func (bi *SIMClient) FetchPrice(symbols []string) (common.Prices, error) {
 	return prices, nil
 }
 
+// AvailableSymbols get available symbols from simulator service.
+// It could return: ATN-USDC, NTN-USDC, NTN-ATN, ATN-USDX, NTN-USDX.
 func (bi *SIMClient) AvailableSymbols() ([]string, error) {
 	var res []string
 	prices, err := bi.FetchPrice(nil)

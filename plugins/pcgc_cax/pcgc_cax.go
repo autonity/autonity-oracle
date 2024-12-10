@@ -176,7 +176,7 @@ func (cc *CAXClient) buildURL(symbol string) *url.URL {
 }
 
 func (cc *CAXClient) AvailableSymbols() ([]string, error) {
-	return common.DefaultCryptoSymbols, nil
+	return []string{ATNUSDC, NTNUSDC, NTNATN}, nil
 }
 
 func (cc *CAXClient) Close() {

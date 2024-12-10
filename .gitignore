@@ -1,2 +1,5 @@
 # Mac meta data
 .DS_Store
+.idea
+build
+coverage.out

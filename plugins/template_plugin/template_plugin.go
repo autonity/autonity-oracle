@@ -255,7 +255,7 @@ func (tc *TemplateClient) AvailableSymbols() ([]string, error) {
 		}*/
 	// Put all the supported symbols here, as this template plugin is used by simulations and e2e testing,
 	// we add some symbols required for the test as well.
-	res := append(common.DefaultForexSymbols, common.DefaultCryptoSymbols...)
+	res := append(common.DefaultForexSymbols, []string{"ATN-USDC", "NTN-USDC", "NTN-ATN", "ATN-USDX", "NTN-USDX"}...)
 	res = append(res, common.DefaultUSDCSymbol)
 	res = append(res, types.SymbolBTCETH)
 

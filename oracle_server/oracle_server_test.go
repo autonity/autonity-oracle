@@ -22,6 +22,8 @@ import (
 	"time"
 )
 
+var DefaultSampledSymbols = []string{"AUD-USD", "CAD-USD", "EUR-USD", "GBP-USD", "JPY-USD", "SEK-USD", "ATN-USD", "NTN-USD", "NTN-ATN", "ATN-USDC", "NTN-USDC", "USDC-USD", "ATN-USDX", "NTN-USDX"}
+
 func TestOracleDecimals(t *testing.T) {
 	decimals := uint8(18)
 	precision := decimal.NewFromBigInt(common.Big1, int32(decimals))
@@ -57,7 +59,7 @@ func TestOracleServer(t *testing.T) {
 
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
-		require.Equal(t, config.DefaultSampledSymbols, srv.samplingSymbols)
+		require.Equal(t, DefaultSampledSymbols, srv.samplingSymbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromBigInt(common.Big1, int32(precision))))
 
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
@@ -201,7 +203,7 @@ func TestOracleServer(t *testing.T) {
 
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
-		require.Equal(t, config.DefaultSampledSymbols, srv.samplingSymbols)
+		require.Equal(t, DefaultSampledSymbols, srv.samplingSymbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromBigInt(common.Big1, int32(precision))))
 
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
@@ -229,7 +231,7 @@ func TestOracleServer(t *testing.T) {
 
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
-		require.Equal(t, config.DefaultSampledSymbols, srv.samplingSymbols)
+		require.Equal(t, DefaultSampledSymbols, srv.samplingSymbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromBigInt(common.Big1, int32(precision))))
 
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
@@ -269,7 +271,7 @@ func TestOracleServer(t *testing.T) {
 
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
-		require.Equal(t, config.DefaultSampledSymbols, srv.samplingSymbols)
+		require.Equal(t, DefaultSampledSymbols, srv.samplingSymbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromBigInt(common.Big1, int32(precision))))
 
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)

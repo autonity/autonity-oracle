@@ -211,7 +211,7 @@ func (tc *OutlierClient) FetchPrice(symbols []string) (common.Prices, error) {
 
 // AvailableSymbols is the function to resolve the available symbols from your data vendor.
 func (tc *OutlierClient) AvailableSymbols() ([]string, error) {
-	res := append(common.DefaultForexSymbols, common.DefaultCryptoSymbols...)
+	res := append(common.DefaultForexSymbols, []string{"ATN-USDC", "NTN-USDC", "NTN-ATN", "ATN-USDX", "NTN-USDX"}...)
 	res = append(res, common.DefaultUSDCSymbol)
 	res = append(res, types.SymbolBTCETH)
 	res = append(res, []string{"ATN-USD", "NTN-USD"}...)

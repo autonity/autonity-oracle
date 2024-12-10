@@ -15,25 +15,26 @@ import (
 )
 
 var (
-	version          = "v0.2.0"
-	ATNUSDC          = "ATN-USDC"
-	NTNUSDC          = "NTN-USDC"
-	supportedSymbols = common.DefaultCryptoSymbols
-	NTNTokenAddress  = types.AutonityContractAddress // Autonity protocol contract is the NTN token contract.
+	version               = "v0.2.0"
+	ATNPairToStableCoin   = "ATN-USDC"
+	NTNPairToStableCoin   = "NTN-USDC"
+	supportedSymbols      = []string{ATNPairToStableCoin, NTNPairToStableCoin, common.NTNATNSymbol}
+	NTNTokenAddress       = types.AutonityContractAddress // Autonity protocol contract is the NTN token contract.
+	usdStableCoinDecimals = common.USDCDecimals
 )
 
 // Todo: require a config PR to finalize below configuration for the target autonity network.
 var defaultConfig = types.PluginConfig{
-	Name:               "crypto_uniswap",
+	Name:               "crypto_uniswap_usdc",             // The default built binary is named for ATN-USDC, NTN-USDC market plugin.
 	Scheme:             "wss",                             // both http/s ws/s works for this plugin, todo: update this on redeployment of infra
 	Endpoint:           "rpc1.piccadilly.autonity.org/ws", // todo: update this on redeployment of infra
 	Timeout:            10,                                // 10s
 	DataUpdateInterval: 30,                                // 30s
 	// todo: update below protocol contract addresses on redeployment of protocols.
-	NTNTokenAddress:  NTNTokenAddress.Hex(),                        // NTN ERC20 token address on the target blockchain.
-	ATNTokenAddress:  "0xcE17e51cE4F0417A1aB31a3c5d6831ff3BbFa1d2", // Wrapped ATN ERC20 contract address on the target blockchain.
-	USDCTokenAddress: "0x3a60C03a86eEAe30501ce1af04a6C04Cf0188700", // USDC ERC20 contract address on the target blockchain.
-	SwapAddress:      "0x218F76e357594C82Cc29A88B90dd67b180827c88", // UniSwap SwapERC20 contract address on the target blockchain.
+	NTNTokenAddress: NTNTokenAddress.Hex(),                        // NTN ERC20 token address on the target blockchain.
+	ATNTokenAddress: "0xcE17e51cE4F0417A1aB31a3c5d6831ff3BbFa1d2", // Wrapped ATN ERC20 contract address on the target blockchain.
+	USDTokenAddress: "0x3a60C03a86eEAe30501ce1af04a6C04Cf0188700", // USDC ERC20 contract address on the target blockchain.
+	SwapAddress:     "0x218F76e357594C82Cc29A88B90dd67b180827c88", // UniSwap factory contract address on the target blockchain.
 }
 
 type WrappedPair struct {
@@ -43,11 +44,11 @@ type WrappedPair struct {
 }
 
 type UniswapClient struct {
-	conf                *types.PluginConfig
-	client              *ethclient.Client
-	logger              hclog.Logger
-	atnUSDCPairContract *WrappedPair
-	ntnUSDCPairContract *WrappedPair
+	conf               *types.PluginConfig
+	client             *ethclient.Client
+	logger             hclog.Logger
+	atnUSDPairContract *WrappedPair
+	ntnUSDPairContract *WrappedPair
 }
 
 func NewUniswapClient(conf *types.PluginConfig, logger hclog.Logger) (*UniswapClient, error) {
@@ -66,20 +67,20 @@ func NewUniswapClient(conf *types.PluginConfig, logger hclog.Logger) (*UniswapCl
 	}
 
 	atnTokenAddress := ecommon.HexToAddress(conf.ATNTokenAddress)
-	usdcTokenAddress := ecommon.HexToAddress(conf.USDCTokenAddress)
-	atnUSDCPairContract, err := bindWithPairContract(factoryContract, client, atnTokenAddress, usdcTokenAddress, logger)
+	usdTokenAddress := ecommon.HexToAddress(conf.USDTokenAddress)
+	atnUSDPairContract, err := bindWithPairContract(factoryContract, client, atnTokenAddress, usdTokenAddress, logger)
 	if err != nil {
-		logger.Error("bind with ATN USDC pair contract failed", "error", err)
+		logger.Error("bind with ATN and its pegged USD stable coin pair contract failed", "error", err)
 		return nil, err
 	}
 
-	ntnUSDCPairContract, err := bindWithPairContract(factoryContract, client, NTNTokenAddress, usdcTokenAddress, logger)
+	ntnUSDPairContract, err := bindWithPairContract(factoryContract, client, NTNTokenAddress, usdTokenAddress, logger)
 	if err != nil {
-		logger.Error("bind with NTN USDC pair contract failed", "error", err)
+		logger.Error("bind with NTN and its pegged USD stable coin pair contract failed", "error", err)
 		return nil, err
 	}
 
-	return &UniswapClient{conf: conf, client: client, logger: logger, atnUSDCPairContract: atnUSDCPairContract, ntnUSDCPairContract: ntnUSDCPairContract}, nil
+	return &UniswapClient{conf: conf, client: client, logger: logger, atnUSDPairContract: atnUSDPairContract, ntnUSDPairContract: ntnUSDPairContract}, nil
 }
 
 func bindWithPairContract(factoryContract *factory.Factory, client *ethclient.Client, tokenAddress1, tokenAddress2 ecommon.Address, logger hclog.Logger) (*WrappedPair, error) {
@@ -126,22 +127,22 @@ func (e *UniswapClient) KeyRequired() bool {
 func (e *UniswapClient) FetchPrice(_ []string) (common.Prices, error) {
 	var prices common.Prices
 
-	atnUSDCPrice, err := e.fetchPrice(e.atnUSDCPairContract, ATNUSDC)
+	atnUSDPrice, err := e.fetchPrice(e.atnUSDPairContract, ATNPairToStableCoin)
 	if err == nil {
-		prices = append(prices, atnUSDCPrice)
+		prices = append(prices, atnUSDPrice)
 	} else {
-		e.logger.Error("failed to fetch ATN-USDC price", "error", err)
+		e.logger.Error("failed to fetch ATN-USDC(X) price", "error", err)
 	}
 
-	ntnUSDCPrice, err := e.fetchPrice(e.ntnUSDCPairContract, NTNUSDC)
+	ntnUSDPrice, err := e.fetchPrice(e.ntnUSDPairContract, NTNPairToStableCoin)
 	if err == nil {
-		prices = append(prices, ntnUSDCPrice)
+		prices = append(prices, ntnUSDPrice)
 	} else {
-		e.logger.Error("failed to fetch NTN-USDC price", "error", err)
+		e.logger.Error("failed to fetch NTN to its pegged USD stable coin price", "error", err)
 	}
 
 	if len(prices) == 2 {
-		ntnATNPrice, err := common.ComputeDerivedPrice(ntnUSDCPrice.Price, atnUSDCPrice.Price)
+		ntnATNPrice, err := common.ComputeDerivedPrice(ntnUSDPrice.Price, atnUSDPrice.Price)
 		if err != nil {
 			e.logger.Error("failed to compute NTN-ATN price", "error", err)
 			return prices, nil
@@ -166,21 +167,21 @@ func (e *UniswapClient) fetchPrice(pair *WrappedPair, symbol string) (common.Pri
 	}
 
 	var cryptoReserve *big.Int
-	var usdcReserve *big.Int
+	var usdReserve *big.Int
 
 	if pair.token0 == ecommon.HexToAddress(e.conf.ATNTokenAddress) || pair.token0 == NTNTokenAddress {
-		// ATN or NTN is token0, compute ATN-USDC or NTN-USDC ratio with reserves0 and reserves1.
+		// ATN or NTN is token0, compute ATN-USDC(X) or NTN-USDC(X) ratio with reserves0 and reserves1.
 		cryptoReserve = reserves.Reserve0
-		usdcReserve = reserves.Reserve1
+		usdReserve = reserves.Reserve1
 	} else {
-		// ATN or NTN is token1, compute ATN-USDC or NTN-USDC ratio with reserves0 and reserves1.
+		// ATN or NTN is token1, compute ATN-USDC(X) or NTN-USDC(X) ratio with reserves0 and reserves1.
 		cryptoReserve = reserves.Reserve1
-		usdcReserve = reserves.Reserve0
+		usdReserve = reserves.Reserve0
 	}
 
-	p, err := ComputeExchangeRatio(cryptoReserve, usdcReserve)
+	p, err := ComputeExchangeRatio(cryptoReserve, usdReserve)
 	if err != nil {
-		e.logger.Error("cannot compute exchange ratio of ATN-USDC", "error", err)
+		e.logger.Error("cannot compute exchange ratio of ATN to the pegged USD stable coin", "error", err)
 		return price, err
 	}
 
@@ -199,19 +200,19 @@ func (e *UniswapClient) Close() {
 	}
 }
 
-// ComputeExchangeRatio calculates the exchange ratio from ATN or NTN to USDC
-func ComputeExchangeRatio(cryptoReserve, usdcReserve *big.Int) (string, error) {
-	if usdcReserve.Cmp(common.Zero) == 0 {
-		return "", fmt.Errorf("usdcReserve is zero, cannot compute exchange ratio")
+// ComputeExchangeRatio calculates the exchange ratio from ATN or NTN to the pegged USD stable coin.
+func ComputeExchangeRatio(cryptoReserve, usdReserve *big.Int) (string, error) {
+	if usdReserve.Cmp(common.Zero) == 0 {
+		return "", fmt.Errorf("usdReserve is zero, cannot compute exchange ratio")
 	}
 
-	// ratio == (cryptoReserve/cryptoDecimals) / (usdcReserve/usdcDecimals)
-	//       == (cryptoReserve*usdcDecimals) / (usdcReserve*cryptoDecimals)
-	scaledCryptoReserve := new(big.Int).Mul(cryptoReserve, big.NewInt(int64(math.Pow(10, float64(common.USDCDecimals)))))
-	scaledUsdcReserve := new(big.Int).Mul(usdcReserve, big.NewInt(int64(math.Pow(10, float64(common.AutonityCryptoDecimals)))))
+	// ratio == (cryptoReserve/cryptoDecimals) / (usdReserve/usdDecimals)
+	//       == (cryptoReserve*usdDecimals) / (usdReserve*cryptoDecimals)
+	scaledCryptoReserve := new(big.Int).Mul(cryptoReserve, big.NewInt(int64(math.Pow(10, float64(usdStableCoinDecimals)))))
+	scaledUsdReserve := new(big.Int).Mul(usdReserve, big.NewInt(int64(math.Pow(10, float64(common.AutonityCryptoDecimals)))))
 
 	// Calculate the exchange ratio as a big.Rat
-	ratio := new(big.Rat).SetFrac(scaledCryptoReserve, scaledUsdcReserve)
+	ratio := new(big.Rat).SetFrac(scaledCryptoReserve, scaledUsdReserve)
 
 	// Return the string representation of the ratio
 	return ratio.FloatString(common.CryptoToUsdcDecimals), nil

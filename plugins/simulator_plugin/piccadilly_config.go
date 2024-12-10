@@ -3,6 +3,6 @@
 package main
 
 func init() {
-	// set to piccadilly's feed service, to be enabled by build flag: pic
+	// overwrite the default feed with the piccadilly's feed service, to be enabled by build flag: pic
 	defaultEndpoint = "simfeed.piccadilly.autonity.org"
 }
