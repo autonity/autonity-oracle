@@ -31,18 +31,17 @@ var (
 	NTNTokenAddress   = types.AutonityContractAddress // Autonity contract is the protocol contract of NTN token
 )
 
-// Todo: require a config PR to finalize below configuration for the target autonity network.
+// todo: airswap DEX plugin is not going to be released for the coming release.
 var defaultConfig = types.PluginConfig{
 	Name:               "crypto_airswap",
-	Scheme:             "wss",                             // todo: update this on redeployment of infra
-	Endpoint:           "rpc1.piccadilly.autonity.org/ws", // todo: update this on redeployment of infra
-	Timeout:            10,                                // 10s
-	DataUpdateInterval: 30,                                // 30s
-	// todo: update below protocol contract addresses on redeployment of protocols.
-	NTNTokenAddress:  NTNTokenAddress.Hex(),                        // NTN ERC20 token address on the target blockchain.
-	ATNTokenAddress:  "0xcE17e51cE4F0417A1aB31a3c5d6831ff3BbFa1d2", // Wrapped ATN ERC20 contract address on the target blockchain.
-	USDCTokenAddress: "0x3a60C03a86eEAe30501ce1af04a6C04Cf0188700", // USDC ERC20 contract address on the target blockchain.
-	SwapAddress:      "0x28363983213F88C759b501E3a5888458178cD5E7", // AirSwap SwapERC20 contract address on the target blockchain.
+	Scheme:             "wss",
+	Endpoint:           "rpc1.piccadilly.autonity.org/ws",
+	Timeout:            10,                                           // 10s
+	DataUpdateInterval: 30,                                           // 30s
+	NTNTokenAddress:    NTNTokenAddress.Hex(),                        // Same as 0xBd770416a3345F91E4B34576cb804a576fa48EB1, Autonity contract address.
+	ATNTokenAddress:    "0xcE17e51cE4F0417A1aB31a3c5d6831ff3BbFa1d2", // Wrapped ATN ERC20 contract address on the target blockchain.
+	USDCTokenAddress:   "0xB855D5e83363A4494e09f0Bb3152A70d3f161940", // USDCx ERC20 contract address on the target blockchain.
+	SwapAddress:        "0x28363983213F88C759b501E3a5888458178cD5E7", // todo: config this once AirSwap SwapERC20 contract created.
 }
 
 type Order struct {

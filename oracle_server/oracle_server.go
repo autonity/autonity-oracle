@@ -498,31 +498,6 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 		return nil, err
 	}
 
-	// edge case: if NTN-ATN price was not computable from inside plugin,
-	// try to compute it from NTNprice and ATNprice across from different plugins.
-	if _, ok := prices[common2.NTNATNSymbol]; !ok {
-		ntnPrice, ntnExist := prices[NTNUSD]
-		atnPrice, atnExist := prices[ATNUSD]
-		if ntnExist && atnExist {
-			ntnATNPrice, err := common2.ComputeDerivedPrice(ntnPrice.Price.String(), atnPrice.Price.String()) //nolint
-			if err == nil {
-				p, err := decimal.NewFromString(ntnATNPrice.Price) // nolint
-				if err == nil {
-					prices[common2.NTNATNSymbol] = types.Price{
-						Timestamp:  time.Now().Unix(),
-						Price:      p,
-						Symbol:     common2.NTNATNSymbol,
-						Confidence: ntnPrice.Confidence,
-					}
-				} else {
-					os.logger.Error("cannot parse NTN-ATN price in decimal", "error", err.Error())
-				}
-			} else {
-				os.logger.Error("failed to compute NTN-ATN price", "error", err.Error())
-			}
-		}
-	}
-
 	// assemble round data with reports, salt and commitment hash.
 	roundData, err := os.assembleReportData(round, os.protocolSymbols, prices)
 	if err != nil {
@@ -576,9 +551,10 @@ func (os *OracleServer) aggregateProtocolSymbolPrices() (types.PriceBySymbol, er
 				p, err := decimal.NewFromString(ntnATNPrice.Price) // nolint
 				if err == nil {
 					prices[common2.NTNATNSymbol] = types.Price{
-						Timestamp: time.Now().Unix(),
-						Price:     p,
-						Symbol:    common2.NTNATNSymbol,
+						Timestamp:  time.Now().Unix(),
+						Price:      p,
+						Symbol:     common2.NTNATNSymbol,
+						Confidence: ntnPrice.Confidence,
 					}
 				} else {
 					os.logger.Error("cannot parse NTN-ATN price in decimal", "error", err.Error())
