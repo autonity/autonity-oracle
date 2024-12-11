@@ -67,5 +67,5 @@
 
 # Un-comment below lines to config the RPC endpoint of a Piccadilly Network Full Node for your AMM plugin which sources ATN & NTN market data from an on-chain AMM.
 # - name: crypto_uniswap
-#    scheme: "wss"                                          # optional, available values are: "http", "https", "ws" or "wss", default value is "wss".
+#    scheme: "wss"                                          # Available values are: "http", "https", "ws" or "wss", default value is "wss".
 #    endpoint: "rpc-internal-1.piccadilly.autonity.org/ws"  # The default URL might not be stable for public usage, we recommend you to change it with your validator node's RPC endpoint.
