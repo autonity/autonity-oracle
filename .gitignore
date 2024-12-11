@@ -1,2 +1,13 @@
 # Mac meta data
 .DS_Store
+.idea
+build
+coverage.out
+data_source_simulator/build
+e2e_test/*.csv
+e2e_test/autonity_l1_config
+e2e_test/plugins
+e2e_test/profiles
+e2e_test/simulator
+e2e_test/autonity.bak
+e2e_test/autoracle
