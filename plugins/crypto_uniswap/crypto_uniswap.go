@@ -27,7 +27,7 @@ var defaultConfig = types.PluginConfig{
 	Scheme:             "wss",                                        // both http/s ws/s works for this plugin
 	Endpoint:           "rpc-internal-1.piccadilly.autonity.org/ws",  // default websocket endpoint for piccadilly network.
 	Timeout:            10,                                           // 10s
-	DataUpdateInterval: 30,                                           // 30s
+	DataUpdateInterval: 1,                                            // 1s, shorten the default data point refresh interval for AMM market data, as they can move very fast.
 	NTNTokenAddress:    NTNTokenAddress.Hex(),                        // Same as 0xBd770416a3345F91E4B34576cb804a576fa48EB1, Autonity contract address.
 	ATNTokenAddress:    "0xcE17e51cE4F0417A1aB31a3c5d6831ff3BbFa1d2", // Wrapped ATN ERC20 contract address on the target blockchain.
 	USDCTokenAddress:   "0xB855D5e83363A4494e09f0Bb3152A70d3f161940", // USDCx ERC20 contract address on the target blockchain.
