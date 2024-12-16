@@ -14,9 +14,11 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
+	"io/fs"
 	"io/ioutil" //nolint
 	"math/big"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -26,6 +28,46 @@ func TestOracleDecimals(t *testing.T) {
 	decimals := uint8(18)
 	precision := decimal.NewFromBigInt(common.Big1, int32(decimals))
 	require.Equal(t, "1000000000000000000", precision.String())
+}
+
+// TestServerState tests the flush and loadState methods of ServerState.
+func TestServerState(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir := t.TempDir()
+	fileName := filepath.Join(tempDir, serverStateDumpFile)
+
+	// Create a ServerState instance
+	originalState := &ServerState{
+		LastPenalizedAtBlock: 12345,
+	}
+
+	// Test flush method
+	err := originalState.flush(tempDir)
+	if err != nil {
+		t.Fatalf("failed to flush state: %v", err)
+	}
+
+	// Check if the file was created
+	if _, err := os.Stat(fileName); os.IsNotExist(err) {
+		t.Fatalf("expected file %s to be created, but it does not exist", fileName)
+	}
+
+	// Create a new ServerState instance to load data into
+	loadedState := &ServerState{}
+
+	// Test loadState method
+	err = loadedState.loadState(tempDir)
+	if err != nil {
+		t.Fatalf("failed to load state: %v", err)
+	}
+
+	// Verify that the loaded state matches the original state
+	if originalState.LastPenalizedAtBlock != loadedState.LastPenalizedAtBlock {
+		t.Errorf("expected LastPenalizedAtBlock to be %d, got %d", originalState.LastPenalizedAtBlock, loadedState.LastPenalizedAtBlock)
+	}
+	if originalState.UpdateAt != loadedState.UpdateAt {
+		t.Errorf("expected UpdateAt to be %s, got %s", originalState.UpdateAt, loadedState.UpdateAt)
+	}
 }
 
 func TestOracleServer(t *testing.T) {
@@ -178,7 +220,7 @@ func TestOracleServer(t *testing.T) {
 		require.Equal(t, srv.curRound, srv.roundData[srv.curRound].RoundID)
 		require.Equal(t, tx.Hash(), srv.roundData[srv.curRound].Tx.Hash())
 		require.Equal(t, config.DefaultSymbols, srv.roundData[srv.curRound].Symbols)
-		hash, err := srv.commitmentHashComputer.CommitmentHash(srv.roundData[srv.curRound].Reports, srv.roundData[srv.curRound].Salt, srv.key.Address)
+		hash, err := srv.commitmentHashComputer.CommitmentHash(srv.roundData[srv.curRound].Reports, srv.roundData[srv.curRound].Salt, srv.conf.Key.Address)
 		require.NoError(t, err)
 		require.Equal(t, hash, srv.roundData[srv.curRound].CommitmentHash)
 
@@ -213,7 +255,7 @@ func TestOracleServer(t *testing.T) {
 		srv.pluginSet["template_plugin"].Close()
 	})
 
-	t.Run("test plugin runtime discovery, add new plugin", func(t *testing.T) {
+	t.Run("test plugin runtime management, add new plugin", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -236,7 +278,7 @@ func TestOracleServer(t *testing.T) {
 		require.Equal(t, 1, len(srv.pluginSet))
 
 		// add a new plugin into the plugin directory.
-		clones, err := clonePlugins(srv.pluginDIR, "cloned", srv.pluginDIR)
+		clones, err := clonePlugins(srv.conf.PluginDIR, "cloned", srv.conf.PluginDIR)
 		require.NoError(t, err)
 		defer func() {
 			for _, f := range clones {
@@ -245,7 +287,7 @@ func TestOracleServer(t *testing.T) {
 			}
 		}()
 
-		srv.PluginRuntimeDiscovery()
+		srv.PluginRuntimeManagement()
 		require.Equal(t, 2, len(srv.pluginSet))
 		require.Equal(t, "template_plugin", srv.pluginSet["template_plugin"].Name())
 		require.Equal(t, "clonedtemplate_plugin", srv.pluginSet["clonedtemplate_plugin"].Name())
@@ -253,7 +295,7 @@ func TestOracleServer(t *testing.T) {
 		srv.pluginSet["clonedtemplate_plugin"].Close()
 	})
 
-	t.Run("test plugin runtime discovery, upgrade plugin", func(t *testing.T) {
+	t.Run("test plugin runtime management, upgrade plugin", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -277,15 +319,76 @@ func TestOracleServer(t *testing.T) {
 		firstStart := srv.pluginSet["template_plugin"].StartTime()
 
 		// cpy and replace the legacy plugins
-		err := replacePlugins(srv.pluginDIR)
+		err := replacePlugins(srv.conf.PluginDIR)
 		require.NoError(t, err)
 
-		srv.PluginRuntimeDiscovery()
+		srv.PluginRuntimeManagement()
 
 		require.Equal(t, 1, len(srv.pluginSet))
 		require.Equal(t, "template_plugin", srv.pluginSet["template_plugin"].Name())
 		require.Greater(t, srv.pluginSet["template_plugin"].StartTime(), firstStart)
 		srv.pluginSet["template_plugin"].Close()
+	})
+
+	t.Run("test plugin runtime management, remove plugin", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		dialerMock := mock.NewMockDialer(ctrl)
+		contractMock := cMock.NewMockContractAPI(ctrl)
+		contractMock.EXPECT().GetRound(nil).Return(currentRound, nil)
+		contractMock.EXPECT().GetSymbols(nil).Return(config.DefaultSymbols, nil)
+		contractMock.EXPECT().GetVotePeriod(nil).Return(votePeriod, nil)
+		contractMock.EXPECT().WatchNewRound(gomock.Any(), gomock.Any()).Return(subRoundEvent, nil)
+		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
+		contractMock.EXPECT().WatchPenalized(gomock.Any(), gomock.Any(), gomock.Any()).Return(subPenalizeEvent, nil)
+		l1Mock := mock.NewMockBlockchain(ctrl)
+
+		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
+		require.Equal(t, currentRound.Uint64(), srv.curRound)
+		require.Equal(t, config.DefaultSampledSymbols, srv.samplingSymbols)
+		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromBigInt(common.Big1, int32(precision))))
+
+		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
+		require.Equal(t, 1, len(srv.pluginSet))
+
+		// Backup the existing plugins
+		backupDir := "/tmp/plugin_backup" // Temporary directory for backup
+		os.MkdirAll(backupDir, 0755)      // Create backup directory if it doesn't exist
+
+		// Copy existing plugins to the backup directory
+		files, err := ioutil.ReadDir(srv.conf.PluginDIR)
+		require.NoError(t, err)
+		for _, file := range files {
+			if !file.IsDir() && IsExecOwnerGroup(file.Mode()) {
+				src := filepath.Join(srv.conf.PluginDIR, file.Name())
+				dst := filepath.Join(backupDir, file.Name())
+				err := os.Link(src, dst) // Use os.Link for hard link; use os.Copy for actual copy if needed
+				require.NoError(t, err)
+			}
+		}
+
+		// Defer the recovery action to restore the removed plugins
+		defer func() {
+			// Restore the plugins from the backup directory
+			files, err := ioutil.ReadDir(backupDir)
+			require.NoError(t, err)
+			for _, file := range files {
+				src := filepath.Join(backupDir, file.Name())
+				dst := filepath.Join(srv.conf.PluginDIR, file.Name())
+				err := os.Link(src, dst) // Use os.Link for hard link; use os.Copy for actual copy if needed
+				require.NoError(t, err)
+			}
+			os.RemoveAll(backupDir) // Clean up the backup directory
+		}()
+
+		// Remove the plugins
+		err = removePlugins(srv.conf.PluginDIR)
+		require.NoError(t, err)
+
+		srv.PluginRuntimeManagement()
+
+		require.Equal(t, 0, len(srv.pluginSet))
 	})
 
 	t.Run("gcRounddata", func(t *testing.T) {
@@ -357,5 +460,39 @@ func replacePlugins(pluginDir string) error {
 		}
 	}
 
+	return nil
+}
+
+// IsExecOwnerGroup is a placeholder for your actual implementation
+func IsExecOwnerGroup(mode fs.FileMode) bool {
+	// Implement your logic to check if the file is executable by owner and group
+	return mode&0111 != 0 // Example: checks if the file is executable
+}
+
+// removePlugins removes all executable plugin binaries from the specified plugin directory.
+func removePlugins(pluginDir string) error {
+	// Read the directory
+	files, err := ioutil.ReadDir(pluginDir)
+	if err != nil {
+		return err
+	}
+
+	// Iterate over the files
+	for _, file := range files {
+		// Skip directories
+		if file.IsDir() {
+			continue
+		}
+
+		// Check if the file is an executable
+		if IsExecOwnerGroup(file.Mode()) {
+			// Construct the full file path
+			filePath := pluginDir + "/" + file.Name()
+			// Remove the file
+			if err := os.Remove(filePath); err != nil {
+				return err // Return error if unable to remove the file
+			}
+		}
+	}
 	return nil
 }

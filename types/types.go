@@ -24,6 +24,7 @@ var (
 	EnvGasTipCap            = "GAS_TIP_CAP"
 	EnvLogLevel             = "LOG_LEVEL"
 	EnvConfidenceStrategy   = "CONFIDENCE_STRATEGY"
+	EnvVoteBuffer           = "VOTE_BUFFER"
 	SimulatedPrice          = decimal.RequireFromString("11.11")
 	InvalidPrice            = big.NewInt(0)
 	InvalidSalt             = big.NewInt(0)
@@ -70,6 +71,7 @@ type RoundData struct {
 type OracleServiceConfig struct {
 	LoggingLevel       hclog.Level
 	GasTipCap          uint64
+	VoteBuffer         uint64
 	Key                *keystore.Key
 	AutonityWSUrl      string
 	PluginDIR          string

@@ -10,8 +10,8 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	tp "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
@@ -22,6 +22,7 @@ import (
 	"math"
 	"math/big"
 	o "os"
+	"path/filepath"
 	"time"
 )
 
@@ -34,21 +35,74 @@ var (
 )
 
 const (
-	ATNUSD  = "ATN-USD"
-	NTNUSD  = "NTN-USD"
-	USDCUSD = "USDC-USD"
-	ATNUSDC = "ATN-USDC"
-	NTNUSDC = "NTN-USDC"
+	serverStateDumpFile = "server_state_dump.json"
+	ATNUSD              = "ATN-USD"
+	NTNUSD              = "NTN-USD"
+	USDCUSD             = "USDC-USD"
+	ATNUSDC             = "ATN-USDC"
+	NTNUSDC             = "NTN-USDC"
 )
+
+// ServerState is the state that to be flushed into the profiling report directory.
+// It is loaded on start up.
+type ServerState struct {
+	LastPenalizedAtBlock uint64 `json:"last_penalized_at_block"`
+	UpdateAt             string `json:"update_at"`
+}
+
+// flush dumps the ServerState into a JSON file in the specified profile directory.
+func (s *ServerState) flush(profileDir string) error {
+	if _, err := o.Stat(profileDir); o.IsNotExist(err) {
+		return fmt.Errorf("profile directory does not exist: %s", profileDir)
+	}
+
+	fileName := filepath.Join(profileDir, serverStateDumpFile)
+
+	// Create or open the file for writing
+	file, err := o.Create(fileName)
+	if err != nil {
+		return fmt.Errorf("failed to create file: %v", err)
+	}
+	defer file.Close()
+
+	// Encode the ServerState into JSON and write to the file
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	s.UpdateAt = time.Now().Format(time.RFC3339)
+	if err = encoder.Encode(s); err != nil {
+		return fmt.Errorf("failed to encode ServerState to JSON: %v", err)
+	}
+
+	return nil
+}
+
+// loadState loads the ServerState from a JSON file in the specified profile directory.
+func (s *ServerState) loadState(profileDir string) error {
+	fileName := filepath.Join(profileDir, serverStateDumpFile)
+
+	file, err := o.Open(fileName)
+	if err != nil {
+		return fmt.Errorf("failed to open file: %v", err)
+	}
+	defer file.Close() // Ensure the file is closed after the function exits
+
+	decoder := json.NewDecoder(file)
+	if err := decoder.Decode(s); err != nil {
+		return fmt.Errorf("failed to decode JSON into ServerState: %v", err)
+	}
+
+	return nil
+}
 
 // OracleServer coordinates the plugin discovery, the data sampling, and do the health checking with L1 connectivity.
 type OracleServer struct {
-	logger        hclog.Logger
+	logger hclog.Logger
+	conf   *types.OracleServiceConfig
+
 	doneCh        chan struct{}
 	regularTicker *time.Ticker // the clock source to trigger the 10s interval job.
 	psTicker      *time.Ticker // the pre-sampling ticker in 1s.
 
-	pluginDIR       string                             // the dir saves the plugins.
 	pluginSet       map[string]*pWrapper.PluginWrapper // the plugin clients that connect with different adapters.
 	samplingSymbols []string                           // the symbols for data fetching in oracle service, can be different from the required protocol symbols.
 
@@ -58,7 +112,6 @@ type OracleServer struct {
 	dialer         types.Dialer
 	oracleContract contract.ContractAPI
 	client         types.Blockchain
-	l1WSUrl        string
 
 	curRound        uint64 //round ID.
 	votePeriod      uint64 //vote period.
@@ -68,11 +121,6 @@ type OracleServer struct {
 	protocolSymbols []string //symbols required for the voting on the oracle contract protocol.
 	pricePrecision  decimal.Decimal
 	roundData       map[uint64]*types.RoundData
-	key             *keystore.Key
-
-	pluginConfFile string
-
-	gasTipCap uint64
 
 	chPenalizedEvent  chan *contract.OraclePenalized
 	subPenalizedEvent event.Subscription
@@ -85,31 +133,25 @@ type OracleServer struct {
 	lastSampledTS   int64
 
 	sampleEventFeed        event.Feed
-	loggingLevel           hclog.Level
-	confidenceStrategy     int
 	lostSync               bool // set to true if the connectivity with L1 Autonity network is dropped during runtime.
 	commitmentHashComputer *CommitmentHashComputer
+
+	state *ServerState // server state to be flushed.
 }
 
 func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, client types.Blockchain,
 	oc contract.ContractAPI) *OracleServer {
 	os := &OracleServer{
+		conf:               conf,
 		dialer:             dialer,
 		client:             client,
 		oracleContract:     oc,
-		l1WSUrl:            conf.AutonityWSUrl,
 		roundData:          make(map[uint64]*types.RoundData),
-		key:                conf.Key,
-		gasTipCap:          conf.GasTipCap,
-		pluginConfFile:     conf.PluginConfFile,
-		pluginDIR:          conf.PluginDIR,
 		pluginSet:          make(map[string]*pWrapper.PluginWrapper),
 		keyRequiredPlugins: make(map[string]struct{}),
 		doneCh:             make(chan struct{}),
 		regularTicker:      time.NewTicker(TenSecsInterval),
 		psTicker:           time.NewTicker(OneSecInterval),
-		loggingLevel:       conf.LoggingLevel,
-		confidenceStrategy: conf.ConfidenceStrategy,
 		pricePrecision:     decimal.NewFromBigInt(common.Big1, int32(config.OracleDecimals)),
 	}
 
@@ -126,6 +168,13 @@ func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, clien
 	}
 	os.commitmentHashComputer = commitmentHashComputer
 
+	// load historic state, otherwise default initial state will be used.
+	state := &ServerState{}
+	err = state.loadState(os.conf.ProfileDir)
+	if err == nil {
+		os.state = state
+	}
+
 	// load plugin configs before start them.
 	plugConfs, err := config.LoadPluginsConfig(conf.PluginConfFile)
 	if err != nil {
@@ -138,7 +187,7 @@ func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, clien
 	binaries, err := helpers.ListPlugins(conf.PluginDIR)
 	if len(binaries) == 0 || err != nil {
 		// to stop the service on the start once there is no plugin in the db.
-		os.logger.Error("no plugin discovered", "plugin-dir", os.pluginDIR)
+		os.logger.Error("no plugin discovered", "plugin-dir", os.conf.PluginDIR)
 		helpers.PrintUsage()
 		o.Exit(1)
 	}
@@ -195,7 +244,7 @@ func (os *OracleServer) syncStates() error {
 
 	// subscribe on-chain penalize event
 	os.chPenalizedEvent = make(chan *contract.OraclePenalized)
-	os.subPenalizedEvent, err = os.oracleContract.WatchPenalized(new(bind.WatchOpts), os.chPenalizedEvent, []common.Address{os.key.Address})
+	os.subPenalizedEvent, err = os.oracleContract.WatchPenalized(new(bind.WatchOpts), os.chPenalizedEvent, []common.Address{os.conf.Key.Address})
 	if err != nil {
 		os.logger.Error("failed to subscribe penalized event", "error", err.Error())
 		return err
@@ -287,7 +336,7 @@ func (os *OracleServer) isVoter() (bool, error) {
 	}
 
 	for _, c := range voters {
-		if c == os.key.Address {
+		if c == os.conf.Key.Address {
 			return true, nil
 		}
 	}
@@ -389,6 +438,14 @@ func (os *OracleServer) handleRoundVote() error {
 		return nil
 	}
 
+	// check with the vote buffer from the last penalty event.
+	if os.state != nil && os.curSampleHeight-os.state.LastPenalizedAtBlock <= os.conf.VoteBuffer {
+		left := os.conf.VoteBuffer - (os.curSampleHeight - os.state.LastPenalizedAtBlock)
+		os.logger.Warn("due to the outlier penalty, we buffered your next vote in blocks from slashing again", "leftVoteBuffer", left)
+		os.logger.Warn("during this period, you can: 1. check your data source infra; 2. restart your oracle-client; 3. contact Autonity team for help;")
+		return nil
+	}
+
 	if isVoter {
 		// report with last round data and with current round commitment hash.
 		return os.reportWithCommitment(os.curRound, lastRoundData)
@@ -418,13 +475,13 @@ func (os *OracleServer) reportWithCommitment(newRound uint64, lastRoundData *typ
 	os.logger.Info("reported last round data and with current round commitment", "TX hash", curRoundData.Tx.Hash(), "Nonce", curRoundData.Tx.Nonce(), "Cost", curRoundData.Tx.Cost())
 
 	// alert in case of balance reach the warning value.
-	balance, err := os.client.BalanceAt(context.Background(), os.key.Address, nil)
+	balance, err := os.client.BalanceAt(context.Background(), os.conf.Key.Address, nil)
 	if err != nil {
 		os.logger.Error("cannot get account balance", "error", err.Error())
 		return err
 	}
 
-	os.logger.Info("oracle server account", "address", os.key.Address, "remaining balance", balance.String())
+	os.logger.Info("oracle server account", "address", os.conf.Key.Address, "remaining balance", balance.String())
 	if balance.Cmp(AlertBalance) <= 0 {
 		os.logger.Warn("oracle account has too less balance left for data reporting", "balance", balance.String())
 	}
@@ -466,14 +523,14 @@ func (os *OracleServer) doReport(curRoundCommitmentHash common.Hash, lastRoundDa
 		return nil, err
 	}
 
-	auth, err := bind.NewKeyedTransactorWithChainID(os.key.PrivateKey, chainID)
+	auth, err := bind.NewKeyedTransactorWithChainID(os.conf.Key.PrivateKey, chainID)
 	if err != nil {
 		os.logger.Error("new keyed transactor with chain ID", "error", err)
 		return nil, err
 	}
 
 	auth.Value = big.NewInt(0)
-	auth.GasTipCap = new(big.Int).SetUint64(os.gasTipCap)
+	auth.GasTipCap = new(big.Int).SetUint64(os.conf.GasTipCap)
 	auth.GasLimit = uint64(3000000)
 
 	// if there is no last round data or there were missing datapoint in last round data, then we just submit the
@@ -606,7 +663,7 @@ func (os *OracleServer) assembleReportData(round uint64, symbols []string, price
 		return nil, err
 	}
 
-	commitmentHash, err := os.commitmentHashComputer.CommitmentHash(reports, salt, os.key.Address)
+	commitmentHash, err := os.commitmentHashComputer.CommitmentHash(reports, salt, os.conf.Key.Address)
 	if err != nil {
 		os.logger.Error("failed to compute commitment hash", "error", err.Error())
 		return nil, err
@@ -665,7 +722,7 @@ func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, er
 	}
 
 	// compute confidence of the symbol from the num of plugins' samples of it.
-	confidence := config.ComputeConfidence(s, len(prices), os.confidenceStrategy)
+	confidence := config.ComputeConfidence(s, len(prices), os.conf.ConfidenceStrategy)
 
 	price := &types.Price{
 		Timestamp:  target,
@@ -735,9 +792,17 @@ func (os *OracleServer) Start() {
 			}
 			os.lastSampledTS = preSampleTS
 		case penalizeEvent := <-os.chPenalizedEvent:
-			// Just keep a warning for the node operator, and let them check the live-ness of data source providers.
+			// Just keep a warning for the node operator
 			os.logger.Warn("Oracle client get penalized as an outlier", "oracle node", penalizeEvent.Participant,
-				"currency symbol", penalizeEvent.Symbol, "median value", penalizeEvent.Median.String(), "reported value", penalizeEvent.Reported.String())
+				"currency symbol", penalizeEvent.Symbol, "median value", penalizeEvent.Median.String(), "reported value", penalizeEvent.Reported.String(), "block", penalizeEvent.Raw.BlockNumber)
+
+			os.logger.Warn("you have a vote buffer to repair your infra before new vote", "voteBuffer in blocks", os.conf.VoteBuffer)
+
+			newState := &ServerState{LastPenalizedAtBlock: penalizeEvent.Raw.BlockNumber}
+			os.state = newState
+			if err := os.state.flush(os.conf.ProfileDir); err != nil {
+				os.logger.Error("failed to flush oracle state", "error", err.Error())
+			}
 
 		case rEvent := <-os.chRoundEvent:
 			os.logger.Info("handle new round", "round", rEvent.Round.Uint64(), "required sampling TS",
@@ -768,7 +833,7 @@ func (os *OracleServer) Start() {
 			os.samplePrice(os.samplingSymbols, now)
 			os.lastSampledTS = now
 			os.checkHealth()
-			os.PluginRuntimeDiscovery()
+			os.PluginRuntimeManagement()
 			os.gcRoundData()
 		}
 	}
@@ -787,19 +852,31 @@ func (os *OracleServer) Stop() {
 	}
 }
 
-func (os *OracleServer) PluginRuntimeDiscovery() {
+// PluginRuntimeManagement
+func (os *OracleServer) PluginRuntimeManagement() {
 	// load plugin configs before start them.
-	plugConfs, err := config.LoadPluginsConfig(os.pluginConfFile)
+	plugConfs, err := config.LoadPluginsConfig(os.conf.PluginConfFile)
 	if err != nil {
 		os.logger.Error("cannot load plugin configuration", "error", err.Error())
 		return
 	}
 
-	binaries, err := helpers.ListPlugins(os.pluginDIR)
+	binaries, err := helpers.ListPlugins(os.conf.PluginDIR)
 	if err != nil {
 		os.logger.Error("list plugin", "error", err.Error())
 		return
 	}
+
+	// shutdown the plugins which are removed from the plugin directory.
+	for name, plugin := range os.pluginSet {
+		if _, ok := binaries[name]; !ok {
+			os.logger.Info("removing plugin", "name", name)
+			plugin.Close()
+			delete(os.pluginSet, name)
+		}
+	}
+
+	// try to load new plugins.
 	for _, file := range binaries {
 		f := file
 		pConf := plugConfs[f.Name()]
@@ -845,7 +922,7 @@ func (os *OracleServer) setupNewPlugin(name string, conf *types.PluginConfig) (*
 		return nil, err
 	}
 
-	pluginWrapper := pWrapper.NewPluginWrapper(os.loggingLevel, name, os.pluginDIR, os, conf)
+	pluginWrapper := pWrapper.NewPluginWrapper(os.conf.LoggingLevel, name, os.conf.PluginDIR, os, conf)
 	if err := pluginWrapper.Initialize(); err != nil {
 		// if the plugin states that a service key is missing, then we mark it down, thus the runtime discovery can
 		// skip those plugins without a key configured.

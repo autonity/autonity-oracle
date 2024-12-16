@@ -19,16 +19,17 @@ var (
 	ConfidenceStrategyLinear = 0
 	ConfidenceStrategyFixed  = 1
 
-	DefaultConfidenceStrategy = ConfidenceStrategyLinear // 0: linear, 1: fixed.
-	DefaultLogVerbosity       = 3                        // 0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error
-	DefaultGasTipCap          = uint64(1)
-	DefaultAutonityWSUrl      = "ws://127.0.0.1:8546"
-	DefaultKeyFile            = "./UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"
-	DefaultKeyPassword        = "123"
-	DefaultPluginDir          = "./plugins"
-	DefaultProfileDir         = "."
-	DefaultPluginConfFile     = "./plugins-conf.yml"
-	DefaultOracleConfFile     = ""
+	DefaultConfidenceStrategy     = ConfidenceStrategyLinear // 0: linear, 1: fixed.
+	DefaultLogVerbosity           = 3                        // 0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error
+	DefaultGasTipCap              = uint64(1)
+	DefaultAutonityWSUrl          = "ws://127.0.0.1:8546"
+	DefaultKeyFile                = "./UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"
+	DefaultKeyPassword            = "123"
+	DefaultPluginDir              = "./plugins"
+	DefaultProfileDir             = "."
+	DefaultPluginConfFile         = "./plugins-conf.yml"
+	DefaultOracleConfFile         = ""
+	DefaultVoteBufferAfterPenalty = 3600 * 24 // The buffering time window in blocks to continue vote after the last penalty event.
 
 	// DefaultSymbols are native symbols required by the oracle protocol:
 	DefaultSymbols = []string{"AUD-USD", "CAD-USD", "EUR-USD", "GBP-USD", "JPY-USD", "SEK-USD", "ATN-USD", "NTN-USD", "NTN-ATN"}
@@ -75,6 +76,7 @@ const UsageGasTipCap = "Set the gas priority fee cap to issue the oracle data re
 const UsageWSUrl = "Set the WS-RPC server listening interface and port of the connected Autonity Client node."
 const UsageLogLevel = "Set the logging level, available levels are:  0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error"
 const UsageConfidenceStrategy = "Set the confidence strategy, available values are:  0: linear, 1: fixed"
+const UsageVoteBuffer = "Set the buffering time window in blocks to continue vote after the last penalty event. Default value is 86400 (1 day)."
 
 func MakeConfig() *types.OracleServiceConfig {
 	var logLevel int
@@ -87,6 +89,7 @@ func MakeConfig() *types.OracleServiceConfig {
 	var pluginConfFile string
 	var oracleConfFile string
 	var confidenceStrategy int
+	var voteBuffer uint64
 
 	flag.Uint64Var(&gasTipCap, "tip", DefaultGasTipCap, UsageGasTipCap)
 	flag.StringVar(&keyFile, "key.file", DefaultKeyFile, UsageOracleKey)
@@ -98,6 +101,7 @@ func MakeConfig() *types.OracleServiceConfig {
 	flag.StringVar(&keyPassword, "key.password", DefaultKeyPassword, UsageOracleKeyPassword)
 	flag.StringVar(&oracleConfFile, flag.DefaultConfigFlagname, DefaultOracleConfFile, UsageOracleConf)
 	flag.IntVar(&confidenceStrategy, "confidence.strategy", DefaultConfidenceStrategy, UsageConfidenceStrategy)
+	flag.Uint64Var(&voteBuffer, "vote.buffer", uint64(DefaultVoteBufferAfterPenalty), UsageVoteBuffer)
 
 	flag.Parse()
 	if len(flag.Args()) == 1 && flag.Args()[0] == "version" {
@@ -139,6 +143,16 @@ func MakeConfig() *types.OracleServiceConfig {
 		}
 	}
 
+	if vb, presented := os.LookupEnv(types.EnvVoteBuffer); presented && voteBuffer == uint64(DefaultVoteBufferAfterPenalty) {
+		voteBuff, err := strconv.ParseUint(vb, 0, 64)
+		if err != nil {
+			log.Printf("wrong value configed in $VOTE_BUFFER")
+			helpers.PrintUsage()
+			os.Exit(1)
+		}
+		voteBuffer = voteBuff
+	}
+
 	if pluginBase, presented := os.LookupEnv(types.EnvPluginDIR); presented && pluginDir == DefaultPluginDir {
 		pluginDir = pluginBase
 	}
@@ -176,6 +190,7 @@ func MakeConfig() *types.OracleServiceConfig {
 	}
 
 	return &types.OracleServiceConfig{
+		VoteBuffer:         voteBuffer,
 		GasTipCap:          gasTipCap,
 		Key:                key,
 		AutonityWSUrl:      autonityWSUrl,

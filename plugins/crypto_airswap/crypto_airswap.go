@@ -33,15 +33,18 @@ var (
 
 // todo: airswap DEX plugin is not going to be released for the coming release.
 var defaultConfig = types.PluginConfig{
-	Name:               "crypto_airswap",
-	Scheme:             "wss",
-	Endpoint:           "rpc1.piccadilly.autonity.org/ws",
-	Timeout:            10,                                           // 10s
-	DataUpdateInterval: 30,                                           // 30s
-	NTNTokenAddress:    NTNTokenAddress.Hex(),                        // Same as 0xBd770416a3345F91E4B34576cb804a576fa48EB1, Autonity contract address.
-	ATNTokenAddress:    "0xcE17e51cE4F0417A1aB31a3c5d6831ff3BbFa1d2", // Wrapped ATN ERC20 contract address on the target blockchain.
-	USDCTokenAddress:   "0xB855D5e83363A4494e09f0Bb3152A70d3f161940", // USDCx ERC20 contract address on the target blockchain.
-	SwapAddress:        "0x28363983213F88C759b501E3a5888458178cD5E7", // todo: config this once AirSwap SwapERC20 contract created.
+	Name:     "crypto_airswap",
+	Scheme:   "wss",
+	Endpoint: "rpc1.piccadilly.autonity.org/ws",
+	Timeout:  10, // 10s
+
+	// As DEX price can move very quickly, thus we prefer price sampling without any delay to reduce the risk of slashing.
+	DataUpdateInterval: common.DefaultAMMDataUpdateInterval, // 1s, rate limit is not required as DEX data is sourced from operator's own node.
+
+	NTNTokenAddress:  NTNTokenAddress.Hex(),                        // Same as 0xBd770416a3345F91E4B34576cb804a576fa48EB1, Autonity contract address.
+	ATNTokenAddress:  "0xcE17e51cE4F0417A1aB31a3c5d6831ff3BbFa1d2", // Wrapped ATN ERC20 contract address on the target blockchain.
+	USDCTokenAddress: "0xB855D5e83363A4494e09f0Bb3152A70d3f161940", // USDCx ERC20 contract address on the target blockchain.
+	SwapAddress:      "0x28363983213F88C759b501E3a5888458178cD5E7", // todo: config this once AirSwap SwapERC20 contract created.
 }
 
 type Order struct {

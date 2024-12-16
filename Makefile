@@ -65,7 +65,8 @@ conf-file:
 	cp $(CONF_FILE) $(BIN_DIR)
 
 e2e-test-stuffs:
-    # build template plugin for e2e test
+    # build template plugin for e2e test and unit test.
+	go build -o $(PLUGIN_SRC_DIR)/template_plugin/bin/template_plugin $(PLUGIN_SRC_DIR)/template_plugin/template_plugin.go
 	go build -o $(E2E_TEST_MIX_PLUGIN_DIR)/template_plugin $(PLUGIN_SRC_DIR)/template_plugin/template_plugin.go
 	go build -o $(E2E_TEST_TEMPLATE_PLUGIN_DIR)/template_plugin $(PLUGIN_SRC_DIR)/template_plugin/template_plugin.go
 	chmod +x $(E2E_TEST_MIX_PLUGIN_DIR)/template_plugin

@@ -27,9 +27,10 @@ var (
 )
 
 const (
-	AutonityCryptoDecimals = 18 // both NTN and the Wrapped ATN take 18 as the decimal.
-	USDCDecimals           = 6  // the decimal of USDC coin in autonity L1 network.
-	CryptoToUsdcDecimals   = 18 // the data precision in oracle contract.
+	DefaultAMMDataUpdateInterval = 1
+	AutonityCryptoDecimals       = 18 // both NTN and the Wrapped ATN take 18 as the decimal.
+	USDCDecimals                 = 6  // the decimal of USDC coin in autonity L1 network.
+	CryptoToUsdcDecimals         = 18 // the data precision in oracle contract.
 )
 
 type Price struct {
@@ -178,7 +179,7 @@ func (p *Plugin) fetchPricesFromCache(availableSymbols []string) ([]types.Price,
 			return nil, fmt.Errorf("no data buffered")
 		}
 
-		if now-pr.Timestamp > int64(p.conf.DataUpdateInterval) {
+		if now-pr.Timestamp >= int64(p.conf.DataUpdateInterval) {
 			return nil, fmt.Errorf("data is too old")
 		}
 

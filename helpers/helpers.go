@@ -104,24 +104,25 @@ func Median(prices []decimal.Decimal) (decimal.Decimal, error) {
 	return prices[l/2], nil
 }
 
-func ListPlugins(path string) ([]fs.FileInfo, error) {
-	var plugins []fs.FileInfo
+// ListPlugins returns a mapping of file names to fs.FileInfo for executable files in the specified path.
+func ListPlugins(path string) (map[string]fs.FileInfo, error) {
+	plugins := make(map[string]fs.FileInfo)
+
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, file := range files {
-		f := file
-		if f.IsDir() {
+		if file.IsDir() {
 			continue
 		}
-		// only executable binaries are returned.
-		if !IsExecOwnerGroup(f.Mode()) {
+		// Only executable binaries are returned.
+		if !IsExecOwnerGroup(file.Mode()) {
 			continue
 		}
 
-		plugins = append(plugins, f)
+		plugins[file.Name()] = file
 	}
 	return plugins, nil
 }

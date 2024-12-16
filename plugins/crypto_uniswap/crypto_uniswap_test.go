@@ -15,11 +15,11 @@ func TestNewUniswapClient(t *testing.T) {
 	config := types.PluginConfig{
 		Name:               "crypto_uniswap",
 		Scheme:             "wss",
-		Endpoint:           "rpc1.piccadilly.autonity.org/ws",
+		Endpoint:           "rpc-internal-1.piccadilly.autonity.org/ws",
 		Timeout:            10,
 		DataUpdateInterval: 30,
 		ATNTokenAddress:    "0xcE17e51cE4F0417A1aB31a3c5d6831ff3BbFa1d2",
-		USDCTokenAddress:   "0x3a60C03a86eEAe30501ce1af04a6C04Cf0188700",
+		USDCTokenAddress:   "0xB855D5e83363A4494e09f0Bb3152A70d3f161940",
 		SwapAddress:        "0x218F76e357594C82Cc29A88B90dd67b180827c88",
 	}
 
@@ -40,4 +40,5 @@ func TestNewUniswapClient(t *testing.T) {
 		_, err := decimal.NewFromString(price.Price)
 		require.NoError(t, err)
 	}
+	t.Log(prices)
 }
