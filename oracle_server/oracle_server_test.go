@@ -14,7 +14,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
-	"io/fs"
 	"io/ioutil" //nolint
 	"math/big"
 	"os"
@@ -361,7 +360,7 @@ func TestOracleServer(t *testing.T) {
 		files, err := ioutil.ReadDir(srv.conf.PluginDIR)
 		require.NoError(t, err)
 		for _, file := range files {
-			if !file.IsDir() && IsExecOwnerGroup(file.Mode()) {
+			if !file.IsDir() && helpers.IsExecOwnerGroup(file.Mode()) {
 				src := filepath.Join(srv.conf.PluginDIR, file.Name())
 				dst := filepath.Join(backupDir, file.Name())
 				err = os.Link(src, dst) // Use os.Link for hard link; use os.Copy for actual copy if needed
@@ -464,12 +463,6 @@ func replacePlugins(pluginDir string) error {
 	return nil
 }
 
-// IsExecOwnerGroup is a placeholder for your actual implementation
-func IsExecOwnerGroup(mode fs.FileMode) bool {
-	// Implement your logic to check if the file is executable by owner and group
-	return mode&0111 != 0 // Example: checks if the file is executable
-}
-
 // removePlugins removes all executable plugin binaries from the specified plugin directory.
 func removePlugins(pluginDir string) error {
 	// Read the directory
@@ -486,7 +479,7 @@ func removePlugins(pluginDir string) error {
 		}
 
 		// Check if the file is an executable
-		if IsExecOwnerGroup(file.Mode()) {
+		if helpers.IsExecOwnerGroup(file.Mode()) {
 			// Construct the full file path
 			filePath := pluginDir + "/" + file.Name()
 			// Remove the file
