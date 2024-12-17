@@ -160,7 +160,7 @@ autoracle-bakerloo: mkdir oracle-server forex-plugins cex-plugins crypto_source_
 	@echo "Run \"$(BIN_DIR)/autoracle\" to launch autonity oracle for bakerloo network."
 
 # build the whole components for for piccadilly, it is default target or oracle server as main net is not planned and launched yet.
-autoracle: mkdir oracle-server forex-plugins cex-plugins amm-plugins piccadilly-sim-plugin conf-file e2e-test-stuffs
+autoracle: mkdir oracle-server forex-plugins cex-plugins amm-plugins conf-file e2e-test-stuffs
 	@echo "Done building for piccadilly network."
 	@echo "Run \"$(BIN_DIR)/autoracle\" to launch autonity oracle for piccadilly network."
 

@@ -52,7 +52,7 @@ var (
 
 // Version number of the oracle server in uint8. It is required
 // for data reporting interface to collect oracle clients version.
-const Version uint8 = 22
+const Version uint8 = 23
 
 // OracleDecimals describe the price precision in oracle protocol,
 // it is a fixed number in oracle contract.
