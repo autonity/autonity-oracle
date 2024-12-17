@@ -1,33 +1,26 @@
-# Autonity Oracle Protocol Audit Scope
-
-## On-chain oracle protocol contract
-**Liveness**    
-As the oracle protocol is coordinated by the block finalisation function, at each block finalization phase, we need to make sure the state transition of the oracle contract are properly process. There shouldn't be any un-expected revert from the EVM which cause the blockchain be halted. With such requirement, we need to review the contract to find out any edge cases which are not covered by current logic. It will include:
-1. The vote message processing with commit-reveal machanism.
-2. The on-chain datapoint aggregation.
-3. The outlier detection.
-4. The reward distribution.
-5. The slashing penalty.
-6. The voter's certification.    
-
-**Safety**     
-As the required final data point are used by Autonity's ASM, which is the economic core of the Autonity network, we want to make sure that the values aggregated by the protocol are correct, it should represent the real world's state of the data point of the corresponding currency symbols. We need to address any market data manipulation misbehaviours.
-
-## Off-chain oracle server
+# Autonity Oracle Server Audit Scope
 **Liveness**    
 As a side component of the Autonity validator, oracle-server should run with high availability. 
 1. The connectivity with Autonity Validator can self heal by itself.
+   `./oracle_server/oracle_server.go:checkHealth()`
 2. There are no deadlocks during the data collection and voting period.
+   `./oracler_server`, `./plugin_wrapper`, `./plugins/crypto_*`, `./plugins/forex_*`
 3. The voter's certification are always synced.
+ `./oracle_server/oracle_server.go:handleRoundVote()`, `./oracle_server/oracle_server.go:isVoter()`, `./oracle_server/oracle_server.go:syncStates()`
 4. The plugins should run with high availability as well.
+   `./oracle_server/oracle_server.go:PluginRuntimeDiscovery()`,`./plugin_wrapper`, `./plugins/crypto_*`, `./plugins/forex_*`
 
 **Safety**    
-1. Only cerficated voter are allowed to vote.
-2. To prevent from free riding, the commit-reveal mechanism is correctly implemented.
-3. The off-chain data point aggregation.
-4. Data sampling with rate limit and delays.
+1. On-chain state sync and round coordination.
+   `./oracle_server/oracle_server.go:handleRoundVote()`, `./oracle_server/oracle_server.go:isVoter()`, `./oracle_server/oracle_server.go:syncStates()`
+3. To prevent from free riding, the commit-reveal mechanism is correctly implemented.
+   `./oracle_server/`, `./oracle_server/commitment_hash_computer.go`
+4. The off-chain data point aggregation.
+   `./oracle_server/oracle_server.go:aggregateProtocolSymbolPrices()`
+6. Data sampling with rate limit and delays.
+   `./oracle_server/oracle_server.go:handlePreSampling()`, `./plugins/common/common.go:FetchPrices()`
    Check if delays and rate limit of the data source can introduce high risk of penalty. Especially for the datapoint sampling of AMM, we want to reduce the risk AMSP.
-5. Self protection.
-   If an oracle node get slashed as an outlier, it should prevent from getting slashed again.
+8. Self protection.
+   Under implemenation.
 
 
