@@ -29,7 +29,7 @@ var (
 	DefaultProfileDir             = "."
 	DefaultPluginConfFile         = "./plugins-conf.yml"
 	DefaultOracleConfFile         = ""
-	DefaultVoteBufferAfterPenalty = 3600 * 24 // The buffering time window in blocks to continue vote after the last penalty event.
+	DefaultVoteBufferAfterPenalty = uint64(3600 * 24) // The buffering time window in blocks to continue vote after the last penalty event.
 
 	// DefaultSymbols are native symbols required by the oracle protocol:
 	DefaultSymbols = []string{"AUD-USD", "CAD-USD", "EUR-USD", "GBP-USD", "JPY-USD", "SEK-USD", "ATN-USD", "NTN-USD", "NTN-ATN"}
@@ -101,7 +101,7 @@ func MakeConfig() *types.OracleServiceConfig {
 	flag.StringVar(&keyPassword, "key.password", DefaultKeyPassword, UsageOracleKeyPassword)
 	flag.StringVar(&oracleConfFile, flag.DefaultConfigFlagname, DefaultOracleConfFile, UsageOracleConf)
 	flag.IntVar(&confidenceStrategy, "confidence.strategy", DefaultConfidenceStrategy, UsageConfidenceStrategy)
-	flag.Uint64Var(&voteBuffer, "vote.buffer", uint64(DefaultVoteBufferAfterPenalty), UsageVoteBuffer)
+	flag.Uint64Var(&voteBuffer, "vote.buffer", DefaultVoteBufferAfterPenalty, UsageVoteBuffer)
 
 	flag.Parse()
 	if len(flag.Args()) == 1 && flag.Args()[0] == "version" {
@@ -143,7 +143,7 @@ func MakeConfig() *types.OracleServiceConfig {
 		}
 	}
 
-	if vb, presented := os.LookupEnv(types.EnvVoteBuffer); presented && voteBuffer == uint64(DefaultVoteBufferAfterPenalty) {
+	if vb, presented := os.LookupEnv(types.EnvVoteBuffer); presented && voteBuffer == DefaultVoteBufferAfterPenalty {
 		voteBuff, err := strconv.ParseUint(vb, 0, 64)
 		if err != nil {
 			log.Printf("wrong value configed in $VOTE_BUFFER")

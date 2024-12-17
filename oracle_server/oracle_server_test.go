@@ -48,7 +48,7 @@ func TestServerState(t *testing.T) {
 	}
 
 	// Check if the file was created
-	if _, err := os.Stat(fileName); os.IsNotExist(err) {
+	if _, err = os.Stat(fileName); os.IsNotExist(err) {
 		t.Fatalf("expected file %s to be created, but it does not exist", fileName)
 	}
 
@@ -353,8 +353,9 @@ func TestOracleServer(t *testing.T) {
 		require.Equal(t, 1, len(srv.pluginSet))
 
 		// Backup the existing plugins
-		backupDir := "/tmp/plugin_backup" // Temporary directory for backup
-		os.MkdirAll(backupDir, 0755)      // Create backup directory if it doesn't exist
+		backupDir := "/tmp/plugin_backup"   // Temporary directory for backup
+		err := os.MkdirAll(backupDir, 0755) // Create backup directory if it doesn't exist
+		require.NoError(t, err)
 
 		// Copy existing plugins to the backup directory
 		files, err := ioutil.ReadDir(srv.conf.PluginDIR)
@@ -363,7 +364,7 @@ func TestOracleServer(t *testing.T) {
 			if !file.IsDir() && IsExecOwnerGroup(file.Mode()) {
 				src := filepath.Join(srv.conf.PluginDIR, file.Name())
 				dst := filepath.Join(backupDir, file.Name())
-				err := os.Link(src, dst) // Use os.Link for hard link; use os.Copy for actual copy if needed
+				err = os.Link(src, dst) // Use os.Link for hard link; use os.Copy for actual copy if needed
 				require.NoError(t, err)
 			}
 		}
@@ -371,12 +372,12 @@ func TestOracleServer(t *testing.T) {
 		// Defer the recovery action to restore the removed plugins
 		defer func() {
 			// Restore the plugins from the backup directory
-			files, err := ioutil.ReadDir(backupDir)
+			files, err = ioutil.ReadDir(backupDir)
 			require.NoError(t, err)
 			for _, file := range files {
 				src := filepath.Join(backupDir, file.Name())
 				dst := filepath.Join(srv.conf.PluginDIR, file.Name())
-				err := os.Link(src, dst) // Use os.Link for hard link; use os.Copy for actual copy if needed
+				err = os.Link(src, dst) // Use os.Link for hard link; use os.Copy for actual copy if needed
 				require.NoError(t, err)
 			}
 			os.RemoveAll(backupDir) // Clean up the backup directory
