@@ -2,7 +2,7 @@
 As a side component of the validator node, the oracle-server should run with high availability.  
 Below are the core functionality of oracle server:     
 **core of oracle server**     
-`./oracle_server/oracle_server.go` contains below logics to be audited:
+`./oracle_server/oracle_server.go` needs to be fully audited. The core logic is:
 1. The connectivity with Autonity Validator can self heal by itself.
 2. The plugins runtime management.
 3. On-chain state sync and round coordination.
