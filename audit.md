@@ -1,5 +1,4 @@
 # Autonity Oracle Server Audit Scope
-As a side component of the validator node, the oracle-server should run with high availability.  
 Below are the core functionality of oracle server:     
 **core of oracle server**     
 `./oracle_server/oracle_server.go` needs to be fully audited. The core logic is:
