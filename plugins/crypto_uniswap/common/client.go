@@ -55,10 +55,10 @@ func NewUniswapClient(conf *types.PluginConfig, logger hclog.Logger) (*UniswapCl
 		return nil, err
 	}
 
-	// bind contracts factory contract, it manages the pair contracts in the AMM.
+	// bind uniswap factory contract, it manages the pair contracts in the AMM.
 	factoryContract, err := factory.NewFactory(ecommon.HexToAddress(conf.SwapAddress), client)
 	if err != nil {
-		logger.Error("cannot bind contracts factory contract", "error", err)
+		logger.Error("cannot bind uniswap factory contract", "error", err)
 		return nil, err
 	}
 
@@ -82,13 +82,13 @@ func NewUniswapClient(conf *types.PluginConfig, logger hclog.Logger) (*UniswapCl
 func bindWithPairContract(factoryContract *factory.Factory, client *ethclient.Client, tokenAddress1, tokenAddress2 ecommon.Address, logger hclog.Logger) (*WrappedPair, error) {
 	pairAddress, err := factoryContract.GetPair(nil, tokenAddress1, tokenAddress2)
 	if err != nil {
-		logger.Error("cannot find pair contract from contracts factory contract", "error", err, "token1", tokenAddress1, "token2", tokenAddress2)
+		logger.Error("cannot find pair contract from uniswap factory contract", "error", err, "token1", tokenAddress1, "token2", tokenAddress2)
 		return nil, err
 	}
 
 	if pairAddress == (ecommon.Address{}) {
-		logger.Error("cannot find pair contract from contracts factory contract", "error", err, "token1", tokenAddress1, "token2", tokenAddress2)
-		return nil, fmt.Errorf("pair contract from contracts factory not found, pair: %s, %s", tokenAddress1, tokenAddress2)
+		logger.Error("cannot find pair contract from uniswap factory contract", "error", err, "token1", tokenAddress1, "token2", tokenAddress2)
+		return nil, fmt.Errorf("pair contract from uniswap factory not found, pair: %s, %s", tokenAddress1, tokenAddress2)
 	}
 
 	pairContract, err := pair.NewPair(pairAddress, client)
@@ -99,13 +99,13 @@ func bindWithPairContract(factoryContract *factory.Factory, client *ethclient.Cl
 
 	token0, err := pairContract.Token0(nil)
 	if err != nil {
-		logger.Error("cannot resolve token 0 from liquidity contracts", "error", err)
+		logger.Error("cannot resolve token 0 from liquidity pool", "error", err)
 		return nil, err
 	}
 
 	token1, err := pairContract.Token1(nil)
 	if err != nil {
-		logger.Error("cannot resolve token 1 from liquidity contracts", "error", err)
+		logger.Error("cannot resolve token 1 from liquidity pool", "error", err)
 		return nil, err
 	}
 
