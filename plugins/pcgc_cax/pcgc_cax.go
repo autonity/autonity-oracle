@@ -1,8 +1,8 @@
 package main
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/plugins/common"
-	"autonity-oracle/types"
 	"encoding/json"
 	"github.com/hashicorp/go-hclog"
 	"github.com/shopspring/decimal"
@@ -27,7 +27,7 @@ const (
 var routers = "api/orderbooks"
 var defaultEndpoint = "cax.piccadilly.autonity.org"
 
-var defaultConfig = types.PluginConfig{
+var defaultConfig = config.PluginConfig{
 	Name:               "pcgc_cax",
 	Key:                "",
 	Scheme:             "https",
@@ -45,12 +45,12 @@ type CAXQuote struct {
 }
 
 type CAXClient struct {
-	conf   *types.PluginConfig
+	conf   *config.PluginConfig
 	client *common.Client
 	logger hclog.Logger
 }
 
-func NewCAXClient(conf *types.PluginConfig) *CAXClient {
+func NewCAXClient(conf *config.PluginConfig) *CAXClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   "AutonityR4CAX",

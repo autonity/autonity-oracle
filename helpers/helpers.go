@@ -1,7 +1,6 @@
 package helpers
 
 import (
-	"autonity-oracle/types"
 	"encoding/csv"
 	"fmt"
 	"github.com/namsral/flag"
@@ -14,16 +13,19 @@ import (
 )
 
 var (
-	pEURUSD  = decimal.RequireFromString("1.086")
-	pJPYUSD  = decimal.RequireFromString("0.0073")
-	pGBPUSD  = decimal.RequireFromString("1.25")
-	pAUDUSD  = decimal.RequireFromString("0.67")
-	pCADUSD  = decimal.RequireFromString("0.74")
-	pSEKUSD  = decimal.RequireFromString("0.096")
-	pATNUSD  = decimal.RequireFromString("1.0")
-	pUSDCUSD = decimal.RequireFromString("1.0")
-	pNTNUSD  = decimal.RequireFromString("10.0")
-	pBTCETH  = decimal.RequireFromString("29.41")
+	pEURUSD        = decimal.RequireFromString("1.086")
+	pJPYUSD        = decimal.RequireFromString("0.0073")
+	pGBPUSD        = decimal.RequireFromString("1.25")
+	pAUDUSD        = decimal.RequireFromString("0.67")
+	pCADUSD        = decimal.RequireFromString("0.74")
+	pSEKUSD        = decimal.RequireFromString("0.096")
+	pATNUSD        = decimal.RequireFromString("1.0")
+	pUSDCUSD       = decimal.RequireFromString("1.0")
+	pNTNUSD        = decimal.RequireFromString("10.0")
+	pBTCETH        = decimal.RequireFromString("29.41")
+	simulatedPrice = decimal.RequireFromString("11.11")
+	SymbolBTCETH   = "BTC-ETH" // for simulation and tests only.
+	DefaultSymbols = []string{"AUD-USD", "CAD-USD", "EUR-USD", "GBP-USD", "JPY-USD", "SEK-USD", "ATN-USD", "NTN-USD", "NTN-ATN"}
 )
 
 func PrintUsage() {
@@ -34,7 +36,7 @@ func PrintUsage() {
 }
 
 func ResolveSimulatedPrice(s string) decimal.Decimal {
-	defaultPrice := types.SimulatedPrice
+	defaultPrice := simulatedPrice
 	switch s {
 	case "EUR-USD":
 		defaultPrice = pEURUSD
@@ -58,7 +60,7 @@ func ResolveSimulatedPrice(s string) decimal.Decimal {
 		defaultPrice = pNTNUSD
 	case "USDC-USD":
 		defaultPrice = pUSDCUSD
-	case types.SymbolBTCETH:
+	case SymbolBTCETH:
 		defaultPrice = pBTCETH
 	}
 	return defaultPrice

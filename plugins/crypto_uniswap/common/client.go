@@ -1,6 +1,7 @@
 package common
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/plugins/common"
 	"autonity-oracle/plugins/crypto_uniswap/contracts/factory"
 	"autonity-oracle/plugins/crypto_uniswap/contracts/pair"
@@ -28,14 +29,14 @@ type WrappedPair struct {
 }
 
 type UniswapClient struct {
-	conf                *types.PluginConfig
+	conf                *config.PluginConfig
 	client              *ethclient.Client
 	logger              hclog.Logger
 	atnUSDCPairContract *WrappedPair
 	ntnUSDCPairContract *WrappedPair
 }
 
-func NewUniswapClient(conf *types.PluginConfig, logger hclog.Logger) (*UniswapClient, error) {
+func NewUniswapClient(conf *config.PluginConfig, logger hclog.Logger) (*UniswapClient, error) {
 	url := conf.Scheme + "://" + conf.Endpoint
 	client, err := ethclient.Dial(url)
 	if err != nil {

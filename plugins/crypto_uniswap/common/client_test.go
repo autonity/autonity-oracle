@@ -1,7 +1,7 @@
 package common
 
 import (
-	"autonity-oracle/types"
+	config2 "autonity-oracle/config"
 	"github.com/hashicorp/go-hclog"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
@@ -12,7 +12,7 @@ import (
 func TestNewUniswapClient(t *testing.T) {
 
 	// using current piccadilly protocol configs.
-	config := types.PluginConfig{
+	config := config2.PluginConfig{
 		Name:               "crypto_uniswap",
 		Scheme:             "wss",
 		Endpoint:           "rpc-internal-1.piccadilly.autonity.org/ws",

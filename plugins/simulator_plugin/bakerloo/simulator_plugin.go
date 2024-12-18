@@ -1,13 +1,13 @@
 package main
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/plugins/common"
 	client "autonity-oracle/plugins/simulator_plugin/common"
-	"autonity-oracle/types"
 	"os"
 )
 
-var defaultConfig = types.PluginConfig{
+var defaultConfig = config.PluginConfig{
 	Name:               "simulator_plugin",
 	Key:                "",
 	Scheme:             "https",

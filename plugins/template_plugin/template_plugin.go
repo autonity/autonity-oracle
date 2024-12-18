@@ -1,6 +1,7 @@
 package main
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/helpers"
 	"autonity-oracle/plugins/common"
 	"autonity-oracle/types"
@@ -17,7 +18,7 @@ const (
 	version = "v0.2.0"
 )
 
-var defaultConfig = types.PluginConfig{
+var defaultConfig = config.PluginConfig{
 	Name:               "pluginBinaryName",
 	Key:                "",
 	Scheme:             "https",
@@ -33,11 +34,11 @@ type TemplatePlugin struct {
 	symbolSeparator  string
 	logger           hclog.Logger
 	client           common.DataSourceClient
-	conf             *types.PluginConfig
+	conf             *config.PluginConfig
 	cachePrices      map[string]types.Price
 }
 
-func NewTemplatePlugin(conf *types.PluginConfig, client common.DataSourceClient, version string) *TemplatePlugin {
+func NewTemplatePlugin(conf *config.PluginConfig, client common.DataSourceClient, version string) *TemplatePlugin {
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:       conf.Name,
 		Level:      hclog.Info,
@@ -176,12 +177,12 @@ func (g *TemplatePlugin) resolveSymbols(askedSymbols []string) ([]string, []stri
 }
 
 type TemplateClient struct {
-	conf   *types.PluginConfig
+	conf   *config.PluginConfig
 	client *common.Client
 	logger hclog.Logger
 }
 
-func NewTemplateClient(conf *types.PluginConfig) *TemplateClient {
+func NewTemplateClient(conf *config.PluginConfig) *TemplateClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   conf.Name,
@@ -257,7 +258,7 @@ func (tc *TemplateClient) AvailableSymbols() ([]string, error) {
 	// we add some symbols required for the test as well.
 	res := append(common.DefaultForexSymbols, common.DefaultCryptoSymbols...)
 	res = append(res, common.DefaultUSDCSymbol)
-	res = append(res, types.SymbolBTCETH)
+	res = append(res, helpers.SymbolBTCETH)
 
 	return res, nil
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/plugins/common"
 	"autonity-oracle/plugins/crypto_airswap/erc20"
 	swaperc20 "autonity-oracle/plugins/crypto_airswap/swap_erc20"
@@ -32,7 +33,7 @@ var (
 )
 
 // todo: airswap DEX plugin is not going to be released for the coming release.
-var defaultConfig = types.PluginConfig{
+var defaultConfig = config.PluginConfig{
 	Name:     "crypto_airswap",
 	Scheme:   "wss",
 	Endpoint: "rpc1.piccadilly.autonity.org/ws",
@@ -54,7 +55,7 @@ type Order struct {
 }
 
 type AirswapClient struct {
-	conf   *types.PluginConfig
+	conf   *config.PluginConfig
 	client *ethclient.Client
 	logger hclog.Logger
 
@@ -84,7 +85,7 @@ type AirswapClient struct {
 	lastAggregatedPrices map[ecommon.Address]common.Price
 }
 
-func NewAirswapClient(conf *types.PluginConfig, logger hclog.Logger) (*AirswapClient, error) {
+func NewAirswapClient(conf *config.PluginConfig, logger hclog.Logger) (*AirswapClient, error) {
 	url := conf.Scheme + "://" + conf.Endpoint
 	client, err := ethclient.Dial(url)
 	if err != nil {

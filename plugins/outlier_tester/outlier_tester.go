@@ -1,6 +1,7 @@
 package main
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/helpers"
 	"autonity-oracle/plugins/common"
 	"autonity-oracle/types"
@@ -16,7 +17,7 @@ const (
 	version = "v0.2.0"
 )
 
-var defaultConfig = types.PluginConfig{
+var defaultConfig = config.PluginConfig{
 	Name:               "outlier_tester_plugin",
 	Timeout:            10, //10s
 	DataUpdateInterval: 30, //30s
@@ -30,11 +31,11 @@ type OutlierTesterPlugin struct {
 	symbolSeparator  string
 	logger           hclog.Logger
 	client           common.DataSourceClient
-	conf             *types.PluginConfig
+	conf             *config.PluginConfig
 	cachePrices      map[string]types.Price
 }
 
-func NewOutlierPlugin(conf *types.PluginConfig, client common.DataSourceClient, version string) *OutlierTesterPlugin {
+func NewOutlierPlugin(conf *config.PluginConfig, client common.DataSourceClient, version string) *OutlierTesterPlugin {
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:       conf.Name,
 		Level:      hclog.Info,
@@ -173,12 +174,12 @@ func (g *OutlierTesterPlugin) resolveSymbols(askedSymbols []string) ([]string, [
 }
 
 type OutlierClient struct {
-	conf   *types.PluginConfig
+	conf   *config.PluginConfig
 	client *common.Client
 	logger hclog.Logger
 }
 
-func NewOutlierClient(conf *types.PluginConfig) *OutlierClient {
+func NewOutlierClient(conf *config.PluginConfig) *OutlierClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   conf.Name,
@@ -213,7 +214,7 @@ func (tc *OutlierClient) FetchPrice(symbols []string) (common.Prices, error) {
 func (tc *OutlierClient) AvailableSymbols() ([]string, error) {
 	res := append(common.DefaultForexSymbols, common.DefaultCryptoSymbols...)
 	res = append(res, common.DefaultUSDCSymbol)
-	res = append(res, types.SymbolBTCETH)
+	res = append(res, helpers.SymbolBTCETH)
 	res = append(res, []string{"ATN-USD", "NTN-USD"}...)
 	return res, nil
 }

@@ -26,21 +26,38 @@ import (
 	"time"
 )
 
+var ForexCurrencies = map[string]struct{}{
+	"AUD-USD": {},
+	"CAD-USD": {},
+	"EUR-USD": {},
+	"GBP-USD": {},
+	"JPY-USD": {},
+	"SEK-USD": {},
+}
+
 var (
-	TenSecsInterval  = 10 * time.Second // 10s ticker job to check health with l1, plugin discovery and regular data sampling.
-	OneSecInterval   = 1 * time.Second  // 1s ticker job to check if we need to do pre-sampling.
-	PreSamplingRange = uint64(5)        // pre-sampling starts in 5 blocks in advance.
-	SaltRange        = new(big.Int).SetUint64(math.MaxInt64)
-	AlertBalance     = new(big.Int).SetUint64(2000000000000) // 2000 Gwei, 0.000002 Ether
+	saltRange        = new(big.Int).SetUint64(math.MaxInt64)
+	alertBalance     = new(big.Int).SetUint64(2000000000000) // 2000 Gwei, 0.000002 Ether
+	invalidPrice     = big.NewInt(0)
+	invalidSalt      = big.NewInt(0)
+	tenSecsInterval  = 10 * time.Second                             // ticker to check L2 connectivity, plugin management, and regular data sampling.
+	oneSecsInterval  = 1 * time.Second                              // sampling interval during data pre-sampling period.
+	preSamplingRange = uint64(5)                                    // pre-sampling starts in 5 blocks in advance.
+	bridgerSymbols   = []string{"ATN-USDC", "NTN-USDC", "USDC-USD"} // used for value bridging to USD by USDC
 )
 
 const (
-	serverStateDumpFile = "server_state_dump.json"
 	ATNUSD              = "ATN-USD"
 	NTNUSD              = "NTN-USD"
 	USDCUSD             = "USDC-USD"
 	ATNUSDC             = "ATN-USDC"
 	NTNUSDC             = "NTN-USDC"
+	MaxConfidence       = 100
+	BaseConfidence      = 40
+	OracleDecimals      = uint8(18)
+	MaxBufferedRounds   = 10
+	SourceScalingFactor = uint64(10)
+	serverStateDumpFile = "server_state_dump.json"
 )
 
 // ServerState is the state that to be flushed into the profiling report directory.
@@ -150,9 +167,9 @@ func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, clien
 		pluginSet:          make(map[string]*pWrapper.PluginWrapper),
 		keyRequiredPlugins: make(map[string]struct{}),
 		doneCh:             make(chan struct{}),
-		regularTicker:      time.NewTicker(TenSecsInterval),
-		psTicker:           time.NewTicker(OneSecInterval),
-		pricePrecision:     decimal.NewFromBigInt(common.Big1, int32(config.OracleDecimals)),
+		regularTicker:      time.NewTicker(tenSecsInterval),
+		psTicker:           time.NewTicker(oneSecsInterval),
+		pricePrecision:     decimal.NewFromBigInt(common.Big1, int32(OracleDecimals)),
 	}
 
 	os.logger = hclog.New(&hclog.LoggerOptions{
@@ -172,6 +189,7 @@ func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, clien
 	state := &ServerState{}
 	err = state.loadState(os.conf.ProfileDir)
 	if err == nil {
+		os.logger.Info("run oracle server with historical flushed state", "state", state)
 		os.state = state
 	}
 
@@ -223,8 +241,8 @@ func (os *OracleServer) syncStates() error {
 
 	os.logger.Info("syncStates", "CurrentRound", os.curRound, "Num of AvailableSymbols", len(os.protocolSymbols), "CurrentSymbols", os.protocolSymbols)
 	os.AddNewSymbols(os.protocolSymbols)
-	os.logger.Info("syncStates", "CurrentRound", os.curRound, "Num of BridgerSymbols", len(config.BridgerSymbols), "BridgerSymbols", config.BridgerSymbols)
-	os.AddNewSymbols(config.BridgerSymbols)
+	os.logger.Info("syncStates", "CurrentRound", os.curRound, "Num of bridgerSymbols", len(bridgerSymbols), "bridgerSymbols", bridgerSymbols)
+	os.AddNewSymbols(bridgerSymbols)
 
 	// subscribe on-chain round rotation event
 	os.chRoundEvent = make(chan *contract.OracleNewRound)
@@ -289,8 +307,8 @@ func (os *OracleServer) gcDataSamples() {
 }
 
 func (os *OracleServer) gcRoundData() {
-	if len(os.roundData) >= types.MaxBufferedRounds {
-		offset := os.curRound - types.MaxBufferedRounds
+	if len(os.roundData) >= MaxBufferedRounds {
+		offset := os.curRound - MaxBufferedRounds
 		for k := range os.roundData {
 			if k <= offset {
 				delete(os.roundData, k)
@@ -386,7 +404,7 @@ func (os *OracleServer) handlePreSampling(preSampleTS int64) error {
 		os.logger.Error("handle pre-sampling", "error", err.Error())
 		return err
 	}
-	if nSampleHeight-curHeight > PreSamplingRange {
+	if nSampleHeight-curHeight > preSamplingRange {
 		return nil
 	}
 
@@ -482,7 +500,7 @@ func (os *OracleServer) reportWithCommitment(newRound uint64, lastRoundData *typ
 	}
 
 	os.logger.Info("oracle server account", "address", os.conf.Key.Address, "remaining balance", balance.String())
-	if balance.Cmp(AlertBalance) <= 0 {
+	if balance.Cmp(alertBalance) <= 0 {
 		os.logger.Warn("oracle account has too less balance left for data reporting", "balance", balance.String())
 	}
 
@@ -538,7 +556,7 @@ func (os *OracleServer) doReport(curRoundCommitmentHash common.Hash, lastRoundDa
 	// protocol, however it won't be abused as it is limited by the 1 vote per round rule.
 	if lastRoundData == nil || lastRoundData.MissingData {
 		var reports []contract.IOracleReport
-		return os.oracleContract.Vote(auth, new(big.Int).SetBytes(curRoundCommitmentHash.Bytes()), reports, types.InvalidSalt, config.Version)
+		return os.oracleContract.Vote(auth, new(big.Int).SetBytes(curRoundCommitmentHash.Bytes()), reports, invalidSalt, config.Version)
 	}
 
 	// there is last round data, report with current round commitment, and the last round reports and salt to be revealed.
@@ -639,7 +657,7 @@ func (os *OracleServer) assembleReportData(round uint64, symbols []string, price
 		if pr, ok := prices[s]; ok {
 			// This is an edge case, which means there is no liquidity in the market for this symbol.
 			price := pr.Price.Mul(os.pricePrecision).BigInt()
-			if price.Cmp(types.InvalidPrice) == 0 {
+			if price.Cmp(invalidPrice) == 0 {
 				os.logger.Info("zero price measured from market", "symbol", s)
 				missingData = true
 			}
@@ -652,12 +670,12 @@ func (os *OracleServer) assembleReportData(round uint64, symbols []string, price
 			missingData = true
 			os.logger.Info("round report miss data point for symbol", "symbol", s)
 			reports = append(reports, contract.IOracleReport{
-				Price: types.InvalidPrice,
+				Price: invalidPrice,
 			})
 		}
 	}
 
-	salt, err := rand.Int(rand.Reader, SaltRange)
+	salt, err := rand.Int(rand.Reader, saltRange)
 	if err != nil {
 		os.logger.Error("generate rand salt", "error", err.Error())
 		return nil, err
@@ -722,7 +740,7 @@ func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, er
 	}
 
 	// compute confidence of the symbol from the num of plugins' samples of it.
-	confidence := config.ComputeConfidence(s, len(prices), os.conf.ConfidenceStrategy)
+	confidence := ComputeConfidence(s, len(prices), os.conf.ConfidenceStrategy)
 
 	price := &types.Price{
 		Timestamp:  target,
@@ -822,7 +840,7 @@ func (os *OracleServer) Start() {
 			// after vote finished, gc useless symbols by protocol required symbols.
 			os.samplingSymbols = os.protocolSymbols
 			// attach the bridger symbols too once the sampling symbols is replaced by protocol symbols.
-			os.AddNewSymbols(config.BridgerSymbols)
+			os.AddNewSymbols(bridgerSymbols)
 		case symbols := <-os.chSymbolsEvent:
 			os.logger.Info("handle new symbols", "new symbols", symbols.Symbols, "activate at round", symbols.Round)
 			os.handleNewSymbolsEvent(symbols.Symbols)
@@ -890,7 +908,7 @@ func (os *OracleServer) PluginRuntimeManagement() {
 	}
 }
 
-func (os *OracleServer) loadNewPlugin(f fs.FileInfo, plugConf types.PluginConfig) {
+func (os *OracleServer) loadNewPlugin(f fs.FileInfo, plugConf config.PluginConfig) {
 	plugin, ok := os.pluginSet[f.Name()]
 	if !ok {
 		os.logger.Info("new plugin discovered, going to setup it: ", f.Name(), f.Mode().String())
@@ -916,7 +934,7 @@ func (os *OracleServer) loadNewPlugin(f fs.FileInfo, plugConf types.PluginConfig
 	}
 }
 
-func (os *OracleServer) setupNewPlugin(name string, conf *types.PluginConfig) (*pWrapper.PluginWrapper, error) {
+func (os *OracleServer) setupNewPlugin(name string, conf *config.PluginConfig) (*pWrapper.PluginWrapper, error) {
 	if err := os.ApplyPluginConf(name, conf); err != nil {
 		os.logger.Error("apply plugin config", "error", err.Error())
 		return nil, err
@@ -941,7 +959,7 @@ func (os *OracleServer) WatchSampleEvent(sink chan<- *types.SampleEvent) event.S
 	return os.sampleEventFeed.Subscribe(sink)
 }
 
-func (os *OracleServer) ApplyPluginConf(name string, plugConf *types.PluginConfig) error {
+func (os *OracleServer) ApplyPluginConf(name string, plugConf *config.PluginConfig) error {
 	// set the plugin configuration via system env, thus the plugin can load it on startup.
 	conf, err := json.Marshal(plugConf)
 	if err != nil {
@@ -953,4 +971,30 @@ func (os *OracleServer) ApplyPluginConf(name string, plugConf *types.PluginConfi
 		return err
 	}
 	return nil
+}
+
+// ComputeConfidence calculates the confidence weight based on the number of data samples. Note! Cryptos take
+// fixed strategy as we have very limited number of data sources at the genesis phase. Thus, the confidence
+// computing is just for forex currencies for the time being.
+func ComputeConfidence(symbol string, numOfSamples, strategy int) uint8 {
+
+	// Todo: once the community have more extensive AMM and DEX markets, we will remove this to enable linear
+	//  strategy as well for cryptos.
+	if _, is := ForexCurrencies[symbol]; !is {
+		return MaxConfidence
+	}
+
+	// Forex currencies with fixed strategy.
+	if strategy == config.ConfidenceStrategyFixed {
+		return MaxConfidence
+	}
+
+	// Forex currencies with linear strategy.
+	weight := BaseConfidence + SourceScalingFactor*uint64(math.Pow(1.75, float64(numOfSamples)))
+
+	if weight > MaxConfidence {
+		weight = MaxConfidence
+	}
+
+	return uint8(weight) //nolint
 }

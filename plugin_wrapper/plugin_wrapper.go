@@ -1,6 +1,7 @@
 package pluginwrapper
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/types"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -21,7 +22,7 @@ var (
 // plugin, buffers recent data samples measured from the corresponding plugin.
 type PluginWrapper struct {
 	version          string
-	conf             *types.PluginConfig
+	conf             *config.PluginConfig
 	lockService      sync.RWMutex
 	lockSamples      sync.RWMutex
 	samples          map[string]map[int64]types.Price
@@ -39,7 +40,7 @@ type PluginWrapper struct {
 	samplingSub    types.SampleEventSubscriber
 }
 
-func NewPluginWrapper(logLevel hclog.Level, name string, pluginDir string, sub types.SampleEventSubscriber, conf *types.PluginConfig) *PluginWrapper {
+func NewPluginWrapper(logLevel hclog.Level, name string, pluginDir string, sub types.SampleEventSubscriber, conf *config.PluginConfig) *PluginWrapper {
 	// Create an hclog.Logger
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   name,

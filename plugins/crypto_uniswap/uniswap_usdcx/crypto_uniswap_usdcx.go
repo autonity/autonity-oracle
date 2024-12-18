@@ -1,6 +1,7 @@
 package main
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/plugins/common"
 	client "autonity-oracle/plugins/crypto_uniswap/common"
 	"autonity-oracle/types"
@@ -9,7 +10,7 @@ import (
 )
 
 // configs for the ATN-USDCx, NTN-USDCx, NTN-ATN market place in Piccadilly network.
-var defaultConfig = types.PluginConfig{
+var defaultConfig = config.PluginConfig{
 	Name:               "crypto_uniswap",
 	Scheme:             "wss",                                        // both http/s ws/s works for this plugin
 	Endpoint:           "rpc-internal-1.piccadilly.autonity.org/ws",  // default websocket endpoint for piccadilly network.

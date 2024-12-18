@@ -1,8 +1,8 @@
 package main
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/plugins/common"
-	"autonity-oracle/types"
 	"encoding/json"
 	"fmt"
 	"github.com/hashicorp/go-hclog"
@@ -19,7 +19,7 @@ const (
 	exVersion = "v6"
 )
 
-var defaultConfig = types.PluginConfig{
+var defaultConfig = config.PluginConfig{
 	Name:               "forex_exchangerate",
 	Key:                "",
 	Scheme:             "https",
@@ -50,12 +50,12 @@ type ConversionRates struct {
 }
 
 type EXClient struct {
-	conf   *types.PluginConfig
+	conf   *config.PluginConfig
 	client *common.Client
 	logger hclog.Logger
 }
 
-func NewEXClient(conf *types.PluginConfig) *EXClient {
+func NewEXClient(conf *config.PluginConfig) *EXClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   "ExchangeClient",

@@ -1,6 +1,7 @@
 package common
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/types"
 	"encoding/json"
 	"fmt"
@@ -46,11 +47,11 @@ type Plugin struct {
 	symbolSeparator  string // "|", "/", "-", ",", "." or with a no separator "".
 	logger           hclog.Logger
 	client           DataSourceClient
-	conf             *types.PluginConfig
+	conf             *config.PluginConfig
 	cachePrices      map[string]types.Price
 }
 
-func NewPlugin(conf *types.PluginConfig, client DataSourceClient, version string) *Plugin {
+func NewPlugin(conf *config.PluginConfig, client DataSourceClient, version string) *Plugin {
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:       conf.Name,
 		Level:      hclog.Debug,
@@ -189,10 +190,10 @@ func (p *Plugin) fetchPricesFromCache(availableSymbols []string) ([]types.Price,
 }
 
 // LoadPluginConf is called from plugin main() to load plugin's conf from system env.
-func LoadPluginConf(cmd string) (*types.PluginConfig, error) {
+func LoadPluginConf(cmd string) (*config.PluginConfig, error) {
 	name := filepath.Base(cmd)
 	conf := os.Getenv(name)
-	var c types.PluginConfig
+	var c config.PluginConfig
 	err := json.Unmarshal([]byte(conf), &c)
 	if err != nil {
 		return nil, err
@@ -219,7 +220,7 @@ func ConvertSymbol(src string, toSep string) string {
 	return strings.Join(subs, toSep)
 }
 
-func ResolveConf(cmd string, defConf *types.PluginConfig) *types.PluginConfig {
+func ResolveConf(cmd string, defConf *config.PluginConfig) *config.PluginConfig {
 
 	conf, err := LoadPluginConf(cmd)
 	if err != nil {

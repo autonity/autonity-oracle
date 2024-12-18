@@ -1,8 +1,8 @@
 package main
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/plugins/common"
-	"autonity-oracle/types"
 	"encoding/json"
 	"github.com/hashicorp/go-hclog"
 	"io"
@@ -16,7 +16,7 @@ const (
 	path    = "v2/prices/USDC-USD/spot"
 )
 
-var defaultConfig = types.PluginConfig{
+var defaultConfig = config.PluginConfig{
 	Name:               "crypto_coinbase",
 	Key:                "",
 	Scheme:             "https",
@@ -36,12 +36,12 @@ type Response struct {
 }
 
 type CoinBaseClient struct {
-	conf   *types.PluginConfig
+	conf   *config.PluginConfig
 	client *common.Client
 	logger hclog.Logger
 }
 
-func NewCoinBaseClient(conf *types.PluginConfig) *CoinBaseClient {
+func NewCoinBaseClient(conf *config.PluginConfig) *CoinBaseClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   conf.Name,

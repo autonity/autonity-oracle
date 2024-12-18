@@ -1,7 +1,6 @@
 package test
 
 import (
-	"autonity-oracle/config"
 	contract "autonity-oracle/contract_binder/contract"
 	autonity "autonity-oracle/e2e_test/contracts"
 	"autonity-oracle/helpers"
@@ -29,7 +28,7 @@ var defaultTransferAmount = uint64(100000000000000000)
 func TestHappyCase(t *testing.T) {
 	var netConf = &NetworkConfig{
 		EnableL1Logs: false,
-		Symbols:      config.DefaultSymbols,
+		Symbols:      helpers.DefaultSymbols,
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir},
 	}
@@ -58,7 +57,7 @@ func TestHappyCase(t *testing.T) {
 func TestLostL1Connectivity(t *testing.T) {
 	var netConf = &NetworkConfig{
 		EnableL1Logs: false,
-		Symbols:      config.DefaultSymbols,
+		Symbols:      helpers.DefaultSymbols,
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir},
 	}
@@ -83,7 +82,7 @@ func TestLostL1Connectivity(t *testing.T) {
 func TestAddNewSymbol(t *testing.T) {
 	var netConf = &NetworkConfig{
 		EnableL1Logs: false,
-		Symbols:      config.DefaultSymbols,
+		Symbols:      helpers.DefaultSymbols,
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir},
 	}
@@ -112,7 +111,7 @@ func TestAddNewSymbol(t *testing.T) {
 func TestRMSymbol(t *testing.T) {
 	var netConf = &NetworkConfig{
 		EnableL1Logs: false,
-		Symbols:      config.DefaultSymbols,
+		Symbols:      helpers.DefaultSymbols,
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir},
 	}
@@ -140,7 +139,7 @@ func TestRMSymbol(t *testing.T) {
 func TestRMCommitteeMember(t *testing.T) {
 	var netConf = &NetworkConfig{
 		EnableL1Logs: false,
-		Symbols:      config.DefaultSymbols,
+		Symbols:      helpers.DefaultSymbols,
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir},
 	}
@@ -172,7 +171,7 @@ func TestRMCommitteeMember(t *testing.T) {
 func TestAddCommitteeMember(t *testing.T) {
 	var netConf = &NetworkConfig{
 		EnableL1Logs: false,
-		Symbols:      config.DefaultSymbols,
+		Symbols:      helpers.DefaultSymbols,
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir},
 	}
@@ -228,7 +227,7 @@ func TestHappyCaseWithBinanceDataService(t *testing.T) {
 func TestFeeRefund(t *testing.T) {
 	var netConf = &NetworkConfig{
 		EnableL1Logs: false,
-		Symbols:      config.DefaultSymbols,
+		Symbols:      helpers.DefaultSymbols,
 		VotePeriod:   20,
 		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir},
 	}
@@ -271,7 +270,7 @@ func TestFeeRefund(t *testing.T) {
 func TestWithBinanceSimulatorOff(t *testing.T) {
 	var netConf = &NetworkConfig{
 		EnableL1Logs: false,
-		Symbols:      config.DefaultSymbols,
+		Symbols:      helpers.DefaultSymbols,
 		VotePeriod:   defaultVotePeriod,
 		PluginDIRs:   []string{simulatorPlugDir, mixPluginDir, mixPluginDir, mixPluginDir},
 	}
@@ -314,7 +313,7 @@ func TestWithBinanceSimulatorOff(t *testing.T) {
 func TestWithBinanceSimulatorTimeout(t *testing.T) {
 	var netConf = &NetworkConfig{
 		EnableL1Logs:    false,
-		Symbols:         config.DefaultSymbols,
+		Symbols:         helpers.DefaultSymbols,
 		VotePeriod:      defaultVotePeriod,
 		PluginDIRs:      []string{simulatorPlugDir, mixPluginDir, mixPluginDir, mixPluginDir},
 		SimulateTimeout: 10,
@@ -604,7 +603,7 @@ func testAddNewSymbols(t *testing.T, network *Network, client *ethclient.Client,
 	legacySymbols, err := o.GetSymbols(nil)
 	require.NoError(t, err)
 
-	newSymbols := append(legacySymbols, types.SymbolBTCETH)
+	newSymbols := append(legacySymbols, helpers.SymbolBTCETH)
 
 	_, err = o.SetSymbols(auth, newSymbols)
 	require.NoError(t, err)
@@ -843,7 +842,7 @@ func testNewValidatorJoinToCommittee(t *testing.T, network *Network, client *eth
 func TestOmissionFaultyVoter(t *testing.T) {
 	var netConf = &NetworkConfig{
 		EnableL1Logs: false,
-		Symbols:      config.DefaultSymbols,
+		Symbols:      helpers.DefaultSymbols,
 		VotePeriod:   20,      // 20s to shorten this test.
 		EpochPeriod:  20 * 12, // 4 minutes to shorten this test.
 		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir, defaultPlugDir, defaultPlugDir},
@@ -901,7 +900,7 @@ func TestOmissionFaultyVoter(t *testing.T) {
 func TestOutlierVoter(t *testing.T) {
 	var netConf = &NetworkConfig{
 		EnableL1Logs: false,
-		Symbols:      config.DefaultSymbols,
+		Symbols:      helpers.DefaultSymbols,
 		VotePeriod:   20,  // 20s to shorten this test.
 		EpochPeriod:  120, // 2 minutes to shorten this test.
 		PluginDIRs:   []string{outlierPlugDir, defaultPlugDir, defaultPlugDir, defaultPlugDir},

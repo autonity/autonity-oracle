@@ -1,7 +1,7 @@
 package common
 
 import (
-	"autonity-oracle/types"
+	"autonity-oracle/config"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
@@ -9,7 +9,7 @@ import (
 // set to bakerloo feed service by default.
 var defaultEndpoint = "simfeed.bakerloo.autonity.org"
 
-var defaultConfig = types.PluginConfig{
+var defaultConfig = config.PluginConfig{
 	Name:               "simulator_plugin",
 	Key:                "",
 	Scheme:             "https",
