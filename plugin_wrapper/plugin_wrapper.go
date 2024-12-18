@@ -15,7 +15,9 @@ import (
 )
 
 var (
-	sampleTTL = 2 * 3600 // 2 hours
+	// time to live in the cache for each single sample.
+	// todo: check if we can use it for AMM data aggregation?
+	sampleTTL = 1800 // 30 minutes
 )
 
 // PluginWrapper is the unified wrapper for the interface of a plugin, it contains metadata of a corresponding
@@ -152,6 +154,7 @@ func (pw *PluginWrapper) GCSamples() {
 			}
 		}
 
+		// todo: if we use them for AMM data aggregation, we need to keep them.
 		// If there are still samples left, keep only the latest one
 		if len(tsMap) > 0 {
 			latestTimestamp := pw.latestTimestamps[symbol]

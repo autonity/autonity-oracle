@@ -7,7 +7,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-// abi.encode(_reports, _salt, msg.sender) follows below encoding schema of the eth ABI specification.
 var ReportABIEncodeSchema = []byte("[{\"components\":[{\"internalType\":\"uint120\",\"name\":\"price\",\"type\":\"uint120\"},{\"internalType\":\"uint8\",\"name\":\"confidence\",\"type\":\"uint8\"}],\"internalType\":\"struct Report[]\",\"name\":\"_reports\",\"type\":\"tuple[]\"},{\"internalType\":\"uint256\",\"name\":\"_salt\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"}]")
 
 type CommitmentHashComputer struct {
@@ -24,7 +23,7 @@ func NewCommitmentHashComputer() (*CommitmentHashComputer, error) {
 	return &CommitmentHashComputer{args: args}, nil
 }
 
-// CommitmentHash computes the keccak256Hash of the output of the solidity instruct `abi.encode(_reports, _salt, msg.sender)` in golang
+// CommitmentHash computes the keccak256Hash of the output of the solidity instruct `abi.encode(_reports, _salt, msg.sender)`
 func (c *CommitmentHashComputer) CommitmentHash(args ...interface{}) (common.Hash, error) {
 	var hash common.Hash
 	bytes, err := c.args.PackValues(args)
