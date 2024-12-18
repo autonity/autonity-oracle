@@ -40,7 +40,7 @@ func main() { //nolint
 	defer oracle.Stop()
 
 	monitorConfig := monitor.DefaultMonitorConfig
-	ms := monitor.New(&monitorConfig, config.DefaultProfileDir)
+	ms := monitor.New(&monitorConfig, conf.ProfileDir)
 	ms.Start()
 	// Wait for interrupt signal to gracefully shut down the server with
 	// a timeout of 5 seconds.

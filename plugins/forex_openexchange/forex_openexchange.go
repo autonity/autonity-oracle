@@ -1,8 +1,8 @@
 package main
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/plugins/common"
-	"autonity-oracle/types"
 	"encoding/json"
 	"fmt"
 	"github.com/hashicorp/go-hclog"
@@ -21,7 +21,7 @@ const (
 	appID   = "app_id"
 )
 
-var defaultConfig = types.PluginConfig{
+var defaultConfig = config.PluginConfig{
 	Name:               "forex_openexchange",
 	Key:                "",
 	Scheme:             "https",
@@ -48,12 +48,12 @@ type OEResult struct {
 }
 
 type OXClient struct {
-	conf   *types.PluginConfig
+	conf   *config.PluginConfig
 	client *common.Client
 	logger hclog.Logger
 }
 
-func NewOXClient(conf *types.PluginConfig) *OXClient {
+func NewOXClient(conf *config.PluginConfig) *OXClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   "OpenExchangeRate",

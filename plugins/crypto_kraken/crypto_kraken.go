@@ -1,8 +1,8 @@
 package main
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/plugins/common"
-	"autonity-oracle/types"
 	"encoding/json"
 	"fmt"
 	"github.com/hashicorp/go-hclog"
@@ -19,7 +19,7 @@ const (
 	supportedSymbol = "USDCUSD"
 )
 
-var defaultConfig = types.PluginConfig{
+var defaultConfig = config.PluginConfig{
 	Name:               "crypto_kraken",
 	Key:                "",
 	Scheme:             "https",
@@ -46,12 +46,12 @@ type Response struct {
 }
 
 type KrakenClient struct {
-	conf   *types.PluginConfig
+	conf   *config.PluginConfig
 	client *common.Client
 	logger hclog.Logger
 }
 
-func NewKrakenClient(conf *types.PluginConfig) *KrakenClient {
+func NewKrakenClient(conf *config.PluginConfig) *KrakenClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   conf.Name,

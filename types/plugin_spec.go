@@ -30,6 +30,7 @@ type PluginPriceReport struct {
 type PluginState struct {
 	KeyRequired      bool
 	Version          string
+	DataSource       string
 	AvailableSymbols []string
 }
 

@@ -1,8 +1,8 @@
 package main
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/plugins/common"
-	"autonity-oracle/types"
 	"encoding/json"
 	"github.com/hashicorp/go-hclog"
 	"io"
@@ -21,7 +21,7 @@ const (
 	quote        = "usd"
 )
 
-var defaultConfig = types.PluginConfig{
+var defaultConfig = config.PluginConfig{
 	Name:               "crypto_coingecko",
 	Key:                "",
 	Scheme:             "https",
@@ -39,12 +39,12 @@ type Response struct {
 }
 
 type CoinGeckoClient struct {
-	conf   *types.PluginConfig
+	conf   *config.PluginConfig
 	client *common.Client
 	logger hclog.Logger
 }
 
-func NewCoinGeckoClient(conf *types.PluginConfig) *CoinGeckoClient {
+func NewCoinGeckoClient(conf *config.PluginConfig) *CoinGeckoClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   conf.Name,

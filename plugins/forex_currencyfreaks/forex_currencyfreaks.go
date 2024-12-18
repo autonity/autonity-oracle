@@ -1,8 +1,8 @@
 package main
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/plugins/common"
-	"autonity-oracle/types"
 	"encoding/json"
 	"fmt"
 	"github.com/hashicorp/go-hclog"
@@ -20,7 +20,7 @@ const (
 	apiKey     = "apikey"
 )
 
-var defaultConfig = types.PluginConfig{
+var defaultConfig = config.PluginConfig{
 	Name:               "forex_currencyfreaks",
 	Key:                "",
 	Scheme:             "https",
@@ -45,12 +45,12 @@ type CFRates struct {
 }
 
 type CFClient struct {
-	conf   *types.PluginConfig
+	conf   *config.PluginConfig
 	client *common.Client
 	logger hclog.Logger
 }
 
-func NewCFClient(conf *types.PluginConfig) *CFClient {
+func NewCFClient(conf *config.PluginConfig) *CFClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   conf.Name,

@@ -3,10 +3,8 @@ package main
 import (
 	swaperc20 "autonity-oracle/plugins/crypto_airswap/swap_erc20"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
 	"math/big"
-	"os"
 	"testing"
 )
 
@@ -15,12 +13,8 @@ import (
 func TestAirswapClientWithPiccadilly(t *testing.T) {
 	config := defaultConfig
 	config.Endpoint = "rpc2.piccadilly.autonity.org/ws"
-	logger := hclog.New(&hclog.LoggerOptions{
-		Name:   config.Name,
-		Level:  hclog.Info,
-		Output: os.Stdout,
-	})
-	client, err := NewAirswapClient(&config, logger)
+
+	client, err := NewAirswapClient(&config)
 	require.NoError(t, err)
 	defer client.client.Close()
 	defer client.subSwapEvent.Unsubscribe()

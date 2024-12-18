@@ -1,6 +1,7 @@
 package common
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/types"
 	"encoding/json"
 	"fmt"
@@ -27,9 +28,10 @@ var (
 )
 
 const (
-	AutonityCryptoDecimals = 18 // both NTN and the Wrapped ATN take 18 as the decimal.
-	USDCDecimals           = 6  // the decimal of USDC coin in autonity L1 network.
-	CryptoToUsdcDecimals   = 18 // the data precision in oracle contract.
+	DefaultAMMDataUpdateInterval = 1
+	AutonityCryptoDecimals       = 18 // both NTN and the Wrapped ATN take 18 as the decimal.
+	USDCDecimals                 = 6  // the decimal of USDC coin in autonity L1 network.
+	CryptoToUsdcDecimals         = 18 // the data precision in oracle contract.
 )
 
 type Price struct {
@@ -45,11 +47,11 @@ type Plugin struct {
 	symbolSeparator  string // "|", "/", "-", ",", "." or with a no separator "".
 	logger           hclog.Logger
 	client           DataSourceClient
-	conf             *types.PluginConfig
+	conf             *config.PluginConfig
 	cachePrices      map[string]types.Price
 }
 
-func NewPlugin(conf *types.PluginConfig, client DataSourceClient, version string) *Plugin {
+func NewPlugin(conf *config.PluginConfig, client DataSourceClient, version string) *Plugin {
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:       conf.Name,
 		Level:      hclog.Debug,
@@ -140,6 +142,7 @@ func (p *Plugin) State() (types.PluginState, error) {
 	state.Version = p.version
 	state.AvailableSymbols = symbols
 	state.KeyRequired = p.client.KeyRequired()
+	state.DataSource = p.conf.Scheme + "://" + p.conf.Endpoint
 	return state, nil
 }
 
@@ -178,7 +181,7 @@ func (p *Plugin) fetchPricesFromCache(availableSymbols []string) ([]types.Price,
 			return nil, fmt.Errorf("no data buffered")
 		}
 
-		if now-pr.Timestamp > int64(p.conf.DataUpdateInterval) {
+		if now-pr.Timestamp >= int64(p.conf.DataUpdateInterval) {
 			return nil, fmt.Errorf("data is too old")
 		}
 
@@ -188,10 +191,10 @@ func (p *Plugin) fetchPricesFromCache(availableSymbols []string) ([]types.Price,
 }
 
 // LoadPluginConf is called from plugin main() to load plugin's conf from system env.
-func LoadPluginConf(cmd string) (*types.PluginConfig, error) {
+func LoadPluginConf(cmd string) (*config.PluginConfig, error) {
 	name := filepath.Base(cmd)
 	conf := os.Getenv(name)
-	var c types.PluginConfig
+	var c config.PluginConfig
 	err := json.Unmarshal([]byte(conf), &c)
 	if err != nil {
 		return nil, err
@@ -218,7 +221,7 @@ func ConvertSymbol(src string, toSep string) string {
 	return strings.Join(subs, toSep)
 }
 
-func ResolveConf(cmd string, defConf *types.PluginConfig) *types.PluginConfig {
+func ResolveConf(cmd string, defConf *config.PluginConfig) *config.PluginConfig {
 
 	conf, err := LoadPluginConf(cmd)
 	if err != nil {
