@@ -215,9 +215,13 @@ func NewOracleServer(conf *types.OracleServerConfig, dialer types.Dialer, client
 		helpers.PrintUsage()
 		o.Exit(1)
 	}
+
 	for _, file := range binaries {
 		f := file
 		pConf := plugConfs[f.Name()]
+		if pConf.Disabled {
+			continue
+		}
 		os.loadNewPlugin(f, pConf)
 	}
 
@@ -887,7 +891,6 @@ func (os *OracleServer) Stop() {
 	}
 }
 
-// PluginRuntimeManagement
 func (os *OracleServer) PluginRuntimeManagement() {
 	// load plugin configs before start them.
 	plugConfs, err := config.LoadPluginsConfig(os.conf.PluginConfFile)
@@ -911,10 +914,16 @@ func (os *OracleServer) PluginRuntimeManagement() {
 		}
 	}
 
+	// todo: shutdown the plugin that are runtime disabled.
+
 	// try to load new plugins.
 	for _, file := range binaries {
 		f := file
 		pConf := plugConfs[f.Name()]
+
+		if pConf.Disabled {
+			continue
+		}
 
 		// skip to set up plugins until there is a service key is presented at plugin-confs.yml
 		if _, ok := os.keyRequiredPlugins[f.Name()]; ok && pConf.Key == "" {
