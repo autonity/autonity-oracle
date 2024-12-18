@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-var ReportABIEncodeSchema = []byte("[{\"components\":[{\"internalType\":\"uint120\",\"name\":\"price\",\"type\":\"uint120\"},{\"internalType\":\"uint8\",\"name\":\"confidence\",\"type\":\"uint8\"}],\"internalType\":\"struct Report[]\",\"name\":\"_reports\",\"type\":\"tuple[]\"},{\"internalType\":\"uint256\",\"name\":\"_salt\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"}]")
+var ReportsSchema = []byte("[{\"components\":[{\"internalType\":\"uint120\",\"name\":\"price\",\"type\":\"uint120\"},{\"internalType\":\"uint8\",\"name\":\"confidence\",\"type\":\"uint8\"}],\"internalType\":\"struct Report[]\",\"name\":\"_reports\",\"type\":\"tuple[]\"},{\"internalType\":\"uint256\",\"name\":\"_salt\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"}]")
 
 type CommitmentHashComputer struct {
 	args abi.Arguments
@@ -15,7 +15,7 @@ type CommitmentHashComputer struct {
 
 func NewCommitmentHashComputer() (*CommitmentHashComputer, error) {
 	var args abi.Arguments
-	err := json.Unmarshal(ReportABIEncodeSchema, &args)
+	err := json.Unmarshal(ReportsSchema, &args)
 	if err != nil {
 		return nil, err
 	}
