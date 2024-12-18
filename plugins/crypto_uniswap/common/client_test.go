@@ -2,10 +2,8 @@ package common
 
 import (
 	config2 "autonity-oracle/config"
-	"github.com/hashicorp/go-hclog"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
-	"os"
 	"testing"
 )
 
@@ -23,12 +21,7 @@ func TestNewUniswapClient(t *testing.T) {
 		SwapAddress:        "0x218F76e357594C82Cc29A88B90dd67b180827c88",
 	}
 
-	logger := hclog.New(&hclog.LoggerOptions{
-		Name:   config.Name,
-		Level:  hclog.Info,
-		Output: os.Stdout,
-	})
-	client, err := NewUniswapClient(&config, logger)
+	client, err := NewUniswapClient(&config)
 	require.NoError(t, err)
 
 	defer client.Close()

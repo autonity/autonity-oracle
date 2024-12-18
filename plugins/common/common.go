@@ -142,6 +142,7 @@ func (p *Plugin) State() (types.PluginState, error) {
 	state.Version = p.version
 	state.AvailableSymbols = symbols
 	state.KeyRequired = p.client.KeyRequired()
+	state.DataSource = p.conf.Scheme + "://" + p.conf.Endpoint
 	return state, nil
 }
 

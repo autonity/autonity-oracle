@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"math"
 	"math/big"
+	"os"
 )
 
 var (
@@ -36,7 +37,13 @@ type UniswapClient struct {
 	ntnUSDCPairContract *WrappedPair
 }
 
-func NewUniswapClient(conf *config.PluginConfig, logger hclog.Logger) (*UniswapClient, error) {
+func NewUniswapClient(conf *config.PluginConfig) (*UniswapClient, error) {
+	logger := hclog.New(&hclog.LoggerOptions{
+		Name:   conf.Name,
+		Level:  hclog.Info,
+		Output: os.Stdout,
+	})
+
 	url := conf.Scheme + "://" + conf.Endpoint
 	client, err := ethclient.Dial(url)
 	if err != nil {

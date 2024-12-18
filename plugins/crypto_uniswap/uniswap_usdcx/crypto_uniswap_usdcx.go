@@ -5,7 +5,6 @@ import (
 	"autonity-oracle/plugins/common"
 	client "autonity-oracle/plugins/crypto_uniswap/common"
 	"autonity-oracle/types"
-	"github.com/hashicorp/go-hclog"
 	"os"
 )
 
@@ -24,17 +23,10 @@ var defaultConfig = config.PluginConfig{
 
 func main() {
 	conf := common.ResolveConf(os.Args[0], &defaultConfig)
-	logger := hclog.New(&hclog.LoggerOptions{
-		Name:   conf.Name,
-		Level:  hclog.Info,
-		Output: os.Stdout,
-	})
-
-	c, err := client.NewUniswapClient(conf, logger)
+	c, err := client.NewUniswapClient(conf)
 	if err != nil {
 		return
 	}
-
 	adapter := common.NewPlugin(conf, c, client.Version)
 	defer adapter.Close()
 	common.PluginServe(adapter)

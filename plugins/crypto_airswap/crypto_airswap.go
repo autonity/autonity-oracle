@@ -36,7 +36,7 @@ var (
 var defaultConfig = config.PluginConfig{
 	Name:     "crypto_airswap",
 	Scheme:   "wss",
-	Endpoint: "rpc1.piccadilly.autonity.org/ws",
+	Endpoint: "rpc-internal-1.piccadilly.autonity.org/ws",
 	Timeout:  10, // 10s
 
 	// As DEX price can move very quickly, thus we prefer price sampling without any delay to reduce the risk of slashing.
@@ -85,7 +85,13 @@ type AirswapClient struct {
 	lastAggregatedPrices map[ecommon.Address]common.Price
 }
 
-func NewAirswapClient(conf *config.PluginConfig, logger hclog.Logger) (*AirswapClient, error) {
+func NewAirswapClient(conf *config.PluginConfig) (*AirswapClient, error) {
+	logger := hclog.New(&hclog.LoggerOptions{
+		Name:   conf.Name,
+		Level:  hclog.Info,
+		Output: os.Stdout,
+	})
+
 	url := conf.Scheme + "://" + conf.Endpoint
 	client, err := ethclient.Dial(url)
 	if err != nil {
@@ -459,13 +465,7 @@ func (e *AirswapClient) Close() {
 
 func main() {
 	conf := common.ResolveConf(os.Args[0], &defaultConfig)
-	logger := hclog.New(&hclog.LoggerOptions{
-		Name:   conf.Name,
-		Level:  hclog.Info,
-		Output: os.Stdout,
-	})
-
-	client, err := NewAirswapClient(conf, logger)
+	client, err := NewAirswapClient(conf)
 	if err != nil {
 		return
 	}

@@ -124,6 +124,7 @@ func (g *OutlierTesterPlugin) State() (types.PluginState, error) {
 	state.KeyRequired = g.client.KeyRequired()
 	state.Version = g.version
 	state.AvailableSymbols = symbols
+	state.DataSource = g.conf.Scheme + "://" + g.conf.Endpoint
 
 	return state, nil
 }

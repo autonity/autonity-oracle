@@ -216,7 +216,7 @@ func (pw *PluginWrapper) Initialize() error {
 
 	// all good, start to subscribe data sampling event from oracle server, and listen for sampling.
 	go pw.start()
-	pw.logger.Info("plugin is up and running", pw.name, state)
+	pw.logger.Info("plugin is up and running", "name", pw.name, "state", state)
 	return nil
 }
 

@@ -12,3 +12,5 @@ e2e_test/simulator
 e2e_test/autonity.bak
 e2e_test/autoracle
 e2e_test/oracle_config/
+e2e_test/autonity_l1_config/nodekeys
+plugins/template_plugin/bin
