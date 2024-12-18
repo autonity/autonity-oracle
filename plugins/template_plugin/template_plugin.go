@@ -207,7 +207,7 @@ func (tc *TemplateClient) FetchPrice(symbols []string) (common.Prices, error) {
 			return nil, err
 		}
 
-		res, err := tc.client.Conn.Request(tc.conf.Scheme, u)
+		res, err := tc.common.Conn.Request(tc.conf.Scheme, u)
 		if err != nil {
 			tc.logger.Error("https get", "error", err.Error())
 			return nil, err

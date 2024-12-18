@@ -81,17 +81,12 @@ e2e-test-stuffs:
 	chmod +x $(E2E_TEST_PRD_PLUGIN_DIR)/binance
 
 	# build amm and dex plugins for e2e test.
-	go build -o $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/crypto_uniswap.go
+	go build -o $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/uniswap_usdcx/crypto_uniswap_usdcx.go
 	go build -o $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_airswap $(PLUGIN_SRC_DIR)/crypto_airswap/crypto_airswap.go
 	chmod +x $(E2E_TEST_CRYPTO_PLUGIN_DIR)/*
 
     # build bakerloo simulator plugin for e2e test.
-	go build -o $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go
-	chmod +x $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin
-	cp  $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin $(E2E_TEST_MIX_PLUGIN_DIR)/simulator_plugin
-
-    # build bakerloo simulator plugin for e2e test.
-	go build -o $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go
+	go build -o $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/bakerloo/simulator_plugin.go
 	chmod +x $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin
 	cp  $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin $(E2E_TEST_MIX_PLUGIN_DIR)/simulator_plugin
 
@@ -130,7 +125,7 @@ dex-plugins:
 
 # amm plugins are not officially release yet.
 amm-plugins:
-	go build -o $(PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/crypto_uniswap.go
+	go build -o $(PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/uniswap_usdcx/crypto_uniswap_usdcx.go
 	chmod +x $(PLUGIN_DIR)/*
 
 # legacy piccadilly cax plugin, it sources order books from a CEX service built in python.
@@ -147,12 +142,12 @@ crypto_source_simulator:
 
 # build simulator plugin for bakerloo network.
 bakerloo-sim-plugin:
-	go build -o $(PLUGIN_DIR)/simulator_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go
+	go build -o $(PLUGIN_DIR)/simulator_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/bakerloo/simulator_plugin.go
 	chmod +x $(PLUGIN_DIR)/simulator_plugin
 
 # build simulator plugin for piccadilly network.
 piccadilly-sim-plugin:
-	go build -o $(PLUGIN_DIR)/simulator_plugin -tags pic $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go
+	go build -o $(PLUGIN_DIR)/simulator_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/piccadilly/simulator_plugin.go
 	chmod +x $(PLUGIN_DIR)/simulator_plugin
 
 # build the whole components for bakerloo network.
