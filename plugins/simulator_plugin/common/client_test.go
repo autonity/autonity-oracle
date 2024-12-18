@@ -6,14 +6,11 @@ import (
 	"testing"
 )
 
-// set to bakerloo feed service by default.
-var defaultEndpoint = "simfeed.bakerloo.autonity.org"
-
 var defaultConfig = config.PluginConfig{
 	Name:               "simulator_plugin",
 	Key:                "",
 	Scheme:             "https",
-	Endpoint:           defaultEndpoint,
+	Endpoint:           "simfeed.bakerloo.autonity.org",
 	Timeout:            10, //10s
 	DataUpdateInterval: 10, //10s
 }

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	tp "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/golang/mock/gomock"
 	"github.com/shopspring/decimal"
@@ -38,13 +39,24 @@ func TestServerState(t *testing.T) {
 	tempDir := t.TempDir()
 	fileName := filepath.Join(tempDir, serverStateDumpFile)
 
+	nodeKey, err := crypto.GenerateKey()
+	require.NoError(t, err)
+	nodeAddr := crypto.PubkeyToAddress(nodeKey.PublicKey)
+
 	// Create a ServerState instance
 	originalState := &ServerState{
-		LastPenalizedAtBlock: 12345,
+		OutlierRecord: OutlierRecord{
+			LastPenalizedAtBlock: 1234556,
+			Participant:          nodeAddr,
+			Symbol:               NTNUSDC,
+			Median:               uint64(100000000000),
+			Reported:             uint64(200000000000),
+		},
+		LoggedAt: time.Now().Format(time.RFC3339),
 	}
 
 	// Test flush method
-	err := originalState.flush(tempDir)
+	err = originalState.flush(tempDir)
 	if err != nil {
 		t.Fatalf("failed to flush state: %v", err)
 	}
@@ -63,13 +75,7 @@ func TestServerState(t *testing.T) {
 		t.Fatalf("failed to load state: %v", err)
 	}
 
-	// Verify that the loaded state matches the original state
-	if originalState.LastPenalizedAtBlock != loadedState.LastPenalizedAtBlock {
-		t.Errorf("expected LastPenalizedAtBlock to be %d, got %d", originalState.LastPenalizedAtBlock, loadedState.LastPenalizedAtBlock)
-	}
-	if originalState.UpdateAt != loadedState.UpdateAt {
-		t.Errorf("expected UpdateAt to be %s, got %s", originalState.UpdateAt, loadedState.UpdateAt)
-	}
+	require.Equal(t, originalState, loadedState)
 }
 
 func TestOracleServer(t *testing.T) {

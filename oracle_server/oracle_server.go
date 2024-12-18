@@ -63,8 +63,16 @@ const (
 // ServerState is the state that to be flushed into the profiling report directory.
 // It is loaded on start up.
 type ServerState struct {
-	LastPenalizedAtBlock uint64 `json:"last_penalized_at_block"`
-	UpdateAt             string `json:"update_at"`
+	OutlierRecord
+	LoggedAt string `json:"logged_at"`
+}
+
+type OutlierRecord struct {
+	LastPenalizedAtBlock uint64         `json:"last_penalized_at_block"`
+	Participant          common.Address `json:"participant"`
+	Symbol               string         `json:"symbol"`
+	Median               uint64         `json:"median"`
+	Reported             uint64         `json:"reported"`
 }
 
 // flush dumps the ServerState into a JSON file in the specified profile directory.
@@ -82,10 +90,8 @@ func (s *ServerState) flush(profileDir string) error {
 	}
 	defer file.Close()
 
-	// Encode the ServerState into JSON and write to the file
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
-	s.UpdateAt = time.Now().Format(time.RFC3339)
 	if err = encoder.Encode(s); err != nil {
 		return fmt.Errorf("failed to encode ServerState to JSON: %v", err)
 	}
@@ -101,7 +107,7 @@ func (s *ServerState) loadState(profileDir string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open file: %v", err)
 	}
-	defer file.Close() // Ensure the file is closed after the function exits
+	defer file.Close()
 
 	decoder := json.NewDecoder(file)
 	if err := decoder.Decode(s); err != nil {
@@ -459,7 +465,8 @@ func (os *OracleServer) handleRoundVote() error {
 	// check with the vote buffer from the last penalty event.
 	if os.state != nil && os.curSampleHeight-os.state.LastPenalizedAtBlock <= os.conf.VoteBuffer {
 		left := os.conf.VoteBuffer - (os.curSampleHeight - os.state.LastPenalizedAtBlock)
-		os.logger.Warn("due to the outlier penalty, we buffered your next vote in blocks from slashing again", "leftVoteBuffer", left)
+		os.logger.Warn("due to the outlier penalty, we postpone your next vote from slashing", "next vote block", left)
+		os.logger.Warn("your last outlier report was", "report", os.state.OutlierRecord)
 		os.logger.Warn("during this period, you can: 1. check your data source infra; 2. restart your oracle-client; 3. contact Autonity team for help;")
 		return nil
 	}
@@ -810,13 +817,23 @@ func (os *OracleServer) Start() {
 			}
 			os.lastSampledTS = preSampleTS
 		case penalizeEvent := <-os.chPenalizedEvent:
-			// Just keep a warning for the node operator
-			os.logger.Warn("Oracle client get penalized as an outlier", "oracle node", penalizeEvent.Participant,
-				"currency symbol", penalizeEvent.Symbol, "median value", penalizeEvent.Median.String(), "reported value", penalizeEvent.Reported.String(), "block", penalizeEvent.Raw.BlockNumber)
 
-			os.logger.Warn("you have a vote buffer to repair your infra before new vote", "voteBuffer in blocks", os.conf.VoteBuffer)
+			os.logger.Warn("Oracle client get penalized as an outlier", "node", penalizeEvent.Participant,
+				"currency symbol", penalizeEvent.Symbol, "median value", penalizeEvent.Median.String(),
+				"reported value", penalizeEvent.Reported.String(), "block", penalizeEvent.Raw.BlockNumber)
+			os.logger.Warn("your next vote will be postponed", "in blocks", os.conf.VoteBuffer)
 
-			newState := &ServerState{LastPenalizedAtBlock: penalizeEvent.Raw.BlockNumber}
+			newState := &ServerState{
+				OutlierRecord: OutlierRecord{
+					LastPenalizedAtBlock: penalizeEvent.Raw.BlockNumber,
+					Participant:          penalizeEvent.Participant,
+					Symbol:               penalizeEvent.Symbol,
+					Median:               penalizeEvent.Median.Uint64(),
+					Reported:             penalizeEvent.Reported.Uint64(),
+				},
+				LoggedAt: time.Now().Format(time.RFC3339),
+			}
+
 			os.state = newState
 			if err := os.state.flush(os.conf.ProfileDir); err != nil {
 				os.logger.Error("failed to flush oracle state", "error", err.Error())
