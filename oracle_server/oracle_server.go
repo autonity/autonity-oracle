@@ -126,7 +126,7 @@ type OracleServer struct {
 	regularTicker *time.Ticker // the clock source to trigger the 10s interval job.
 	psTicker      *time.Ticker // the pre-sampling ticker in 1s.
 
-	pluginSet       map[string]*pWrapper.PluginWrapper // the plugin clients that connect with different adapters.
+	runningPlugins  map[string]*pWrapper.PluginWrapper // the plugin clients that connect with different adapters.
 	samplingSymbols []string                           // the symbols for data fetching in oracle service, can be different from the required protocol symbols.
 
 	keyRequiredPlugins map[string]struct{} // saving those plugins which require a key granted by data provider
@@ -170,7 +170,7 @@ func NewOracleServer(conf *types.OracleServerConfig, dialer types.Dialer, client
 		client:             client,
 		oracleContract:     oc,
 		roundData:          make(map[uint64]*types.RoundData),
-		pluginSet:          make(map[string]*pWrapper.PluginWrapper),
+		runningPlugins:     make(map[string]*pWrapper.PluginWrapper),
 		keyRequiredPlugins: make(map[string]struct{}),
 		doneCh:             make(chan struct{}),
 		regularTicker:      time.NewTicker(tenSecsInterval),
@@ -222,7 +222,7 @@ func NewOracleServer(conf *types.OracleServerConfig, dialer types.Dialer, client
 		if pConf.Disabled {
 			continue
 		}
-		os.loadNewPlugin(f, pConf)
+		os.tryToLaunchPlugin(f, pConf)
 	}
 
 	os.logger.Info("running oracle contract listener at", "WS", conf.AutonityWSUrl, "ID", conf.Key.Address.String())
@@ -311,7 +311,7 @@ func (os *OracleServer) initStates() (uint64, []string, uint64, error) {
 }
 
 func (os *OracleServer) gcDataSamples() {
-	for _, plugin := range os.pluginSet {
+	for _, plugin := range os.runningPlugins {
 		plugin.GCSamples()
 	}
 }
@@ -738,7 +738,7 @@ func (os *OracleServer) aggregateBridgedPrice(srcSymbol string, target int64, us
 
 func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, error) {
 	var prices []decimal.Decimal
-	for _, plugin := range os.pluginSet {
+	for _, plugin := range os.runningPlugins {
 		p, err := plugin.GetSample(s, target)
 		if err != nil {
 			continue
@@ -885,7 +885,7 @@ func (os *OracleServer) Stop() {
 	os.subPenalizedEvent.Unsubscribe()
 
 	os.doneCh <- struct{}{}
-	for _, c := range os.pluginSet {
+	for _, c := range os.runningPlugins {
 		p := c
 		p.Close()
 	}
@@ -899,22 +899,30 @@ func (os *OracleServer) PluginRuntimeManagement() {
 		return
 	}
 
+	// load plugin binaries
 	binaries, err := helpers.ListPlugins(os.conf.PluginDIR)
 	if err != nil {
 		os.logger.Error("list plugin", "error", err.Error())
 		return
 	}
 
-	// shutdown the plugins which are removed from the plugin directory.
-	for name, plugin := range os.pluginSet {
+	// shutdown the plugins which are removed from the plugin directory, or disabled from config.
+	for name, plugin := range os.runningPlugins {
 		if _, ok := binaries[name]; !ok {
 			os.logger.Info("removing plugin", "name", name)
 			plugin.Close()
-			delete(os.pluginSet, name)
+			delete(os.runningPlugins, name)
+			continue
+		}
+
+		// shutdown the plugin that are runtime disabled.
+		pConf := plugConfs[name]
+		if pConf.Disabled {
+			os.logger.Info("disabling plugin", "name", name)
+			plugin.Close()
+			delete(os.runningPlugins, name)
 		}
 	}
-
-	// todo: shutdown the plugin that are runtime disabled.
 
 	// try to load new plugins.
 	for _, file := range binaries {
@@ -930,19 +938,19 @@ func (os *OracleServer) PluginRuntimeManagement() {
 			continue
 		}
 
-		os.loadNewPlugin(f, pConf)
+		os.tryToLaunchPlugin(f, pConf)
 	}
 }
 
-func (os *OracleServer) loadNewPlugin(f fs.FileInfo, plugConf config.PluginConfig) {
-	plugin, ok := os.pluginSet[f.Name()]
+func (os *OracleServer) tryToLaunchPlugin(f fs.FileInfo, plugConf config.PluginConfig) {
+	plugin, ok := os.runningPlugins[f.Name()]
 	if !ok {
 		os.logger.Info("new plugin discovered, going to setup it: ", f.Name(), f.Mode().String())
 		pluginWrapper, err := os.setupNewPlugin(f.Name(), &plugConf)
 		if err != nil {
 			return
 		}
-		os.pluginSet[f.Name()] = pluginWrapper
+		os.runningPlugins[f.Name()] = pluginWrapper
 		return
 	}
 
@@ -950,13 +958,13 @@ func (os *OracleServer) loadNewPlugin(f fs.FileInfo, plugConf config.PluginConfi
 		os.logger.Info("replacing legacy plugin with new one: ", f.Name(), f.Mode().String())
 		// stop the legacy plugin
 		plugin.Close()
-		delete(os.pluginSet, f.Name())
+		delete(os.runningPlugins, f.Name())
 
 		pluginWrapper, err := os.setupNewPlugin(f.Name(), &plugConf)
 		if err != nil {
 			return
 		}
-		os.pluginSet[f.Name()] = pluginWrapper
+		os.runningPlugins[f.Name()] = pluginWrapper
 	}
 }
 

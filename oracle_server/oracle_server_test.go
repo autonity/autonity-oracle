@@ -111,9 +111,9 @@ func TestOracleServer(t *testing.T) {
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromBigInt(common.Big1, int32(precision))))
 
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
-		require.Equal(t, 1, len(srv.pluginSet))
-		require.Equal(t, "template_plugin", srv.pluginSet["template_plugin"].Name())
-		srv.pluginSet["template_plugin"].Close()
+		require.Equal(t, 1, len(srv.runningPlugins))
+		require.Equal(t, "template_plugin", srv.runningPlugins["template_plugin"].Name())
+		srv.runningPlugins["template_plugin"].Close()
 	})
 
 	t.Run("test pre-sampling happy case", func(t *testing.T) {
@@ -152,7 +152,7 @@ func TestOracleServer(t *testing.T) {
 		require.Equal(t, true, helpers.ResolveSimulatedPrice(ATNUSD).Equal(roundData.Prices[ATNUSD].Price))
 		t.Log(roundData)
 		srv.gcDataSamples()
-		srv.pluginSet["template_plugin"].Close()
+		srv.runningPlugins["template_plugin"].Close()
 	})
 
 	t.Run("test round vote happy case, with commitment and round data", func(t *testing.T) {
@@ -232,7 +232,7 @@ func TestOracleServer(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, hash, srv.roundData[srv.curRound].CommitmentHash)
 
-		srv.pluginSet["template_plugin"].Close()
+		srv.runningPlugins["template_plugin"].Close()
 	})
 
 	t.Run("test handle new symbol event", func(t *testing.T) {
@@ -255,12 +255,12 @@ func TestOracleServer(t *testing.T) {
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromBigInt(common.Big1, int32(precision))))
 
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
-		require.Equal(t, 1, len(srv.pluginSet))
+		require.Equal(t, 1, len(srv.runningPlugins))
 
 		nSymbols := append(helpers.DefaultSymbols, "NTNETH", "NTNBTC", "NTNCNY")
 		srv.handleNewSymbolsEvent(nSymbols)
 		require.Equal(t, len(nSymbols)+len(bridgerSymbols), len(srv.samplingSymbols))
-		srv.pluginSet["template_plugin"].Close()
+		srv.runningPlugins["template_plugin"].Close()
 	})
 
 	t.Run("test plugin runtime management, add new plugin", func(t *testing.T) {
@@ -283,7 +283,7 @@ func TestOracleServer(t *testing.T) {
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromBigInt(common.Big1, int32(precision))))
 
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
-		require.Equal(t, 1, len(srv.pluginSet))
+		require.Equal(t, 1, len(srv.runningPlugins))
 
 		// add a new plugin into the plugin directory.
 		clones, err := clonePlugins(srv.conf.PluginDIR, "cloned", srv.conf.PluginDIR)
@@ -296,11 +296,11 @@ func TestOracleServer(t *testing.T) {
 		}()
 
 		srv.PluginRuntimeManagement()
-		require.Equal(t, 2, len(srv.pluginSet))
-		require.Equal(t, "template_plugin", srv.pluginSet["template_plugin"].Name())
-		require.Equal(t, "clonedtemplate_plugin", srv.pluginSet["clonedtemplate_plugin"].Name())
-		srv.pluginSet["template_plugin"].Close()
-		srv.pluginSet["clonedtemplate_plugin"].Close()
+		require.Equal(t, 2, len(srv.runningPlugins))
+		require.Equal(t, "template_plugin", srv.runningPlugins["template_plugin"].Name())
+		require.Equal(t, "clonedtemplate_plugin", srv.runningPlugins["clonedtemplate_plugin"].Name())
+		srv.runningPlugins["template_plugin"].Close()
+		srv.runningPlugins["clonedtemplate_plugin"].Close()
 	})
 
 	t.Run("test plugin runtime management, upgrade plugin", func(t *testing.T) {
@@ -323,8 +323,8 @@ func TestOracleServer(t *testing.T) {
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromBigInt(common.Big1, int32(precision))))
 
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
-		require.Equal(t, 1, len(srv.pluginSet))
-		firstStart := srv.pluginSet["template_plugin"].StartTime()
+		require.Equal(t, 1, len(srv.runningPlugins))
+		firstStart := srv.runningPlugins["template_plugin"].StartTime()
 
 		// cpy and replace the legacy plugins
 		err := replacePlugins(srv.conf.PluginDIR)
@@ -332,10 +332,10 @@ func TestOracleServer(t *testing.T) {
 
 		srv.PluginRuntimeManagement()
 
-		require.Equal(t, 1, len(srv.pluginSet))
-		require.Equal(t, "template_plugin", srv.pluginSet["template_plugin"].Name())
-		require.Greater(t, srv.pluginSet["template_plugin"].StartTime(), firstStart)
-		srv.pluginSet["template_plugin"].Close()
+		require.Equal(t, 1, len(srv.runningPlugins))
+		require.Equal(t, "template_plugin", srv.runningPlugins["template_plugin"].Name())
+		require.Greater(t, srv.runningPlugins["template_plugin"].StartTime(), firstStart)
+		srv.runningPlugins["template_plugin"].Close()
 	})
 
 	t.Run("test plugin runtime management, remove plugin", func(t *testing.T) {
@@ -358,7 +358,7 @@ func TestOracleServer(t *testing.T) {
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromBigInt(common.Big1, int32(precision))))
 
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
-		require.Equal(t, 1, len(srv.pluginSet))
+		require.Equal(t, 1, len(srv.runningPlugins))
 
 		// Backup the existing plugins
 		backupDir := "/tmp/plugin_backup"   // Temporary directory for backup
@@ -397,7 +397,7 @@ func TestOracleServer(t *testing.T) {
 
 		srv.PluginRuntimeManagement()
 
-		require.Equal(t, 0, len(srv.pluginSet))
+		require.Equal(t, 0, len(srv.runningPlugins))
 	})
 
 	t.Run("gcRounddata", func(t *testing.T) {
