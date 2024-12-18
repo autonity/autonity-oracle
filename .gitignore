@@ -11,3 +11,4 @@ e2e_test/profiles
 e2e_test/simulator
 e2e_test/autonity.bak
 e2e_test/autoracle
+e2e_test/oracle_config/
