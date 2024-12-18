@@ -51,8 +51,8 @@ type RoundData struct {
 	MissingData    bool
 }
 
-// OracleServiceConfig is the configuration of the oracle client.
-type OracleServiceConfig struct {
+// OracleServerConfig is the configuration of the oracle client.
+type OracleServerConfig struct {
 	LoggingLevel       hclog.Level
 	GasTipCap          uint64
 	VoteBuffer         uint64

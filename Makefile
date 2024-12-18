@@ -69,6 +69,7 @@ e2e-test-stuffs:
 	go build -o $(PLUGIN_SRC_DIR)/template_plugin/bin/template_plugin $(PLUGIN_SRC_DIR)/template_plugin/template_plugin.go
 	go build -o $(E2E_TEST_MIX_PLUGIN_DIR)/template_plugin $(PLUGIN_SRC_DIR)/template_plugin/template_plugin.go
 	go build -o $(E2E_TEST_TEMPLATE_PLUGIN_DIR)/template_plugin $(PLUGIN_SRC_DIR)/template_plugin/template_plugin.go
+	chmod +x $(PLUGIN_SRC_DIR)/template_plugin/bin/template_plugin
 	chmod +x $(E2E_TEST_MIX_PLUGIN_DIR)/template_plugin
 	chmod +x $(E2E_TEST_TEMPLATE_PLUGIN_DIR)/template_plugin
 

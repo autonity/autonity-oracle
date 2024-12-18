@@ -71,7 +71,7 @@ type PluginConfig struct {
 	SwapAddress        string `json:"swapAddress" yaml:"swapAddress"`           // UniSwap factory contract address or AirSwap SwapERC20 contract address on the target blockchain.
 }
 
-func MakeConfig() *types.OracleServiceConfig {
+func MakeConfig() *types.OracleServerConfig {
 	var logLevel int
 	var keyFile string
 	var gasTipCap uint64
@@ -186,7 +186,7 @@ func MakeConfig() *types.OracleServiceConfig {
 		os.Exit(1)
 	}
 
-	return &types.OracleServiceConfig{
+	return &types.OracleServerConfig{
 		VoteBuffer:         voteBuffer,
 		GasTipCap:          gasTipCap,
 		Key:                key,

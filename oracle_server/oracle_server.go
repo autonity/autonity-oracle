@@ -114,7 +114,7 @@ func (s *ServerState) loadState(profileDir string) error {
 // OracleServer coordinates the plugin discovery, the data sampling, and do the health checking with L1 connectivity.
 type OracleServer struct {
 	logger hclog.Logger
-	conf   *types.OracleServiceConfig
+	conf   *types.OracleServerConfig
 
 	doneCh        chan struct{}
 	regularTicker *time.Ticker // the clock source to trigger the 10s interval job.
@@ -156,7 +156,7 @@ type OracleServer struct {
 	state *ServerState // server state to be flushed.
 }
 
-func NewOracleServer(conf *types.OracleServiceConfig, dialer types.Dialer, client types.Blockchain,
+func NewOracleServer(conf *types.OracleServerConfig, dialer types.Dialer, client types.Blockchain,
 	oc contract.ContractAPI) *OracleServer {
 	os := &OracleServer{
 		conf:               conf,
