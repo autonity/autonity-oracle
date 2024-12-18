@@ -1,6 +1,7 @@
 # Mac meta data
 .DS_Store
 .idea
+.vscode/
 build
 coverage.out
 data_source_simulator/build
