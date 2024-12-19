@@ -1,6 +1,10 @@
 
 # Autonity Oracle Server
 
+- [Quick start guide to deploy the Oracle Server on Autonity Networks](https://docs.autonity.org/oracle/install-oracle/)
+
+The following readme is developer focused
+
 ## Assumptions
 
 This project assumes the following:
