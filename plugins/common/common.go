@@ -17,6 +17,8 @@ import (
 )
 
 var (
+	ChainIDPiccadilly    = big.NewInt(65_100_004)
+	ChainIDBakerloo      = big.NewInt(65_010_003)
 	Zero                 = big.NewInt(0)
 	DefaultForexSymbols  = []string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"}
 	NTNATNSymbol         = "NTN-ATN"

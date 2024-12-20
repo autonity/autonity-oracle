@@ -847,6 +847,7 @@ func (os *OracleServer) Start() {
 			os.logger.Info("handle new round", "round", rEvent.Round.Uint64(), "required sampling TS",
 				rEvent.Timestamp.Uint64(), "height", rEvent.Height.Uint64(), "round period", rEvent.VotePeriod.Uint64())
 
+			// todo: apply the new vote period at the end of current vote round from oracle contract side.
 			// save the round rotation info to coordinate the pre-sampling.
 			os.curRound = rEvent.Round.Uint64()
 			os.votePeriod = rEvent.VotePeriod.Uint64()
