@@ -41,9 +41,10 @@ type Adapter interface {
 	// one need to filter invalid symbols to make sure valid symbol's data be collected. The return PluginPriceReport
 	// contains the valid symbols' prices and a set of invalid symbols.
 	FetchPrices(symbols []string) (PluginPriceReport, error)
-	// State is called by oracle server to instantiate a plugin, it returns the plugin's version and a set of symbol that
-	// the data source support, this information is just used for logging at the bootstrap phase of a plugin.
-	State() (PluginState, error)
+	// State is called by oracle server to instantiate a plugin, it returns the plugin's statement of their version,
+	// supported symbols, datasource, and if a key is required. It also checks the chainID from plugin side to determine
+	// if it is safe to run the plugin, it would stop to start if the chain ID is mismatched.
+	State(chainID int64) (PluginState, error)
 }
 
 // AdapterRPCClient is an implementation that talks over RPC client
@@ -59,9 +60,9 @@ func (g *AdapterRPCClient) FetchPrices(symbols []string) (PluginPriceReport, err
 	return resp, nil
 }
 
-func (g *AdapterRPCClient) State() (PluginState, error) {
+func (g *AdapterRPCClient) State(chainID int64) (PluginState, error) {
 	var resp PluginState
-	err := g.client.Call("Plugin.State", new(interface{}), &resp)
+	err := g.client.Call("Plugin.State", chainID, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -81,8 +82,8 @@ func (s *AdapterRPCServer) FetchPrices(symbols []string, resp *PluginPriceReport
 	return err
 }
 
-func (s *AdapterRPCServer) State(args interface{}, resp *PluginState) error {
-	v, err := s.Impl.State()
+func (s *AdapterRPCServer) State(chainID int64, resp *PluginState) error {
+	v, err := s.Impl.State(chainID)
 	*resp = v
 	return err
 }
@@ -98,6 +99,6 @@ func (p *AdapterPlugin) Server(*plugin.MuxBroker) (interface{}, error) {
 	return &AdapterRPCServer{Impl: p.Impl}, nil
 }
 
-func (AdapterPlugin) Client(b *plugin.MuxBroker, c *rpc.Client) (interface{}, error) {
+func (AdapterPlugin) Client(_ *plugin.MuxBroker, c *rpc.Client) (interface{}, error) {
 	return &AdapterRPCClient{client: c}, nil
 }

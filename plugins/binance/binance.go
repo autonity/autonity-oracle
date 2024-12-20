@@ -115,7 +115,7 @@ func (bi *BIClient) buildURL(symbols []string) (*url.URL, error) {
 
 func main() {
 	conf := common.ResolveConf(os.Args[0], &defaultConfig)
-	adapter := common.NewPlugin(conf, NewBIClient(conf), version)
+	adapter := common.NewPlugin(conf, NewBIClient(conf), version, nil)
 	defer adapter.Close()
 
 	common.PluginServe(adapter)

@@ -240,6 +240,7 @@ func (n *L1Node) Stop() {
 }
 
 type NetworkConfig struct {
+	ChainID         int64
 	EnableL1Logs    bool
 	Symbols         []string
 	VotePeriod      uint64
@@ -249,6 +250,7 @@ type NetworkConfig struct {
 }
 
 type Network struct {
+	ChainID      int64
 	EnableL1Logs bool
 	GenesisFile  string
 	OperatorKey  *Key
@@ -377,6 +379,7 @@ func createNetwork(netConf *NetworkConfig, numOfValidators int) (*Network, error
 	}
 
 	var network = &Network{
+		ChainID:      netConf.ChainID,
 		EnableL1Logs: netConf.EnableL1Logs,
 		OperatorKey:  keys[0],
 		TreasuryKey:  keys[1],
@@ -464,6 +467,12 @@ func makeGenesisConfig(srcTemplate string, dstFile string, vals []*Validator, ne
 	if err = json.NewDecoder(file).Decode(genesis); err != nil {
 		return err
 	}
+
+	// set chain ID with customized chain ID, otherwise leave it with default one.
+	if net.ChainID != 0 {
+		genesis.Config.ChainID = big.NewInt(net.ChainID)
+	}
+
 	genesis.Config.AutonityContractConfig.EpochPeriod = net.EpochPeriod
 	genesis.Config.AutonityContractConfig.Operator = net.OperatorKey.Key.Address
 	genesis.Config.AutonityContractConfig.Treasury = net.TreasuryKey.Key.Address

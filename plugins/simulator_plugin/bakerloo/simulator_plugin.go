@@ -18,7 +18,7 @@ var defaultConfig = config.PluginConfig{
 
 func main() {
 	conf := common.ResolveConf(os.Args[0], &defaultConfig)
-	adapter := common.NewPlugin(conf, client.NewSIMClient(conf), client.Version)
+	adapter := common.NewPlugin(conf, client.NewSIMClient(conf), client.Version, common.ChainIDBakerloo)
 	defer adapter.Close()
 	common.PluginServe(adapter)
 }

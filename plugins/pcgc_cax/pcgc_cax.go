@@ -185,7 +185,7 @@ func (cc *CAXClient) Close() {
 
 func main() {
 	conf := common.ResolveConf(os.Args[0], &defaultConfig)
-	adapter := common.NewPlugin(conf, NewCAXClient(conf), version)
+	adapter := common.NewPlugin(conf, NewCAXClient(conf), version, common.ChainIDPiccadilly)
 	defer adapter.Close()
 	common.PluginServe(adapter)
 }

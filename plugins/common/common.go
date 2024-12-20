@@ -27,6 +27,7 @@ var (
 	ErrDataNotAvailable  = fmt.Errorf("data is not available")
 	ErrKnownSymbols      = fmt.Errorf("the data source does not have all the data asked by oracle server")
 	ErrAccessLimited     = fmt.Errorf("access rate is limited, please check your subscription from data provider")
+	ErrChainIDMismatch   = fmt.Errorf("chain ID does not match")
 )
 
 const (
@@ -51,9 +52,10 @@ type Plugin struct {
 	client           DataSourceClient
 	conf             *config.PluginConfig
 	cachePrices      map[string]types.Price
+	chainID          *big.Int // piccadilly, bakerloo, mainnet, or nil for common.
 }
 
-func NewPlugin(conf *config.PluginConfig, client DataSourceClient, version string) *Plugin {
+func NewPlugin(conf *config.PluginConfig, client DataSourceClient, version string, chainID *big.Int) *Plugin {
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:       conf.Name,
 		Level:      hclog.Debug,
@@ -68,6 +70,7 @@ func NewPlugin(conf *config.PluginConfig, client DataSourceClient, version strin
 		conf:             conf,
 		availableSymbols: make(map[string]struct{}),
 		cachePrices:      make(map[string]types.Price),
+		chainID:          chainID,
 	}
 }
 
@@ -115,7 +118,7 @@ func (p *Plugin) FetchPrices(symbols []string) (types.PluginPriceReport, error) 
 	return report, nil
 }
 
-func (p *Plugin) State() (types.PluginState, error) {
+func (p *Plugin) State(chainID int64) (types.PluginState, error) {
 	var state types.PluginState
 
 	symbols, err := p.client.AvailableSymbols()
@@ -145,6 +148,11 @@ func (p *Plugin) State() (types.PluginState, error) {
 	state.AvailableSymbols = symbols
 	state.KeyRequired = p.client.KeyRequired()
 	state.DataSource = p.conf.Scheme + "://" + p.conf.Endpoint
+
+	if p.chainID != nil && p.chainID.Int64() != chainID {
+		return state, ErrChainIDMismatch
+	}
+
 	return state, nil
 }
 

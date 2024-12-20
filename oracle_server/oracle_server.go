@@ -160,6 +160,8 @@ type OracleServer struct {
 	commitmentHashComputer *CommitmentHashComputer
 
 	state *ServerState // server state to be flushed.
+
+	chainID int64
 }
 
 func NewOracleServer(conf *types.OracleServerConfig, dialer types.Dialer, client types.Blockchain,
@@ -183,6 +185,14 @@ func NewOracleServer(conf *types.OracleServerConfig, dialer types.Dialer, client
 		Output: o.Stdout,
 		Level:  conf.LoggingLevel,
 	})
+
+	chainID, err := client.ChainID(context.Background())
+	if err != nil {
+		os.logger.Error("failed to get chain id", "error", err)
+		o.Exit(1)
+	}
+
+	os.chainID = chainID.Int64()
 
 	commitmentHashComputer, err := NewCommitmentHashComputer()
 	if err != nil {
@@ -976,13 +986,13 @@ func (os *OracleServer) setupNewPlugin(name string, conf *config.PluginConfig) (
 	}
 
 	pluginWrapper := pWrapper.NewPluginWrapper(os.conf.LoggingLevel, name, os.conf.PluginDIR, os, conf)
-	if err := pluginWrapper.Initialize(); err != nil {
+	if err := pluginWrapper.Initialize(os.chainID); err != nil {
 		// if the plugin states that a service key is missing, then we mark it down, thus the runtime discovery can
 		// skip those plugins without a key configured.
 		if err == types.ErrMissingServiceKey {
 			os.keyRequiredPlugins[name] = struct{}{}
 		}
-		os.logger.Error("cannot setup plugin", "name", name, "error", err.Error())
+		os.logger.Error("cannot run plugin", "name", name, "error", err.Error())
 		pluginWrapper.CleanPluginProcess()
 		return nil, err
 	}

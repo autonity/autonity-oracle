@@ -113,7 +113,7 @@ func (c *CoinGeckoClient) buildURL() *url.URL {
 
 func main() {
 	conf := common.ResolveConf(os.Args[0], &defaultConfig)
-	adapter := common.NewPlugin(conf, NewCoinGeckoClient(conf), version)
+	adapter := common.NewPlugin(conf, NewCoinGeckoClient(conf), version, nil)
 	defer adapter.Close()
 	common.PluginServe(adapter)
 }

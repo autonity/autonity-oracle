@@ -170,7 +170,7 @@ func (cl *CLClient) buildURL(apiKey string) *url.URL {
 
 func main() {
 	conf := common.ResolveConf(os.Args[0], &defaultConfig)
-	adapter := common.NewPlugin(conf, NewCLClient(conf), version)
+	adapter := common.NewPlugin(conf, NewCLClient(conf), version, nil)
 	defer adapter.Close()
 	common.PluginServe(adapter)
 }

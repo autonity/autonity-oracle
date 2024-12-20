@@ -110,7 +110,7 @@ func (c *CoinBaseClient) buildURL() *url.URL {
 
 func main() {
 	conf := common.ResolveConf(os.Args[0], &defaultConfig)
-	adapter := common.NewPlugin(conf, NewCoinBaseClient(conf), version)
+	adapter := common.NewPlugin(conf, NewCoinBaseClient(conf), version, nil)
 	defer adapter.Close()
 	common.PluginServe(adapter)
 }

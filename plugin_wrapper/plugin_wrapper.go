@@ -186,27 +186,27 @@ func (pw *PluginWrapper) StartTime() time.Time {
 }
 
 // Initialize start the plugin, connect to it and do a handshake via state() interface.
-func (pw *PluginWrapper) Initialize() error {
+func (pw *PluginWrapper) Initialize(chainID int64) error {
 	// start the plugin process and connect to it
 	rpcClient, err := pw.plugin.Client()
 	if err != nil {
-		pw.logger.Error("cannot start plugin process", err.Error())
+		pw.logger.Error("cannot start plugin process", "error", err.Error())
 		return err
 	}
 
 	// dispenses a new instance of the plugin
 	raw, err := rpcClient.Dispense("adapter")
 	if err != nil {
-		pw.logger.Error("cannot dispense adapter", err.Error())
+		pw.logger.Error("cannot dispense adapter", "error", err.Error())
 		return err
 	}
 
 	pw.adapter = raw.(types.Adapter)
 
-	// load plugin's pluginState.
-	state, err := pw.state()
+	// load with plugin's statement, check if chainID is matched.
+	state, err := pw.state(chainID)
 	if err != nil {
-		pw.logger.Error("cannot get plugin's pluginState")
+		pw.logger.Error("cannot get plugin's pluginState", "error", err.Error())
 		return err
 	}
 	pw.version = state.Version
@@ -249,9 +249,9 @@ func (pw *PluginWrapper) start() {
 	}
 }
 
-func (pw *PluginWrapper) state() (types.PluginState, error) {
+func (pw *PluginWrapper) state(chainID int64) (types.PluginState, error) {
 	var s types.PluginState
-	state, err := pw.adapter.State()
+	state, err := pw.adapter.State(chainID)
 	if err != nil {
 		return s, err
 	}

@@ -27,7 +27,7 @@ func main() {
 	if err != nil {
 		return
 	}
-	adapter := common.NewPlugin(conf, c, client.Version)
+	adapter := common.NewPlugin(conf, c, client.Version, common.ChainIDPiccadilly)
 	defer adapter.Close()
 	common.PluginServe(adapter)
 }

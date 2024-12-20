@@ -473,7 +473,7 @@ func main() {
 	// start the SwapERC20 event watching for price aggregation of NTN-USDC & ATN-USDC
 	go client.StartWatcher()
 
-	adapter := common.NewPlugin(conf, client, version)
+	adapter := common.NewPlugin(conf, client, version, common.ChainIDPiccadilly)
 	defer adapter.Close()
 	common.PluginServe(adapter)
 }

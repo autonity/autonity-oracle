@@ -187,7 +187,7 @@ func (cf *CFClient) buildURL(key string) *url.URL {
 
 func main() {
 	conf := common.ResolveConf(os.Args[0], &defaultConfig)
-	adapter := common.NewPlugin(conf, NewCFClient(conf), version)
+	adapter := common.NewPlugin(conf, NewCFClient(conf), version, nil)
 	defer adapter.Close()
 	common.PluginServe(adapter)
 }
