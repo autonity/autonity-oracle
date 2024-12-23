@@ -538,7 +538,7 @@ func testHappyCase(t *testing.T, o *contract.Oracle, beforeRound uint64, pricePr
 
 func testRestartL1Node(t *testing.T, net *Network, index int, o *contract.Oracle, resetRound, beforeRound uint64) {
 	for {
-		time.Sleep(1 * time.Minute)
+		time.Sleep(10 * time.Second)
 		round, err := o.GetRound(nil)
 		require.NoError(t, err)
 

@@ -265,28 +265,35 @@ func (os *OracleServer) syncStates() error {
 	os.AddNewSymbols(bridgerSymbols)
 
 	// subscribe on-chain round rotation event
-	os.chRoundEvent = make(chan *contract.OracleNewRound)
-	os.subRoundEvent, err = os.oracleContract.WatchNewRound(new(bind.WatchOpts), os.chRoundEvent)
+	chRoundEvent := make(chan *contract.OracleNewRound)
+	subRoundEvent, err := os.oracleContract.WatchNewRound(new(bind.WatchOpts), chRoundEvent)
 	if err != nil {
 		os.logger.Error("failed to subscribe round event", "error", err.Error())
 		return err
 	}
+	os.chRoundEvent = chRoundEvent
+	os.subRoundEvent = subRoundEvent
 
 	// subscribe on-chain symbol update event
-	os.chSymbolsEvent = make(chan *contract.OracleNewSymbols)
-	os.subSymbolsEvent, err = os.oracleContract.WatchNewSymbols(new(bind.WatchOpts), os.chSymbolsEvent)
+	chSymbolsEvent := make(chan *contract.OracleNewSymbols)
+	subSymbolsEvent, err := os.oracleContract.WatchNewSymbols(new(bind.WatchOpts), chSymbolsEvent)
 	if err != nil {
 		os.logger.Error("failed to subscribe new symbol event", "error", err.Error())
 		return err
 	}
+	os.chSymbolsEvent = chSymbolsEvent
+	os.subSymbolsEvent = subSymbolsEvent
 
 	// subscribe on-chain penalize event
-	os.chPenalizedEvent = make(chan *contract.OraclePenalized)
-	os.subPenalizedEvent, err = os.oracleContract.WatchPenalized(new(bind.WatchOpts), os.chPenalizedEvent, []common.Address{os.conf.Key.Address})
+	chPenalizedEvent := make(chan *contract.OraclePenalized)
+	subPenalizedEvent, err := os.oracleContract.WatchPenalized(new(bind.WatchOpts), chPenalizedEvent, []common.Address{os.conf.Key.Address})
 	if err != nil {
 		os.logger.Error("failed to subscribe penalized event", "error", err.Error())
 		return err
 	}
+
+	os.chPenalizedEvent = chPenalizedEvent
+	os.subPenalizedEvent = subPenalizedEvent
 
 	return nil
 }
