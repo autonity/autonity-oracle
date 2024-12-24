@@ -26,6 +26,7 @@ import (
 )
 
 var DefaultSampledSymbols = []string{"AUD-USD", "CAD-USD", "EUR-USD", "GBP-USD", "JPY-USD", "SEK-USD", "ATN-USD", "NTN-USD", "NTN-ATN", "ATN-USDC", "NTN-USDC", "USDC-USD"}
+var ChainIDPiccadilly = big.NewInt(65_100_004)
 
 func TestOracleDecimals(t *testing.T) {
 	decimals := uint8(18)
@@ -104,7 +105,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
 		contractMock.EXPECT().WatchPenalized(gomock.Any(), gomock.Any(), gomock.Any()).Return(subPenalizeEvent, nil)
 		l1Mock := mock.NewMockBlockchain(ctrl)
-
+		l1Mock.EXPECT().ChainID(gomock.Any()).Return(ChainIDPiccadilly, nil)
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
 		require.Equal(t, DefaultSampledSymbols, srv.samplingSymbols)
@@ -130,7 +131,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock.EXPECT().WatchPenalized(gomock.Any(), gomock.Any(), gomock.Any()).Return(subPenalizeEvent, nil)
 		l1Mock := mock.NewMockBlockchain(ctrl)
 		l1Mock.EXPECT().BlockNumber(gomock.Any()).AnyTimes().Return(chainHeight, nil)
-
+		l1Mock.EXPECT().ChainID(gomock.Any()).Return(ChainIDPiccadilly, nil)
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 
 		ts := time.Now().Unix()
@@ -186,6 +187,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock.EXPECT().Vote(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(tx, nil)
 
 		l1Mock := mock.NewMockBlockchain(ctrl)
+		l1Mock.EXPECT().ChainID(gomock.Any()).Return(ChainIDPiccadilly, nil)
 		l1Mock.EXPECT().BlockNumber(gomock.Any()).AnyTimes().Return(chainHeight, nil)
 		l1Mock.EXPECT().SyncProgress(gomock.Any()).Return(nil, nil)
 		l1Mock.EXPECT().ChainID(gomock.Any()).Return(new(big.Int).SetUint64(1000), nil)
@@ -248,6 +250,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
 		contractMock.EXPECT().WatchPenalized(gomock.Any(), gomock.Any(), gomock.Any()).Return(subPenalizeEvent, nil)
 		l1Mock := mock.NewMockBlockchain(ctrl)
+		l1Mock.EXPECT().ChainID(gomock.Any()).Return(ChainIDPiccadilly, nil)
 
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
@@ -276,7 +279,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
 		contractMock.EXPECT().WatchPenalized(gomock.Any(), gomock.Any(), gomock.Any()).Return(subPenalizeEvent, nil)
 		l1Mock := mock.NewMockBlockchain(ctrl)
-
+		l1Mock.EXPECT().ChainID(gomock.Any()).Return(ChainIDPiccadilly, nil)
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
 		require.Equal(t, DefaultSampledSymbols, srv.samplingSymbols)
@@ -316,7 +319,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
 		contractMock.EXPECT().WatchPenalized(gomock.Any(), gomock.Any(), gomock.Any()).Return(subPenalizeEvent, nil)
 		l1Mock := mock.NewMockBlockchain(ctrl)
-
+		l1Mock.EXPECT().ChainID(gomock.Any()).Return(ChainIDPiccadilly, nil)
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
 		require.Equal(t, DefaultSampledSymbols, srv.samplingSymbols)
@@ -351,7 +354,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
 		contractMock.EXPECT().WatchPenalized(gomock.Any(), gomock.Any(), gomock.Any()).Return(subPenalizeEvent, nil)
 		l1Mock := mock.NewMockBlockchain(ctrl)
-
+		l1Mock.EXPECT().ChainID(gomock.Any()).Return(ChainIDPiccadilly, nil)
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
 		require.Equal(t, DefaultSampledSymbols, srv.samplingSymbols)
