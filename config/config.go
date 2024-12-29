@@ -2,7 +2,6 @@ package config
 
 import (
 	"autonity-oracle/helpers"
-	"autonity-oracle/metrics"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/hashicorp/go-hclog"
@@ -46,7 +45,45 @@ var DefaultConfig = ServerConfig{
 	ProfileDir:         DefaultProfileDir,
 	ConfidenceStrategy: defaultConfidenceStrategy,
 	PluginConfigs:      nil,
-	MetricConfigs:      metrics.DefaultConfig,
+	MetricConfigs:      DefaultMetricConfig,
+}
+
+// DefaultMetricConfig is the default config for metrics used in oracle-server.
+var DefaultMetricConfig = MetricConfig{
+	// common flags
+	InfluxDBEndpoint: "http://localhost:8086",
+	InfluxDBTags:     "host=localhost",
+
+	// influxdbv1-specific flags.
+	EnableInfluxDB:   false,
+	InfluxDBDatabase: "autonity",
+	InfluxDBUsername: "test",
+	InfluxDBPassword: "test",
+
+	// influxdbv2-specific flags
+	EnableInfluxDBV2:     false,
+	InfluxDBToken:        "test",
+	InfluxDBBucket:       "autonity",
+	InfluxDBOrganization: "autonity",
+}
+
+// MetricConfig contains the configuration for the metric collection of oracle-server.
+type MetricConfig struct {
+	// Common configs for influxDB V1 and V2.
+	InfluxDBEndpoint string `json:"influxDBEndpoint" yaml:"influxDBEndpoint"`
+	InfluxDBTags     string `json:"influxDBTags" yaml:"influxDBTags"`
+
+	// InfluxDB V1 specific configs
+	EnableInfluxDB   bool   `json:"enableInfluxDB" yaml:"enableInfluxDB"`
+	InfluxDBDatabase string `json:"influxDBDatabase" yaml:"influxDBDatabase"`
+	InfluxDBUsername string `json:"influxDBUsername" yaml:"influxDBUsername"`
+	InfluxDBPassword string `json:"influxDBPassword" yaml:"influxDBPassword"`
+
+	// InfluxDB V2 specific configs
+	EnableInfluxDBV2     bool   `json:"enableInfluxDBV2" yaml:"enableInfluxDBV2"`
+	InfluxDBToken        string `json:"influxDBToken" yaml:"influxDBToken"`
+	InfluxDBBucket       string `json:"influxDBBucket" yaml:"influxDBBucket"`
+	InfluxDBOrganization string `json:"influxDBOrganization" yaml:"influxDBOrganization"`
 }
 
 // ServerConfig is the schema of oracle-server's config.
@@ -61,7 +98,7 @@ type ServerConfig struct {
 	ProfileDir         string         `json:"profileDir" yaml:"profileDir"`
 	ConfidenceStrategy int            `json:"confidenceStrategy" yaml:"confidenceStrategy"`
 	PluginConfigs      []PluginConfig `json:"pluginConfigs" yaml:"pluginConfigs"`
-	MetricConfigs      metrics.Config `json:"metricConfigs" yaml:"metricConfigs"`
+	MetricConfigs      MetricConfig   `json:"metricConfigs" yaml:"metricConfigs"`
 }
 
 // PluginConfig is the schema of plugins' config.
@@ -91,7 +128,7 @@ type Config struct {
 	ProfileDir         string
 	ConfidenceStrategy int
 	PluginConfigs      map[string]PluginConfig
-	MetricConfigs      metrics.Config
+	MetricConfigs      MetricConfig
 }
 
 func MakeConfig() *Config {

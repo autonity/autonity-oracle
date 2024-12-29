@@ -1,8 +1,8 @@
 package main
 
 import (
-	"autonity-oracle/metrics"
-	"autonity-oracle/metrics/influxdb"
+	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/ethereum/go-ethereum/metrics/influxdb"
 	"log"
 	"os"
 	"os/signal"
@@ -46,7 +46,7 @@ func main() { //nolint
 	ms := monitor.New(&monitorConfig, configs.ProfileDir)
 	ms.Start()
 
-	// start metrics collection if it is enabled.
+	// start metrics reporter if it is enabled.
 	tagsMap := config.SplitTagsFlag(configs.MetricConfigs.InfluxDBTags)
 	if configs.MetricConfigs.EnableInfluxDB {
 		metrics.Enabled = true
@@ -55,12 +55,17 @@ func main() { //nolint
 			configs.MetricConfigs.InfluxDBDatabase, configs.MetricConfigs.InfluxDBUsername,
 			configs.MetricConfigs.InfluxDBPassword, "autoracle.", tagsMap)
 
+		// Start system runtime metrics collection
+		go metrics.CollectProcessMetrics(3 * time.Second)
 	} else if configs.MetricConfigs.EnableInfluxDBV2 {
 		metrics.Enabled = true
 		log.Printf("InfluxDBV2 metrics enabled")
 		go influxdb.InfluxDBV2WithTags(metrics.DefaultRegistry, 10*time.Second, configs.MetricConfigs.InfluxDBEndpoint,
 			configs.MetricConfigs.InfluxDBToken, configs.MetricConfigs.InfluxDBBucket,
 			configs.MetricConfigs.InfluxDBOrganization, "autoracle.", tagsMap)
+
+		// Start system runtime metrics collection
+		go metrics.CollectProcessMetrics(3 * time.Second)
 	}
 
 	// Wait for interrupt signal to gracefully shut down the server with

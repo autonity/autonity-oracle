@@ -2,11 +2,11 @@ package pluginwrapper
 
 import (
 	"autonity-oracle/config"
-	"autonity-oracle/metrics"
 	"autonity-oracle/types"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"os"
