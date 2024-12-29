@@ -2,6 +2,7 @@ package pluginwrapper
 
 import (
 	"autonity-oracle/config"
+	"autonity-oracle/metrics"
 	"autonity-oracle/types"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -10,6 +11,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"time"
 )
@@ -40,6 +42,9 @@ type PluginWrapper struct {
 	chSampleEvent  chan *types.SampleEvent
 	subSampleEvent event.Subscription
 	samplingSub    types.SampleEventSubscriber
+
+	// metrics for the prices that are sampled by per plugin.
+	priceMetrics map[string]metrics.GaugeFloat64
 }
 
 func NewPluginWrapper(logLevel hclog.Level, name string, pluginDir string, sub types.SampleEventSubscriber, conf *config.PluginConfig) *PluginWrapper {
@@ -73,6 +78,7 @@ func NewPluginWrapper(logLevel hclog.Level, name string, pluginDir string, sub t
 		samples:          make(map[string]map[int64]types.Price),
 		latestTimestamps: make(map[string]int64),
 		chSampleEvent:    make(chan *types.SampleEvent),
+		priceMetrics:     make(map[string]metrics.GaugeFloat64),
 		logger:           logger,
 	}
 
@@ -276,8 +282,25 @@ func (pw *PluginWrapper) fetchPrices(symbols []string, ts int64) error {
 	if len(report.Prices) > 0 {
 		pw.logger.Debug("sampled symbols", "data points", report.Prices)
 		pw.AddSample(report.Prices, ts)
+		if metrics.Enabled {
+			pw.updateMetrics(report.Prices)
+		}
 	}
 	return nil
+}
+
+func (pw *PluginWrapper) updateMetrics(prices []types.Price) {
+	for _, p := range prices {
+		m, ok := pw.priceMetrics[p.Symbol]
+		if !ok {
+			name := strings.Join([]string{"oracle_server", pw.Name(), "price", p.Symbol}, "/")
+			gauge := metrics.GetOrRegisterGaugeFloat64(name, nil)
+			gauge.Update(p.Price.InexactFloat64())
+			pw.priceMetrics[p.Symbol] = gauge
+			continue
+		}
+		m.Update(p.Price.InexactFloat64())
+	}
 }
 
 func (pw *PluginWrapper) CleanPluginProcess() {

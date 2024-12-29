@@ -4,6 +4,7 @@ import (
 	"autonity-oracle/config"
 	contract "autonity-oracle/contract_binder/contract"
 	"autonity-oracle/helpers"
+	"autonity-oracle/metrics"
 	pWrapper "autonity-oracle/plugin_wrapper"
 	common2 "autonity-oracle/plugins/common"
 	"autonity-oracle/types"
@@ -44,6 +45,13 @@ var (
 	oneSecsInterval  = 1 * time.Second                              // sampling interval during data pre-sampling period.
 	preSamplingRange = uint64(5)                                    // pre-sampling starts in 5 blocks in advance.
 	bridgerSymbols   = []string{"ATN-USDC", "NTN-USDC", "USDC-USD"} // used for value bridging to USD by USDC
+
+	numOfPlugins       = metrics.GetOrRegisterGauge("oracle_server/plugins", nil)
+	oracleRound        = metrics.GetOrRegisterGauge("oracle_server/round", nil)
+	slashEventCounter  = metrics.GetOrRegisterCounter("oracle_server/slash", nil)
+	l1ConnectivityErrs = metrics.GetOrRegisterCounter("oracle_server/l1/errs", nil)
+	accountBalance     = metrics.GetOrRegisterGauge("oracle_server/balance", nil)
+	isVoterFlag        = metrics.GetOrRegisterGauge("oracle_server/isVoter", nil)
 )
 
 const (
@@ -353,6 +361,9 @@ func (os *OracleServer) checkHealth() {
 		err := os.syncStates()
 		if err != nil && err != types.ErrNoSymbolsObserved {
 			os.logger.Info("rebuilding WS connectivity with Autonity L1 node", "error", err)
+			if metrics.Enabled {
+				l1ConnectivityErrs.Inc(1)
+			}
 			return
 		}
 		os.lostSync = false
@@ -480,6 +491,9 @@ func (os *OracleServer) handleRoundVote() error {
 	// if node is no longer a validator, and it doesn't have last round data, skip reporting.
 	if !isVoter && !ok {
 		os.logger.Debug("skip data reporting since client is no longer a voter")
+		if metrics.Enabled {
+			isVoterFlag.Update(0)
+		}
 		return nil
 	}
 
@@ -493,6 +507,9 @@ func (os *OracleServer) handleRoundVote() error {
 	}
 
 	if isVoter {
+		if metrics.Enabled {
+			isVoterFlag.Update(1)
+		}
 		// report with last round data and with current round commitment hash.
 		return os.reportWithCommitment(os.curRound, lastRoundData)
 	}
@@ -525,6 +542,10 @@ func (os *OracleServer) reportWithCommitment(newRound uint64, lastRoundData *typ
 	if err != nil {
 		os.logger.Error("cannot get account balance", "error", err.Error())
 		return err
+	}
+
+	if metrics.Enabled {
+		accountBalance.Update(balance.Int64())
 	}
 
 	os.logger.Info("oracle server account", "address", os.conf.Key.Address, "remaining balance", balance.String())
@@ -844,6 +865,10 @@ func (os *OracleServer) Start() {
 				"reported value", penalizeEvent.Reported.String(), "block", penalizeEvent.Raw.BlockNumber)
 			os.logger.Warn("your next vote will be postponed", "in blocks", os.conf.VoteBuffer)
 
+			if metrics.Enabled {
+				slashEventCounter.Inc(1)
+			}
+
 			newState := &ServerState{
 				OutlierRecord: OutlierRecord{
 					LastPenalizedAtBlock: penalizeEvent.Raw.BlockNumber,
@@ -863,6 +888,10 @@ func (os *OracleServer) Start() {
 		case rEvent := <-os.chRoundEvent:
 			os.logger.Info("handle new round", "round", rEvent.Round.Uint64(), "required sampling TS",
 				rEvent.Timestamp.Uint64(), "height", rEvent.Height.Uint64(), "round period", rEvent.VotePeriod.Uint64())
+
+			if metrics.Enabled {
+				oracleRound.Update(rEvent.Round.Int64())
+			}
 
 			// todo: apply the new vote period at the end of current vote round from oracle contract side.
 			// save the round rotation info to coordinate the pre-sampling.
@@ -957,6 +986,10 @@ func (os *OracleServer) PluginRuntimeManagement() {
 		}
 
 		os.tryToLaunchPlugin(f, pConf)
+	}
+
+	if metrics.Enabled {
+		numOfPlugins.Update(int64(len(os.runningPlugins)))
 	}
 }
 
