@@ -1,10 +1,13 @@
 package main
 
 import (
+	"autonity-oracle/metrics"
+	"autonity-oracle/metrics/influxdb"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"autonity-oracle/config"
 	contract "autonity-oracle/contract_binder/contract"
@@ -43,7 +46,22 @@ func main() { //nolint
 	ms := monitor.New(&monitorConfig, configs.ProfileDir)
 	ms.Start()
 
-	// todo: start metrics collection routines if metrics are enabled.
+	// start metrics collection if it is enabled.
+	tagsMap := config.SplitTagsFlag(configs.MetricConfigs.InfluxDBTags)
+	if configs.MetricConfigs.EnableInfluxDB {
+		metrics.Enabled = true
+		log.Printf("InfluxDB metrics enabled")
+		go influxdb.InfluxDBWithTags(metrics.DefaultRegistry, 10*time.Second, configs.MetricConfigs.InfluxDBEndpoint,
+			configs.MetricConfigs.InfluxDBDatabase, configs.MetricConfigs.InfluxDBUsername,
+			configs.MetricConfigs.InfluxDBPassword, "autoracle.", tagsMap)
+
+	} else if configs.MetricConfigs.EnableInfluxDBV2 {
+		metrics.Enabled = true
+		log.Printf("InfluxDBV2 metrics enabled")
+		go influxdb.InfluxDBV2WithTags(metrics.DefaultRegistry, 10*time.Second, configs.MetricConfigs.InfluxDBEndpoint,
+			configs.MetricConfigs.InfluxDBToken, configs.MetricConfigs.InfluxDBBucket,
+			configs.MetricConfigs.InfluxDBOrganization, "autoracle.", tagsMap)
+	}
 
 	// Wait for interrupt signal to gracefully shut down the server with
 	// a timeout of 5 seconds.

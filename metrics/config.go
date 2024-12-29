@@ -18,35 +18,34 @@ package metrics
 
 // Config contains the configuration for the metric collection.
 type Config struct {
-	Enabled          bool   `toml:",omitempty"`
-	EnabledExpensive bool   `toml:",omitempty"`
-	HTTP             string `toml:",omitempty"`
-	Port             int    `toml:",omitempty"`
-	EnableInfluxDB   bool   `toml:",omitempty"`
-	InfluxDBEndpoint string `toml:",omitempty"`
-	InfluxDBDatabase string `toml:",omitempty"`
-	InfluxDBUsername string `toml:",omitempty"`
-	InfluxDBPassword string `toml:",omitempty"`
-	InfluxDBTags     string `toml:",omitempty"`
+	// Common configs for influxDB V1 and V2.
+	InfluxDBEndpoint string `json:"influxDBEndpoint" yaml:"influxDBEndpoint"`
+	InfluxDBTags     string `json:"influxDBTags" yaml:"influxDBTags"`
 
-	EnableInfluxDBV2     bool   `toml:",omitempty"`
-	InfluxDBToken        string `toml:",omitempty"`
-	InfluxDBBucket       string `toml:",omitempty"`
-	InfluxDBOrganization string `toml:",omitempty"`
+	// InfluxDB V1 specific configs
+	EnableInfluxDB   bool   `json:"enableInfluxDB" yaml:"enableInfluxDB"`
+	InfluxDBDatabase string `json:"influxDBDatabase" yaml:"influxDBDatabase"`
+	InfluxDBUsername string `json:"influxDBUsername" yaml:"influxDBUsername"`
+	InfluxDBPassword string `json:"influxDBPassword" yaml:"influxDBPassword"`
+
+	// InfluxDB V2 specific configs
+	EnableInfluxDBV2     bool   `json:"enableInfluxDBV2" yaml:"enableInfluxDBV2"`
+	InfluxDBToken        string `json:"influxDBToken" yaml:"influxDBToken"`
+	InfluxDBBucket       string `json:"influxDBBucket" yaml:"influxDBBucket"`
+	InfluxDBOrganization string `json:"influxDBOrganization" yaml:"influxDBOrganization"`
 }
 
 // DefaultConfig is the default config for metrics used in go-ethereum.
 var DefaultConfig = Config{
-	Enabled:          false,
-	EnabledExpensive: false,
-	HTTP:             "127.0.0.1",
-	Port:             6060,
-	EnableInfluxDB:   false,
+	// common flags
 	InfluxDBEndpoint: "http://localhost:8086",
+	InfluxDBTags:     "host=localhost",
+
+	// influxdbv1-specific flags.
+	EnableInfluxDB:   false,
 	InfluxDBDatabase: "autonity",
 	InfluxDBUsername: "test",
 	InfluxDBPassword: "test",
-	InfluxDBTags:     "host=localhost",
 
 	// influxdbv2-specific flags
 	EnableInfluxDBV2:     false,

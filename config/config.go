@@ -2,6 +2,7 @@ package config
 
 import (
 	"autonity-oracle/helpers"
+	"autonity-oracle/metrics"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/hashicorp/go-hclog"
@@ -9,6 +10,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"log"
 	"os"
+	"strings"
 )
 
 var (
@@ -44,6 +46,7 @@ var DefaultConfig = ServerConfig{
 	ProfileDir:         DefaultProfileDir,
 	ConfidenceStrategy: defaultConfidenceStrategy,
 	PluginConfigs:      nil,
+	MetricConfigs:      metrics.DefaultConfig,
 }
 
 // ServerConfig is the schema of oracle-server's config.
@@ -58,6 +61,7 @@ type ServerConfig struct {
 	ProfileDir         string         `json:"profileDir" yaml:"profileDir"`
 	ConfidenceStrategy int            `json:"confidenceStrategy" yaml:"confidenceStrategy"`
 	PluginConfigs      []PluginConfig `json:"pluginConfigs" yaml:"pluginConfigs"`
+	MetricConfigs      metrics.Config `json:"metricConfigs" yaml:"metricConfigs"`
 }
 
 // PluginConfig is the schema of plugins' config.
@@ -87,6 +91,7 @@ type Config struct {
 	ProfileDir         string
 	ConfidenceStrategy int
 	PluginConfigs      map[string]PluginConfig
+	MetricConfigs      metrics.Config
 }
 
 func MakeConfig() *Config {
@@ -113,6 +118,12 @@ func MakeConfig() *Config {
 		os.Exit(1)
 	}
 
+	if config.MetricConfigs.EnableInfluxDB && config.MetricConfigs.EnableInfluxDBV2 {
+		log.SetFlags(0)
+		log.Println("There are two metrics engine enabled, please select one: influxDB or influxDBV2")
+		os.Exit(1)
+	}
+
 	pluginConfigs := make(map[string]PluginConfig)
 	for _, conf := range config.PluginConfigs {
 		c := conf
@@ -130,6 +141,7 @@ func MakeConfig() *Config {
 		ConfidenceStrategy: config.ConfidenceStrategy,
 		ConfigFile:         oracleConfFile,
 		PluginConfigs:      pluginConfigs,
+		MetricConfigs:      config.MetricConfigs,
 	}
 }
 
@@ -182,4 +194,21 @@ func VersionString(version uint8) string {
 	minor := (version / 10) % 10
 	patch := version % 10
 	return fmt.Sprintf("v%d.%d.%d", major, minor, patch)
+}
+
+func SplitTagsFlag(tagsFlag string) map[string]string {
+	tags := strings.Split(tagsFlag, ",")
+	tagsMap := map[string]string{}
+
+	for _, t := range tags {
+		if t != "" {
+			kv := strings.Split(t, "=")
+
+			if len(kv) == 2 {
+				tagsMap[kv[0]] = kv[1]
+			}
+		}
+	}
+
+	return tagsMap
 }
