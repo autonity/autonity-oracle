@@ -46,12 +46,12 @@ var (
 	preSamplingRange = uint64(5)                                    // pre-sampling starts in 5 blocks in advance.
 	bridgerSymbols   = []string{"ATN-USDC", "NTN-USDC", "USDC-USD"} // used for value bridging to USD by USDC
 
-	numOfPlugins       = metrics.GetOrRegisterGauge("oracle_server/plugins", nil)
-	oracleRound        = metrics.GetOrRegisterGauge("oracle_server/round", nil)
-	slashEventCounter  = metrics.GetOrRegisterCounter("oracle_server/slash", nil)
-	l1ConnectivityErrs = metrics.GetOrRegisterCounter("oracle_server/l1/errs", nil)
-	accountBalance     = metrics.GetOrRegisterGauge("oracle_server/balance", nil)
-	isVoterFlag        = metrics.GetOrRegisterGauge("oracle_server/isVoter", nil)
+	numOfPlugins       = metrics.GetOrRegisterGauge("oracle/plugins", nil)
+	oracleRound        = metrics.GetOrRegisterGauge("oracle/round", nil)
+	slashEventCounter  = metrics.GetOrRegisterCounter("oracle/slash", nil)
+	l1ConnectivityErrs = metrics.GetOrRegisterCounter("oracle/l1/errs", nil)
+	accountBalance     = metrics.GetOrRegisterGauge("oracle/balance", nil)
+	isVoterFlag        = metrics.GetOrRegisterGauge("oracle/isVoter", nil)
 )
 
 const (
