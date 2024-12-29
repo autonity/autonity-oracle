@@ -293,7 +293,7 @@ func (pw *PluginWrapper) updateMetrics(prices []types.Price) {
 	for _, p := range prices {
 		m, ok := pw.priceMetrics[p.Symbol]
 		if !ok {
-			name := strings.Join([]string{"oracle_server", pw.Name(), "price", p.Symbol}, "/")
+			name := strings.Join([]string{"oracle_server", pw.Name(), p.Symbol, "price"}, "/")
 			gauge := metrics.GetOrRegisterGaugeFloat64(name, nil)
 			gauge.Update(p.Price.InexactFloat64())
 			pw.priceMetrics[p.Symbol] = gauge
