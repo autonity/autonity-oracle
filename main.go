@@ -42,6 +42,9 @@ func main() { //nolint
 	monitorConfig := monitor.DefaultMonitorConfig
 	ms := monitor.New(&monitorConfig, conf.ProfileDir)
 	ms.Start()
+
+	// todo: start metrics collection routines if metrics are enabled.
+
 	// Wait for interrupt signal to gracefully shut down the server with
 	// a timeout of 5 seconds.
 	quit := make(chan os.Signal, 1)

@@ -73,6 +73,7 @@ type PluginConfig struct {
 }
 
 func MakeConfig() *types.OracleServerConfig {
+	// todo: unify the configuration of oracle_server and plugins within single config file.
 	var logLevel int
 	var keyFile string
 	var gasTipCap uint64
