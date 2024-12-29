@@ -7,11 +7,9 @@ import (
 
 	contract "autonity-oracle/contract_binder/contract"
 
-	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/hashicorp/go-hclog"
 	"github.com/shopspring/decimal"
 )
 
@@ -49,19 +47,6 @@ type RoundData struct {
 	Symbols        []string
 	Reports        []contract.IOracleReport
 	MissingData    bool
-}
-
-// OracleServerConfig is the configuration of the oracle client.
-type OracleServerConfig struct {
-	LoggingLevel       hclog.Level
-	GasTipCap          uint64
-	VoteBuffer         uint64
-	Key                *keystore.Key
-	AutonityWSUrl      string
-	PluginDIR          string
-	ProfileDir         string
-	PluginConfFile     string
-	ConfidenceStrategy int
 }
 
 // JSONRPCMessage is the JSON spec to carry those data response from the binance data simulator.

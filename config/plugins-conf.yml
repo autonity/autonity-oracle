@@ -36,6 +36,7 @@
 #  ATNTokenAddress    string `json:"atnTokenAddress" yaml:"atnTokenAddress"`   // The Wrapped ATN erc20 token address on the target blockchain.
 #  USDCTokenAddress   string `json:"usdcTokenAddress" yaml:"usdcTokenAddress"` // USDCx erc20 token address on the target blockchain.
 #  SwapAddress        string `json:"swapAddress" yaml:"swapAddress"`           // UniSwap factory contract address or AirSwap SwapERC20 contract address on the target blockchain.
+#  Disabled           bool   `json:"disabled" yaml:"disabled"`                 // The flag to disable a plugin.
 #}
 
 # As an example, to set the configuration of the plugin `forex_currencyfreaks`, only the required field are needed
