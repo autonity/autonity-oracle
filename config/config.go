@@ -149,7 +149,7 @@ func MakeConfig() *Config {
 		os.Exit(1)
 	}
 
-	key, err := loadKey(config.KeyFile, config.KeyPassword)
+	key, err := LoadKey(config.KeyFile, config.KeyPassword)
 	if err != nil {
 		helpers.PrintUsage()
 		os.Exit(1)
@@ -182,7 +182,7 @@ func MakeConfig() *Config {
 	}
 }
 
-func loadKey(keyFile, password string) (*keystore.Key, error) {
+func LoadKey(keyFile, password string) (*keystore.Key, error) {
 	keyJson, err := os.ReadFile(keyFile)
 	if err != nil {
 		log.Printf("cannot read key from oracle key file: %s, %s", keyFile, err.Error())
