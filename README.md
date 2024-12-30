@@ -206,6 +206,55 @@ One can remove the plugin binary from the plugin directory to remove a plugin fr
 #### Disable / Enable a plugin
 A disabled plugin will be unloaded from the oracle server, one can enable it again once get the plugin and its configuration ready, then the oracle server will load and start it.
 
+### Metrics to be collected.
+#### Process Metrics
+```golang
+    cpuSysLoad            = GetOrRegisterGauge("system/cpu/sysload", DefaultRegistry)
+    cpuSysWait            = GetOrRegisterGauge("system/cpu/syswait", DefaultRegistry)
+    cpuProcLoad           = GetOrRegisterGauge("system/cpu/procload", DefaultRegistry)
+    cpuThreads            = GetOrRegisterGauge("system/cpu/threads", DefaultRegistry)
+    cpuGoroutines         = GetOrRegisterGauge("system/cpu/goroutines", DefaultRegistry)
+    cpuSchedLatency       = getOrRegisterRuntimeHistogram("system/cpu/schedlatency", secondsToNs, nil)
+    memPauses             = getOrRegisterRuntimeHistogram("system/memory/pauses", secondsToNs, nil)
+    memAllocs             = GetOrRegisterMeter("system/memory/allocs", DefaultRegistry)
+    memFrees              = GetOrRegisterMeter("system/memory/frees", DefaultRegistry)
+    memTotal              = GetOrRegisterGauge("system/memory/held", DefaultRegistry)
+    heapUsed              = GetOrRegisterGauge("system/memory/used", DefaultRegistry)
+    heapObjects           = GetOrRegisterGauge("system/memory/objects", DefaultRegistry)
+    diskReads             = GetOrRegisterMeter("system/disk/readcount", DefaultRegistry)
+    diskReadBytes         = GetOrRegisterMeter("system/disk/readdata", DefaultRegistry)
+    diskReadBytesCounter  = GetOrRegisterCounter("system/disk/readbytes", DefaultRegistry)
+    diskWrites            = GetOrRegisterMeter("system/disk/writecount", DefaultRegistry)
+    diskWriteBytes        = GetOrRegisterMeter("system/disk/writedata", DefaultRegistry)
+    diskWriteBytesCounter = GetOrRegisterCounter("system/disk/writebytes", DefaultRegistry)
+```
+#### User-Plane Metrics
+oracle-server metrics:
+```golang
+    numOfPlugins       = metrics.GetOrRegisterGauge("oracle/plugins", nil)
+    oracleRound        = metrics.GetOrRegisterGauge("oracle/round", nil)
+    slashEventCounter  = metrics.GetOrRegisterCounter("oracle/slash", nil)
+    l1ConnectivityErrs = metrics.GetOrRegisterCounter("oracle/l1/errs", nil)
+    accountBalance     = metrics.GetOrRegisterGauge("oracle/balance", nil)
+    isVoterFlag        = metrics.GetOrRegisterGauge("oracle/isVoter", nil)
+```
+plugin metrics:
+All the data points collected from the plugin are tracked in metrics with such id pattern: `oracle/plugin_name/symbol/price`:
+```golang
+    func (pw *PluginWrapper) updateMetrics(prices []types.Price) {
+        for _, p := range prices {
+            m, ok := pw.priceMetrics[p.Symbol]
+            if !ok {
+                name := strings.Join([]string{"oracle", pw.Name(), p.Symbol, "price"}, "/")
+                gauge := metrics.GetOrRegisterGaugeFloat64(name, nil)
+                gauge.Update(p.Price.InexactFloat64())
+                pw.priceMetrics[p.Symbol] = gauge
+                continue
+            }
+            m.Update(p.Price.InexactFloat64())
+        }
+    }
+```
 ## Development
 ### Build for Bakerloo net
 ```shell

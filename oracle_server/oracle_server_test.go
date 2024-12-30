@@ -95,7 +95,7 @@ func TestOracleServer(t *testing.T) {
 
 	conf := &config.Config{
 		ConfigFile:         "../test_data/oracle_config.yml",
-		LoggingLevel:       hclog.Level(config.DefaultConfig.LoggingLevel),
+		LoggingLevel:       hclog.Level(config.DefaultConfig.LoggingLevel), //nolint
 		GasTipCap:          config.DefaultConfig.GasTipCap,
 		VoteBuffer:         config.DefaultConfig.VoteBuffer,
 		Key:                key,
