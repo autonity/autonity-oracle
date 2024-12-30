@@ -30,7 +30,7 @@ var (
 
 // Version number of the oracle server in uint8. It is required
 // for data reporting interface to collect oracle clients version.
-const Version uint8 = 23
+const Version uint8 = 24
 const usageOracleConf = "Set the oracle server configuration file."
 
 // DefaultConfig are values to be taken when the specific configs are omitted from config file.
