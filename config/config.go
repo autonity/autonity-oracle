@@ -2,7 +2,6 @@ package config
 
 import (
 	"autonity-oracle/helpers"
-	"autonity-oracle/types"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/hashicorp/go-hclog"
@@ -10,7 +9,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"log"
 	"os"
-	"strconv"
+	"strings"
 )
 
 var (
@@ -21,43 +20,88 @@ var (
 	defaultKeyPassword            = "123"
 	defaultPluginDir              = "./plugins"
 	DefaultProfileDir             = "."
-	defaultPluginConfFile         = "./plugins-conf.yml"
 	defaultOracleConfFile         = ""
 	defaultVoteBufferAfterPenalty = uint64(3600 * 24) // The buffering time window in blocks to continue vote after the last penalty event.
 
 	ConfidenceStrategyLinear  = 0
 	ConfidenceStrategyFixed   = 1
 	defaultConfidenceStrategy = ConfidenceStrategyLinear // 0: linear, 1: fixed.
-
-	envKeyFile            = "KEY_FILE"
-	envKeyFilePASS        = "KEY_PASSWORD"
-	envPluginCof          = "PLUGIN_CONF"
-	envPluginDIR          = "PLUGIN_DIR"
-	envWS                 = "AUTONITY_WS"
-	envGasTipCap          = "GAS_TIP_CAP"
-	envLogLevel           = "LOG_LEVEL"
-	envProfDIR            = "PROFILE_DIR"
-	envConfidenceStrategy = "CONFIDENCE_STRATEGY"
-	envVoteBuffer         = "VOTE_BUFFER"
 )
 
 // Version number of the oracle server in uint8. It is required
 // for data reporting interface to collect oracle clients version.
-const Version uint8 = 23
+const Version uint8 = 24
+const usageOracleConf = "Set the oracle server configuration file."
 
-const usageOracleKey = "Set the oracle server key file path."
-const usagePluginConf = "Set the plugin's configuration file path."
-const usageOracleConf = "Set the oracle server configuration file path."
-const usagePluginDir = "Set the directory path of the data plugins."
-const usageProfileDir = "Set the directory path to dump profile data."
-const usageOracleKeyPassword = "Set the password to decrypt oracle server key file."
-const usageGasTipCap = "Set the gas priority fee cap to issue the oracle data report transactions."
-const usageWSUrl = "Set the WS-RPC server listening interface and port of the connected Autonity Client node."
-const usageLogLevel = "Set the logging level, available levels are:  0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error"
-const usageConfidenceStrategy = "Set the confidence strategy, available values are:  0: linear, 1: fixed"
-const usageVoteBuffer = "Set the buffering time window in blocks to continue vote after the last penalty event. Default value is 86400 (1 day)."
+// DefaultConfig are values to be taken when the specific configs are omitted from config file.
+var DefaultConfig = ServerConfig{
+	LoggingLevel:       defaultLogVerbosity,
+	GasTipCap:          defaultGasTipCap,
+	VoteBuffer:         defaultVoteBufferAfterPenalty,
+	KeyFile:            defaultKeyFile,
+	KeyPassword:        defaultKeyPassword,
+	AutonityWSUrl:      defaultAutonityWSUrl,
+	PluginDIR:          defaultPluginDir,
+	ProfileDir:         DefaultProfileDir,
+	ConfidenceStrategy: defaultConfidenceStrategy,
+	PluginConfigs:      nil,
+	MetricConfigs:      DefaultMetricConfig,
+}
 
-// PluginConfig carry the configuration of plugins.
+// DefaultMetricConfig is the default config for metrics used in oracle-server.
+var DefaultMetricConfig = MetricConfig{
+	// common flags
+	InfluxDBEndpoint: "http://localhost:8086",
+	InfluxDBTags:     "host=localhost",
+
+	// influxdbv1-specific flags.
+	EnableInfluxDB:   false,
+	InfluxDBDatabase: "autonity",
+	InfluxDBUsername: "test",
+	InfluxDBPassword: "test",
+
+	// influxdbv2-specific flags
+	EnableInfluxDBV2:     false,
+	InfluxDBToken:        "test",
+	InfluxDBBucket:       "autonity",
+	InfluxDBOrganization: "autonity",
+}
+
+// MetricConfig contains the configuration for the metric collection of oracle-server.
+type MetricConfig struct {
+	// Common configs for influxDB V1 and V2.
+	InfluxDBEndpoint string `json:"influxDBEndpoint" yaml:"influxDBEndpoint"`
+	InfluxDBTags     string `json:"influxDBTags" yaml:"influxDBTags"`
+
+	// InfluxDB V1 specific configs
+	EnableInfluxDB   bool   `json:"enableInfluxDB" yaml:"enableInfluxDB"`
+	InfluxDBDatabase string `json:"influxDBDatabase" yaml:"influxDBDatabase"`
+	InfluxDBUsername string `json:"influxDBUsername" yaml:"influxDBUsername"`
+	InfluxDBPassword string `json:"influxDBPassword" yaml:"influxDBPassword"`
+
+	// InfluxDB V2 specific configs
+	EnableInfluxDBV2     bool   `json:"enableInfluxDBV2" yaml:"enableInfluxDBV2"`
+	InfluxDBToken        string `json:"influxDBToken" yaml:"influxDBToken"`
+	InfluxDBBucket       string `json:"influxDBBucket" yaml:"influxDBBucket"`
+	InfluxDBOrganization string `json:"influxDBOrganization" yaml:"influxDBOrganization"`
+}
+
+// ServerConfig is the schema of oracle-server's config.
+type ServerConfig struct {
+	LoggingLevel       int            `json:"logLevel" yaml:"logLevel"`
+	GasTipCap          uint64         `json:"gasTipCap" yaml:"gasTipCap"`
+	VoteBuffer         uint64         `json:"voteBuffer" yaml:"voteBuffer"`
+	KeyFile            string         `json:"keyFile" yaml:"keyFile"`
+	KeyPassword        string         `json:"keyPassword" yaml:"keyPassword"`
+	AutonityWSUrl      string         `json:"autonityWSUrl" yaml:"autonityWSUrl"`
+	PluginDIR          string         `json:"pluginDir" yaml:"pluginDir"`
+	ProfileDir         string         `json:"profileDir" yaml:"profileDir"`
+	ConfidenceStrategy int            `json:"confidenceStrategy" yaml:"confidenceStrategy"`
+	PluginConfigs      []PluginConfig `json:"pluginConfigs" yaml:"pluginConfigs"`
+	MetricConfigs      MetricConfig   `json:"metricConfigs" yaml:"metricConfigs"`
+}
+
+// PluginConfig is the schema of plugins' config.
 type PluginConfig struct {
 	Name               string `json:"name" yaml:"name"`                         // The name of the plugin binary.
 	Key                string `json:"key" yaml:"key"`                           // The API key granted by your data provider to access their data API.
@@ -72,31 +116,24 @@ type PluginConfig struct {
 	Disabled           bool   `json:"disabled" yaml:"disabled"`                 // The flag to disable a plugin.
 }
 
-func MakeConfig() *types.OracleServerConfig {
-	// todo: unify the configuration of oracle_server and plugins within single config file.
-	var logLevel int
-	var keyFile string
-	var gasTipCap uint64
-	var pluginDir string
-	var profileDir string
-	var keyPassword string
-	var autonityWSUrl string
-	var pluginConfFile string
-	var oracleConfFile string
-	var confidenceStrategy int
-	var voteBuffer uint64
+// Config is the resolved configuration of the oracle-server.
+type Config struct {
+	ConfigFile         string
+	LoggingLevel       hclog.Level
+	GasTipCap          uint64
+	VoteBuffer         uint64
+	Key                *keystore.Key
+	AutonityWSUrl      string
+	PluginDIR          string
+	ProfileDir         string
+	ConfidenceStrategy int
+	PluginConfigs      map[string]PluginConfig
+	MetricConfigs      MetricConfig
+}
 
-	flag.Uint64Var(&gasTipCap, "tip", defaultGasTipCap, usageGasTipCap)
-	flag.StringVar(&keyFile, "key.file", defaultKeyFile, usageOracleKey)
-	flag.IntVar(&logLevel, "log.level", defaultLogVerbosity, usageLogLevel)
-	flag.StringVar(&autonityWSUrl, "ws", defaultAutonityWSUrl, usageWSUrl)
-	flag.StringVar(&pluginDir, "plugin.dir", defaultPluginDir, usagePluginDir)
-	flag.StringVar(&profileDir, "profile.dir", DefaultProfileDir, usageProfileDir)
-	flag.StringVar(&pluginConfFile, "plugin.conf", defaultPluginConfFile, usagePluginConf)
-	flag.StringVar(&keyPassword, "key.password", defaultKeyPassword, usageOracleKeyPassword)
-	flag.Uint64Var(&voteBuffer, "vote.buffer", defaultVoteBufferAfterPenalty, usageVoteBuffer)
+func MakeConfig() *Config {
+	var oracleConfFile string
 	flag.StringVar(&oracleConfFile, flag.DefaultConfigFlagname, defaultOracleConfFile, usageOracleConf)
-	flag.IntVar(&confidenceStrategy, "confidence.strategy", defaultConfidenceStrategy, usageConfidenceStrategy)
 
 	flag.Parse()
 	if len(flag.Args()) == 1 && flag.Args()[0] == "version" {
@@ -105,103 +142,47 @@ func MakeConfig() *types.OracleServerConfig {
 		os.Exit(0)
 	}
 
-	// configs which are not set in the CLI flags or in a config file, should be set by system environment variables.
-	// if they are not set by below environment variables, the default values are applied.
-	if lvl, presented := os.LookupEnv(envLogLevel); presented && logLevel == defaultLogVerbosity {
-		l, err := strconv.Atoi(lvl)
-		if err != nil {
-			log.Printf("wrong log level configed in $LOG_LEVEL")
-			helpers.PrintUsage()
-			os.Exit(1)
-		}
-		logLevel = l
-		if hclog.Level(logLevel) < hclog.NoLevel || hclog.Level(logLevel) > hclog.Error { //nolint
-			log.Printf("wrong logging level configed %d, %s", logLevel, usageLogLevel)
-			helpers.PrintUsage()
-			os.Exit(1)
-		}
+	config, err := LoadServerConfig(oracleConfFile)
+	if err != nil {
+		log.SetFlags(0)
+		log.Println("could not load oracle_server config:", err)
+		os.Exit(1)
 	}
 
-	// Try to resolve confidence strategy from environment variable.
-	if cs, presented := os.LookupEnv(envConfidenceStrategy); presented && confidenceStrategy == defaultConfidenceStrategy {
-		strategy, err := strconv.Atoi(cs)
-		if err != nil {
-			log.Printf("wrong confidence strategy configed in $CONFIDENCE_STRATEGY")
-			helpers.PrintUsage()
-			os.Exit(1)
-		}
-		confidenceStrategy = strategy
-		if confidenceStrategy < defaultConfidenceStrategy || confidenceStrategy > ConfidenceStrategyFixed {
-			log.Printf("wrong confidence strategy configed %d, %s", confidenceStrategy, usageConfidenceStrategy)
-			helpers.PrintUsage()
-			os.Exit(1)
-		}
-	}
-
-	if vb, presented := os.LookupEnv(envVoteBuffer); presented && voteBuffer == defaultVoteBufferAfterPenalty {
-		voteBuff, err := strconv.ParseUint(vb, 0, 64)
-		if err != nil {
-			log.Printf("wrong value configed in $VOTE_BUFFER")
-			helpers.PrintUsage()
-			os.Exit(1)
-		}
-		voteBuffer = voteBuff
-	}
-
-	if pDir, presented := os.LookupEnv(envProfDIR); presented && profileDir == DefaultProfileDir {
-		profileDir = pDir
-	}
-
-	if pluginBase, presented := os.LookupEnv(envPluginDIR); presented && pluginDir == defaultPluginDir {
-		pluginDir = pluginBase
-	}
-
-	if k, presented := os.LookupEnv(envKeyFile); presented && keyFile == defaultKeyFile {
-		keyFile = k
-	}
-
-	if password, presented := os.LookupEnv(envKeyFilePASS); presented && keyPassword == defaultKeyPassword {
-		keyPassword = password
-	}
-
-	if ws, presented := os.LookupEnv(envWS); presented && autonityWSUrl == defaultAutonityWSUrl {
-		autonityWSUrl = ws
-	}
-
-	if pluginConf, presented := os.LookupEnv(envPluginCof); presented && pluginConfFile == defaultPluginConfFile {
-		pluginConfFile = pluginConf
-	}
-
-	if capGasTip, presented := os.LookupEnv(envGasTipCap); presented && gasTipCap == defaultGasTipCap {
-		gasTip, err := strconv.ParseUint(capGasTip, 0, 64)
-		if err != nil {
-			log.Printf("wrong value configed in $GAS_TIP_CAP")
-			helpers.PrintUsage()
-			os.Exit(1)
-		}
-		gasTipCap = gasTip
-	}
-
-	key, err := loadKey(keyFile, keyPassword)
+	key, err := LoadKey(config.KeyFile, config.KeyPassword)
 	if err != nil {
 		helpers.PrintUsage()
 		os.Exit(1)
 	}
 
-	return &types.OracleServerConfig{
-		VoteBuffer:         voteBuffer,
-		GasTipCap:          gasTipCap,
+	if config.MetricConfigs.EnableInfluxDB && config.MetricConfigs.EnableInfluxDBV2 {
+		log.SetFlags(0)
+		log.Println("There are two metrics engine enabled, please select one: influxDB or influxDBV2")
+		os.Exit(1)
+	}
+
+	pluginConfigs := make(map[string]PluginConfig)
+	for _, conf := range config.PluginConfigs {
+		c := conf
+		pluginConfigs[c.Name] = c
+	}
+
+	return &Config{
+		VoteBuffer:         config.VoteBuffer,
+		GasTipCap:          config.GasTipCap,
 		Key:                key,
-		AutonityWSUrl:      autonityWSUrl,
-		PluginDIR:          pluginDir,
-		ProfileDir:         profileDir,
-		PluginConfFile:     pluginConfFile,
-		LoggingLevel:       hclog.Level(logLevel), //nolint
-		ConfidenceStrategy: confidenceStrategy,
+		AutonityWSUrl:      config.AutonityWSUrl,
+		PluginDIR:          config.PluginDIR,
+		ProfileDir:         config.ProfileDir,
+		LoggingLevel:       hclog.Level(config.LoggingLevel), //nolint
+		ConfidenceStrategy: config.ConfidenceStrategy,
+		ConfigFile:         oracleConfFile,
+		PluginConfigs:      pluginConfigs,
+		MetricConfigs:      config.MetricConfigs,
 	}
 }
 
-func loadKey(keyFile, password string) (*keystore.Key, error) {
+func LoadKey(keyFile, password string) (*keystore.Key, error) {
 	keyJson, err := os.ReadFile(keyFile)
 	if err != nil {
 		log.Printf("cannot read key from oracle key file: %s, %s", keyFile, err.Error())
@@ -216,25 +197,33 @@ func loadKey(keyFile, password string) (*keystore.Key, error) {
 	return key, nil
 }
 
+func LoadServerConfig(file string) (*ServerConfig, error) {
+	data, err := os.ReadFile(file)
+	if err != nil {
+		return nil, fmt.Errorf("error reading file: %v", err)
+	}
+
+	config := DefaultConfig
+	if err = yaml.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("error unmarshalling YAML: %v", err)
+	}
+
+	return &config, nil
+}
+
 func LoadPluginsConfig(file string) (map[string]PluginConfig, error) {
-	content, err := os.ReadFile(file)
+	serverConf, err := LoadServerConfig(file)
 	if err != nil {
 		return nil, err
 	}
 
-	var configs []PluginConfig
-	err = yaml.Unmarshal(content, &configs)
-	if err != nil {
-		return nil, err
-	}
-
-	confs := make(map[string]PluginConfig)
-	for _, conf := range configs {
+	pluginConfigs := make(map[string]PluginConfig)
+	for _, conf := range serverConf.PluginConfigs {
 		c := conf
-		confs[c.Name] = c
+		pluginConfigs[c.Name] = c
 	}
 
-	return confs, nil
+	return pluginConfigs, nil
 }
 
 func VersionString(version uint8) string {
@@ -242,4 +231,21 @@ func VersionString(version uint8) string {
 	minor := (version / 10) % 10
 	patch := version % 10
 	return fmt.Sprintf("v%d.%d.%d", major, minor, patch)
+}
+
+func SplitTagsFlag(tagsFlag string) map[string]string {
+	tags := strings.Split(tagsFlag, ",")
+	tagsMap := map[string]string{}
+
+	for _, t := range tags {
+		if t != "" {
+			kv := strings.Split(t, "=")
+
+			if len(kv) == 2 {
+				tagsMap[kv[0]] = kv[1]
+			}
+		}
+	}
+
+	return tagsMap
 }

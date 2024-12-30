@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/golang/mock/gomock"
+	"github.com/hashicorp/go-hclog"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 	"io/ioutil" //nolint
@@ -86,11 +87,25 @@ func TestOracleServer(t *testing.T) {
 	var subRoundEvent event.Subscription
 	var subSymbolsEvent event.Subscription
 	var subPenalizeEvent event.Subscription
-	os.Setenv("KEY.FILE", "../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe") //nolint
-	os.Setenv("PLUGIN.DIR", "../plugins/template_plugin/bin")                                                                    //nolint
-	os.Setenv("PLUGIN.CONF", "../test_data/plugins-conf.yml")                                                                    //nolint
-	defer os.Clearenv()
-	conf := config.MakeConfig()
+
+	keyFile := "../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"
+	passWord := config.DefaultConfig.KeyPassword
+	key, err := config.LoadKey(keyFile, passWord)
+	require.NoError(t, err)
+
+	conf := &config.Config{
+		ConfigFile:         "../test_data/oracle_config.yml",
+		LoggingLevel:       hclog.Level(config.DefaultConfig.LoggingLevel), //nolint
+		GasTipCap:          config.DefaultConfig.GasTipCap,
+		VoteBuffer:         config.DefaultConfig.VoteBuffer,
+		Key:                key,
+		AutonityWSUrl:      config.DefaultConfig.AutonityWSUrl,
+		PluginDIR:          "../plugins/template_plugin/bin",
+		ProfileDir:         ".",
+		ConfidenceStrategy: 0,
+		PluginConfigs:      nil,
+		MetricConfigs:      config.MetricConfig{},
+	}
 
 	t.Run("test init oracle server with oracle contract states", func(t *testing.T) {
 		ctrl := gomock.NewController(t)

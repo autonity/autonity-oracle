@@ -4,7 +4,6 @@ import (
 	"autonity-oracle/config"
 	contract "autonity-oracle/contract_binder/contract"
 	"autonity-oracle/helpers"
-	"autonity-oracle/metrics"
 	pWrapper "autonity-oracle/plugin_wrapper"
 	common2 "autonity-oracle/plugins/common"
 	"autonity-oracle/types"
@@ -16,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	tp "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/hashicorp/go-hclog"
 	"github.com/modern-go/reflect2"
 	"github.com/shopspring/decimal"
@@ -46,12 +46,12 @@ var (
 	preSamplingRange = uint64(5)                                    // pre-sampling starts in 5 blocks in advance.
 	bridgerSymbols   = []string{"ATN-USDC", "NTN-USDC", "USDC-USD"} // used for value bridging to USD by USDC
 
-	numOfPlugins       = metrics.GetOrRegisterGauge("oracle_server/plugins", nil)
-	oracleRound        = metrics.GetOrRegisterGauge("oracle_server/round", nil)
-	slashEventCounter  = metrics.GetOrRegisterCounter("oracle_server/slash", nil)
-	l1ConnectivityErrs = metrics.GetOrRegisterCounter("oracle_server/l1/errs", nil)
-	accountBalance     = metrics.GetOrRegisterGauge("oracle_server/balance", nil)
-	isVoterFlag        = metrics.GetOrRegisterGauge("oracle_server/isVoter", nil)
+	numOfPlugins       = metrics.GetOrRegisterGauge("oracle/plugins", nil)
+	oracleRound        = metrics.GetOrRegisterGauge("oracle/round", nil)
+	slashEventCounter  = metrics.GetOrRegisterCounter("oracle/slash", nil)
+	l1ConnectivityErrs = metrics.GetOrRegisterCounter("oracle/l1/errs", nil)
+	accountBalance     = metrics.GetOrRegisterGauge("oracle/balance", nil)
+	isVoterFlag        = metrics.GetOrRegisterGauge("oracle/isVoter", nil)
 )
 
 const (
@@ -128,7 +128,7 @@ func (s *ServerState) loadState(profileDir string) error {
 // OracleServer coordinates the plugin discovery, the data sampling, and do the health checking with L1 connectivity.
 type OracleServer struct {
 	logger hclog.Logger
-	conf   *types.OracleServerConfig
+	conf   *config.Config
 
 	doneCh        chan struct{}
 	regularTicker *time.Ticker // the clock source to trigger the 10s interval job.
@@ -172,7 +172,7 @@ type OracleServer struct {
 	chainID int64
 }
 
-func NewOracleServer(conf *types.OracleServerConfig, dialer types.Dialer, client types.Blockchain,
+func NewOracleServer(conf *config.Config, dialer types.Dialer, client types.Blockchain,
 	oc contract.ContractAPI) *OracleServer {
 	os := &OracleServer{
 		conf:               conf,
@@ -217,14 +217,6 @@ func NewOracleServer(conf *types.OracleServerConfig, dialer types.Dialer, client
 		os.state = state
 	}
 
-	// load plugin configs before start them.
-	plugConfs, err := config.LoadPluginsConfig(conf.PluginConfFile)
-	if err != nil {
-		os.logger.Error("cannot load plugin configuration", "error", err.Error(), "path", conf.PluginConfFile)
-		helpers.PrintUsage()
-		o.Exit(1)
-	}
-
 	// discover plugins from plugin dir at startup.
 	binaries, err := helpers.ListPlugins(conf.PluginDIR)
 	if len(binaries) == 0 || err != nil {
@@ -234,9 +226,10 @@ func NewOracleServer(conf *types.OracleServerConfig, dialer types.Dialer, client
 		o.Exit(1)
 	}
 
+	// take the overwritten plugin configs to start plugins.
 	for _, file := range binaries {
 		f := file
-		pConf := plugConfs[f.Name()]
+		pConf := conf.PluginConfigs[f.Name()]
 		if pConf.Disabled {
 			continue
 		}
@@ -940,7 +933,7 @@ func (os *OracleServer) Stop() {
 
 func (os *OracleServer) PluginRuntimeManagement() {
 	// load plugin configs before start them.
-	plugConfs, err := config.LoadPluginsConfig(os.conf.PluginConfFile)
+	plugConfs, err := config.LoadPluginsConfig(os.conf.ConfigFile)
 	if err != nil {
 		os.logger.Error("cannot load plugin configuration", "error", err.Error())
 		return

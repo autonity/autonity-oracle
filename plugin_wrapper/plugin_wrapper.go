@@ -2,11 +2,11 @@ package pluginwrapper
 
 import (
 	"autonity-oracle/config"
-	"autonity-oracle/metrics"
 	"autonity-oracle/types"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"os"
@@ -293,7 +293,7 @@ func (pw *PluginWrapper) updateMetrics(prices []types.Price) {
 	for _, p := range prices {
 		m, ok := pw.priceMetrics[p.Symbol]
 		if !ok {
-			name := strings.Join([]string{"oracle_server", pw.Name(), "price", p.Symbol}, "/")
+			name := strings.Join([]string{"oracle", pw.Name(), p.Symbol, "price"}, "/")
 			gauge := metrics.GetOrRegisterGaugeFloat64(name, nil)
 			gauge.Update(p.Price.InexactFloat64())
 			pw.priceMetrics[p.Symbol] = gauge
