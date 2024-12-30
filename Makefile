@@ -8,8 +8,7 @@ LINTER = ./bin/golangci-lint
 GOLANGCI_LINT_VERSION = v1.62.0 # Change this to the desired version
 SOLC_VERSION = 0.8.2
 BIN_DIR = ./build/bin
-CONF_FILE = ./config/oracle-server.config
-PLUGIN_CONF_FILE = ./config/plugins-conf.yml
+CONF_FILE = ./config/oracle_config.yml
 E2E_TEST_DIR = ./e2e_test
 E2E_TEST_PLUGIN_DIR = $(E2E_TEST_DIR)/plugins
 E2E_TEST_TEMPLATE_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/template_plugins
@@ -59,9 +58,7 @@ oracle-server:
 	cp $(BIN_DIR)/autoracle $(E2E_TEST_DIR)/autoracle
 
 conf-file:
-    # copy example plugin-conf
-	cp $(PLUGIN_CONF_FILE) $(BIN_DIR)
-	# copy example oracle-server.conf
+	# copy example oracle_config.yml
 	cp $(CONF_FILE) $(BIN_DIR)
 
 e2e-test-stuffs:

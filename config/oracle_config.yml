@@ -65,7 +65,7 @@ confidenceStrategy: 0  # 0: linear, 1: fixed
 #  ATNTokenAddress    string `json:"atnTokenAddress" yaml:"atnTokenAddress"`   // The Wrapped ATN erc20 token address on the target blockchain.
 #  USDCTokenAddress   string `json:"usdcTokenAddress" yaml:"usdcTokenAddress"` // USDCx erc20 token address on the target blockchain.
 #  SwapAddress        string `json:"swapAddress" yaml:"swapAddress"`           // UniSwap factory contract address or AirSwap SwapERC20 contract address on the target blockchain.
-#  Disabled           bool   `json:"disabled" yaml:"disabled"`                 // The flag to disable a plugin.
+#  Disabled           bool   `json:"disabled" yaml:"disabled"`                 // The flag to disable/enable a plugin.
 #}
 
 # Un-comment below lines to enable your forex data plugin's configuration on demand. Your production configurations start from below:
