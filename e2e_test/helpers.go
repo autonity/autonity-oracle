@@ -26,6 +26,7 @@ import (
 )
 
 var (
+	chainID            = big.NewInt(65100004) // use piccadilly chain ID for e2e test framework.
 	oracleConfigDir    = "./oracle_config"
 	nodeKeyDir         = "./autonity_l1_config/nodekeys"
 	keyStoreDir        = "./autonity_l1_config/keystore"

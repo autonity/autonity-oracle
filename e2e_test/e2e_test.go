@@ -933,6 +933,7 @@ func TestOutlierVoter(t *testing.T) {
 	case penalizedCounter := <-resultCh:
 		t.Log("Number of penalized events received:", penalizedCounter)
 		require.Equal(t, uint64(1), penalizedCounter)
+		defer os.Remove("./server_state_dump.json") //nolint
 	case <-timeout:
 		t.Fatal("Test timed out waiting for penalized events")
 	}
@@ -1065,7 +1066,7 @@ func transferATN(client *ethclient.Client, privateKey *ecdsa.PrivateKey, receive
 
 	gasFeeCap := new(big.Int).Add(gasTip, new(big.Int).Mul(baseFee, big.NewInt(2)))
 
-	signer := types2.NewLondonSigner(common.Big1)
+	signer := types2.NewLondonSigner(chainID)
 	signedTX, err := newDynamicTX(nonce, gasTip, gasFeeCap, 21000, receiverAddress, value, signer, privateKey)
 	if err != nil {
 		return err
