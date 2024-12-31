@@ -11,7 +11,6 @@ import (
 
 	"autonity-oracle/config"
 	contract "autonity-oracle/contract_binder/contract"
-	"autonity-oracle/helpers"
 	"autonity-oracle/monitor"
 	"autonity-oracle/oracle_server"
 	"autonity-oracle/types"
@@ -27,14 +26,12 @@ func main() { //nolint
 	client, err := dialer.Dial(configs.AutonityWSUrl)
 	if err != nil {
 		log.Printf("cannot connect to Autonity network via web socket: %s", err.Error())
-		helpers.PrintUsage()
 		os.Exit(1)
 	}
 
 	oc, err := contract.NewOracle(types.OracleContractAddress, client)
 	if err != nil {
 		log.Printf("cannot bind to oracle contract in Autonity network via web socket: %s", err.Error())
-		helpers.PrintUsage()
 		os.Exit(1)
 	}
 
@@ -53,7 +50,7 @@ func main() { //nolint
 		log.Printf("InfluxDB metrics enabled")
 		go influxdb.InfluxDBWithTags(metrics.DefaultRegistry, 10*time.Second, configs.MetricConfigs.InfluxDBEndpoint,
 			configs.MetricConfigs.InfluxDBDatabase, configs.MetricConfigs.InfluxDBUsername,
-			configs.MetricConfigs.InfluxDBPassword, "autoracle.", tagsMap)
+			configs.MetricConfigs.InfluxDBPassword, config.MetricsNameSpace, tagsMap)
 
 		// Start system runtime metrics collection
 		go metrics.CollectProcessMetrics(3 * time.Second)
@@ -62,7 +59,7 @@ func main() { //nolint
 		log.Printf("InfluxDBV2 metrics enabled")
 		go influxdb.InfluxDBV2WithTags(metrics.DefaultRegistry, 10*time.Second, configs.MetricConfigs.InfluxDBEndpoint,
 			configs.MetricConfigs.InfluxDBToken, configs.MetricConfigs.InfluxDBBucket,
-			configs.MetricConfigs.InfluxDBOrganization, "autoracle.", tagsMap)
+			configs.MetricConfigs.InfluxDBOrganization, config.MetricsNameSpace, tagsMap)
 
 		// Start system runtime metrics collection
 		go metrics.CollectProcessMetrics(3 * time.Second)

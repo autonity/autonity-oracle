@@ -1,6 +1,7 @@
 package test
 
 import (
+	"autonity-oracle/config"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/subtle"
@@ -39,7 +40,6 @@ var (
 	defaultPassword    = "test"
 	generatedGenesis   = "./autonity_l1_config/genesis_gen.json"
 	defaultDataDirRoot = "./autonity_l1_config/nodes"
-	defaultPlugConf    = "./plugins/plugins-conf.yml"
 
 	defaultBondedStake        = new(big.Int).SetUint64(1000)
 	defaultEpochPeriod        = uint64(300) // set to 5 minutes in this e2e test framework.
@@ -80,7 +80,6 @@ func (s *DataSimulator) GenCMD() {
 type Oracle struct {
 	Key        *Key
 	PluginDir  string
-	PluginConf string
 	OracleConf string
 	Host       string
 	Command    *exec.Cmd
@@ -115,14 +114,21 @@ func (o *Oracle) ConfigOracleServer(wsEndpoint string) {
 	}
 	defer f.Close()
 
-	_, err = f.WriteString(fmt.Sprintf("ws %s\nkey.file %s\nkey.password %s\nplugin.dir %s\nlog.level %d\nplugin.conf %s\n",
-		wsEndpoint, o.Key.KeyFile, o.Key.Password, o.PluginDir, hclog.Debug, o.PluginConf))
+	defaultConfig := config.DefaultConfig
+	defaultConfig.AutonityWSUrl = wsEndpoint
+	defaultConfig.KeyFile = o.Key.KeyFile
+	defaultConfig.KeyPassword = o.Key.Password
+	defaultConfig.PluginDIR = o.PluginDir
+	defaultConfig.LoggingLevel = int(hclog.Debug)
+	defaultConfig.PluginConfigs = []config.PluginConfig{{Name: "simulator_plugin", Endpoint: "127.0.0.1:50991"}}
+
+	err = config.FlushServerConfig(&defaultConfig, f.Name())
 	if err != nil {
 		panic(err)
 	}
 
 	// prepare cli command
-	c := exec.Command("./autoracle", fmt.Sprintf("-config=%s", o.OracleConf))
+	c := exec.Command("./autoracle", o.OracleConf)
 	c.Stderr = os.Stderr
 	c.Stdout = os.Stdout
 	o.Command = c
@@ -262,7 +268,6 @@ type Network struct {
 	VotePeriod   uint64
 	EpochPeriod  uint64
 	PluginDirs   []string // different oracle can have different plugins configured.
-	PluginConf   []string // different oracle can have different plugin conf.
 }
 
 func (net *Network) genGenesisFile() error {
@@ -357,7 +362,6 @@ func createNetwork(netConf *NetworkConfig, numOfValidators int) (*Network, error
 		panic("keystore does not contains enough key for testbed")
 	}
 
-	var pluginConfs = []string{defaultPlugConf, defaultPlugConf, defaultPlugConf, defaultPlugConf}
 	var pluginDIRs = []string{defaultPlugDir, defaultPlugDir, defaultPlugDir, defaultPlugDir}
 
 	var simulator *DataSimulator
@@ -387,7 +391,6 @@ func createNetwork(netConf *NetworkConfig, numOfValidators int) (*Network, error
 		VotePeriod:   netConf.VotePeriod,
 		EpochPeriod:  epochPeriod,
 		PluginDirs:   pluginDIRs,
-		PluginConf:   pluginConfs,
 		Simulator:    simulator,
 	}
 
@@ -413,8 +416,7 @@ func configNetwork(network *Network, freeKeys []*Key, freePorts []int, nodes int
 		var l2Node = &Oracle{
 			Key:        freeKeys[i*2],
 			PluginDir:  network.PluginDirs[i],
-			PluginConf: network.PluginConf[i],
-			OracleConf: fmt.Sprintf("%s/oracle-server.config%d", oracleConfigDir, i),
+			OracleConf: fmt.Sprintf("%s/oracle_config_%d.yml", oracleConfigDir, i),
 			Host:       defaultHost,
 		}
 

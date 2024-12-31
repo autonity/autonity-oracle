@@ -154,7 +154,7 @@ v0.2.4
 ```
 Run the server:
 ```shell
-$./autoracle --config="./oracle_config.yml"
+$./autoracle ./oracle_config.yml
 ```
 
 ## Deployment
@@ -182,7 +182,7 @@ Path of the secret key file: key-data/keystore/UTC--2023-02-28T11-40-15.38370976
 ### Start up the service from shell console
 Prepare the plugin binaries, and save them into the `plugins` directory.
 ```shell
-$./autoracle --config="./oracle_config.yml"
+$./autoracle ./oracle_config.yml
 ```
 
 #### example of profile data directory, if monitor service triggered a profile dump

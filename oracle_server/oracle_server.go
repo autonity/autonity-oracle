@@ -222,7 +222,6 @@ func NewOracleServer(conf *config.Config, dialer types.Dialer, client types.Bloc
 	if len(binaries) == 0 || err != nil {
 		// to stop the service on the start once there is no plugin in the db.
 		os.logger.Error("no plugin discovered", "plugin-dir", os.conf.PluginDIR)
-		helpers.PrintUsage()
 		o.Exit(1)
 	}
 
@@ -241,7 +240,6 @@ func NewOracleServer(conf *config.Config, dialer types.Dialer, client types.Bloc
 	if err != nil {
 		// stop the client on start up once the remote endpoint of autonity L1 network is not ready.
 		os.logger.Error("Cannot synchronize oracle contract state from Autonity L1 Network", "error", err.Error(), "WS", conf.AutonityWSUrl)
-		helpers.PrintUsage()
 		o.Exit(1)
 	}
 	os.lostSync = false

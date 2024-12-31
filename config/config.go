@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/hashicorp/go-hclog"
-	"github.com/namsral/flag"
 	"gopkg.in/yaml.v2"
 	"log"
 	"os"
@@ -20,7 +19,6 @@ var (
 	defaultKeyPassword            = "123"
 	defaultPluginDir              = "./plugins"
 	DefaultProfileDir             = "."
-	defaultOracleConfFile         = ""
 	defaultVoteBufferAfterPenalty = uint64(3600 * 24) // The buffering time window in blocks to continue vote after the last penalty event.
 
 	ConfidenceStrategyLinear  = 0
@@ -31,7 +29,7 @@ var (
 // Version number of the oracle server in uint8. It is required
 // for data reporting interface to collect oracle clients version.
 const Version uint8 = 24
-const usageOracleConf = "Set the oracle server configuration file."
+const MetricsNameSpace = "autoracle."
 
 // DefaultConfig are values to be taken when the specific configs are omitted from config file.
 var DefaultConfig = ServerConfig{
@@ -132,26 +130,31 @@ type Config struct {
 }
 
 func MakeConfig() *Config {
-	var oracleConfFile string
-	flag.StringVar(&oracleConfFile, flag.DefaultConfigFlagname, defaultOracleConfFile, usageOracleConf)
+	if len(os.Args) != 2 {
+		log.SetFlags(0)
+		helpers.PrintUsage()
+		os.Exit(1)
+	}
 
-	flag.Parse()
-	if len(flag.Args()) == 1 && flag.Args()[0] == "version" {
+	if os.Args[1] == "version" {
 		log.SetFlags(0)
 		log.Println(VersionString(Version))
 		os.Exit(0)
 	}
 
+	oracleConfFile := os.Args[1]
 	config, err := LoadServerConfig(oracleConfFile)
 	if err != nil {
 		log.SetFlags(0)
-		log.Println("could not load oracle_server config:", err)
+		log.Printf("could not load oracle_server config: %s, err: %s", oracleConfFile, err.Error())
+		helpers.PrintUsage()
 		os.Exit(1)
 	}
 
 	key, err := LoadKey(config.KeyFile, config.KeyPassword)
 	if err != nil {
-		helpers.PrintUsage()
+		log.SetFlags(0)
+		log.Printf("could not load key from key store: %s with password, err: %s", config.KeyFile, err.Error())
 		os.Exit(1)
 	}
 
@@ -224,6 +227,21 @@ func LoadPluginsConfig(file string) (map[string]PluginConfig, error) {
 	}
 
 	return pluginConfigs, nil
+}
+
+// FlushServerConfig writes the ServerConfig object to a YAML file
+func FlushServerConfig(config *ServerConfig, filePath string) error {
+	data, err := yaml.Marshal(config)
+	if err != nil {
+		return fmt.Errorf("error marshaling ServerConfig to YAML: %v", err)
+	}
+
+	err = os.WriteFile(filePath, data, 0644)
+	if err != nil {
+		return fmt.Errorf("error writing YAML to file: %v", err)
+	}
+
+	return nil
 }
 
 func VersionString(version uint8) string {
