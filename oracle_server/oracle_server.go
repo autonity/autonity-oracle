@@ -147,7 +147,7 @@ type OracleServer struct {
 	curRound        uint64 //round ID.
 	votePeriod      uint64 //vote period.
 	curSampleTS     int64  //the data sample TS of the current round.
-	curSampleHeight uint64 //The block height on which the round rotation happens.
+	curSampleHeight uint64 //The block height on which the last round rotation happens.
 
 	protocolSymbols []string //symbols required for the voting on the oracle contract protocol.
 	pricePrecision  decimal.Decimal
@@ -884,7 +884,6 @@ func (os *OracleServer) Start() {
 				oracleRound.Update(rEvent.Round.Int64())
 			}
 
-			// todo: apply the new vote period at the end of current vote round from oracle contract side.
 			// save the round rotation info to coordinate the pre-sampling.
 			os.curRound = rEvent.Round.Uint64()
 			os.votePeriod = rEvent.VotePeriod.Uint64()

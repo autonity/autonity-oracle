@@ -16,6 +16,7 @@ import (
 	"github.com/phayes/freeport"
 	bind "github.com/supranational/blst/bindings/go"
 	blst "github.com/supranational/blst/bindings/go"
+	"gopkg.in/yaml.v2"
 	"io/fs"
 	"io/ioutil"
 	"math/big"
@@ -122,7 +123,7 @@ func (o *Oracle) ConfigOracleServer(wsEndpoint string) {
 	defaultConfig.LoggingLevel = int(hclog.Debug)
 	defaultConfig.PluginConfigs = []config.PluginConfig{{Name: "simulator_plugin", Endpoint: "127.0.0.1:50991"}}
 
-	err = config.FlushServerConfig(&defaultConfig, f.Name())
+	err = FlushServerConfig(&defaultConfig, f.Name())
 	if err != nil {
 		panic(err)
 	}
@@ -559,4 +560,19 @@ func listDir(pluginDIR string) ([]fs.FileInfo, error) {
 		plugins = append(plugins, file)
 	}
 	return plugins, nil
+}
+
+// FlushServerConfig writes the ServerConfig object to a YAML file
+func FlushServerConfig(config *config.ServerConfig, filePath string) error {
+	data, err := yaml.Marshal(config)
+	if err != nil {
+		return fmt.Errorf("error marshaling ServerConfig to YAML: %v", err)
+	}
+
+	err = os.WriteFile(filePath, data, 0644)
+	if err != nil {
+		return fmt.Errorf("error writing YAML to file: %v", err)
+	}
+
+	return nil
 }

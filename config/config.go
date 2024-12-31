@@ -229,21 +229,6 @@ func LoadPluginsConfig(file string) (map[string]PluginConfig, error) {
 	return pluginConfigs, nil
 }
 
-// FlushServerConfig writes the ServerConfig object to a YAML file
-func FlushServerConfig(config *ServerConfig, filePath string) error {
-	data, err := yaml.Marshal(config)
-	if err != nil {
-		return fmt.Errorf("error marshaling ServerConfig to YAML: %v", err)
-	}
-
-	err = os.WriteFile(filePath, data, 0644)
-	if err != nil {
-		return fmt.Errorf("error writing YAML to file: %v", err)
-	}
-
-	return nil
-}
-
 func VersionString(version uint8) string {
 	major := version / 100
 	minor := (version / 10) % 10

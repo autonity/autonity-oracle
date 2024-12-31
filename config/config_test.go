@@ -1,11 +1,7 @@
 package config
 
 import (
-	"fmt"
-	"github.com/influxdata/influxdb/pkg/deep"
 	"github.com/stretchr/testify/require"
-	"io/ioutil"
-	"os"
 	"testing"
 )
 
@@ -23,20 +19,6 @@ func TestConfigs(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, pluginConfigs)
 	require.Equal(t, 5, len(pluginConfigs))
-
-	// Create a temporary file
-	tempFile, err := ioutil.TempFile("", "tempFile.yml")
-	if err != nil {
-		fmt.Println("Error creating temporary file:", err)
-		return
-	}
-	defer os.Remove(tempFile.Name()) // nolint
-	err = FlushServerConfig(config, tempFile.Name())
-	require.NoError(t, err)
-
-	configLoaded, err := LoadServerConfig(tempFile.Name())
-	require.NoError(t, err)
-	deep.Equal(config, configLoaded)
 }
 
 func TestFormatVersion(t *testing.T) {
