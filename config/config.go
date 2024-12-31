@@ -1,7 +1,6 @@
 package config
 
 import (
-	"autonity-oracle/helpers"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/hashicorp/go-hclog"
@@ -18,7 +17,7 @@ var (
 	defaultKeyFile                = "./UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"
 	defaultKeyPassword            = "123"
 	defaultPluginDir              = "./plugins"
-	DefaultProfileDir             = "."
+	defaultProfileDir             = "."
 	defaultVoteBufferAfterPenalty = uint64(3600 * 24) // The buffering time window in blocks to continue vote after the last penalty event.
 
 	ConfidenceStrategyLinear  = 0
@@ -29,6 +28,8 @@ var (
 // Version number of the oracle server in uint8. It is required
 // for data reporting interface to collect oracle clients version.
 const Version uint8 = 24
+
+// MetricsNameSpace is the name space of oracle-server's metrics in influxDB.
 const MetricsNameSpace = "autoracle."
 
 // DefaultConfig are values to be taken when the specific configs are omitted from config file.
@@ -40,7 +41,7 @@ var DefaultConfig = ServerConfig{
 	KeyPassword:        defaultKeyPassword,
 	AutonityWSUrl:      defaultAutonityWSUrl,
 	PluginDIR:          defaultPluginDir,
-	ProfileDir:         DefaultProfileDir,
+	ProfileDir:         defaultProfileDir,
 	ConfidenceStrategy: defaultConfidenceStrategy,
 	PluginConfigs:      nil,
 	MetricConfigs:      DefaultMetricConfig,
@@ -132,7 +133,7 @@ type Config struct {
 func MakeConfig() *Config {
 	if len(os.Args) != 2 {
 		log.SetFlags(0)
-		helpers.PrintUsage()
+		printUsage()
 		os.Exit(1)
 	}
 
@@ -147,7 +148,7 @@ func MakeConfig() *Config {
 	if err != nil {
 		log.SetFlags(0)
 		log.Printf("could not load oracle_server config: %s, err: %s", oracleConfFile, err.Error())
-		helpers.PrintUsage()
+		printUsage()
 		os.Exit(1)
 	}
 
@@ -251,4 +252,10 @@ func SplitTagsFlag(tagsFlag string) map[string]string {
 	}
 
 	return tagsMap
+}
+
+func printUsage() {
+	fmt.Print("Usage of Autonity Oracle Server:\n")
+	fmt.Printf("%s <oracle_config.yml>\n", os.Args[0])
+	fmt.Print("Sub commands: \n  version: print the version of the oracle server.\n")
 }

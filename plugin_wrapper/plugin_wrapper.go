@@ -48,7 +48,7 @@ type PluginWrapper struct {
 }
 
 func NewPluginWrapper(logLevel hclog.Level, name string, pluginDir string, sub types.SampleEventSubscriber, conf *config.PluginConfig) *PluginWrapper {
-	// Create an hclog.Logger
+	// Create a hclog.Logger
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   name,
 		Output: os.Stdout,

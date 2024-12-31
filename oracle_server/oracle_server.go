@@ -10,6 +10,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -350,7 +351,7 @@ func (os *OracleServer) handleConnectivityError() {
 func (os *OracleServer) checkHealth() {
 	if os.lostSync {
 		err := os.syncStates()
-		if err != nil && err != types.ErrNoSymbolsObserved {
+		if err != nil && !errors.Is(err, types.ErrNoSymbolsObserved) {
 			os.logger.Info("rebuilding WS connectivity with Autonity L1 node", "error", err)
 			if metrics.Enabled {
 				l1ConnectivityErrs.Inc(1)
@@ -1019,7 +1020,7 @@ func (os *OracleServer) setupNewPlugin(name string, conf *config.PluginConfig) (
 	if err := pluginWrapper.Initialize(os.chainID); err != nil {
 		// if the plugin states that a service key is missing, then we mark it down, thus the runtime discovery can
 		// skip those plugins without a key configured.
-		if err == types.ErrMissingServiceKey {
+		if errors.Is(err, types.ErrMissingServiceKey) {
 			os.keyRequiredPlugins[name] = struct{}{}
 		}
 		os.logger.Error("cannot run plugin", "name", name, "error", err.Error())

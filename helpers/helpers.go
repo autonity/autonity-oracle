@@ -27,12 +27,6 @@ var (
 	DefaultSymbols = []string{"AUD-USD", "CAD-USD", "EUR-USD", "GBP-USD", "JPY-USD", "SEK-USD", "ATN-USD", "NTN-USD", "NTN-ATN"}
 )
 
-func PrintUsage() {
-	fmt.Print("Usage of Autonity Oracle Server:\n")
-	fmt.Printf("%s <oracle_config.yml>\n", os.Args[0])
-	fmt.Print("Sub commands: \n  version: print the version of the oracle server.\n")
-}
-
 func ResolveSimulatedPrice(s string) decimal.Decimal {
 	defaultPrice := simulatedPrice
 	switch s {
