@@ -932,7 +932,7 @@ func TestOutlierVoter(t *testing.T) {
 	select {
 	case penalizedCounter := <-resultCh:
 		t.Log("Number of penalized events received:", penalizedCounter)
-		require.Greater(t, penalizedCounter, uint64(0))
+		require.Equal(t, uint64(1), penalizedCounter)
 	case <-timeout:
 		t.Fatal("Test timed out waiting for penalized events")
 	}
@@ -944,7 +944,7 @@ func penalizeEventListener(t *testing.T, nodeAddress common.Address, done chan s
 	// Subscribe to the penalize event with client address.
 	chPenalizedEvent := make(chan *contract.OraclePenalized)
 	t.Log("current node account", nodeAddress)
-	subPenalizedEvent, err := oracle.WatchPenalized(new(bind.WatchOpts), chPenalizedEvent, nil)
+	subPenalizedEvent, err := oracle.WatchPenalized(new(bind.WatchOpts), chPenalizedEvent, []common.Address{nodeAddress})
 	require.NoError(t, err)
 	defer subPenalizedEvent.Unsubscribe()
 
