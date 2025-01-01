@@ -19,7 +19,7 @@ const (
 )
 
 var defaultConfig = config.PluginConfig{
-	Name:               "pluginBinaryName",
+	Name:               "template_plugin",
 	Key:                "",
 	Scheme:             "https",
 	Endpoint:           "127.0.0.1:8080",
@@ -128,6 +128,7 @@ func (g *TemplatePlugin) State(_ int64) (types.PluginState, error) {
 	state.Version = g.version
 	state.AvailableSymbols = symbols
 	state.DataSource = g.conf.Scheme + "://" + g.conf.Endpoint
+	state.DataSourceType = types.SrcCEX
 	return state, nil
 }
 

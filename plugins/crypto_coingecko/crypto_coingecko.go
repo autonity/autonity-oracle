@@ -3,6 +3,7 @@ package main
 import (
 	"autonity-oracle/config"
 	"autonity-oracle/plugins/common"
+	"autonity-oracle/types"
 	"encoding/json"
 	"github.com/hashicorp/go-hclog"
 	"io"
@@ -113,7 +114,7 @@ func (c *CoinGeckoClient) buildURL() *url.URL {
 
 func main() {
 	conf := common.ResolveConf(os.Args[0], &defaultConfig)
-	adapter := common.NewPlugin(conf, NewCoinGeckoClient(conf), version, nil)
+	adapter := common.NewPlugin(conf, NewCoinGeckoClient(conf), version, types.SrcCEX, nil)
 	defer adapter.Close()
 	common.PluginServe(adapter)
 }

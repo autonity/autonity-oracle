@@ -122,7 +122,7 @@ func (o *Oracle) ConfigOracleServer(wsEndpoint string) {
 	defaultConfig.KeyPassword = o.Key.Password
 	defaultConfig.PluginDIR = o.PluginDir
 	defaultConfig.LoggingLevel = int(hclog.Debug)
-	defaultConfig.PluginConfigs = []config.PluginConfig{{Name: "simulator_plugin", Endpoint: "127.0.0.1:50991"}}
+	defaultConfig.PluginConfigs = []config.PluginConfig{{Name: "template_plugin", Endpoint: "127.0.0.1:50991"}}
 
 	err = FlushServerConfig(&defaultConfig, f.Name())
 	if err != nil {

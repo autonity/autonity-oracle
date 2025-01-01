@@ -4,6 +4,7 @@ import (
 	"autonity-oracle/config"
 	"autonity-oracle/plugins/common"
 	client "autonity-oracle/plugins/simulator_plugin/common"
+	"autonity-oracle/types"
 	"os"
 )
 
@@ -18,7 +19,7 @@ var defaultConfig = config.PluginConfig{
 
 func main() {
 	conf := common.ResolveConf(os.Args[0], &defaultConfig)
-	adapter := common.NewPlugin(conf, client.NewSIMClient(conf), client.Version, common.ChainIDBakerloo)
+	adapter := common.NewPlugin(conf, client.NewSIMClient(conf), client.Version, types.SrcCEX, common.ChainIDBakerloo)
 	defer adapter.Close()
 	common.PluginServe(adapter)
 }

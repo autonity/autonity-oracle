@@ -3,6 +3,7 @@ package main
 import (
 	"autonity-oracle/config"
 	"autonity-oracle/plugins/common"
+	"autonity-oracle/types"
 	"encoding/json"
 	"github.com/hashicorp/go-hclog"
 	"github.com/shopspring/decimal"
@@ -185,7 +186,7 @@ func (cc *CAXClient) Close() {
 
 func main() {
 	conf := common.ResolveConf(os.Args[0], &defaultConfig)
-	adapter := common.NewPlugin(conf, NewCAXClient(conf), version, common.ChainIDPiccadilly)
+	adapter := common.NewPlugin(conf, NewCAXClient(conf), version, types.SrcCEX, common.ChainIDPiccadilly)
 	defer adapter.Close()
 	common.PluginServe(adapter)
 }

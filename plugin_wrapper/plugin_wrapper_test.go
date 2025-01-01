@@ -13,6 +13,7 @@ func TestPluginWrapper(t *testing.T) {
 		p := PluginWrapper{
 			samples:          make(map[string]map[int64]types.Price),
 			latestTimestamps: make(map[string]int64),
+			dataSrcType:      types.SrcCEX,
 		}
 
 		now := time.Now().Unix()

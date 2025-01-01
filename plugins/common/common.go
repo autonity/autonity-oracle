@@ -53,9 +53,10 @@ type Plugin struct {
 	conf             *config.PluginConfig
 	cachePrices      map[string]types.Price
 	chainID          *big.Int // piccadilly, bakerloo, mainnet, or nil for common.
+	dataSourceType   types.DataSourceType
 }
 
-func NewPlugin(conf *config.PluginConfig, client DataSourceClient, version string, chainID *big.Int) *Plugin {
+func NewPlugin(conf *config.PluginConfig, client DataSourceClient, version string, srcType types.DataSourceType, chainID *big.Int) *Plugin {
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:       conf.Name,
 		Level:      hclog.Debug,
@@ -71,6 +72,7 @@ func NewPlugin(conf *config.PluginConfig, client DataSourceClient, version strin
 		availableSymbols: make(map[string]struct{}),
 		cachePrices:      make(map[string]types.Price),
 		chainID:          chainID,
+		dataSourceType:   srcType,
 	}
 }
 
@@ -148,6 +150,7 @@ func (p *Plugin) State(chainID int64) (types.PluginState, error) {
 	state.AvailableSymbols = symbols
 	state.KeyRequired = p.client.KeyRequired()
 	state.DataSource = p.conf.Scheme + "://" + p.conf.Endpoint
+	state.DataSourceType = p.dataSourceType
 
 	if p.chainID != nil && p.chainID.Int64() != chainID {
 		return state, ErrChainIDMismatch

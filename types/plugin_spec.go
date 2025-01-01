@@ -8,6 +8,15 @@ import (
 // This file defines the autonity oracle plugins specification on top of go-plugin framework which leverage the localhost
 // net rpc, or grpc for plugin integrations.
 
+// DataSourceType is used by oracle server to pick up pre-samples with different strategy.
+type DataSourceType int
+
+const (
+	SrcAMM DataSourceType = iota
+	SrcCEX
+	SrcAFQ
+)
+
 // HandshakeConfig are used to just do a basic handshake between
 // a plugin and host. If the handshake fails, a user-friendly error is shown.
 // This prevents users from executing bad plugins or executing a plugin
@@ -32,6 +41,7 @@ type PluginState struct {
 	Version          string
 	DataSource       string
 	AvailableSymbols []string
+	DataSourceType   DataSourceType
 }
 
 // Adapter is the interface that we're exposing as a plugin.

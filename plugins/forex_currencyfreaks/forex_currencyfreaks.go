@@ -3,6 +3,7 @@ package main
 import (
 	"autonity-oracle/config"
 	"autonity-oracle/plugins/common"
+	"autonity-oracle/types"
 	"encoding/json"
 	"fmt"
 	"github.com/hashicorp/go-hclog"
@@ -187,7 +188,7 @@ func (cf *CFClient) buildURL(key string) *url.URL {
 
 func main() {
 	conf := common.ResolveConf(os.Args[0], &defaultConfig)
-	adapter := common.NewPlugin(conf, NewCFClient(conf), version, nil)
+	adapter := common.NewPlugin(conf, NewCFClient(conf), version, types.SrcCEX, nil)
 	defer adapter.Close()
 	common.PluginServe(adapter)
 }

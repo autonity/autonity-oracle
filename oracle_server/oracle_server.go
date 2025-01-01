@@ -17,6 +17,7 @@ import (
 	tp "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/fsnotify/fsnotify"
 	"github.com/hashicorp/go-hclog"
 	"github.com/modern-go/reflect2"
 	"github.com/shopspring/decimal"
@@ -42,7 +43,7 @@ var (
 	alertBalance     = new(big.Int).SetUint64(2000000000000) // 2000 Gwei, 0.000002 Ether
 	invalidPrice     = big.NewInt(0)
 	invalidSalt      = big.NewInt(0)
-	tenSecsInterval  = 10 * time.Second                             // ticker to check L2 connectivity, plugin management, and regular data sampling.
+	tenSecsInterval  = 10 * time.Second                             // ticker to check L2 connectivity and gc round data.
 	oneSecsInterval  = 1 * time.Second                              // sampling interval during data pre-sampling period.
 	preSamplingRange = uint64(5)                                    // pre-sampling starts in 5 blocks in advance.
 	bridgerSymbols   = []string{"ATN-USDC", "NTN-USDC", "USDC-USD"} // used for value bridging to USD by USDC
@@ -170,7 +171,8 @@ type OracleServer struct {
 
 	state *ServerState // server state to be flushed.
 
-	chainID int64
+	fsWatcher *fsnotify.Watcher
+	chainID   int64
 }
 
 func NewOracleServer(conf *config.Config, dialer types.Dialer, client types.Blockchain,
@@ -244,6 +246,27 @@ func NewOracleServer(conf *config.Config, dialer types.Dialer, client types.Bloc
 		o.Exit(1)
 	}
 	os.lostSync = false
+
+	// subscribe fs notifications
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		os.logger.Error("cannot create fsnotify watcher", "error", err)
+		o.Exit(1)
+	}
+
+	// Add the config file and plugin directory to the watcher
+	err = watcher.Add(conf.PluginDIR)
+	if err != nil {
+		os.logger.Error("cannot watch plugin dir", "error", err)
+		o.Exit(1)
+	}
+
+	err = watcher.Add(conf.ConfigFile)
+	if err != nil {
+		os.logger.Error("cannot watch config file", "error", err)
+		o.Exit(1)
+	}
+	os.fsWatcher = watcher
 	return os
 }
 
@@ -362,18 +385,7 @@ func (os *OracleServer) checkHealth() {
 		return
 	}
 
-	h, err := os.client.BlockNumber(context.Background())
-	if err != nil {
-		os.logger.Error("get block number", "error", err.Error())
-		return
-	}
-
-	r, err := os.oracleContract.GetRound(nil)
-	if err != nil {
-		os.logger.Error("get round", "error", err.Error())
-		return
-	}
-	os.logger.Debug("checking heart beat", "current height", h, "current round", r.Uint64())
+	os.logger.Debug("checking heart beat", "current round", os.curRound)
 }
 
 func (os *OracleServer) isVoter() (bool, error) {
@@ -428,13 +440,13 @@ func (os *OracleServer) handlePreSampling(preSampleTS int64) error {
 	}
 
 	// if it is not a good timing to start sampling then return.
-	nSampleHeight := os.curSampleHeight + os.votePeriod
+	nextSampleHeight := os.curSampleHeight + os.votePeriod
 	curHeight, err := os.client.BlockNumber(context.Background())
 	if err != nil {
 		os.logger.Error("handle pre-sampling", "error", err.Error())
 		return err
 	}
-	if nSampleHeight-curHeight > preSamplingRange {
+	if nextSampleHeight-curHeight > preSamplingRange {
 		return nil
 	}
 
@@ -825,6 +837,13 @@ func (os *OracleServer) Start() {
 			os.logger.Info("oracle service is stopped")
 			return
 
+		case err, ok := <-os.fsWatcher.Errors:
+			if !ok {
+				os.logger.Error("failed to watch filesystem")
+				return
+			}
+			os.logger.Error("fs-watcher errors", "err", err.Error())
+
 		case err := <-os.subSymbolsEvent.Err():
 			if err != nil {
 				os.logger.Info("subscription error of new symbols event", err)
@@ -876,6 +895,14 @@ func (os *OracleServer) Start() {
 			if err := os.state.flush(os.conf.ProfileDir); err != nil {
 				os.logger.Error("failed to flush oracle state", "error", err.Error())
 			}
+		case ev, ok := <-os.fsWatcher.Events:
+			if !ok {
+				os.logger.Error("fs watcher has been closed")
+			}
+
+			os.logger.Info("watched new fs event", "file", ev.Name, "event", ev.Op.String())
+			// updates on the watched config and plugin directory will trigger plugin management.
+			os.PluginRuntimeManagement()
 
 		case rEvent := <-os.chRoundEvent:
 			os.logger.Info("handle new round", "round", rEvent.Round.Uint64(), "required sampling TS",
@@ -904,13 +931,7 @@ func (os *OracleServer) Start() {
 			os.logger.Info("handle new symbols", "new symbols", symbols.Symbols, "activate at round", symbols.Round)
 			os.handleNewSymbolsEvent(symbols.Symbols)
 		case <-os.regularTicker.C:
-			// start the regular price sampling for oracle service on each 10s.
-			now := time.Now().Unix()
-			os.logger.Debug("regular 10s data sampling", "ts", now)
-			os.samplePrice(os.samplingSymbols, now)
-			os.lastSampledTS = now
 			os.checkHealth()
-			os.PluginRuntimeManagement()
 			os.gcRoundData()
 		}
 	}
@@ -921,6 +942,9 @@ func (os *OracleServer) Stop() {
 	os.subRoundEvent.Unsubscribe()
 	os.subSymbolsEvent.Unsubscribe()
 	os.subPenalizedEvent.Unsubscribe()
+	if os.fsWatcher != nil {
+		os.fsWatcher.Close() //nolint
+	}
 
 	os.doneCh <- struct{}{}
 	for _, c := range os.runningPlugins {

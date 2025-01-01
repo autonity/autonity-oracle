@@ -27,6 +27,7 @@ var (
 type PluginWrapper struct {
 	version          string
 	conf             *config.PluginConfig
+	dataSrcType      types.DataSourceType
 	lockService      sync.RWMutex
 	lockSamples      sync.RWMutex
 	samples          map[string]map[int64]types.Price
@@ -116,6 +117,11 @@ func (pw *PluginWrapper) GetSample(symbol string, target int64) (types.Price, er
 		for _, price := range tsMap {
 			return price, nil // Return the only sample
 		}
+	}
+
+	// for AMMs, always get the latest sample, right after the round event arrived.
+	if pw.dataSrcType == types.SrcAMM {
+		target = time.Now().Unix()
 	}
 
 	// If the target timestamp exists, return it
@@ -215,6 +221,7 @@ func (pw *PluginWrapper) Initialize(chainID int64) error {
 		pw.logger.Error("cannot get plugin's pluginState", "error", err.Error())
 		return err
 	}
+	pw.dataSrcType = state.DataSourceType
 	pw.version = state.Version
 	if state.KeyRequired && pw.conf.Key == "" {
 		return types.ErrMissingServiceKey

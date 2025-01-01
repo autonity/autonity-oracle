@@ -125,7 +125,7 @@ func (g *OutlierTesterPlugin) State(_ int64) (types.PluginState, error) {
 	state.Version = g.version
 	state.AvailableSymbols = symbols
 	state.DataSource = g.conf.Scheme + "://" + g.conf.Endpoint
-
+	state.DataSourceType = types.SrcCEX
 	return state, nil
 }
 

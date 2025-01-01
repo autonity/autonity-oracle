@@ -3,6 +3,7 @@ package main
 import (
 	"autonity-oracle/config"
 	"autonity-oracle/plugins/common"
+	"autonity-oracle/types"
 	"encoding/json"
 	"github.com/hashicorp/go-hclog"
 	"io"
@@ -115,7 +116,7 @@ func (bi *BIClient) buildURL(symbols []string) (*url.URL, error) {
 
 func main() {
 	conf := common.ResolveConf(os.Args[0], &defaultConfig)
-	adapter := common.NewPlugin(conf, NewBIClient(conf), version, nil)
+	adapter := common.NewPlugin(conf, NewBIClient(conf), version, types.SrcCEX, nil)
 	defer adapter.Close()
 
 	common.PluginServe(adapter)

@@ -50,7 +50,7 @@ func TestHappyCase(t *testing.T) {
 	pricePrecision := decimal.NewFromBigInt(common.Big1, int32(p))
 
 	// first test happy case.
-	endRound := uint64(4)
+	endRound := uint64(6000)
 	testHappyCase(t, o, endRound, pricePrecision)
 }
 
