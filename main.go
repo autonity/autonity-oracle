@@ -1,19 +1,17 @@
 package main
 
 import (
+	"autonity-oracle/config"
+	contract "autonity-oracle/contract_binder/contract"
+	"autonity-oracle/monitor"
+	"autonity-oracle/oracle_server"
+	"autonity-oracle/types"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/metrics/influxdb"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
-
-	"autonity-oracle/config"
-	contract "autonity-oracle/contract_binder/contract"
-	"autonity-oracle/monitor"
-	"autonity-oracle/oracle_server"
-	"autonity-oracle/types"
 )
 
 func main() { //nolint
@@ -48,21 +46,29 @@ func main() { //nolint
 	if configs.MetricConfigs.EnableInfluxDB {
 		metrics.Enabled = true
 		log.Printf("InfluxDB metrics enabled")
-		go influxdb.InfluxDBWithTags(metrics.DefaultRegistry, 10*time.Second, configs.MetricConfigs.InfluxDBEndpoint,
-			configs.MetricConfigs.InfluxDBDatabase, configs.MetricConfigs.InfluxDBUsername,
-			configs.MetricConfigs.InfluxDBPassword, config.MetricsNameSpace, tagsMap)
+		go influxdb.InfluxDBWithTags(metrics.DefaultRegistry,
+			config.MetricsInterval,
+			configs.MetricConfigs.InfluxDBEndpoint,
+			configs.MetricConfigs.InfluxDBDatabase,
+			configs.MetricConfigs.InfluxDBUsername,
+			configs.MetricConfigs.InfluxDBPassword,
+			config.MetricsNameSpace, tagsMap)
 
 		// Start system runtime metrics collection
-		go metrics.CollectProcessMetrics(3 * time.Second)
+		go metrics.CollectProcessMetrics(config.MetricsInterval)
 	} else if configs.MetricConfigs.EnableInfluxDBV2 {
 		metrics.Enabled = true
 		log.Printf("InfluxDBV2 metrics enabled")
-		go influxdb.InfluxDBV2WithTags(metrics.DefaultRegistry, 10*time.Second, configs.MetricConfigs.InfluxDBEndpoint,
-			configs.MetricConfigs.InfluxDBToken, configs.MetricConfigs.InfluxDBBucket,
-			configs.MetricConfigs.InfluxDBOrganization, config.MetricsNameSpace, tagsMap)
+		go influxdb.InfluxDBV2WithTags(metrics.DefaultRegistry,
+			config.MetricsInterval,
+			configs.MetricConfigs.InfluxDBEndpoint,
+			configs.MetricConfigs.InfluxDBToken,
+			configs.MetricConfigs.InfluxDBBucket,
+			configs.MetricConfigs.InfluxDBOrganization,
+			config.MetricsNameSpace, tagsMap)
 
 		// Start system runtime metrics collection
-		go metrics.CollectProcessMetrics(3 * time.Second)
+		go metrics.CollectProcessMetrics(config.MetricsInterval)
 	}
 
 	// Wait for interrupt signal to gracefully shut down the server with

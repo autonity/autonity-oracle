@@ -628,6 +628,77 @@ func TestDisableAndEnablePlugin(t *testing.T) {
 	testDisableAndEnablePlugin(t, network, o, endRound)
 }
 
+func TestAddAndRemovePlugin(t *testing.T) {
+	var netConf = &NetworkConfig{
+		EnableL1Logs: false,
+		Symbols:      helpers.DefaultSymbols,
+		VotePeriod:   defaultVotePeriod,
+		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir},
+	}
+	network, err := createNetwork(netConf, 2)
+
+	require.NoError(t, err)
+	defer network.Stop()
+
+	client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d", network.L1Nodes[0].Host, network.L1Nodes[0].WSPort))
+	require.NoError(t, err)
+	defer client.Close()
+
+	// bind client with oracle contract address
+	o, err := contract.NewOracle(types.OracleContractAddress, client)
+	require.NoError(t, err)
+
+	// first test happy case.
+	endRound := uint64(10)
+	testAddAndRemovePlugin(t, o, endRound)
+}
+
+func testAddAndRemovePlugin(t *testing.T, o *contract.Oracle, beforeRound uint64) {
+	added := false
+	removed := false
+	for {
+		time.Sleep(10 * time.Second)
+		round, err := o.GetRound(nil)
+		require.NoError(t, err)
+
+		// add a new plugin at round 5
+		if round.Uint64() == 5 && added == false {
+			err = copyFile("./plugins/crypto_plugins/crypto_uniswap", "./plugins/template_plugins/crypto_uniswap")
+			require.NoError(t, err)
+			added = true
+		}
+
+		// remove the plugin at round 8
+		if round.Uint64() == 8 && removed == false {
+			err = os.Remove("./plugins/template_plugins/crypto_uniswap")
+			require.NoError(t, err)
+			removed = true
+		}
+
+		// continue to wait until end round.
+		if round.Uint64() < beforeRound {
+			continue
+		}
+
+		var rd []contract.IOracleRoundData
+		symbols, err := o.GetSymbols(nil)
+		require.NoError(t, err)
+
+		// as current round is not finalized yet, thus the round data of it haven't being aggregate,
+		// thus we will query the last round's data for the verification.
+		lastRound := new(big.Int).SetUint64(round.Uint64() - 1)
+		// get round data for each symbol.
+		for _, s := range symbols {
+			d, err := o.GetRoundData(nil, lastRound, s)
+			require.NoError(t, err)
+			require.Equal(t, true, d.Success)
+			rd = append(rd, d)
+		}
+
+		break
+	}
+}
+
 func testDisableAndEnablePlugin(t *testing.T, network *Network, o *contract.Oracle, beforeRound uint64) {
 	disabled := false
 	enabled := false
@@ -693,7 +764,7 @@ func testDisableAndEnablePlugin(t *testing.T, network *Network, o *contract.Orac
 
 func testHappyCase(t *testing.T, o *contract.Oracle, beforeRound uint64, pricePrecision decimal.Decimal) {
 	for {
-		time.Sleep(1 * time.Minute)
+		time.Sleep(10 * time.Second)
 		round, err := o.GetRound(nil)
 		require.NoError(t, err)
 

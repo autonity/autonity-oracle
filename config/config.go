@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 )
 
 var (
@@ -31,6 +32,7 @@ const Version uint8 = 24
 
 // MetricsNameSpace is the name space of oracle-server's metrics in influxDB.
 const MetricsNameSpace = "autoracle."
+const MetricsInterval = time.Second * 10
 
 // DefaultConfig are values to be taken when the specific configs are omitted from config file.
 var DefaultConfig = ServerConfig{

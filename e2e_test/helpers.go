@@ -17,6 +17,7 @@ import (
 	bind "github.com/supranational/blst/bindings/go"
 	blst "github.com/supranational/blst/bindings/go"
 	"gopkg.in/yaml.v2"
+	"io"
 	"io/fs"
 	"io/ioutil"
 	"math/big"
@@ -83,6 +84,7 @@ type Oracle struct {
 	Key        *Key
 	PluginDir  string
 	OracleConf string
+	MetricConf *config.MetricConfig
 	Host       string
 	Command    *exec.Cmd
 }
@@ -123,6 +125,8 @@ func (o *Oracle) ConfigOracleServer(wsEndpoint string) {
 	defaultConfig.PluginDIR = o.PluginDir
 	defaultConfig.LoggingLevel = int(hclog.Debug)
 	defaultConfig.PluginConfigs = []config.PluginConfig{{Name: "template_plugin", Endpoint: "127.0.0.1:50991"}}
+	// enable the metric collection by default for e2e test.
+	defaultConfig.MetricConfigs.EnableInfluxDBV2 = true
 
 	err = FlushServerConfig(&defaultConfig, f.Name())
 	if err != nil {
@@ -253,7 +257,8 @@ type NetworkConfig struct {
 	Symbols         []string
 	VotePeriod      uint64
 	PluginDIRs      []string // different oracle can have different plugins configured.
-	SimulateTimeout int      // to simulate timeout in seconds at data source simulator when processing http request.
+	MetricConfigs   []config.MetricConfig
+	SimulateTimeout int // to simulate timeout in seconds at data source simulator when processing http request.
 	EpochPeriod     uint64
 }
 
@@ -573,6 +578,41 @@ func FlushServerConfig(config *config.ServerConfig, filePath string) error {
 	err = os.WriteFile(filePath, data, 0644)
 	if err != nil {
 		return fmt.Errorf("error writing YAML to file: %v", err)
+	}
+
+	return nil
+}
+
+// copyFile copies a file from src to dst
+func copyFile(src, dst string) error {
+	// Open the source file
+	source, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer source.Close()
+
+	// Create the destination file
+	destination, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destination.Close()
+
+	// Copy the contents from source to destination
+	_, err = io.Copy(destination, source)
+	if err != nil {
+		return err
+	}
+
+	// Set the permissions of the destination file to match the source
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	err = os.Chmod(dst, srcInfo.Mode())
+	if err != nil {
+		return err
 	}
 
 	return nil
