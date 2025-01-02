@@ -8,7 +8,6 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/hashicorp/go-hclog v0.14.1
 	github.com/hashicorp/go-plugin v1.4.8
-	github.com/hashicorp/golang-lru v1.0.2
 	github.com/modern-go/reflect2 v1.0.2
 	github.com/namsral/flag v1.7.4-pre
 	github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5
@@ -19,7 +18,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 )
 
-require github.com/shirou/gopsutil/v4 v4.24.10 // indirect
+require github.com/shirou/gopsutil/v4 v4.24.10
 
 require (
 	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 // indirect
@@ -57,10 +56,10 @@ require (
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/ugorji/go/codec v1.2.7 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
-	golang.org/x/crypto v0.6.0 // indirect
-	golang.org/x/net v0.6.0 // indirect
-	golang.org/x/sys v0.26.0 // indirect
-	golang.org/x/text v0.7.0 // indirect
+	golang.org/x/crypto v0.31.0 // indirect
+	golang.org/x/net v0.21.0 // indirect
+	golang.org/x/sys v0.28.0 // indirect
+	golang.org/x/text v0.21.0 // indirect
 	google.golang.org/genproto v0.0.0-20190819201941-24fa4b261c55 // indirect
 	google.golang.org/grpc v1.27.1 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
