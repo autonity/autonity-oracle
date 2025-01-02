@@ -653,6 +653,7 @@ func TestAddAndRemovePlugin(t *testing.T) {
 	testAddAndRemovePlugin(t, o, endRound)
 }
 
+// todo: not a high priority, refine the tests in this e2e test framework.
 func testAddAndRemovePlugin(t *testing.T, o *contract.Oracle, beforeRound uint64) {
 	added := false
 	removed := false

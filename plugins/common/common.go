@@ -120,8 +120,8 @@ func (p *Plugin) FetchPrices(symbols []string) (types.PluginPriceReport, error) 
 	return report, nil
 }
 
-func (p *Plugin) State(chainID int64) (types.PluginState, error) {
-	var state types.PluginState
+func (p *Plugin) State(chainID int64) (types.PluginStatement, error) {
+	var state types.PluginStatement
 
 	symbols, err := p.client.AvailableSymbols()
 	if err != nil {

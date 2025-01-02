@@ -70,9 +70,9 @@ const (
 	serverStateDumpFile = "server_state_dump.json"
 )
 
-// ServerState is the state that to be flushed into the profiling report directory.
-// It is loaded on start up.
-type ServerState struct {
+// ServerMemories is the state that to be flushed into the profiling report directory.
+// For the time being, it just contains the last outlier record of the server. It is loaded on start up.
+type ServerMemories struct {
 	OutlierRecord
 	LoggedAt string `json:"logged_at"`
 }
@@ -85,8 +85,8 @@ type OutlierRecord struct {
 	Reported             uint64         `json:"reported"`
 }
 
-// flush dumps the ServerState into a JSON file in the specified profile directory.
-func (s *ServerState) flush(profileDir string) error {
+// flush dumps the ServerMemories into a JSON file in the specified profile directory.
+func (s *ServerMemories) flush(profileDir string) error {
 	if _, err := o.Stat(profileDir); o.IsNotExist(err) {
 		return fmt.Errorf("profile directory does not exist: %s", profileDir)
 	}
@@ -103,14 +103,14 @@ func (s *ServerState) flush(profileDir string) error {
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
 	if err = encoder.Encode(s); err != nil {
-		return fmt.Errorf("failed to encode ServerState to JSON: %v", err)
+		return fmt.Errorf("failed to encode ServerMemories to JSON: %v", err)
 	}
 
 	return nil
 }
 
-// loadState loads the ServerState from a JSON file in the specified profile directory.
-func (s *ServerState) loadState(profileDir string) error {
+// loadState loads the ServerMemories from a JSON file in the specified profile directory.
+func (s *ServerMemories) loadState(profileDir string) error {
 	fileName := filepath.Join(profileDir, serverStateDumpFile)
 
 	file, err := o.Open(fileName)
@@ -121,7 +121,7 @@ func (s *ServerState) loadState(profileDir string) error {
 
 	decoder := json.NewDecoder(file)
 	if err := decoder.Decode(s); err != nil {
-		return fmt.Errorf("failed to decode JSON into ServerState: %v", err)
+		return fmt.Errorf("failed to decode JSON into ServerMemories: %v", err)
 	}
 
 	return nil
@@ -169,10 +169,10 @@ type OracleServer struct {
 	lostSync               bool // set to true if the connectivity with L1 Autonity network is dropped during runtime.
 	commitmentHashComputer *CommitmentHashComputer
 
-	state *ServerState // server state to be flushed.
+	serverMemories *ServerMemories // server memories to be flushed.
 
-	fsWatcher *fsnotify.Watcher
-	chainID   int64
+	fsWatcher *fsnotify.Watcher // FS watcher watches the changes of plugins and the plugins' configs.
+	chainID   int64             // ChainID saves the L1 chain ID, it is used for plugin compatability check.
 }
 
 func NewOracleServer(conf *config.Config, dialer types.Dialer, client types.Blockchain,
@@ -213,11 +213,11 @@ func NewOracleServer(conf *config.Config, dialer types.Dialer, client types.Bloc
 	os.commitmentHashComputer = commitmentHashComputer
 
 	// load historic state, otherwise default initial state will be used.
-	state := &ServerState{}
+	state := &ServerMemories{}
 	err = state.loadState(os.conf.ProfileDir)
 	if err == nil {
 		os.logger.Info("run oracle server with historical flushed state", "state", state)
-		os.state = state
+		os.serverMemories = state
 	}
 
 	// discover plugins from plugin dir at startup.
@@ -228,7 +228,7 @@ func NewOracleServer(conf *config.Config, dialer types.Dialer, client types.Bloc
 		o.Exit(1)
 	}
 
-	// take the overwritten plugin configs to start plugins.
+	// take the custom plugin configs and start plugins.
 	for _, file := range binaries {
 		f := file
 		pConf := conf.PluginConfigs[f.Name()]
@@ -247,14 +247,13 @@ func NewOracleServer(conf *config.Config, dialer types.Dialer, client types.Bloc
 	}
 	os.lostSync = false
 
-	// subscribe fs notifications
+	// subscribe FS notifications of the watched plugins and config file.
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		os.logger.Error("cannot create fsnotify watcher", "error", err)
 		o.Exit(1)
 	}
 
-	// Add the config file and plugin directory to the watcher
 	err = watcher.Add(conf.PluginDIR)
 	if err != nil {
 		os.logger.Error("cannot watch plugin dir", "error", err)
@@ -440,13 +439,13 @@ func (os *OracleServer) handlePreSampling(preSampleTS int64) error {
 	}
 
 	// if it is not a good timing to start sampling then return.
-	nextSampleHeight := os.curSampleHeight + os.votePeriod
+	nextRoundHeight := os.curSampleHeight + os.votePeriod
 	curHeight, err := os.client.BlockNumber(context.Background())
 	if err != nil {
 		os.logger.Error("handle pre-sampling", "error", err.Error())
 		return err
 	}
-	if nextSampleHeight-curHeight > preSamplingRange {
+	if nextRoundHeight-curHeight > preSamplingRange {
 		return nil
 	}
 
@@ -502,10 +501,10 @@ func (os *OracleServer) handleRoundVote() error {
 	}
 
 	// check with the vote buffer from the last penalty event.
-	if os.state != nil && os.curSampleHeight-os.state.LastPenalizedAtBlock <= os.conf.VoteBuffer {
-		left := os.conf.VoteBuffer - (os.curSampleHeight - os.state.LastPenalizedAtBlock)
+	if os.serverMemories != nil && os.curSampleHeight-os.serverMemories.LastPenalizedAtBlock <= os.conf.VoteBuffer {
+		left := os.conf.VoteBuffer - (os.curSampleHeight - os.serverMemories.LastPenalizedAtBlock)
 		os.logger.Warn("due to the outlier penalty, we postpone your next vote from slashing", "next vote block", left)
-		os.logger.Warn("your last outlier report was", "report", os.state.OutlierRecord)
+		os.logger.Warn("your last outlier report was", "report", os.serverMemories.OutlierRecord)
 		os.logger.Warn("during this period, you can: 1. check your data source infra; 2. restart your oracle-client; 3. contact Autonity team for help;")
 		return nil
 	}
@@ -880,7 +879,7 @@ func (os *OracleServer) Start() {
 				slashEventCounter.Inc(1)
 			}
 
-			newState := &ServerState{
+			newState := &ServerMemories{
 				OutlierRecord: OutlierRecord{
 					LastPenalizedAtBlock: penalizeEvent.Raw.BlockNumber,
 					Participant:          penalizeEvent.Participant,
@@ -891,8 +890,8 @@ func (os *OracleServer) Start() {
 				LoggedAt: time.Now().Format(time.RFC3339),
 			}
 
-			os.state = newState
-			if err := os.state.flush(os.conf.ProfileDir); err != nil {
+			os.serverMemories = newState
+			if err := os.serverMemories.flush(os.conf.ProfileDir); err != nil {
 				os.logger.Error("failed to flush oracle state", "error", err.Error())
 			}
 		case ev, ok := <-os.fsWatcher.Events:

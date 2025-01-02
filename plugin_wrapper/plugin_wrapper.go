@@ -262,8 +262,8 @@ func (pw *PluginWrapper) start() {
 	}
 }
 
-func (pw *PluginWrapper) state(chainID int64) (types.PluginState, error) {
-	var s types.PluginState
+func (pw *PluginWrapper) state(chainID int64) (types.PluginStatement, error) {
+	var s types.PluginStatement
 	state, err := pw.adapter.State(chainID)
 	if err != nil {
 		return s, err

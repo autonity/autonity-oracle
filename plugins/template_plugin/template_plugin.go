@@ -98,8 +98,8 @@ func (g *TemplatePlugin) FetchPrices(symbols []string) (types.PluginPriceReport,
 	return report, nil
 }
 
-func (g *TemplatePlugin) State(_ int64) (types.PluginState, error) {
-	var state types.PluginState
+func (g *TemplatePlugin) State(_ int64) (types.PluginStatement, error) {
+	var state types.PluginStatement
 
 	symbols, err := g.client.AvailableSymbols()
 	if err != nil {

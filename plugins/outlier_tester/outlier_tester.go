@@ -95,8 +95,8 @@ func (g *OutlierTesterPlugin) FetchPrices(symbols []string) (types.PluginPriceRe
 	return report, nil
 }
 
-func (g *OutlierTesterPlugin) State(_ int64) (types.PluginState, error) {
-	var state types.PluginState
+func (g *OutlierTesterPlugin) State(_ int64) (types.PluginStatement, error) {
+	var state types.PluginStatement
 
 	symbols, err := g.client.AvailableSymbols()
 	if err != nil {

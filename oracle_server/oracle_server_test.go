@@ -35,7 +35,7 @@ func TestOracleDecimals(t *testing.T) {
 	require.Equal(t, "1000000000000000000", precision.String())
 }
 
-// TestServerState tests the flush and loadState methods of ServerState.
+// TestServerState tests the flush and loadState methods of ServerMemories.
 func TestServerState(t *testing.T) {
 	// Create a temporary directory for testing
 	tempDir := t.TempDir()
@@ -45,8 +45,8 @@ func TestServerState(t *testing.T) {
 	require.NoError(t, err)
 	nodeAddr := crypto.PubkeyToAddress(nodeKey.PublicKey)
 
-	// Create a ServerState instance
-	originalState := &ServerState{
+	// Create a ServerMemories instance
+	originalState := &ServerMemories{
 		OutlierRecord: OutlierRecord{
 			LastPenalizedAtBlock: 1234556,
 			Participant:          nodeAddr,
@@ -68,8 +68,8 @@ func TestServerState(t *testing.T) {
 		t.Fatalf("expected file %s to be created, but it does not exist", fileName)
 	}
 
-	// Create a new ServerState instance to load data into
-	loadedState := &ServerState{}
+	// Create a new ServerMemories instance to load data into
+	loadedState := &ServerMemories{}
 
 	// Test loadState method
 	err = loadedState.loadState(tempDir)
