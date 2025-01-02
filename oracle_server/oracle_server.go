@@ -172,7 +172,7 @@ type OracleServer struct {
 	serverMemories *ServerMemories // server memories to be flushed.
 
 	fsWatcher *fsnotify.Watcher // FS watcher watches the changes of plugins and the plugins' configs.
-	chainID   int64             // ChainID saves the L1 chain ID, it is used for plugin compatability check.
+	chainID   int64             // ChainID saves the L1 chain ID, it is used for plugin compatibility check.
 }
 
 func NewOracleServer(conf *config.Config, dialer types.Dialer, client types.Blockchain,
