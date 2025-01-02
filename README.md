@@ -137,7 +137,7 @@ confidenceStrategy: 0  # 0: linear, 1: fixed
 #metricConfigs:
 #  influxDBEndpoint: "http://localhost:8086"
 #  influxDBTags: "host=localhost"
-#  enableInfluxDB: true
+#  enableInfluxDB: false
 #  influxDBDatabase: "oracle"
 #  influxDBUsername: "test"
 #  influxDBPassword: "test"
