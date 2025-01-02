@@ -6,7 +6,7 @@ import (
 )
 
 func TestConfigs(t *testing.T) {
-	configFile := "./test.yml"
+	configFile := "./config_for_test.yml"
 	config, err := LoadServerConfig(configFile)
 	require.NoError(t, err)
 	require.NotEmpty(t, config)
