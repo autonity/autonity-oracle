@@ -119,6 +119,8 @@ func (e *UniswapClient) KeyRequired() bool {
 func (e *UniswapClient) FetchPrice(_ []string) (common.Prices, error) {
 	var prices common.Prices
 
+	// todo: compute the volume weighted price for AMM by watching swap volumes, the aggregated price might help to
+	//  get a better data point even if the severe price fluctuations happens.
 	atnUSDCPrice, err := e.fetchPrice(e.atnUSDCPairContract, ATNUSDC)
 	if err == nil {
 		prices = append(prices, atnUSDCPrice)

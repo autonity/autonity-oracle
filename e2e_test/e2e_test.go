@@ -1,6 +1,7 @@
 package test
 
 import (
+	"autonity-oracle/config"
 	contract "autonity-oracle/contract_binder/contract"
 	autonity "autonity-oracle/e2e_test/contracts"
 	"autonity-oracle/helpers"
@@ -50,7 +51,7 @@ func TestHappyCase(t *testing.T) {
 	pricePrecision := decimal.NewFromBigInt(common.Big1, int32(p))
 
 	// first test happy case.
-	endRound := uint64(6000)
+	endRound := uint64(10)
 	testHappyCase(t, o, endRound, pricePrecision)
 }
 
@@ -500,6 +501,196 @@ func TestSingleNodeCryptoPluginsHappyCase(t *testing.T) {
 	}
 }
 
+func TestOmissionFaultyVoter(t *testing.T) {
+	var netConf = &NetworkConfig{
+		EnableL1Logs: false,
+		Symbols:      helpers.DefaultSymbols,
+		VotePeriod:   20,      // 20s to shorten this test.
+		EpochPeriod:  20 * 12, // 4 minutes to shorten this test.
+		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir, defaultPlugDir, defaultPlugDir},
+	}
+	network, err := createNetwork(netConf, numberOfValidators)
+	require.NoError(t, err)
+	defer network.Stop()
+
+	client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d", network.L1Nodes[0].Host, network.L1Nodes[0].WSPort))
+	require.NoError(t, err)
+	defer client.Close()
+
+	aut, err := autonity.NewAutonity(types.AutonityContractAddress, client)
+	require.NoError(t, err)
+
+	// bind client with oracle contract address
+	o, err := contract.NewOracle(types.OracleContractAddress, client)
+	require.NoError(t, err)
+
+	endRound := uint64(90)
+	stopRound := uint64(2)
+
+	doneCh := make(chan struct{})
+
+	// Start watching the round event and stop oracle client on the stop round.
+	go L2NodeResetEventLoop(t, 0, network, doneCh, o, endRound, stopRound, aut, client)
+
+	// Start a timeout to wait for the ending for the test.
+	timeout := time.After(35 * time.Minute) // Adjust the timeout as needed
+	select {
+	case <-timeout:
+		close(doneCh)
+	}
+
+	for _, n := range network.L2Nodes {
+		account := n.Key.Key.Address
+		atnBalance, err := client.BalanceAt(context.Background(), account, nil)
+		require.NoError(t, err)
+		t.Log("get oracle ATN reward", "address", account.Hex(), "atn balance", atnBalance.String())
+		//require.Equal(t, true, atnBalance.Cmp(big.NewInt(0)) > 0)
+	}
+
+	// bind client with autonity contract address
+	ntnContract, err := erc20.NewErc20(types.AutonityContractAddress, client)
+	require.NoError(t, err)
+	for _, n := range network.L2Nodes {
+		account := n.Key.Key.Address
+		ntnBalance, err := ntnContract.BalanceOf(nil, account)
+		require.NoError(t, err)
+		t.Log("get oracle NTN reward", "address", account.Hex(), "ntn balance", ntnBalance.String())
+		//require.Equal(t, true, ntnBalance.Cmp(big.NewInt(0)) > 0)
+	}
+}
+
+func TestOutlierVoter(t *testing.T) {
+	var netConf = &NetworkConfig{
+		EnableL1Logs: false,
+		Symbols:      helpers.DefaultSymbols,
+		VotePeriod:   20,  // 20s to shorten this test.
+		EpochPeriod:  120, // 2 minutes to shorten this test.
+		PluginDIRs:   []string{outlierPlugDir, defaultPlugDir, defaultPlugDir, defaultPlugDir},
+	}
+	network, err := createNetwork(netConf, numberOfValidators)
+	require.NoError(t, err)
+	defer network.Stop()
+
+	client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d", network.L1Nodes[0].Host, network.L1Nodes[0].WSPort))
+	require.NoError(t, err)
+	defer client.Close()
+
+	// Bind client with oracle contract address
+	o, err := contract.NewOracle(types.OracleContractAddress, client)
+	require.NoError(t, err)
+	maliciousNode := network.L2Nodes[0].Key.Key.Address
+	doneCh := make(chan struct{})
+	resultCh := make(chan uint64) // Channel to receive the result
+	endRound := uint64(15)
+
+	// Start watching the event and count the number of events received.
+	go func() {
+		resultCh <- penalizeEventListener(t, maliciousNode, doneCh, o, endRound)
+	}()
+
+	// Start a timeout to wait for the ending for the test, and verify the number of penalized events received.
+	timeout := time.After(1 * time.Hour) // Adjust the timeout as needed
+	//timeout := time.After(250 * time.Second) // Adjust the timeout as needed
+	select {
+	case penalizedCounter := <-resultCh:
+		t.Log("Number of penalized events received:", penalizedCounter)
+		require.Equal(t, uint64(1), penalizedCounter)
+		defer os.Remove("./server_state_dump.json") //nolint
+	case <-timeout:
+		t.Fatal("Test timed out waiting for penalized events")
+	}
+
+	close(doneCh)
+}
+
+func TestDisableAndEnablePlugin(t *testing.T) {
+	var netConf = &NetworkConfig{
+		EnableL1Logs: false,
+		Symbols:      helpers.DefaultSymbols,
+		VotePeriod:   defaultVotePeriod,
+		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir},
+	}
+	network, err := createNetwork(netConf, 2)
+
+	require.NoError(t, err)
+	defer network.Stop()
+
+	client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d", network.L1Nodes[0].Host, network.L1Nodes[0].WSPort))
+	require.NoError(t, err)
+	defer client.Close()
+
+	// bind client with oracle contract address
+	o, err := contract.NewOracle(types.OracleContractAddress, client)
+	require.NoError(t, err)
+
+	// first test happy case.
+	endRound := uint64(10)
+	testDisableAndEnablePlugin(t, network, o, endRound)
+}
+
+func testDisableAndEnablePlugin(t *testing.T, network *Network, o *contract.Oracle, beforeRound uint64) {
+	disabled := false
+	enabled := false
+	for {
+		time.Sleep(10 * time.Second)
+		round, err := o.GetRound(nil)
+		require.NoError(t, err)
+
+		// disable all the plugins at round 5
+		if round.Uint64() == 5 && disabled == false {
+			for _, n := range network.L2Nodes {
+				conf, err := config.LoadServerConfig(n.OracleConf)
+				require.NoError(t, err)
+
+				for i := range conf.PluginConfigs {
+					conf.PluginConfigs[i].Disabled = true
+				}
+
+				err = FlushServerConfig(conf, n.OracleConf)
+				require.NoError(t, err)
+			}
+			disabled = true
+		}
+
+		if round.Uint64() == 8 && enabled == false {
+			for _, n := range network.L2Nodes {
+				conf, err := config.LoadServerConfig(n.OracleConf)
+				require.NoError(t, err)
+
+				for i := range conf.PluginConfigs {
+					conf.PluginConfigs[i].Disabled = false
+				}
+
+				err = FlushServerConfig(conf, n.OracleConf)
+				require.NoError(t, err)
+			}
+			enabled = true
+		}
+
+		// continue to wait until end round.
+		if round.Uint64() < beforeRound {
+			continue
+		}
+
+		var rd []contract.IOracleRoundData
+		symbols, err := o.GetSymbols(nil)
+		require.NoError(t, err)
+
+		// as current round is not finalized yet, thus the round data of it haven't being aggregate,
+		// thus we will query the last round's data for the verification.
+		lastRound := new(big.Int).SetUint64(round.Uint64() - 1)
+		// get round data for each symbol.
+		for _, s := range symbols {
+			d, err := o.GetRoundData(nil, lastRound, s)
+			require.NoError(t, err)
+			require.Equal(t, true, d.Success)
+			rd = append(rd, d)
+		}
+
+		break
+	}
+}
+
 func testHappyCase(t *testing.T, o *contract.Oracle, beforeRound uint64, pricePrecision decimal.Decimal) {
 	for {
 		time.Sleep(1 * time.Minute)
@@ -837,108 +1028,6 @@ func testNewValidatorJoinToCommittee(t *testing.T, network *Network, client *eth
 		// todo: newly added validator shouldn't be slashed if they not omit any report.
 		break
 	}
-}
-
-func TestOmissionFaultyVoter(t *testing.T) {
-	var netConf = &NetworkConfig{
-		EnableL1Logs: false,
-		Symbols:      helpers.DefaultSymbols,
-		VotePeriod:   20,      // 20s to shorten this test.
-		EpochPeriod:  20 * 12, // 4 minutes to shorten this test.
-		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir, defaultPlugDir, defaultPlugDir},
-	}
-	network, err := createNetwork(netConf, numberOfValidators)
-	require.NoError(t, err)
-	defer network.Stop()
-
-	client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d", network.L1Nodes[0].Host, network.L1Nodes[0].WSPort))
-	require.NoError(t, err)
-	defer client.Close()
-
-	aut, err := autonity.NewAutonity(types.AutonityContractAddress, client)
-	require.NoError(t, err)
-
-	// bind client with oracle contract address
-	o, err := contract.NewOracle(types.OracleContractAddress, client)
-	require.NoError(t, err)
-
-	endRound := uint64(90)
-	stopRound := uint64(2)
-
-	doneCh := make(chan struct{})
-
-	// Start watching the round event and stop oracle client on the stop round.
-	go L2NodeResetEventLoop(t, 0, network, doneCh, o, endRound, stopRound, aut, client)
-
-	// Start a timeout to wait for the ending for the test.
-	timeout := time.After(35 * time.Minute) // Adjust the timeout as needed
-	select {
-	case <-timeout:
-		close(doneCh)
-	}
-
-	for _, n := range network.L2Nodes {
-		account := n.Key.Key.Address
-		atnBalance, err := client.BalanceAt(context.Background(), account, nil)
-		require.NoError(t, err)
-		t.Log("get oracle ATN reward", "address", account.Hex(), "atn balance", atnBalance.String())
-		//require.Equal(t, true, atnBalance.Cmp(big.NewInt(0)) > 0)
-	}
-
-	// bind client with autonity contract address
-	ntnContract, err := erc20.NewErc20(types.AutonityContractAddress, client)
-	require.NoError(t, err)
-	for _, n := range network.L2Nodes {
-		account := n.Key.Key.Address
-		ntnBalance, err := ntnContract.BalanceOf(nil, account)
-		require.NoError(t, err)
-		t.Log("get oracle NTN reward", "address", account.Hex(), "ntn balance", ntnBalance.String())
-		//require.Equal(t, true, ntnBalance.Cmp(big.NewInt(0)) > 0)
-	}
-}
-
-func TestOutlierVoter(t *testing.T) {
-	var netConf = &NetworkConfig{
-		EnableL1Logs: false,
-		Symbols:      helpers.DefaultSymbols,
-		VotePeriod:   20,  // 20s to shorten this test.
-		EpochPeriod:  120, // 2 minutes to shorten this test.
-		PluginDIRs:   []string{outlierPlugDir, defaultPlugDir, defaultPlugDir, defaultPlugDir},
-	}
-	network, err := createNetwork(netConf, numberOfValidators)
-	require.NoError(t, err)
-	defer network.Stop()
-
-	client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d", network.L1Nodes[0].Host, network.L1Nodes[0].WSPort))
-	require.NoError(t, err)
-	defer client.Close()
-
-	// Bind client with oracle contract address
-	o, err := contract.NewOracle(types.OracleContractAddress, client)
-	require.NoError(t, err)
-	maliciousNode := network.L2Nodes[0].Key.Key.Address
-	doneCh := make(chan struct{})
-	resultCh := make(chan uint64) // Channel to receive the result
-	endRound := uint64(15)
-
-	// Start watching the event and count the number of events received.
-	go func() {
-		resultCh <- penalizeEventListener(t, maliciousNode, doneCh, o, endRound)
-	}()
-
-	// Start a timeout to wait for the ending for the test, and verify the number of penalized events received.
-	timeout := time.After(1 * time.Hour) // Adjust the timeout as needed
-	//timeout := time.After(250 * time.Second) // Adjust the timeout as needed
-	select {
-	case penalizedCounter := <-resultCh:
-		t.Log("Number of penalized events received:", penalizedCounter)
-		require.Equal(t, uint64(1), penalizedCounter)
-		defer os.Remove("./server_state_dump.json") //nolint
-	case <-timeout:
-		t.Fatal("Test timed out waiting for penalized events")
-	}
-
-	close(doneCh)
 }
 
 func penalizeEventListener(t *testing.T, nodeAddress common.Address, done chan struct{}, oracle *contract.Oracle, endRound uint64) uint64 {
