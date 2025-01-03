@@ -167,7 +167,7 @@ func TestOracleServer(t *testing.T) {
 		require.Equal(t, true, helpers.ResolveSimulatedPrice(NTNUSD).Equal(roundData.Prices[NTNUSD].Price))
 		require.Equal(t, true, helpers.ResolveSimulatedPrice(ATNUSD).Equal(roundData.Prices[ATNUSD].Price))
 		t.Log(roundData)
-		srv.gcDataSamples()
+		srv.gcExpiredSamples()
 		srv.runningPlugins["template_plugin"].Close()
 	})
 

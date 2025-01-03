@@ -21,6 +21,7 @@ var (
 	defaultProfileDir             = "."
 	defaultVoteBufferAfterPenalty = uint64(3600 * 24) // The buffering time window in blocks to continue vote after the last penalty event.
 
+	PreSamplingRange          = 5 // pre-sampling starts in 5s in advance.
 	ConfidenceStrategyLinear  = 0
 	ConfidenceStrategyFixed   = 1
 	defaultConfidenceStrategy = ConfidenceStrategyLinear // 0: linear, 1: fixed.

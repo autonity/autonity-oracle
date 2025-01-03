@@ -8,7 +8,7 @@ import (
 // This file defines the autonity oracle plugins specification on top of go-plugin framework which leverage the localhost
 // net rpc, or grpc for plugin integrations.
 
-// DataSourceType is used by oracle server to pick up pre-samples with different strategy.
+// DataSourceType is used by oracle server to aggregate pre-samples with different strategy.
 type DataSourceType int
 
 const (

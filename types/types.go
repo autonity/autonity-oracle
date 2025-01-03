@@ -18,11 +18,12 @@ var (
 	AutonityContractAddress = crypto.CreateAddress(Deployer, 0)
 	OracleContractAddress   = crypto.CreateAddress(Deployer, 2)
 
-	ErrPeerOnSync        = errors.New("l1 node is on peer sync")
-	ErrNoAvailablePrice  = errors.New("no available prices collected yet")
-	ErrNoDataRound       = errors.New("no data collected at current round")
-	ErrNoSymbolsObserved = errors.New("no symbols observed from oracle contract")
-	ErrMissingServiceKey = errors.New("the key to access the data source is missing, please check the plugin config")
+	ErrPeerOnSync         = errors.New("l1 node is on peer sync")
+	ErrNoAvailablePrice   = errors.New("no available prices collected yet")
+	ErrNoSufficientPrices = errors.New("no sufficient num of prices were collected yet")
+	ErrNoDataRound        = errors.New("no data collected at current round")
+	ErrNoSymbolsObserved  = errors.New("no symbols observed from oracle contract")
+	ErrMissingServiceKey  = errors.New("the key to access the data source is missing, please check the plugin config")
 )
 
 // Price is the structure contains the exchange rate of a symbol with a timestamp at which the sampling happens.

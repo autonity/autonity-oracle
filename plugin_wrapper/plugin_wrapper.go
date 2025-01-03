@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
+	"github.com/shopspring/decimal"
 	"os"
 	"os/exec"
 	"strings"
@@ -17,9 +18,7 @@ import (
 )
 
 var (
-	// time to live in the cache for each single sample.
-	// todo: check if we can use it for AMM data aggregation?
-	sampleTTL = 1800 // 30 minutes
+	sampleTTL = 30 // 30s, the TTL of a sample before GC it.
 )
 
 // PluginWrapper is the unified wrapper for the interface of a plugin, it contains metadata of a corresponding
@@ -104,7 +103,11 @@ func (pw *PluginWrapper) AddSample(prices []types.Price, ts int64) {
 	}
 }
 
-func (pw *PluginWrapper) GetSample(symbol string, target int64) (types.Price, error) {
+// GetSampledPrice returns the aggregated price computed from a set of pre-samples of a symbol by a specific plugin.
+// For data points from AMM and AFQ markets, they are aggregated by the samples of the last pre-samplings period,
+// while for data points from CEX, the last sample of the pre-sampling period will be taken.
+// The target is the timestamp on which the round block is mined, it's used to select datapoint from CEX data source.
+func (pw *PluginWrapper) GetSampledPrice(symbol string, target int64) (types.Price, error) {
 	pw.lockSamples.RLock()
 	defer pw.lockSamples.RUnlock()
 	tsMap, ok := pw.samples[symbol]
@@ -112,24 +115,34 @@ func (pw *PluginWrapper) GetSample(symbol string, target int64) (types.Price, er
 		return types.Price{}, types.ErrNoAvailablePrice
 	}
 
-	// Short-circuit if there's only one sample
+	// for AMMs or AFQs, get the average price of the collected samples of the recent pre-sampling period.
+	if pw.dataSrcType == types.SrcAMM || pw.dataSrcType == types.SrcAFQ {
+		if len(tsMap) < config.PreSamplingRange {
+			pw.logger.Debug("samples are not enough for price aggregation", "symbol", symbol, "samples", len(tsMap))
+			return types.Price{}, types.ErrNoSufficientPrices
+		}
+
+		var prices []decimal.Decimal
+		for _, sample := range tsMap {
+			prices = append(prices, sample.Price)
+		}
+		avgPrice := decimal.Avg(prices[0], prices[1:]...)
+
+		return types.Price{Symbol: symbol, Price: avgPrice, Timestamp: target}, nil
+	}
+
+	// for CEX, we just need to take the last sample, short-circuit if there's only one sample of data points from CEX
 	if len(tsMap) == 1 {
 		for _, price := range tsMap {
 			return price, nil // Return the only sample
 		}
 	}
 
-	// for AMMs, always get the latest sample, right after the round event arrived.
-	if pw.dataSrcType == types.SrcAMM {
-		target = time.Now().Unix()
-	}
-
-	// If the target timestamp exists, return it
+	// Try to get the target TS sample, otherwise we search for the nearest measurement.
 	if p, ok := tsMap[target]; ok {
 		return p, nil
 	}
 
-	// Find and return the nearest sampled price to the timestamp.
 	var nearestKey int64
 	var minDistance int64 = math.MaxInt64
 	for ts := range tsMap {
@@ -147,7 +160,10 @@ func (pw *PluginWrapper) GetSample(symbol string, target int64) (types.Price, er
 	return tsMap[nearestKey], nil
 }
 
-func (pw *PluginWrapper) GCSamples() {
+// GCExpiredSamples removes data points that are older than the TTL seconds of per plugin, it leaves recent samples
+// together with next round's pre-samples as the input for the price aggregation for AMM, AFQ plugins. While, for CEX
+// plugins, only the latest sample are kept without GC.
+func (pw *PluginWrapper) GCExpiredSamples() {
 	pw.lockSamples.Lock()
 	defer pw.lockSamples.Unlock()
 
@@ -159,26 +175,25 @@ func (pw *PluginWrapper) GCSamples() {
 			continue // Skip if there are no samples for this symbol
 		}
 
-		// Remove samples older than 2 hours
+		// Remove samples older than TTL seconds.
 		for ts := range tsMap {
 			if ts < threshold {
 				delete(tsMap, ts)
 			}
 		}
 
-		// todo: if we use them for AMM data aggregation, we need to keep them.
-		// If there are still samples left, keep only the latest one
-		if len(tsMap) > 0 {
+		// For CEX plugins, keep only the latest sample.
+		if len(tsMap) > 0 && pw.dataSrcType == types.SrcCEX {
 			latestTimestamp := pw.latestTimestamps[symbol]
-
-			// Keep only the latest sample
 			for ts := range tsMap {
 				if ts != latestTimestamp {
 					delete(tsMap, ts)
 				}
 			}
-		} else {
-			// If no samples left, remove the symbol from the map
+		}
+
+		// If no samples left, remove the symbol from the map
+		if len(tsMap) == 0 {
 			delete(pw.samples, symbol)
 			delete(pw.latestTimestamps, symbol) // Also clean up the latest timestamp
 		}
