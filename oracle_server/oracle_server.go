@@ -851,13 +851,13 @@ func (os *OracleServer) Start() {
 			}
 		case err := <-os.subRoundEvent.Err():
 			if err != nil {
-				os.logger.Info("subscription error of new rEvent event", err)
+				os.logger.Info("subscription error of new roundEvent", err)
 				os.handleConnectivityError()
 				os.subRoundEvent.Unsubscribe()
 			}
 		case err := <-os.subPenalizedEvent.Err():
 			if err != nil {
-				os.logger.Info("subscription error of new rEvent event", err)
+				os.logger.Info("subscription error of new roundEvent", err)
 				os.handleConnectivityError()
 				os.subPenalizedEvent.Unsubscribe()
 			}
@@ -894,28 +894,28 @@ func (os *OracleServer) Start() {
 			if err := os.serverMemories.flush(os.conf.ProfileDir); err != nil {
 				os.logger.Error("failed to flush oracle state", "error", err.Error())
 			}
-		case ev, ok := <-os.fsWatcher.Events:
+		case fsEvent, ok := <-os.fsWatcher.Events:
 			if !ok {
 				os.logger.Error("fs watcher has been closed")
 			}
 
-			os.logger.Info("watched new fs event", "file", ev.Name, "event", ev.Op.String())
+			os.logger.Info("watched new fs event", "file", fsEvent.Name, "event", fsEvent.Op.String())
 			// updates on the watched config and plugin directory will trigger plugin management.
 			os.PluginRuntimeManagement()
 
-		case rEvent := <-os.chRoundEvent:
-			os.logger.Info("handle new round", "round", rEvent.Round.Uint64(), "required sampling TS",
-				rEvent.Timestamp.Uint64(), "height", rEvent.Height.Uint64(), "round period", rEvent.VotePeriod.Uint64())
+		case roundEvent := <-os.chRoundEvent:
+			os.logger.Info("handle new round", "round", roundEvent.Round.Uint64(), "required sampling TS",
+				roundEvent.Timestamp.Uint64(), "height", roundEvent.Height.Uint64(), "round period", roundEvent.VotePeriod.Uint64())
 
 			if metrics.Enabled {
-				oracleRound.Update(rEvent.Round.Int64())
+				oracleRound.Update(roundEvent.Round.Int64())
 			}
 
 			// save the round rotation info to coordinate the pre-sampling.
-			os.curRound = rEvent.Round.Uint64()
-			os.votePeriod = rEvent.VotePeriod.Uint64()
-			os.curSampleHeight = rEvent.Height.Uint64()
-			os.curSampleTS = rEvent.Timestamp.Int64()
+			os.curRound = roundEvent.Round.Uint64()
+			os.votePeriod = roundEvent.VotePeriod.Uint64()
+			os.curSampleHeight = roundEvent.Height.Uint64()
+			os.curSampleTS = roundEvent.Timestamp.Int64()
 
 			err := os.handleRoundVote()
 			if err != nil {
@@ -926,9 +926,9 @@ func (os *OracleServer) Start() {
 			os.samplingSymbols = os.protocolSymbols
 			// attach the bridger symbols too once the sampling symbols is replaced by protocol symbols.
 			os.AddNewSymbols(bridgerSymbols)
-		case symbols := <-os.chSymbolsEvent:
-			os.logger.Info("handle new symbols", "new symbols", symbols.Symbols, "activate at round", symbols.Round)
-			os.handleNewSymbolsEvent(symbols.Symbols)
+		case newSymbolEvent := <-os.chSymbolsEvent:
+			os.logger.Info("handle new symbols", "new symbols", newSymbolEvent.Symbols, "activate at round", newSymbolEvent.Round)
+			os.handleNewSymbolsEvent(newSymbolEvent.Symbols)
 		case <-os.regularTicker.C:
 			os.checkHealth()
 			os.gcRoundData()
