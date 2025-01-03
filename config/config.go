@@ -30,6 +30,8 @@ var (
 // for data reporting interface to collect oracle clients version.
 const Version uint8 = 24
 
+const PreSamplingRange = 6 // pre-sampling starts in 6s in advance
+
 // MetricsNameSpace is the name space of oracle-server's metrics in influxDB.
 const MetricsNameSpace = "autoracle."
 const MetricsInterval = time.Second * 10

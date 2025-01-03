@@ -39,14 +39,14 @@ var ForexCurrencies = map[string]struct{}{
 }
 
 var (
-	saltRange        = new(big.Int).SetUint64(math.MaxInt64)
-	alertBalance     = new(big.Int).SetUint64(2000000000000) // 2000 Gwei, 0.000002 Ether
-	invalidPrice     = big.NewInt(0)
-	invalidSalt      = big.NewInt(0)
-	tenSecsInterval  = 10 * time.Second                             // ticker to check L2 connectivity and gc round data.
-	oneSecsInterval  = 1 * time.Second                              // sampling interval during data pre-sampling period.
-	preSamplingRange = uint64(5)                                    // pre-sampling starts in 5 blocks in advance.
-	bridgerSymbols   = []string{"ATN-USDC", "NTN-USDC", "USDC-USD"} // used for value bridging to USD by USDC
+	saltRange       = new(big.Int).SetUint64(math.MaxInt64)
+	alertBalance    = new(big.Int).SetUint64(2000000000000) // 2000 Gwei, 0.000002 Ether
+	invalidPrice    = big.NewInt(0)
+	invalidSalt     = big.NewInt(0)
+	tenSecsInterval = 10 * time.Second // ticker to check L2 connectivity and gc round data.
+	oneSecsInterval = 1 * time.Second  // sampling interval during data pre-sampling period.
+
+	bridgerSymbols = []string{"ATN-USDC", "NTN-USDC", "USDC-USD"} // used for value bridging to USD by USDC
 
 	numOfPlugins       = metrics.GetOrRegisterGauge("oracle/plugins", nil)
 	oracleRound        = metrics.GetOrRegisterGauge("oracle/round", nil)
@@ -349,9 +349,9 @@ func (os *OracleServer) initStates() (uint64, []string, uint64, error) {
 	return currentRound.Uint64(), symbols, votePeriod.Uint64(), nil
 }
 
-func (os *OracleServer) gcDataSamples() {
+func (os *OracleServer) gcExpiredSamples() {
 	for _, plugin := range os.runningPlugins {
-		plugin.GCSamples()
+		plugin.GCExpiredSamples()
 	}
 }
 
@@ -445,7 +445,7 @@ func (os *OracleServer) handlePreSampling(preSampleTS int64) error {
 		os.logger.Error("handle pre-sampling", "error", err.Error())
 		return err
 	}
-	if nextRoundHeight-curHeight > preSamplingRange {
+	if nextRoundHeight-curHeight > uint64(config.PreSamplingRange) { //nolint
 		return nil
 	}
 
@@ -780,7 +780,7 @@ func (os *OracleServer) aggregateBridgedPrice(srcSymbol string, target int64, us
 func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, error) {
 	var prices []decimal.Decimal
 	for _, plugin := range os.runningPlugins {
-		p, err := plugin.GetSample(s, target)
+		p, err := plugin.GetAggregatedPrice(s, target)
 		if err != nil {
 			continue
 		}
@@ -919,9 +919,10 @@ func (os *OracleServer) Start() {
 
 			err := os.handleRoundVote()
 			if err != nil {
-				continue
+				os.logger.Error("round voting failed", "error", err.Error())
 			}
-			os.gcDataSamples()
+			// at the end of each round, gc expired samples of per plugin.
+			os.gcExpiredSamples()
 			// after vote finished, gc useless symbols by protocol required symbols.
 			os.samplingSymbols = os.protocolSymbols
 			// attach the bridger symbols too once the sampling symbols is replaced by protocol symbols.
