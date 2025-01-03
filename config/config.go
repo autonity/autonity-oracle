@@ -21,7 +21,6 @@ var (
 	defaultProfileDir             = "."
 	defaultVoteBufferAfterPenalty = uint64(3600 * 24) // The buffering time window in blocks to continue vote after the last penalty event.
 
-	PreSamplingRange          = 6 // pre-sampling starts in 6s in advance.
 	ConfidenceStrategyLinear  = 0
 	ConfidenceStrategyFixed   = 1
 	defaultConfidenceStrategy = ConfidenceStrategyLinear // 0: linear, 1: fixed.
@@ -30,6 +29,8 @@ var (
 // Version number of the oracle server in uint8. It is required
 // for data reporting interface to collect oracle clients version.
 const Version uint8 = 24
+
+const PreSamplingRange = 6 // pre-sampling starts in 6s in advance
 
 // MetricsNameSpace is the name space of oracle-server's metrics in influxDB.
 const MetricsNameSpace = "autoracle."

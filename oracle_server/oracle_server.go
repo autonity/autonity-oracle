@@ -445,7 +445,7 @@ func (os *OracleServer) handlePreSampling(preSampleTS int64) error {
 		os.logger.Error("handle pre-sampling", "error", err.Error())
 		return err
 	}
-	if nextRoundHeight-curHeight > uint64(config.PreSamplingRange) {
+	if nextRoundHeight-curHeight > uint64(config.PreSamplingRange) { //nolint
 		return nil
 	}
 
