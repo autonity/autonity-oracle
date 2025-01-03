@@ -780,7 +780,7 @@ func (os *OracleServer) aggregateBridgedPrice(srcSymbol string, target int64, us
 func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, error) {
 	var prices []decimal.Decimal
 	for _, plugin := range os.runningPlugins {
-		p, err := plugin.GetSampledPrice(s, target)
+		p, err := plugin.GetAggregatedPrice(s, target)
 		if err != nil {
 			continue
 		}

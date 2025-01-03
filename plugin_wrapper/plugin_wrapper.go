@@ -103,11 +103,11 @@ func (pw *PluginWrapper) AddSample(prices []types.Price, ts int64) {
 	}
 }
 
-// GetSampledPrice returns the aggregated price computed from a set of pre-samples of a symbol by a specific plugin.
-// For data points from AMM and AFQ markets, they are aggregated by the samples of the last pre-samplings period,
+// GetAggregatedPrice returns the aggregated price computed from a set of pre-samples of a symbol by a specific plugin.
+// For data points from AMM and AFQ markets, they are aggregated by the samples of the recent pre-samplings period,
 // while for data points from CEX, the last sample of the pre-sampling period will be taken.
 // The target is the timestamp on which the round block is mined, it's used to select datapoint from CEX data source.
-func (pw *PluginWrapper) GetSampledPrice(symbol string, target int64) (types.Price, error) {
+func (pw *PluginWrapper) GetAggregatedPrice(symbol string, target int64) (types.Price, error) {
 	pw.lockSamples.RLock()
 	defer pw.lockSamples.RUnlock()
 	tsMap, ok := pw.samples[symbol]
@@ -117,8 +117,8 @@ func (pw *PluginWrapper) GetSampledPrice(symbol string, target int64) (types.Pri
 
 	// for AMMs or AFQs, get the average price of the collected samples of the recent pre-sampling period.
 	if pw.dataSrcType == types.SrcAMM || pw.dataSrcType == types.SrcAFQ {
-		if len(tsMap) < config.PreSamplingRange {
-			pw.logger.Debug("samples are not enough for price aggregation", "symbol", symbol, "samples", len(tsMap))
+		if len(tsMap) < config.PreSamplingRange-1 {
+			pw.logger.Info("samples are not yet enough for aggregation", "symbol", symbol, "samples", len(tsMap))
 			return types.Price{}, types.ErrNoSufficientPrices
 		}
 
@@ -127,7 +127,7 @@ func (pw *PluginWrapper) GetSampledPrice(symbol string, target int64) (types.Pri
 			prices = append(prices, sample.Price)
 		}
 		avgPrice := decimal.Avg(prices[0], prices[1:]...)
-
+		pw.logger.Debug("num of samples being aggregated", "symbol", symbol, "samples", len(tsMap), "avgPrice", avgPrice.String())
 		return types.Price{Symbol: symbol, Price: avgPrice, Timestamp: target}, nil
 	}
 
