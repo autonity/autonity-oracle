@@ -805,7 +805,7 @@ func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, er
 
 	_, isForex := ForexCurrencies[s]
 
-	// we have multiple market data for this symbol, do the median for forex.
+	// we have multiple market data for this symbol, do the median aggregation for forex symbols
 	if len(prices) > 1 && isForex {
 		p, err := helpers.Median(prices)
 		if err != nil {
@@ -815,9 +815,9 @@ func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, er
 		return price, nil
 	}
 
-	// we have multiple market data for the symbol, do the VWAP for cryptos.
+	// we have multiple market data for the symbol, do the VWAP for crypto symbols.
 	if len(prices) > 1 && !isForex {
-		p, err := helpers.VWAP(prices, volumes)
+		p, _, err := helpers.VWAP(prices, volumes)
 		if err != nil {
 			return nil, err
 		}
