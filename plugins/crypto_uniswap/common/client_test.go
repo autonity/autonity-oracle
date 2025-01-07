@@ -24,6 +24,8 @@ func TestNewUniswapClient(t *testing.T) {
 	client, err := NewUniswapClient(&config)
 	require.NoError(t, err)
 
+	go client.StartWatcher()
+
 	defer client.Close()
 
 	prices, err := client.FetchPrice(supportedSymbols)
