@@ -458,12 +458,13 @@ func (e *UniswapClient) FetchPrice(_ []string) (common.Prices, error) {
 	if err == nil {
 		prices = append(prices, atnUSDCPrice)
 	} else {
+		e.logger.Debug("no aggregated ATN-USDCx price yet, going to fetch from pool", "error", err)
 		// no swap event accumulated, compute price from current pool reserves.
-		price, err := e.fetchPrice(e.atnUSDCPairContract, ATNUSDC)
-		if err == nil {
+		price, er := e.fetchPrice(e.atnUSDCPairContract, ATNUSDC)
+		if er == nil {
 			prices = append(prices, price)
 		} else {
-			e.logger.Error("failed to fetch ATN-USDC price", "error", err)
+			e.logger.Error("failed to fetch ATN-USDC price", "error", er)
 		}
 	}
 
@@ -471,12 +472,13 @@ func (e *UniswapClient) FetchPrice(_ []string) (common.Prices, error) {
 	if err == nil {
 		prices = append(prices, ntnUSDCPrice)
 	} else {
+		e.logger.Debug("no aggregated NTN-USDCx price yet, going to fetch from pool", "error", err)
 		// no swap event accumulated, compute price from current pool reserves.
-		price, err := e.fetchPrice(e.ntnUSDCPairContract, NTNUSDC)
-		if err == nil {
+		price, er := e.fetchPrice(e.ntnUSDCPairContract, NTNUSDC)
+		if er == nil {
 			prices = append(prices, price)
 		} else {
-			e.logger.Error("failed to fetch NTN-USDC price", "error", err)
+			e.logger.Error("failed to fetch NTN-USDC price", "error", er)
 		}
 	}
 
