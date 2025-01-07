@@ -779,12 +779,14 @@ func (os *OracleServer) aggregateBridgedPrice(srcSymbol string, target int64, us
 
 func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, error) {
 	var prices []decimal.Decimal
+	var volumes []*big.Int
 	for _, plugin := range os.runningPlugins {
 		p, err := plugin.GetAggregatedPrice(s, target)
 		if err != nil {
 			continue
 		}
 		prices = append(prices, p.Price)
+		volumes = append(volumes, p.RecentVolInUsdcx)
 	}
 
 	if len(prices) == 0 {
@@ -801,9 +803,21 @@ func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, er
 		Confidence: confidence,
 	}
 
-	// we have multiple provider provide prices for this symbol, we have to aggregate it.
-	if len(prices) > 1 {
+	_, isForex := ForexCurrencies[s]
+
+	// we have multiple market data for this symbol, do the median for forex.
+	if len(prices) > 1 && isForex {
 		p, err := helpers.Median(prices)
+		if err != nil {
+			return nil, err
+		}
+		price.Price = p
+		return price, nil
+	}
+
+	// we have multiple market data for the symbol, do the VWAP for cryptos.
+	if len(prices) > 1 && !isForex {
+		p, err := helpers.VWAP(prices, volumes)
 		if err != nil {
 			return nil, err
 		}

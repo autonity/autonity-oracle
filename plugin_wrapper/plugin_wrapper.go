@@ -123,12 +123,15 @@ func (pw *PluginWrapper) GetAggregatedPrice(symbol string, target int64) (types.
 		}
 
 		var prices []decimal.Decimal
+		var volumes []decimal.Decimal
 		for _, sample := range tsMap {
 			prices = append(prices, sample.Price)
+			volumes = append(volumes, decimal.NewFromBigInt(sample.RecentVolInUsdcx, 0))
 		}
 		avgPrice := decimal.Avg(prices[0], prices[1:]...)
-		pw.logger.Debug("num of samples being aggregated", "symbol", symbol, "samples", len(tsMap), "avgPrice", avgPrice.String())
-		return types.Price{Symbol: symbol, Price: avgPrice, Timestamp: target}, nil
+		avgVolume := decimal.Avg(volumes[0], volumes[1:]...)
+		pw.logger.Debug("num of samples being aggregated", "symbol", symbol, "samples", len(tsMap), "avgPrice", avgPrice.String(), "avgVol", avgVolume.String())
+		return types.Price{Symbol: symbol, Price: avgPrice, Timestamp: target, RecentVolInUsdcx: avgVolume.BigInt()}, nil
 	}
 
 	// for CEX, we just need to take the last sample, short-circuit if there's only one sample of data points from CEX

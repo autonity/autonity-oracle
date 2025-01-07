@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"github.com/shopspring/decimal"
+	"math/big"
 	"net/url"
 	"os"
 	"time"
@@ -80,16 +81,23 @@ func (g *TemplatePlugin) FetchPrices(symbols []string) (types.PluginPriceReport,
 
 	now := time.Now().Unix()
 	for _, v := range res {
-		dec, err := decimal.NewFromString(v.Price)
+		decPrice, err := decimal.NewFromString(v.Price)
 		if err != nil {
 			g.logger.Error("cannot convert price string to decimal: ", "price", v.Price, "error", err.Error())
 			continue
 		}
 
+		decVol, ok := new(big.Int).SetString(v.Volume, 0)
+		if !ok {
+			g.logger.Error("cannot convert price to decimal: ", "price", v.Price, "error", v.Volume)
+			continue
+		}
+
 		pr := types.Price{
-			Timestamp: now,
-			Symbol:    availableSymMap[v.Symbol], // set the symbol with the symbol style used in oracle server side.
-			Price:     dec,
+			Timestamp:        now,
+			Symbol:           availableSymMap[v.Symbol], // set the symbol with the symbol style used in oracle server side.
+			Price:            decPrice,
+			RecentVolInUsdcx: decVol,
 		}
 		g.cachePrices[v.Symbol] = pr
 		report.Prices = append(report.Prices, pr)
@@ -235,6 +243,7 @@ func (tc *TemplateClient) FetchPrice(symbols []string) (common.Prices, error) {
 	for _, s := range symbols {
 		var price common.Price
 		price.Symbol = s
+		price.Volume = common.DefaultVolume.String()
 		price.Price = helpers.ResolveSimulatedPrice(s).String()
 		prices = append(prices, price)
 	}

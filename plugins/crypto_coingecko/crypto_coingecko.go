@@ -89,6 +89,7 @@ func (c *CoinGeckoClient) FetchPrice(_ []string) (common.Prices, error) {
 	prices = append(prices, common.Price{
 		Symbol: common.DefaultUSDCSymbol,
 		Price:  strconv.FormatFloat(result.USDCoin.USD, 'f', 6, 64),
+		Volume: common.DefaultVolume.String(),
 	})
 
 	return prices, nil

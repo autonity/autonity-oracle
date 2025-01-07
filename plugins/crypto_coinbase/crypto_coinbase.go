@@ -88,6 +88,7 @@ func (c *CoinBaseClient) FetchPrice(_ []string) (common.Prices, error) {
 	prices = append(prices, common.Price{
 		Symbol: common.DefaultUSDCSymbol,
 		Price:  data.Data.Amount,
+		Volume: common.DefaultVolume.String(),
 	})
 
 	return prices, nil

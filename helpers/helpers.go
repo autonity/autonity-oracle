@@ -2,11 +2,13 @@ package helpers
 
 import (
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"github.com/shopspring/decimal"
 	"io"
 	"io/fs"
 	"io/ioutil" //nolint
+	"math/big"
 	"os"
 	"sort"
 )
@@ -96,6 +98,38 @@ func Median(prices []decimal.Decimal) (decimal.Decimal, error) {
 	}
 
 	return prices[l/2], nil
+}
+
+// VWAP computes the volume weighted average price for the input prices with their corresponding volumes
+func VWAP(prices []decimal.Decimal, volumes []*big.Int) (decimal.Decimal, error) {
+	if len(prices) == 0 || len(volumes) == 0 || len(prices) != len(volumes) {
+		return decimal.Zero, errors.New("prices and volumes must be of the same non-zero length")
+	}
+
+	var totalWeightedPrice decimal.Decimal
+	totalVolume := big.NewInt(0)
+
+	for i := range prices {
+		// Convert volume to decimal.Decimal
+		volumeDecimal := decimal.NewFromBigInt(volumes[i], 0)
+
+		// Calculate weighted price for current price and volume
+		weightedPrice := prices[i].Mul(volumeDecimal) // Use decimal.Decimal for precision
+		totalWeightedPrice = totalWeightedPrice.Add(weightedPrice)
+
+		// Accumulate total volume
+		totalVolume.Add(totalVolume, volumes[i])
+	}
+
+	// Avoid division by zero
+	if totalVolume.Cmp(big.NewInt(0)) == 0 {
+		return decimal.Zero, errors.New("total volume cannot be zero")
+	}
+
+	// Calculate VWAP
+	vwap := totalWeightedPrice.Div(decimal.NewFromBigInt(totalVolume, 0))
+
+	return vwap, nil
 }
 
 // ListPlugins returns a mapping of file names to fs.FileInfo for executable files in the specified path.

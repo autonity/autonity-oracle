@@ -67,6 +67,10 @@ func (bi *SIMClient) FetchPrice(symbols []string) (common.Prices, error) {
 		return nil, err
 	}
 
+	for i := range prices {
+		prices[i].Volume = common.DefaultVolume.String()
+	}
+
 	return prices, nil
 }
 

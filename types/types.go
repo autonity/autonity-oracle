@@ -28,10 +28,11 @@ var (
 
 // Price is the structure contains the exchange rate of a symbol with a timestamp at which the sampling happens.
 type Price struct {
-	Timestamp  int64 // TS on when the data is being sampled in time's seconds since Jan 1 1970 (Unix time).
-	Symbol     string
-	Price      decimal.Decimal
-	Confidence uint8 // to be resolved on the aggregation phase, depends on how many data samples.
+	Timestamp        int64 // TS on when the data is being sampled in time's seconds since Jan 1 1970 (Unix time).
+	Symbol           string
+	Price            decimal.Decimal
+	RecentVolInUsdcx *big.Int // recent trade volumes in usdcx for ATN or NTN assets, it is resolved by the plugins, oracle server use it for VWAP aggregation.
+	Confidence       uint8    // confidence resolved by the server.
 }
 
 // PriceBySymbol group the price by symbols.
