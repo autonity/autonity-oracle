@@ -77,7 +77,7 @@ func (bi *BIClient) FetchPrice(symbols []string) (common.Prices, error) {
 	}
 
 	for i := range prices {
-		prices[i].Volume = common.DefaultVolume.String()
+		prices[i].Volume = types.DefaultVolume.String()
 	}
 
 	return prices, nil

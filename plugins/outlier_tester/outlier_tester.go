@@ -209,7 +209,7 @@ func (tc *OutlierClient) FetchPrice(symbols []string) (common.Prices, error) {
 	var prices common.Prices
 	for _, s := range symbols {
 		var price common.Price
-		price.Volume = common.DefaultVolume.String()
+		price.Volume = types.DefaultVolume.String()
 		price.Symbol = s
 		// it is a malicious behaviour to set the price into an outlier range by multiply with 3.0
 		p := helpers.ResolveSimulatedPrice(s).Mul(decimal.RequireFromString("3.0"))

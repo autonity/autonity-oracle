@@ -32,43 +32,43 @@ func TestPluginWrapper(t *testing.T) {
 		}
 
 		target := now
-		price, err := p.GetAggregatedPrice("NTNGBP", target)
+		price, err := p.AggregatedPrice("NTNGBP", target)
 		require.NoError(t, err)
 		require.Equal(t, now, price.Timestamp)
 
 		// upper bound
 		target = now + 100
-		price, err = p.GetAggregatedPrice("NTNGBP", target)
+		price, err = p.AggregatedPrice("NTNGBP", target)
 		require.NoError(t, err)
 		require.Equal(t, now+59, price.Timestamp)
 
 		// lower bound
 		target = now - 1
-		price, err = p.GetAggregatedPrice("NTNGBP", target)
+		price, err = p.AggregatedPrice("NTNGBP", target)
 		require.NoError(t, err)
 		require.Equal(t, now, price.Timestamp)
 
 		// middle
 		target = now + 29
-		price, err = p.GetAggregatedPrice("NTNGBP", target)
+		price, err = p.AggregatedPrice("NTNGBP", target)
 		require.NoError(t, err)
 		require.Equal(t, now+28, price.Timestamp)
 
 		// middle
 		target = now + 33
-		price, err = p.GetAggregatedPrice("NTNGBP", target)
+		price, err = p.AggregatedPrice("NTNGBP", target)
 		require.NoError(t, err)
 		require.Equal(t, now+35, price.Timestamp)
 
 		// middle
 		target = now + 34
-		price, err = p.GetAggregatedPrice("NTNGBP", target)
+		price, err = p.AggregatedPrice("NTNGBP", target)
 		require.NoError(t, err)
 		require.Equal(t, now+35, price.Timestamp)
 
 		// middle
 		target = now + 35
-		price, err = p.GetAggregatedPrice("NTNGBP", target)
+		price, err = p.AggregatedPrice("NTNGBP", target)
 		require.NoError(t, err)
 		require.Equal(t, now+35, price.Timestamp)
 

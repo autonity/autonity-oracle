@@ -15,6 +15,7 @@ import (
 
 var (
 	Deployer                = common.Address{}
+	DefaultVolume           = new(big.Int).SetInt64(1000000)
 	AutonityContractAddress = crypto.CreateAddress(Deployer, 0)
 	OracleContractAddress   = crypto.CreateAddress(Deployer, 2)
 

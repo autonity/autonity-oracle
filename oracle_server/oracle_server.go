@@ -777,11 +777,13 @@ func (os *OracleServer) aggregateBridgedPrice(srcSymbol string, target int64, us
 	return p, nil
 }
 
+// aggregatePrice takes the symbol's aggregated data points from all the supported plugins, if there are multiple
+// markets' datapoint, it will do a final VWAP aggregation to form the final reporting value.
 func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, error) {
 	var prices []decimal.Decimal
 	var volumes []*big.Int
 	for _, plugin := range os.runningPlugins {
-		p, err := plugin.GetAggregatedPrice(s, target)
+		p, err := plugin.AggregatedPrice(s, target)
 		if err != nil {
 			continue
 		}
@@ -793,35 +795,38 @@ func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, er
 		return nil, types.ErrNoDataRound
 	}
 
+	// todo: compute confidence with the spreading of TS from target.
 	// compute confidence of the symbol from the num of plugins' samples of it.
 	confidence := ComputeConfidence(s, len(prices), os.conf.ConfidenceStrategy)
-
 	price := &types.Price{
-		Timestamp:  target,
-		Price:      prices[0],
-		Symbol:     s,
-		Confidence: confidence,
+		Timestamp:        target,
+		Price:            prices[0],
+		RecentVolInUsdcx: volumes[0],
+		Symbol:           s,
+		Confidence:       confidence,
 	}
 
 	_, isForex := ForexCurrencies[s]
 
-	// we have multiple market data for this symbol, do the median aggregation for forex symbols
+	// we have multiple market data for this forex symbol, update the price with median value.
 	if len(prices) > 1 && isForex {
 		p, err := helpers.Median(prices)
 		if err != nil {
 			return nil, err
 		}
 		price.Price = p
+		price.RecentVolInUsdcx = types.DefaultVolume
 		return price, nil
 	}
 
-	// we have multiple market data for the symbol, do the VWAP for crypto symbols.
+	// we have multiple market data for this crypto symbol, update the price with VWAP.
 	if len(prices) > 1 && !isForex {
-		p, _, err := helpers.VWAP(prices, volumes)
+		p, vol, err := helpers.VWAP(prices, volumes)
 		if err != nil {
 			return nil, err
 		}
 		price.Price = p
+		price.RecentVolInUsdcx = vol
 	}
 
 	return price, nil

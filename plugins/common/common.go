@@ -17,7 +17,6 @@ import (
 )
 
 var (
-	DefaultVolume        = new(big.Int).SetInt64(1000000)
 	ChainIDPiccadilly    = big.NewInt(65_100_004)
 	ChainIDBakerloo      = big.NewInt(65_010_003)
 	Zero                 = big.NewInt(0)

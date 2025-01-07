@@ -243,7 +243,7 @@ func (tc *TemplateClient) FetchPrice(symbols []string) (common.Prices, error) {
 	for _, s := range symbols {
 		var price common.Price
 		price.Symbol = s
-		price.Volume = common.DefaultVolume.String()
+		price.Volume = types.DefaultVolume.String()
 		price.Price = helpers.ResolveSimulatedPrice(s).String()
 		prices = append(prices, price)
 	}

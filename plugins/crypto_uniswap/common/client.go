@@ -447,7 +447,7 @@ func (e *UniswapClient) fetchPrice(pair *WrappedPair, symbol string) (common.Pri
 
 	price.Symbol = symbol
 	price.Price = p.String()
-	price.Volume = common.DefaultVolume.String()
+	price.Volume = types.DefaultVolume.String()
 	return price, nil
 }
 

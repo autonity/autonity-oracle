@@ -139,7 +139,7 @@ func (cl *CLClient) symbolsToPrice(s string, res *CLResult) (common.Price, error
 	}
 
 	price.Symbol = s
-	price.Volume = common.DefaultVolume.String()
+	price.Volume = types.DefaultVolume.String()
 	switch from {
 	case "EUR":
 		price.Price = decimal.NewFromInt(1).Div(res.Quotes.USDEUR).String()

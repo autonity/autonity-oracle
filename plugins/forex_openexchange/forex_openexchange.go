@@ -139,7 +139,7 @@ func (oe *OXClient) symbolsToPrice(s string, res *OEResult) (common.Price, error
 		return price, fmt.Errorf("wrong base %s", to)
 	}
 	price.Symbol = s
-	price.Volume = common.DefaultVolume.String()
+	price.Volume = types.DefaultVolume.String()
 	switch from {
 	case "EUR":
 		price.Price = decimal.NewFromInt(1).Div(res.Rates.EUR).String()

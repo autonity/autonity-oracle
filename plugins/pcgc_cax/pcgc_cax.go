@@ -166,7 +166,7 @@ func (cc *CAXClient) fetchPrice(symbol string) (common.Price, error) {
 	// the aggregated price takes the average value of ask and bid prices.
 	price.Price = askPrice.Add(bidPrice).Div(decimal.NewFromInt(2)).String()
 	price.Symbol = symbol
-	price.Volume = common.DefaultVolume.String()
+	price.Volume = types.DefaultVolume.String()
 
 	return price, nil
 }

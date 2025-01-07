@@ -105,11 +105,11 @@ func (pw *PluginWrapper) AddSample(prices []types.Price, ts int64) {
 	}
 }
 
-// GetAggregatedPrice returns the aggregated price computed from a set of pre-samples of a symbol by a specific plugin.
+// AggregatedPrice returns the aggregated price computed from a set of pre-samples of a symbol by a specific plugin.
 // For data points from AMM and AFQ markets, they are aggregated by the samples of the recent pre-samplings period,
 // while for data points from CEX, the last sample of the pre-sampling period will be taken.
 // The target is the timestamp on which the round block is mined, it's used to select datapoint from CEX data source.
-func (pw *PluginWrapper) GetAggregatedPrice(symbol string, target int64) (types.Price, error) {
+func (pw *PluginWrapper) AggregatedPrice(symbol string, target int64) (types.Price, error) {
 	pw.lockSamples.RLock()
 	defer pw.lockSamples.RUnlock()
 	tsMap, ok := pw.samples[symbol]
@@ -117,7 +117,8 @@ func (pw *PluginWrapper) GetAggregatedPrice(symbol string, target int64) (types.
 		return types.Price{}, types.ErrNoAvailablePrice
 	}
 
-	// for AMMs or AFQs, get the VWAP of the collected samples of the recent pre-sampling period.
+	// for AMMs or AFQs, as the data points may move quickly, thus we get the VWAP of
+	// the collected samples of the recent pre-sampling period.
 	if pw.dataSrcType == types.SrcAMM || pw.dataSrcType == types.SrcAFQ {
 		if len(tsMap) < config.PreSamplingRange-1 {
 			pw.logger.Info("samples are not yet enough for aggregation", "symbol", symbol, "samples", len(tsMap))
@@ -141,7 +142,8 @@ func (pw *PluginWrapper) GetAggregatedPrice(symbol string, target int64) (types.
 		return types.Price{Symbol: symbol, Price: vwap, Timestamp: target, RecentVolInUsdcx: highestVol}, nil
 	}
 
-	// for CEX, we just need to take the last sample, short-circuit if there's only one sample of data points from CEX
+	// for CEX, we just need to take the last sample as data points from CEX were already aggregated.
+	// Short-circuit if there's only one sample of data points from CEX
 	if len(tsMap) == 1 {
 		for _, price := range tsMap {
 			return price, nil // Return the only sample
