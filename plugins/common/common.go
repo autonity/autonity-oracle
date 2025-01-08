@@ -40,6 +40,7 @@ const (
 type Price struct {
 	Symbol string `json:"symbol,omitempty"`
 	Price  string `json:"price,omitempty"`
+	Volume string `json:"volume,omitempty"` // recent accumulating trade volume in USDCx.
 }
 
 type Prices []Price
@@ -102,16 +103,23 @@ func (p *Plugin) FetchPrices(symbols []string) (types.PluginPriceReport, error) 
 
 	now := time.Now().Unix()
 	for _, v := range res {
-		dec, err := decimal.NewFromString(v.Price)
+		decPrice, err := decimal.NewFromString(v.Price)
 		if err != nil {
 			p.logger.Error("cannot convert price string to decimal: ", "price", v.Price, "error", err.Error())
+			continue
+		}
+
+		decVol, ok := new(big.Int).SetString(v.Volume, 0)
+		if !ok {
+			p.logger.Error("cannot convert volume to big.Int: ", "volume", v.Volume)
 			continue
 		}
 
 		pr := types.Price{
 			Timestamp: now,
 			Symbol:    availableSymMap[v.Symbol], // set the symbol with the symbol style used in oracle server side.
-			Price:     dec,
+			Price:     decPrice,
+			Volume:    decVol,
 		}
 		p.cachePrices[v.Symbol] = pr
 		report.Prices = append(report.Prices, pr)

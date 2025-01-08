@@ -133,6 +133,7 @@ func (cf *CFClient) symbolsToPrice(s string, res *CFResult) (common.Price, error
 		return price, fmt.Errorf("wrong base %s", to)
 	}
 	price.Symbol = s
+	price.Volume = types.DefaultVolume.String()
 	switch from {
 	case "EUR":
 		pUE, err := decimal.NewFromString(res.Rates.EUR)

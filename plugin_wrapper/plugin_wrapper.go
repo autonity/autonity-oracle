@@ -2,6 +2,7 @@ package pluginwrapper
 
 import (
 	"autonity-oracle/config"
+	"autonity-oracle/helpers"
 	"autonity-oracle/types"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -10,6 +11,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"github.com/shopspring/decimal"
+	"math/big"
 	"os"
 	"os/exec"
 	"strings"
@@ -103,11 +105,11 @@ func (pw *PluginWrapper) AddSample(prices []types.Price, ts int64) {
 	}
 }
 
-// GetAggregatedPrice returns the aggregated price computed from a set of pre-samples of a symbol by a specific plugin.
+// AggregatedPrice returns the aggregated price computed from a set of pre-samples of a symbol by a specific plugin.
 // For data points from AMM and AFQ markets, they are aggregated by the samples of the recent pre-samplings period,
 // while for data points from CEX, the last sample of the pre-sampling period will be taken.
 // The target is the timestamp on which the round block is mined, it's used to select datapoint from CEX data source.
-func (pw *PluginWrapper) GetAggregatedPrice(symbol string, target int64) (types.Price, error) {
+func (pw *PluginWrapper) AggregatedPrice(symbol string, target int64) (types.Price, error) {
 	pw.lockSamples.RLock()
 	defer pw.lockSamples.RUnlock()
 	tsMap, ok := pw.samples[symbol]
@@ -115,23 +117,28 @@ func (pw *PluginWrapper) GetAggregatedPrice(symbol string, target int64) (types.
 		return types.Price{}, types.ErrNoAvailablePrice
 	}
 
-	// for AMMs or AFQs, get the average price of the collected samples of the recent pre-sampling period.
+	// for AMMs or AFQs, as the data points may move quickly, thus we get the VWAP of
+	// the collected samples of the recent pre-sampling period.
 	if pw.dataSrcType == types.SrcAMM || pw.dataSrcType == types.SrcAFQ {
-		if len(tsMap) < config.PreSamplingRange-1 {
-			pw.logger.Info("samples are not yet enough for aggregation", "symbol", symbol, "samples", len(tsMap))
-			return types.Price{}, types.ErrNoSufficientPrices
-		}
-
 		var prices []decimal.Decimal
+		var volumes []*big.Int
 		for _, sample := range tsMap {
 			prices = append(prices, sample.Price)
+			volumes = append(volumes, sample.Volume)
 		}
-		avgPrice := decimal.Avg(prices[0], prices[1:]...)
-		pw.logger.Debug("num of samples being aggregated", "symbol", symbol, "samples", len(tsMap), "avgPrice", avgPrice.String())
-		return types.Price{Symbol: symbol, Price: avgPrice, Timestamp: target}, nil
+
+		vwap, highestVol, err := helpers.VWAP(prices, volumes)
+		if err != nil {
+			pw.logger.Error("failed to calculate vwap", "symbol", symbol, "err", err)
+			return types.Price{}, err
+		}
+
+		pw.logger.Debug("VWAP aggregation", "symbol", symbol, "samples", len(tsMap), "vwap", vwap.String())
+		return types.Price{Symbol: symbol, Price: vwap, Timestamp: target, Volume: highestVol}, nil
 	}
 
-	// for CEX, we just need to take the last sample, short-circuit if there's only one sample of data points from CEX
+	// for CEX, we just need to take the last sample as data points from CEX were already aggregated.
+	// Short-circuit if there's only one sample of data points from CEX
 	if len(tsMap) == 1 {
 		for _, price := range tsMap {
 			return price, nil // Return the only sample
@@ -157,7 +164,9 @@ func (pw *PluginWrapper) GetAggregatedPrice(symbol string, target int64) (types.
 		}
 	}
 
-	return tsMap[nearestKey], nil
+	price := tsMap[nearestKey]
+	pw.logger.Debug("nearest sample", "symbol", symbol, "samples", len(tsMap), "targetTS", target, "nearestTS", nearestKey, "price", price)
+	return price, nil
 }
 
 // GCExpiredSamples removes data points that are older than the TTL seconds of per plugin, it leaves recent samples

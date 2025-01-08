@@ -3,6 +3,7 @@ package common
 import (
 	"autonity-oracle/config"
 	"autonity-oracle/plugins/common"
+	"autonity-oracle/types"
 	"encoding/json"
 	"github.com/hashicorp/go-hclog"
 	"io"
@@ -65,6 +66,10 @@ func (bi *SIMClient) FetchPrice(symbols []string) (common.Prices, error) {
 	err = json.Unmarshal(body, &prices)
 	if err != nil {
 		return nil, err
+	}
+
+	for i := range prices {
+		prices[i].Volume = types.DefaultVolume.String()
 	}
 
 	return prices, nil

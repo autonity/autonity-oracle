@@ -140,6 +140,7 @@ func (ex *EXClient) symbolsToPrice(s string, res *EXResult) (common.Price, error
 	}
 
 	price.Symbol = s
+	price.Volume = types.DefaultVolume.String()
 	switch from {
 	case "EUR":
 		price.Price = decimal.NewFromInt(1).Div(res.Rates.EUR).String()

@@ -54,6 +54,49 @@ type Order struct {
 	usdcAmount   *big.Int
 }
 
+// aggregatePrice compute the VWAP of the input orders, and return the total accumulating volumes.
+func aggregatePrice(orderBook *ring.Ring, order Order) (*big.Rat, *big.Int, error) {
+	orderBook.Enqueue(order)
+	recentOrders := orderBook.Values()
+	return volumeWeightedPrice(recentOrders)
+}
+
+// volumeWeightedPrice return the volume-weighted exchange ratio of ATN or NTN to USDC, and the total volumes.
+func volumeWeightedPrice(orders []interface{}) (*big.Rat, *big.Int, error) {
+	// Initialize total crypto and USDC amounts
+	totalCrypto := new(big.Int)
+	totalUSDC := new(big.Int)
+
+	// Iterate through the orders to sum up the amounts
+	for _, orderInterface := range orders {
+		// Type assert to Order
+		order, ok := orderInterface.(Order)
+		if !ok {
+			return nil, nil, fmt.Errorf("invalid order type")
+		}
+
+		totalCrypto.Add(totalCrypto, order.cryptoAmount)
+		totalUSDC.Add(totalUSDC, order.usdcAmount)
+	}
+
+	// Check if totalUSDC is zero to avoid division by zero
+	if totalUSDC.Cmp(common.Zero) == 0 {
+		return nil, nil, fmt.Errorf("total USDC amount is zero, cannot compute ratio")
+	}
+
+	// Scale the totals according to their decimals
+	scaledTotalCrypto := new(big.Int).Mul(totalCrypto, big.NewInt(int64(math.Pow(10, float64(common.USDCDecimals)))))
+	scaledTotalUSDC := new(big.Int).Mul(totalUSDC, big.NewInt(int64(math.Pow(10, float64(common.AutonityCryptoDecimals)))))
+
+	// Calculate the weighted ratio as a fraction
+	if scaledTotalUSDC.Cmp(common.Zero) == 0 {
+		return nil, nil, fmt.Errorf("scaled total USDC amount is zero, cannot compute ratio")
+	}
+
+	weightedRatio := new(big.Rat).SetFrac(scaledTotalCrypto, scaledTotalUSDC)
+	return weightedRatio, totalUSDC, nil
+}
+
 type AirswapClient struct {
 	conf   *config.PluginConfig
 	client *ethclient.Client
@@ -122,7 +165,7 @@ func NewAirswapClient(conf *config.PluginConfig) (*AirswapClient, error) {
 		swapContract:         swapContract,
 		doneCh:               make(chan struct{}),
 		ticker:               time.NewTicker(time.Minute),
-		lastAggregatedPrices: map[ecommon.Address]common.Price{},
+		lastAggregatedPrices: make(map[ecommon.Address]common.Price),
 	}
 
 	ac.atnOrderBooks.SetCapacity(orderBookCapacity)
@@ -200,14 +243,14 @@ func (e *AirswapClient) handleSwapEvent(txnHash ecommon.Hash, swapEvent *swaperc
 		orderBook = &e.ntnOrderBooks
 	}
 
-	lastAggregatedPrice, err := aggregatePrice(orderBook, order)
+	lastAggregatedPrice, volumes, err := aggregatePrice(orderBook, order)
 	if err != nil {
 		e.logger.Error("failed to compute new price", "error", err, "txnHash", txnHash, "order", order)
 		return err
 	}
 
 	// update the last aggregated price.
-	e.updatePrice(order.cryptoToken, lastAggregatedPrice.FloatString(common.CryptoToUsdcDecimals))
+	e.updatePrice(order.cryptoToken, lastAggregatedPrice.FloatString(common.CryptoToUsdcDecimals), volumes)
 	return nil
 }
 
@@ -334,54 +377,7 @@ func (e *AirswapClient) extractOrder(logs []*types2.Log, targetSwapEvent *swaper
 	return order, errors.New("skip process swap event of ATN and NTN from airswap")
 }
 
-// compute new price once new settled order comes.
-func aggregatePrice(orderBook *ring.Ring, order Order) (*big.Rat, error) {
-	orderBook.Enqueue(order)
-	recentOrders := orderBook.Values()
-	aggregatedPrice, err := volumeWeightedPrice(recentOrders)
-	if err != nil {
-		return nil, err
-	}
-	return aggregatedPrice, nil
-}
-
-// volumeWeightedPrice calculates the volume-weighted exchange ratio of ATN or NTN to USDC.
-func volumeWeightedPrice(orders []interface{}) (*big.Rat, error) {
-	// Initialize total crypto and USDC amounts
-	totalCrypto := new(big.Int)
-	totalUSDC := new(big.Int)
-
-	// Iterate through the orders to sum up the amounts
-	for _, orderInterface := range orders {
-		// Type assert to Order
-		order, ok := orderInterface.(Order)
-		if !ok {
-			return nil, fmt.Errorf("invalid order type")
-		}
-
-		totalCrypto.Add(totalCrypto, order.cryptoAmount)
-		totalUSDC.Add(totalUSDC, order.usdcAmount)
-	}
-
-	// Check if totalUSDC is zero to avoid division by zero
-	if totalUSDC.Cmp(common.Zero) == 0 {
-		return nil, fmt.Errorf("total USDC amount is zero, cannot compute ratio")
-	}
-
-	// Scale the totals according to their decimals
-	scaledTotalCrypto := new(big.Int).Div(totalCrypto, big.NewInt(int64(math.Pow(10, float64(common.AutonityCryptoDecimals)))))
-	scaledTotalUSDC := new(big.Int).Div(totalUSDC, big.NewInt(int64(math.Pow(10, float64(common.USDCDecimals)))))
-
-	// Calculate the weighted ratio as a fraction
-	if scaledTotalUSDC.Cmp(common.Zero) == 0 {
-		return nil, fmt.Errorf("scaled total USDC amount is zero, cannot compute ratio")
-	}
-
-	weightedRatio := new(big.Rat).SetFrac(scaledTotalCrypto, scaledTotalUSDC)
-	return weightedRatio, nil
-}
-
-func (e *AirswapClient) updatePrice(tokenAddress ecommon.Address, price string) {
+func (e *AirswapClient) updatePrice(tokenAddress ecommon.Address, price string, volumes *big.Int) {
 	e.priceMutex.Lock()
 	defer e.priceMutex.Unlock()
 
@@ -393,6 +389,7 @@ func (e *AirswapClient) updatePrice(tokenAddress ecommon.Address, price string) 
 	e.lastAggregatedPrices[tokenAddress] = common.Price{
 		Symbol: symbol,
 		Price:  price,
+		Volume: volumes.String(),
 	}
 }
 
@@ -407,13 +404,7 @@ func (e *AirswapClient) checkHealth() {
 		return
 	}
 
-	h, err := e.client.BlockNumber(context.Background())
-	if err != nil {
-		e.logger.Error("get block number", "error", err.Error())
-		return
-	}
-
-	e.logger.Debug("checking heart beat", "current height", h)
+	e.logger.Debug("checking heart beat", "alive", !e.lostSync)
 }
 
 func (e *AirswapClient) handleConnectivityError() {
@@ -446,6 +437,7 @@ func (e *AirswapClient) FetchPrice(_ []string) (common.Prices, error) {
 			e.logger.Error("cannot compute NTN-ATN price", "error", err.Error())
 			return prices, nil
 		}
+		ntnATNPrice.Volume = atnPrice.Volume
 		prices = append(prices, ntnATNPrice)
 	}
 	return prices, nil

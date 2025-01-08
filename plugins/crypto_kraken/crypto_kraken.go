@@ -122,6 +122,7 @@ func (k *KrakenClient) toPrice(symbol string, res *Response) (common.Price, erro
 
 	price.Symbol = symbol
 	price.Price = usdcResult.P[0] // take the volume weighted average price of today.
+	price.Volume = types.DefaultVolume.String()
 	return price, nil
 }
 

@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"github.com/shopspring/decimal"
+	"math/big"
 	"os"
 	"time"
 )
@@ -77,16 +78,23 @@ func (g *OutlierTesterPlugin) FetchPrices(symbols []string) (types.PluginPriceRe
 
 	now := time.Now().Unix()
 	for _, v := range res {
-		dec, err := decimal.NewFromString(v.Price)
+		decPrice, err := decimal.NewFromString(v.Price)
 		if err != nil {
 			g.logger.Error("cannot convert price string to decimal: ", "price", v.Price, "error", err.Error())
+			continue
+		}
+
+		decVol, ok := new(big.Int).SetString(v.Volume, 0)
+		if !ok {
+			g.logger.Error("cannot convert volume to big.Int: ", "volume", v.Volume)
 			continue
 		}
 
 		pr := types.Price{
 			Timestamp: now,
 			Symbol:    availableSymMap[v.Symbol], // set the symbol with the symbol style used in oracle server side.
-			Price:     dec,
+			Price:     decPrice,
+			Volume:    decVol,
 		}
 		g.cachePrices[v.Symbol] = pr
 		report.Prices = append(report.Prices, pr)
@@ -201,6 +209,7 @@ func (tc *OutlierClient) FetchPrice(symbols []string) (common.Prices, error) {
 	var prices common.Prices
 	for _, s := range symbols {
 		var price common.Price
+		price.Volume = types.DefaultVolume.String()
 		price.Symbol = s
 		// it is a malicious behaviour to set the price into an outlier range by multiply with 3.0
 		p := helpers.ResolveSimulatedPrice(s).Mul(decimal.RequireFromString("3.0"))
