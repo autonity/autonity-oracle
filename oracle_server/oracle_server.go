@@ -792,10 +792,14 @@ func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, er
 	}
 
 	if len(prices) == 0 {
-		return nil, types.ErrNoDataRound
+		historicRoundPrice, err := os.queryHistoricRoundPrice(s)
+		if err != nil {
+			return nil, err
+		}
+
+		return confidenceAdjustedPrice(&historicRoundPrice, target)
 	}
 
-	// todo: compute confidence with the spreading of TS from target.
 	// compute confidence of the symbol from the num of plugins' samples of it.
 	confidence := ComputeConfidence(s, len(prices), os.conf.ConfidenceStrategy)
 	price := &types.Price{
@@ -830,6 +834,34 @@ func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, er
 	}
 
 	return price, nil
+}
+
+// queryHistoricRoundPrice queries the last available price for a given symbol from the historic rounds.
+func (os *OracleServer) queryHistoricRoundPrice(symbol string) (types.Price, error) {
+
+	if len(os.roundData) == 0 {
+		return types.Price{}, types.ErrNoDataRound
+	}
+
+	numOfRounds := len(os.roundData)
+
+	// Iterate from the current round backward
+	for i := 0; i < numOfRounds; i++ {
+		roundID := os.curRound - uint64(i) - 1
+		// Get the round data for the current round ID
+		round, exists := os.roundData[roundID]
+		if !exists {
+			continue
+		}
+
+		// Check if the symbol exists in the Prices map
+		if price, found := round.Prices[symbol]; found {
+			return price, nil
+		}
+	}
+
+	// If no price was found after checking all rounds, return an error
+	return types.Price{}, types.ErrNoDataRound
 }
 
 func (os *OracleServer) samplePrice(symbols []string, ts int64) {
@@ -1116,4 +1148,27 @@ func ComputeConfidence(symbol string, numOfSamples, strategy int) uint8 {
 	}
 
 	return uint8(weight) //nolint
+}
+
+func confidenceAdjustedPrice(historicRoundPrice *types.Price, target int64) (*types.Price, error) {
+	// by according to the spreading of price timestamp from the target timestamp,
+	// we reduce the confidence of the price, set the lowest confidence as 1.
+	// Calculate the time difference between the target timestamp and the historic price timestamp
+	timeDifference := target - historicRoundPrice.Timestamp
+
+	var reducedConfidence uint8
+	if timeDifference < 60 { // Less than 1 minute
+		reducedConfidence = historicRoundPrice.Confidence // Keep original confidence
+	} else if timeDifference < 3600 { // Less than 1 hour
+		reducedConfidence = historicRoundPrice.Confidence / 2 // Reduce confidence by half
+	} else {
+		reducedConfidence = 1 // Set the lowest confidence to 1 if more than 1 hour old
+	}
+
+	if reducedConfidence == 0 {
+		return nil, types.ErrNoAvailablePrice
+	}
+
+	historicRoundPrice.Confidence = reducedConfidence
+	return historicRoundPrice, nil
 }
