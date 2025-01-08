@@ -54,14 +54,14 @@ type Order struct {
 	usdcAmount   *big.Int
 }
 
-// aggregatePrice compute new price once new settled order comes.
+// aggregatePrice compute the VWAP of the input orders, and return the total accumulating volumes.
 func aggregatePrice(orderBook *ring.Ring, order Order) (*big.Rat, *big.Int, error) {
 	orderBook.Enqueue(order)
 	recentOrders := orderBook.Values()
 	return volumeWeightedPrice(recentOrders)
 }
 
-// volumeWeightedPrice calculates the volume-weighted exchange ratio of ATN or NTN to USDC.
+// volumeWeightedPrice return the volume-weighted exchange ratio of ATN or NTN to USDC, and the total volumes.
 func volumeWeightedPrice(orders []interface{}) (*big.Rat, *big.Int, error) {
 	// Initialize total crypto and USDC amounts
 	totalCrypto := new(big.Int)
@@ -243,14 +243,14 @@ func (e *AirswapClient) handleSwapEvent(txnHash ecommon.Hash, swapEvent *swaperc
 		orderBook = &e.ntnOrderBooks
 	}
 
-	lastAggregatedPrice, recentVol, err := aggregatePrice(orderBook, order)
+	lastAggregatedPrice, volumes, err := aggregatePrice(orderBook, order)
 	if err != nil {
 		e.logger.Error("failed to compute new price", "error", err, "txnHash", txnHash, "order", order)
 		return err
 	}
 
 	// update the last aggregated price.
-	e.updatePrice(order.cryptoToken, lastAggregatedPrice.FloatString(common.CryptoToUsdcDecimals), recentVol)
+	e.updatePrice(order.cryptoToken, lastAggregatedPrice.FloatString(common.CryptoToUsdcDecimals), volumes)
 	return nil
 }
 
@@ -377,7 +377,7 @@ func (e *AirswapClient) extractOrder(logs []*types2.Log, targetSwapEvent *swaper
 	return order, errors.New("skip process swap event of ATN and NTN from airswap")
 }
 
-func (e *AirswapClient) updatePrice(tokenAddress ecommon.Address, price string, recentVol *big.Int) {
+func (e *AirswapClient) updatePrice(tokenAddress ecommon.Address, price string, volumes *big.Int) {
 	e.priceMutex.Lock()
 	defer e.priceMutex.Unlock()
 
@@ -389,7 +389,7 @@ func (e *AirswapClient) updatePrice(tokenAddress ecommon.Address, price string, 
 	e.lastAggregatedPrices[tokenAddress] = common.Price{
 		Symbol: symbol,
 		Price:  price,
-		Volume: recentVol.String(),
+		Volume: volumes.String(),
 	}
 }
 

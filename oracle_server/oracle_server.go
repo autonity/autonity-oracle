@@ -788,7 +788,7 @@ func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, er
 			continue
 		}
 		prices = append(prices, p.Price)
-		volumes = append(volumes, p.RecentVolInUsdcx)
+		volumes = append(volumes, p.Volume)
 	}
 
 	if len(prices) == 0 {
@@ -799,34 +799,34 @@ func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, er
 	// compute confidence of the symbol from the num of plugins' samples of it.
 	confidence := ComputeConfidence(s, len(prices), os.conf.ConfidenceStrategy)
 	price := &types.Price{
-		Timestamp:        target,
-		Price:            prices[0],
-		RecentVolInUsdcx: volumes[0],
-		Symbol:           s,
-		Confidence:       confidence,
+		Timestamp:  target,
+		Price:      prices[0],
+		Volume:     volumes[0],
+		Symbol:     s,
+		Confidence: confidence,
 	}
 
 	_, isForex := ForexCurrencies[s]
 
-	// we have multiple market data for this forex symbol, update the price with median value.
+	// we have multiple markets' data for this forex symbol, update the price with median value.
 	if len(prices) > 1 && isForex {
 		p, err := helpers.Median(prices)
 		if err != nil {
 			return nil, err
 		}
 		price.Price = p
-		price.RecentVolInUsdcx = types.DefaultVolume
+		price.Volume = types.DefaultVolume
 		return price, nil
 	}
 
-	// we have multiple market data for this crypto symbol, update the price with VWAP.
+	// we have multiple markets' data for this crypto symbol, update the price with VWAP.
 	if len(prices) > 1 && !isForex {
 		p, vol, err := helpers.VWAP(prices, volumes)
 		if err != nil {
 			return nil, err
 		}
 		price.Price = p
-		price.RecentVolInUsdcx = vol
+		price.Volume = vol
 	}
 
 	return price, nil

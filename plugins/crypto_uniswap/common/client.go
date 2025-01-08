@@ -31,8 +31,8 @@ var (
 )
 
 type Order struct {
-	cryptoToUsdcPrice decimal.Decimal
-	volume            *big.Int // tade volume in usdc of per swap event.
+	cryptoToUsdcPrice decimal.Decimal // ATN-USDCx or NTN-USDCx ratio.
+	volume            *big.Int        // trade volume in usdc of per swap event.
 }
 
 type WrappedPair struct {
@@ -304,18 +304,18 @@ func (e *UniswapClient) handleSwapEvent(cryptoToken ecommon.Address, pair *Wrapp
 		}
 	}
 
-	aggPrice, recentVol, err := aggregatePrice(orderBook, order)
+	aggPrice, volumes, err := aggregatePrice(orderBook, order)
 	if err != nil {
 		e.logger.Error("aggregate atn-usdcx order book price failed", "error", err)
 		return err
 	}
 
 	// update the last aggregated price.
-	e.updatePrice(cryptoToken, aggPrice.String(), recentVol)
+	e.updatePrice(cryptoToken, aggPrice.String(), volumes)
 	return nil
 }
 
-func (e *UniswapClient) updatePrice(tokenAddress ecommon.Address, price string, recentVol *big.Int) {
+func (e *UniswapClient) updatePrice(tokenAddress ecommon.Address, price string, volumes *big.Int) {
 	e.priceMutex.Lock()
 	defer e.priceMutex.Unlock()
 
@@ -327,7 +327,7 @@ func (e *UniswapClient) updatePrice(tokenAddress ecommon.Address, price string, 
 	e.lastAggregatedPrices[tokenAddress] = common.Price{
 		Symbol: symbol,
 		Price:  price,
-		Volume: recentVol.String(),
+		Volume: volumes.String(),
 	}
 }
 

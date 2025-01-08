@@ -120,16 +120,11 @@ func (pw *PluginWrapper) AggregatedPrice(symbol string, target int64) (types.Pri
 	// for AMMs or AFQs, as the data points may move quickly, thus we get the VWAP of
 	// the collected samples of the recent pre-sampling period.
 	if pw.dataSrcType == types.SrcAMM || pw.dataSrcType == types.SrcAFQ {
-		if len(tsMap) < config.PreSamplingRange-1 {
-			pw.logger.Info("samples are not yet enough for aggregation", "symbol", symbol, "samples", len(tsMap))
-			return types.Price{}, types.ErrNoSufficientPrices
-		}
-
 		var prices []decimal.Decimal
 		var volumes []*big.Int
 		for _, sample := range tsMap {
 			prices = append(prices, sample.Price)
-			volumes = append(volumes, sample.RecentVolInUsdcx)
+			volumes = append(volumes, sample.Volume)
 		}
 
 		vwap, highestVol, err := helpers.VWAP(prices, volumes)
@@ -139,7 +134,7 @@ func (pw *PluginWrapper) AggregatedPrice(symbol string, target int64) (types.Pri
 		}
 
 		pw.logger.Debug("VWAP aggregation", "symbol", symbol, "samples", len(tsMap), "vwap", vwap.String())
-		return types.Price{Symbol: symbol, Price: vwap, Timestamp: target, RecentVolInUsdcx: highestVol}, nil
+		return types.Price{Symbol: symbol, Price: vwap, Timestamp: target, Volume: highestVol}, nil
 	}
 
 	// for CEX, we just need to take the last sample as data points from CEX were already aggregated.
@@ -169,7 +164,9 @@ func (pw *PluginWrapper) AggregatedPrice(symbol string, target int64) (types.Pri
 		}
 	}
 
-	return tsMap[nearestKey], nil
+	price := tsMap[nearestKey]
+	pw.logger.Debug("nearest sample", "symbol", symbol, "samples", len(tsMap), "targetTS", target, "nearestTS", nearestKey, "price", price)
+	return price, nil
 }
 
 // GCExpiredSamples removes data points that are older than the TTL seconds of per plugin, it leaves recent samples

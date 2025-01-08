@@ -94,10 +94,10 @@ func (g *TemplatePlugin) FetchPrices(symbols []string) (types.PluginPriceReport,
 		}
 
 		pr := types.Price{
-			Timestamp:        now,
-			Symbol:           availableSymMap[v.Symbol], // set the symbol with the symbol style used in oracle server side.
-			Price:            decPrice,
-			RecentVolInUsdcx: decVol,
+			Timestamp: now,
+			Symbol:    availableSymMap[v.Symbol], // set the symbol with the symbol style used in oracle server side.
+			Price:     decPrice,
+			Volume:    decVol,
 		}
 		g.cachePrices[v.Symbol] = pr
 		report.Prices = append(report.Prices, pr)
