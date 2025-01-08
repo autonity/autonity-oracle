@@ -846,7 +846,7 @@ func (os *OracleServer) queryHistoricRoundPrice(symbol string) (types.Price, err
 	numOfRounds := len(os.roundData)
 	// Iterate from the current round backward
 	for i := 0; i < numOfRounds; i++ {
-		roundID := os.curRound - uint64(i) - 1
+		roundID := os.curRound - uint64(i) - 1 //nolint
 		// Get the round data for the current round ID
 		roundData, exists := os.roundData[roundID]
 		if !exists {
