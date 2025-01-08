@@ -2,6 +2,7 @@ package pluginwrapper
 
 import (
 	"autonity-oracle/types"
+	"github.com/hashicorp/go-hclog"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -11,6 +12,7 @@ import (
 func TestPluginWrapper(t *testing.T) {
 	t.Run("test finding nearest data sample", func(t *testing.T) {
 		p := PluginWrapper{
+			logger:           hclog.NewNullLogger(),
 			samples:          make(map[string]map[int64]types.Price),
 			latestTimestamps: make(map[string]int64),
 			dataSrcType:      types.SrcCEX,
