@@ -5,7 +5,7 @@
 
 This project assumes the following:
 
-* Go 1.19.3
+* Go 1.22
 * Linux operating system
 
 ## Overview
