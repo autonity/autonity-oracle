@@ -1,6 +1,7 @@
 package test
 
 import (
+	"autonity-oracle/config"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/subtle"
@@ -15,6 +16,8 @@ import (
 	"github.com/phayes/freeport"
 	bind "github.com/supranational/blst/bindings/go"
 	blst "github.com/supranational/blst/bindings/go"
+	"gopkg.in/yaml.v2"
+	"io"
 	"io/fs"
 	"io/ioutil"
 	"math/big"
@@ -24,6 +27,7 @@ import (
 )
 
 var (
+	chainID            = big.NewInt(65100004) // use piccadilly chain ID for e2e test framework.
 	oracleConfigDir    = "./oracle_config"
 	nodeKeyDir         = "./autonity_l1_config/nodekeys"
 	keyStoreDir        = "./autonity_l1_config/keystore"
@@ -39,7 +43,6 @@ var (
 	defaultPassword    = "test"
 	generatedGenesis   = "./autonity_l1_config/genesis_gen.json"
 	defaultDataDirRoot = "./autonity_l1_config/nodes"
-	defaultPlugConf    = "./plugins/plugins-conf.yml"
 
 	defaultBondedStake        = new(big.Int).SetUint64(1000)
 	defaultEpochPeriod        = uint64(300) // set to 5 minutes in this e2e test framework.
@@ -80,8 +83,8 @@ func (s *DataSimulator) GenCMD() {
 type Oracle struct {
 	Key        *Key
 	PluginDir  string
-	PluginConf string
 	OracleConf string
+	MetricConf *config.MetricConfig
 	Host       string
 	Command    *exec.Cmd
 }
@@ -115,14 +118,23 @@ func (o *Oracle) ConfigOracleServer(wsEndpoint string) {
 	}
 	defer f.Close()
 
-	_, err = f.WriteString(fmt.Sprintf("ws %s\nkey.file %s\nkey.password %s\nplugin.dir %s\nlog.level %d\nplugin.conf %s\n",
-		wsEndpoint, o.Key.KeyFile, o.Key.Password, o.PluginDir, hclog.Debug, o.PluginConf))
+	defaultConfig := config.DefaultConfig
+	defaultConfig.AutonityWSUrl = wsEndpoint
+	defaultConfig.KeyFile = o.Key.KeyFile
+	defaultConfig.KeyPassword = o.Key.Password
+	defaultConfig.PluginDIR = o.PluginDir
+	defaultConfig.LoggingLevel = int(hclog.Debug)
+	defaultConfig.PluginConfigs = []config.PluginConfig{{Name: "template_plugin", Endpoint: "127.0.0.1:50991"}}
+	// enable the metric collection by default for e2e test.
+	defaultConfig.MetricConfigs.EnableInfluxDBV2 = true
+
+	err = FlushServerConfig(&defaultConfig, f.Name())
 	if err != nil {
 		panic(err)
 	}
 
 	// prepare cli command
-	c := exec.Command("./autoracle", fmt.Sprintf("-config=%s", o.OracleConf))
+	c := exec.Command("./autoracle", o.OracleConf)
 	c.Stderr = os.Stderr
 	c.Stdout = os.Stdout
 	o.Command = c
@@ -240,15 +252,18 @@ func (n *L1Node) Stop() {
 }
 
 type NetworkConfig struct {
+	ChainID         int64
 	EnableL1Logs    bool
 	Symbols         []string
 	VotePeriod      uint64
 	PluginDIRs      []string // different oracle can have different plugins configured.
-	SimulateTimeout int      // to simulate timeout in seconds at data source simulator when processing http request.
+	MetricConfigs   []config.MetricConfig
+	SimulateTimeout int // to simulate timeout in seconds at data source simulator when processing http request.
 	EpochPeriod     uint64
 }
 
 type Network struct {
+	ChainID      int64
 	EnableL1Logs bool
 	GenesisFile  string
 	OperatorKey  *Key
@@ -260,7 +275,6 @@ type Network struct {
 	VotePeriod   uint64
 	EpochPeriod  uint64
 	PluginDirs   []string // different oracle can have different plugins configured.
-	PluginConf   []string // different oracle can have different plugin conf.
 }
 
 func (net *Network) genGenesisFile() error {
@@ -355,7 +369,6 @@ func createNetwork(netConf *NetworkConfig, numOfValidators int) (*Network, error
 		panic("keystore does not contains enough key for testbed")
 	}
 
-	var pluginConfs = []string{defaultPlugConf, defaultPlugConf, defaultPlugConf, defaultPlugConf}
 	var pluginDIRs = []string{defaultPlugDir, defaultPlugDir, defaultPlugDir, defaultPlugDir}
 
 	var simulator *DataSimulator
@@ -377,6 +390,7 @@ func createNetwork(netConf *NetworkConfig, numOfValidators int) (*Network, error
 	}
 
 	var network = &Network{
+		ChainID:      netConf.ChainID,
 		EnableL1Logs: netConf.EnableL1Logs,
 		OperatorKey:  keys[0],
 		TreasuryKey:  keys[1],
@@ -384,7 +398,6 @@ func createNetwork(netConf *NetworkConfig, numOfValidators int) (*Network, error
 		VotePeriod:   netConf.VotePeriod,
 		EpochPeriod:  epochPeriod,
 		PluginDirs:   pluginDIRs,
-		PluginConf:   pluginConfs,
 		Simulator:    simulator,
 	}
 
@@ -410,8 +423,7 @@ func configNetwork(network *Network, freeKeys []*Key, freePorts []int, nodes int
 		var l2Node = &Oracle{
 			Key:        freeKeys[i*2],
 			PluginDir:  network.PluginDirs[i],
-			PluginConf: network.PluginConf[i],
-			OracleConf: fmt.Sprintf("%s/oracle-server.config%d", oracleConfigDir, i),
+			OracleConf: fmt.Sprintf("%s/oracle_config_%d.yml", oracleConfigDir, i),
 			Host:       defaultHost,
 		}
 
@@ -464,6 +476,12 @@ func makeGenesisConfig(srcTemplate string, dstFile string, vals []*Validator, ne
 	if err = json.NewDecoder(file).Decode(genesis); err != nil {
 		return err
 	}
+
+	// set chain ID with customized chain ID, otherwise leave it with default one.
+	if net.ChainID != 0 {
+		genesis.Config.ChainID = big.NewInt(net.ChainID)
+	}
+
 	genesis.Config.AutonityContractConfig.EpochPeriod = net.EpochPeriod
 	genesis.Config.AutonityContractConfig.Operator = net.OperatorKey.Key.Address
 	genesis.Config.AutonityContractConfig.Treasury = net.TreasuryKey.Key.Address
@@ -548,4 +566,54 @@ func listDir(pluginDIR string) ([]fs.FileInfo, error) {
 		plugins = append(plugins, file)
 	}
 	return plugins, nil
+}
+
+// FlushServerConfig writes the ServerConfig object to a YAML file
+func FlushServerConfig(config *config.ServerConfig, filePath string) error {
+	data, err := yaml.Marshal(config)
+	if err != nil {
+		return fmt.Errorf("error marshaling ServerConfig to YAML: %v", err)
+	}
+
+	err = os.WriteFile(filePath, data, 0644)
+	if err != nil {
+		return fmt.Errorf("error writing YAML to file: %v", err)
+	}
+
+	return nil
+}
+
+// copyFile copies a file from src to dst
+func copyFile(src, dst string) error {
+	// Open the source file
+	source, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer source.Close()
+
+	// Create the destination file
+	destination, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destination.Close()
+
+	// Copy the contents from source to destination
+	_, err = io.Copy(destination, source)
+	if err != nil {
+		return err
+	}
+
+	// Set the permissions of the destination file to match the source
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	err = os.Chmod(dst, srcInfo.Mode())
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

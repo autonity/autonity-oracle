@@ -1,0 +1,104 @@
+# Oracle Server Configuration
+
+logLevel: 3  # Logging verbosity: 0: NoLevel, 1: Trace, 2: Debug, 3: Info, 4: Warn, 5: Error
+gasTipCap: 1  # Set the gas priority fee cap to issue the oracle data report transactions.
+
+#Set the buffering time window in blocks to continue vote after the last penalty event. Default value is 86400 (1 day).
+#With such time buffer, the node operator can check and repair the local infra without being slashed due to the voting.
+#This is important for node operator to prevent node from getting slashed again.
+voteBuffer: 86400  # Buffer time in seconds (3600 * 24)
+
+#Set oracle server key file.
+keyFile: "../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"
+
+#Set the password to decrypt oracle server key file.
+keyPassword: "123"  # Password for the key file
+
+#Set the WS-RPC server listening interface and port of the connected Autonity Client node.
+autonityWSUrl: "ws://127.0.0.1:8546"
+
+#Set the directory of the data plugins.
+pluginDir: "../plugins/template_plugin/bin"  # Directory for plugins
+
+#Set the profiling report directory, where some runtime state will be saved at.
+profileDir: "."  # Profile directory
+
+#Set the confidence strategy, available strategies are: 0: linear, 1: fixed.
+confidenceStrategy: 0  # 0: linear, 1: fixed
+
+#Set the plugin configs.
+# The forex data plugins are used to fetch realtime rate of currency pairs:
+# EUR-USD, JPY-USD, GBP-USD, AUD-USD, CAD-USD and SEK-USD from commercial data providers. There are 4 implemented forex
+# data plugins, each of them requires the end user to apply for their own service key from the selected data provider.
+# The selection of which forex data plugin(s) to use is for the end user to decide. The user can use any one of them,
+# or he/she can use multiple forex data plugins in the setup.
+#
+# The crypto data plugins are used to fetch market prices for the crypto currency pairs: ATN-USDC, NTN-USDC, NTN-ATN and
+# USDC-USD. USDC liquidity is bridged to the Autonity public testnet from the Polygon Amoy testnet via a bridge service.
+# Out-the-box plugins for collecting ATN-USDC and NTN-USDC market data are available for UniSwap V2 and AirSwap protocols.  NTN-ATN market price is derived from
+# that market data, and USDC pricing is converted to USD. ATN-NTN, ATN-USD, and NTN-USD prices are then submitted on-chain.
+# To retrieve ATN and NTN prices, put the `crypto_uniswap` plugin and `crypto_airswap` plugin in your plugin directory.
+# Oracle server can then discover and load them. Configuring the `crypto_uniswap` and `crypto_airswap` plugin does not
+# require an API key, it is an open and free data source of a standard EVM RPC websocket service endpoint. The
+# end user can connect to specific EVM RPC endpoint base on the blockchain which hosts the uniswap and airswap contracts.
+
+# USDC-USD prices are required by the protocol to convert the ATN-USDC and NTN-USDC to ATN-USD and NTN-USD. This enables
+# the reporting of ATN and NTN prices in USD to the ASM. Three plugins are implemented to source the USDC-USD datapoint
+# from open and free data sources: coinbase, coingecko, and kraken. To prevent single data source failure, putting all
+# 3 plugins of CEX into your plugin directory is recommended. Oracle server can then discover and load them.
+# You don't need to configure the CEX plugins (crypto_coinbase, crypto_coingecko, crypto_kraken) in your oracle server
+# plugin configuration file.
+
+# For the forex data plugin default configuration is set, so the end user just needs to configure required settings,
+# namely `name` and `key`. The configuration settings of a plugin are:
+#
+
+# // PluginConfig carry the configuration of plugins.
+#  type PluginConfig struct {
+#  Name               string `json:"name" yaml:"name"`                         // the name of the plugin binary.
+#  Key                string `json:"key" yaml:"key"`                           // the API key granted by your data provider to access their data API.
+#  Scheme             string `json:"scheme" yaml:"scheme"`                     // the data service scheme, http or https.
+#  Endpoint           string `json:"endpoint" yaml:"endpoint"`                 // the data service endpoint url of the data provider.
+#  Timeout            int    `json:"timeout" yaml:"timeout"`                   // the timeout period in seconds that an API request is lasting for.
+#  DataUpdateInterval int    `json:"refresh" yaml:"refresh"`                   // the interval in seconds to fetch data from data provider due to rate limit.
+#  NTNTokenAddress    string `json:"ntnTokenAddress" yaml:"ntnTokenAddress"`   // The NTN erc20 token address on the target blockchain.
+#  ATNTokenAddress    string `json:"atnTokenAddress" yaml:"atnTokenAddress"`   // The Wrapped ATN erc20 token address on the target blockchain.
+#  USDCTokenAddress   string `json:"usdcTokenAddress" yaml:"usdcTokenAddress"` // USDCx erc20 token address on the target blockchain.
+#  SwapAddress        string `json:"swapAddress" yaml:"swapAddress"`           // UniSwap factory contract address or AirSwap SwapERC20 contract address on the target blockchain.
+#  Disabled           bool   `json:"disabled" yaml:"disabled"`                 // The flag to disable/enable a plugin.
+#}
+
+# Un-comment below lines to enable your forex data plugin's configuration on demand. Your production configurations start from below:
+#pluginConfigs:
+#  - name: forex_currencyfreaks              # required, it is the plugin file name in the plugin directory.
+#    key: 175aab9e47e54790bf6d502c48407c10   # required, visit https://currencyfreaks.com to get your key, and replace it.
+#    refresh: 3600                           # optional, buffered data within 3600s, recommended for API rate limited data source.
+
+#  - name: forex_openexchange                # required, it is the plugin file name in the plugin directory.
+#    key: 1be02ca33c4843ee968c4cedd2686f01   # required, visit https://openexchangerates.org to get your key, and replace it.
+#    refresh: 3600                           # optional, buffered data within 3600s, recommended for API rate limited data source.
+
+#  - name: forex_currencylayer               # required, it is the plugin file name in the plugin directory.
+#    key: 105af082ac7f7d150c87303d4e2f049e   # required, visit https://currencylayer.com  to get your key, and replace it.
+#    refresh: 3600                           # optional, buffered data within 3600s, recommended for API rate limited data source.
+
+#  - name: forex_exchangerate                # required, it is the plugin file name in the plugin directory.
+#    key: 111f04e4775bb86c20296530           # required, visit https://www.exchangerate-api.com to get your key, and replace it.
+#    refresh: 3600                           # optional, buffered data within 3600s, recommended for API rate limited data source.
+# Un-comment below lines to config the RPC endpoint of a Piccadilly Network Full Node for your AMM plugin which sources ATN & NTN market data from an on-chain AMM.
+#  - name: crypto_uniswap
+#    scheme: "wss"                                          # Available values are: "http", "https", "ws" or "wss", default value is "wss".
+#    endpoint: "rpc-internal-1.piccadilly.autonity.org/ws"  # The default URL might not be stable for public usage, we recommend you to change it with your validator node's RPC endpoint.
+
+#Enable the metric collection for oracle server, supported TS-DB engines are influxDB v1 and v2.
+#metricConfigs:
+#  influxDBEndpoint: "http://localhost:8086"
+#  influxDBTags: "host=localhost"
+#  enableInfluxDB: true
+#  influxDBDatabase: "oracle"
+#  influxDBUsername: "test"
+#  influxDBPassword: "test"
+#  enableInfluxDBV2: false
+#  influxDBToken: "test"
+#  influxDBBucket: "oracle"
+#  influxDBOrganization: "oracle"

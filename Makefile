@@ -8,8 +8,7 @@ LINTER = ./bin/golangci-lint
 GOLANGCI_LINT_VERSION = v1.62.0 # Change this to the desired version
 SOLC_VERSION = 0.8.2
 BIN_DIR = ./build/bin
-CONF_FILE = ./config/oracle-server.config
-PLUGIN_CONF_FILE = ./config/plugins-conf.yml
+CONF_FILE = ./config/oracle_config.yml
 E2E_TEST_DIR = ./e2e_test
 E2E_TEST_PLUGIN_DIR = $(E2E_TEST_DIR)/plugins
 E2E_TEST_TEMPLATE_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/template_plugins
@@ -59,15 +58,15 @@ oracle-server:
 	cp $(BIN_DIR)/autoracle $(E2E_TEST_DIR)/autoracle
 
 conf-file:
-    # copy example plugin-conf
-	cp $(PLUGIN_CONF_FILE) $(BIN_DIR)
-	# copy example oracle-server.conf
+	# copy example oracle_config.yml
 	cp $(CONF_FILE) $(BIN_DIR)
 
 e2e-test-stuffs:
-    # build template plugin for e2e test
+    # build template plugin for e2e test and unit test.
+	go build -o $(PLUGIN_SRC_DIR)/template_plugin/bin/template_plugin $(PLUGIN_SRC_DIR)/template_plugin/template_plugin.go
 	go build -o $(E2E_TEST_MIX_PLUGIN_DIR)/template_plugin $(PLUGIN_SRC_DIR)/template_plugin/template_plugin.go
 	go build -o $(E2E_TEST_TEMPLATE_PLUGIN_DIR)/template_plugin $(PLUGIN_SRC_DIR)/template_plugin/template_plugin.go
+	chmod +x $(PLUGIN_SRC_DIR)/template_plugin/bin/template_plugin
 	chmod +x $(E2E_TEST_MIX_PLUGIN_DIR)/template_plugin
 	chmod +x $(E2E_TEST_TEMPLATE_PLUGIN_DIR)/template_plugin
 
@@ -80,17 +79,12 @@ e2e-test-stuffs:
 	chmod +x $(E2E_TEST_PRD_PLUGIN_DIR)/binance
 
 	# build amm and dex plugins for e2e test.
-	go build -o $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/crypto_uniswap.go
+	go build -o $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/uniswap_usdcx/crypto_uniswap_usdcx.go
 	go build -o $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_airswap $(PLUGIN_SRC_DIR)/crypto_airswap/crypto_airswap.go
 	chmod +x $(E2E_TEST_CRYPTO_PLUGIN_DIR)/*
 
     # build bakerloo simulator plugin for e2e test.
-	go build -o $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go
-	chmod +x $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin
-	cp  $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin $(E2E_TEST_MIX_PLUGIN_DIR)/simulator_plugin
-
-    # build bakerloo simulator plugin for e2e test.
-	go build -o $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go
+	go build -o $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/bakerloo/simulator_plugin.go
 	chmod +x $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin
 	cp  $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin $(E2E_TEST_MIX_PLUGIN_DIR)/simulator_plugin
 
@@ -129,7 +123,7 @@ dex-plugins:
 
 # amm plugins are not officially release yet.
 amm-plugins:
-	go build -o $(PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/crypto_uniswap.go
+	go build -o $(PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/uniswap_usdcx/crypto_uniswap_usdcx.go
 	chmod +x $(PLUGIN_DIR)/*
 
 # legacy piccadilly cax plugin, it sources order books from a CEX service built in python.
@@ -146,12 +140,12 @@ crypto_source_simulator:
 
 # build simulator plugin for bakerloo network.
 bakerloo-sim-plugin:
-	go build -o $(PLUGIN_DIR)/simulator_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go
+	go build -o $(PLUGIN_DIR)/simulator_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/bakerloo/simulator_plugin.go
 	chmod +x $(PLUGIN_DIR)/simulator_plugin
 
 # build simulator plugin for piccadilly network.
 piccadilly-sim-plugin:
-	go build -o $(PLUGIN_DIR)/simulator_plugin -tags pic $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go
+	go build -o $(PLUGIN_DIR)/simulator_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/piccadilly/simulator_plugin.go
 	chmod +x $(PLUGIN_DIR)/simulator_plugin
 
 # build the whole components for bakerloo network.

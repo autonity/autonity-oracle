@@ -1,6 +1,7 @@
 package main
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/plugins/common"
 	"autonity-oracle/types"
 	"encoding/json"
@@ -17,7 +18,7 @@ const (
 	symbol  = "symbols"
 )
 
-var defaultConfig = types.PluginConfig{
+var defaultConfig = config.PluginConfig{
 	Key:                "",
 	Scheme:             "https",
 	Endpoint:           "api.binance.us",
@@ -26,12 +27,12 @@ var defaultConfig = types.PluginConfig{
 }
 
 type BIClient struct {
-	conf   *types.PluginConfig
+	conf   *config.PluginConfig
 	client *common.Client
 	logger hclog.Logger
 }
 
-func NewBIClient(conf *types.PluginConfig) *BIClient {
+func NewBIClient(conf *config.PluginConfig) *BIClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   conf.Name,
@@ -75,6 +76,10 @@ func (bi *BIClient) FetchPrice(symbols []string) (common.Prices, error) {
 		return nil, err
 	}
 
+	for i := range prices {
+		prices[i].Volume = types.DefaultVolume.String()
+	}
+
 	return prices, nil
 }
 
@@ -115,7 +120,7 @@ func (bi *BIClient) buildURL(symbols []string) (*url.URL, error) {
 
 func main() {
 	conf := common.ResolveConf(os.Args[0], &defaultConfig)
-	adapter := common.NewPlugin(conf, NewBIClient(conf), version)
+	adapter := common.NewPlugin(conf, NewBIClient(conf), version, types.SrcCEX, nil)
 	defer adapter.Close()
 
 	common.PluginServe(adapter)

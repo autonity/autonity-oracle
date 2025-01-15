@@ -1,6 +1,7 @@
 package main
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/plugins/common"
 	"autonity-oracle/types"
 	"encoding/json"
@@ -21,7 +22,7 @@ const (
 	appID   = "app_id"
 )
 
-var defaultConfig = types.PluginConfig{
+var defaultConfig = config.PluginConfig{
 	Name:               "forex_openexchange",
 	Key:                "",
 	Scheme:             "https",
@@ -48,12 +49,12 @@ type OEResult struct {
 }
 
 type OXClient struct {
-	conf   *types.PluginConfig
+	conf   *config.PluginConfig
 	client *common.Client
 	logger hclog.Logger
 }
 
-func NewOXClient(conf *types.PluginConfig) *OXClient {
+func NewOXClient(conf *config.PluginConfig) *OXClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   "OpenExchangeRate",
@@ -138,6 +139,7 @@ func (oe *OXClient) symbolsToPrice(s string, res *OEResult) (common.Price, error
 		return price, fmt.Errorf("wrong base %s", to)
 	}
 	price.Symbol = s
+	price.Volume = types.DefaultVolume.String()
 	switch from {
 	case "EUR":
 		price.Price = decimal.NewFromInt(1).Div(res.Rates.EUR).String()
@@ -170,7 +172,7 @@ func (oe *OXClient) buildURL(apiKey string) *url.URL {
 
 func main() {
 	conf := common.ResolveConf(os.Args[0], &defaultConfig)
-	adapter := common.NewPlugin(conf, NewOXClient(conf), version)
+	adapter := common.NewPlugin(conf, NewOXClient(conf), version, types.SrcCEX, nil)
 	defer adapter.Close()
 	common.PluginServe(adapter)
 }

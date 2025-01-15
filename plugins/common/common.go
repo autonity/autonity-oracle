@@ -1,6 +1,7 @@
 package common
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/types"
 	"encoding/json"
 	"fmt"
@@ -16,6 +17,8 @@ import (
 )
 
 var (
+	ChainIDPiccadilly    = big.NewInt(65_100_004)
+	ChainIDBakerloo      = big.NewInt(65_010_003)
 	Zero                 = big.NewInt(0)
 	DefaultForexSymbols  = []string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"}
 	NTNATNSymbol         = "NTN-ATN"
@@ -24,17 +27,20 @@ var (
 	ErrDataNotAvailable  = fmt.Errorf("data is not available")
 	ErrKnownSymbols      = fmt.Errorf("the data source does not have all the data asked by oracle server")
 	ErrAccessLimited     = fmt.Errorf("access rate is limited, please check your subscription from data provider")
+	ErrChainIDMismatch   = fmt.Errorf("chain ID does not match")
 )
 
 const (
-	AutonityCryptoDecimals = 18 // both NTN and the Wrapped ATN take 18 as the decimal.
-	USDCDecimals           = 6  // the decimal of USDC coin in autonity L1 network.
-	CryptoToUsdcDecimals   = 18 // the data precision in oracle contract.
+	DefaultAMMDataUpdateInterval = 1
+	AutonityCryptoDecimals       = 18 // both NTN and the Wrapped ATN take 18 as the decimal.
+	USDCDecimals                 = 6  // the decimal of USDC coin in autonity L1 network.
+	CryptoToUsdcDecimals         = 18 // the data precision in oracle contract.
 )
 
 type Price struct {
 	Symbol string `json:"symbol,omitempty"`
 	Price  string `json:"price,omitempty"`
+	Volume string `json:"volume,omitempty"` // recent accumulating trade volume in USDCx.
 }
 
 type Prices []Price
@@ -45,11 +51,13 @@ type Plugin struct {
 	symbolSeparator  string // "|", "/", "-", ",", "." or with a no separator "".
 	logger           hclog.Logger
 	client           DataSourceClient
-	conf             *types.PluginConfig
+	conf             *config.PluginConfig
 	cachePrices      map[string]types.Price
+	chainID          *big.Int // piccadilly, bakerloo, mainnet, or nil for common.
+	dataSourceType   types.DataSourceType
 }
 
-func NewPlugin(conf *types.PluginConfig, client DataSourceClient, version string) *Plugin {
+func NewPlugin(conf *config.PluginConfig, client DataSourceClient, version string, srcType types.DataSourceType, chainID *big.Int) *Plugin {
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:       conf.Name,
 		Level:      hclog.Debug,
@@ -64,6 +72,8 @@ func NewPlugin(conf *types.PluginConfig, client DataSourceClient, version string
 		conf:             conf,
 		availableSymbols: make(map[string]struct{}),
 		cachePrices:      make(map[string]types.Price),
+		chainID:          chainID,
+		dataSourceType:   srcType,
 	}
 }
 
@@ -93,16 +103,23 @@ func (p *Plugin) FetchPrices(symbols []string) (types.PluginPriceReport, error) 
 
 	now := time.Now().Unix()
 	for _, v := range res {
-		dec, err := decimal.NewFromString(v.Price)
+		decPrice, err := decimal.NewFromString(v.Price)
 		if err != nil {
 			p.logger.Error("cannot convert price string to decimal: ", "price", v.Price, "error", err.Error())
+			continue
+		}
+
+		decVol, ok := new(big.Int).SetString(v.Volume, 0)
+		if !ok {
+			p.logger.Error("cannot convert volume to big.Int: ", "volume", v.Volume)
 			continue
 		}
 
 		pr := types.Price{
 			Timestamp: now,
 			Symbol:    availableSymMap[v.Symbol], // set the symbol with the symbol style used in oracle server side.
-			Price:     dec,
+			Price:     decPrice,
+			Volume:    decVol,
 		}
 		p.cachePrices[v.Symbol] = pr
 		report.Prices = append(report.Prices, pr)
@@ -111,8 +128,8 @@ func (p *Plugin) FetchPrices(symbols []string) (types.PluginPriceReport, error) 
 	return report, nil
 }
 
-func (p *Plugin) State() (types.PluginState, error) {
-	var state types.PluginState
+func (p *Plugin) State(chainID int64) (types.PluginStatement, error) {
+	var state types.PluginStatement
 
 	symbols, err := p.client.AvailableSymbols()
 	if err != nil {
@@ -140,6 +157,13 @@ func (p *Plugin) State() (types.PluginState, error) {
 	state.Version = p.version
 	state.AvailableSymbols = symbols
 	state.KeyRequired = p.client.KeyRequired()
+	state.DataSource = p.conf.Scheme + "://" + p.conf.Endpoint
+	state.DataSourceType = p.dataSourceType
+
+	if p.chainID != nil && p.chainID.Int64() != chainID {
+		return state, ErrChainIDMismatch
+	}
+
 	return state, nil
 }
 
@@ -178,7 +202,7 @@ func (p *Plugin) fetchPricesFromCache(availableSymbols []string) ([]types.Price,
 			return nil, fmt.Errorf("no data buffered")
 		}
 
-		if now-pr.Timestamp > int64(p.conf.DataUpdateInterval) {
+		if now-pr.Timestamp >= int64(p.conf.DataUpdateInterval) {
 			return nil, fmt.Errorf("data is too old")
 		}
 
@@ -188,10 +212,10 @@ func (p *Plugin) fetchPricesFromCache(availableSymbols []string) ([]types.Price,
 }
 
 // LoadPluginConf is called from plugin main() to load plugin's conf from system env.
-func LoadPluginConf(cmd string) (*types.PluginConfig, error) {
+func LoadPluginConf(cmd string) (*config.PluginConfig, error) {
 	name := filepath.Base(cmd)
 	conf := os.Getenv(name)
-	var c types.PluginConfig
+	var c config.PluginConfig
 	err := json.Unmarshal([]byte(conf), &c)
 	if err != nil {
 		return nil, err
@@ -218,7 +242,7 @@ func ConvertSymbol(src string, toSep string) string {
 	return strings.Join(subs, toSep)
 }
 
-func ResolveConf(cmd string, defConf *types.PluginConfig) *types.PluginConfig {
+func ResolveConf(cmd string, defConf *config.PluginConfig) *config.PluginConfig {
 
 	conf, err := LoadPluginConf(cmd)
 	if err != nil {

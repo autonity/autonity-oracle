@@ -3,6 +3,7 @@ package helpers
 import (
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
+	"math/big"
 	"testing"
 )
 
@@ -70,4 +71,85 @@ func TestMedian(t *testing.T) {
 		_, err := Median(nil)
 		require.Error(t, err)
 	})
+}
+
+func TestVWAP(t *testing.T) {
+	tests := []struct {
+		prices             []decimal.Decimal
+		volumes            []*big.Int
+		expectedVWAP       decimal.Decimal
+		expectedHighestVol *big.Int
+		expectError        bool
+	}{
+		{
+			prices: []decimal.Decimal{
+				decimal.NewFromFloat(100.0),
+				decimal.NewFromFloat(200.0),
+				decimal.NewFromFloat(100.0),
+			},
+			volumes: []*big.Int{
+				big.NewInt(10),
+				big.NewInt(20),
+				big.NewInt(10),
+			},
+			expectedVWAP:       decimal.NewFromFloatWithExponent(150, 0), // (100*10 + 200*20 + 150*30) / (10 + 20 + 30)
+			expectedHighestVol: big.NewInt(20),
+			expectError:        false,
+		},
+		{
+			prices: []decimal.Decimal{
+				decimal.NewFromFloat(50.0),
+				decimal.NewFromFloat(75.0),
+			},
+			volumes: []*big.Int{
+				big.NewInt(5),
+				big.NewInt(0),
+			},
+			expectedVWAP:       decimal.NewFromFloatWithExponent(50, 0),
+			expectedHighestVol: big.NewInt(5),
+		},
+		{
+			prices:             []decimal.Decimal{},
+			volumes:            []*big.Int{},
+			expectedVWAP:       decimal.Zero,
+			expectedHighestVol: nil,
+			expectError:        true,
+		},
+		{
+			prices: []decimal.Decimal{
+				decimal.NewFromFloat(100.0),
+			},
+			volumes: []*big.Int{
+				big.NewInt(10),
+				big.NewInt(20),
+			},
+			expectedVWAP:       decimal.Zero,
+			expectedHighestVol: nil,
+			expectError:        true,
+		},
+	}
+
+	for _, test := range tests {
+		vwap, highestVol, err := VWAP(test.prices, test.volumes)
+
+		if test.expectError {
+			if err == nil {
+				t.Errorf("Expected an error for prices: %v and volumes: %v, but got none", test.prices, test.volumes)
+			}
+			continue
+		}
+
+		if err != nil {
+			t.Errorf("Unexpected error for prices: %v and volumes: %v: %v", test.prices, test.volumes, err)
+			continue
+		}
+
+		if !vwap.Equal(test.expectedVWAP) {
+			t.Errorf("For prices: %v and volumes: %v, expected VWAP: %s, but got: %s", test.prices, test.volumes, test.expectedVWAP.String(), vwap.String())
+		}
+
+		if highestVol.Cmp(test.expectedHighestVol) != 0 {
+			t.Errorf("For prices: %v and volumes: %v, expected highest volume: %s, but got: %s", test.prices, test.volumes, test.expectedHighestVol.String(), highestVol.String())
+		}
+	}
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/plugins/common"
 	"autonity-oracle/types"
 	"encoding/json"
@@ -27,7 +28,7 @@ const (
 var routers = "api/orderbooks"
 var defaultEndpoint = "cax.piccadilly.autonity.org"
 
-var defaultConfig = types.PluginConfig{
+var defaultConfig = config.PluginConfig{
 	Name:               "pcgc_cax",
 	Key:                "",
 	Scheme:             "https",
@@ -45,12 +46,12 @@ type CAXQuote struct {
 }
 
 type CAXClient struct {
-	conf   *types.PluginConfig
+	conf   *config.PluginConfig
 	client *common.Client
 	logger hclog.Logger
 }
 
-func NewCAXClient(conf *types.PluginConfig) *CAXClient {
+func NewCAXClient(conf *config.PluginConfig) *CAXClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   "AutonityR4CAX",
@@ -165,6 +166,7 @@ func (cc *CAXClient) fetchPrice(symbol string) (common.Price, error) {
 	// the aggregated price takes the average value of ask and bid prices.
 	price.Price = askPrice.Add(bidPrice).Div(decimal.NewFromInt(2)).String()
 	price.Symbol = symbol
+	price.Volume = types.DefaultVolume.String()
 
 	return price, nil
 }
@@ -185,7 +187,7 @@ func (cc *CAXClient) Close() {
 
 func main() {
 	conf := common.ResolveConf(os.Args[0], &defaultConfig)
-	adapter := common.NewPlugin(conf, NewCAXClient(conf), version)
+	adapter := common.NewPlugin(conf, NewCAXClient(conf), version, types.SrcCEX, common.ChainIDPiccadilly)
 	defer adapter.Close()
 	common.PluginServe(adapter)
 }

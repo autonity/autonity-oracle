@@ -1,6 +1,7 @@
 package main
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/plugins/common"
 	"autonity-oracle/types"
 	"encoding/json"
@@ -16,7 +17,7 @@ const (
 	path    = "v2/prices/USDC-USD/spot"
 )
 
-var defaultConfig = types.PluginConfig{
+var defaultConfig = config.PluginConfig{
 	Name:               "crypto_coinbase",
 	Key:                "",
 	Scheme:             "https",
@@ -36,12 +37,12 @@ type Response struct {
 }
 
 type CoinBaseClient struct {
-	conf   *types.PluginConfig
+	conf   *config.PluginConfig
 	client *common.Client
 	logger hclog.Logger
 }
 
-func NewCoinBaseClient(conf *types.PluginConfig) *CoinBaseClient {
+func NewCoinBaseClient(conf *config.PluginConfig) *CoinBaseClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   conf.Name,
@@ -87,6 +88,7 @@ func (c *CoinBaseClient) FetchPrice(_ []string) (common.Prices, error) {
 	prices = append(prices, common.Price{
 		Symbol: common.DefaultUSDCSymbol,
 		Price:  data.Data.Amount,
+		Volume: types.DefaultVolume.String(),
 	})
 
 	return prices, nil
@@ -110,7 +112,7 @@ func (c *CoinBaseClient) buildURL() *url.URL {
 
 func main() {
 	conf := common.ResolveConf(os.Args[0], &defaultConfig)
-	adapter := common.NewPlugin(conf, NewCoinBaseClient(conf), version)
+	adapter := common.NewPlugin(conf, NewCoinBaseClient(conf), version, types.SrcCEX, nil)
 	defer adapter.Close()
 	common.PluginServe(adapter)
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/plugins/common"
 	"autonity-oracle/types"
 	"encoding/json"
@@ -19,7 +20,7 @@ const (
 	supportedSymbol = "USDCUSD"
 )
 
-var defaultConfig = types.PluginConfig{
+var defaultConfig = config.PluginConfig{
 	Name:               "crypto_kraken",
 	Key:                "",
 	Scheme:             "https",
@@ -46,12 +47,12 @@ type Response struct {
 }
 
 type KrakenClient struct {
-	conf   *types.PluginConfig
+	conf   *config.PluginConfig
 	client *common.Client
 	logger hclog.Logger
 }
 
-func NewKrakenClient(conf *types.PluginConfig) *KrakenClient {
+func NewKrakenClient(conf *config.PluginConfig) *KrakenClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   conf.Name,
@@ -121,6 +122,7 @@ func (k *KrakenClient) toPrice(symbol string, res *Response) (common.Price, erro
 
 	price.Symbol = symbol
 	price.Price = usdcResult.P[0] // take the volume weighted average price of today.
+	price.Volume = types.DefaultVolume.String()
 	return price, nil
 }
 
@@ -143,7 +145,7 @@ func (k *KrakenClient) buildURL() *url.URL {
 
 func main() {
 	conf := common.ResolveConf(os.Args[0], &defaultConfig)
-	adapter := common.NewPlugin(conf, NewKrakenClient(conf), version)
+	adapter := common.NewPlugin(conf, NewKrakenClient(conf), version, types.SrcCEX, nil)
 	defer adapter.Close()
 	common.PluginServe(adapter)
 }

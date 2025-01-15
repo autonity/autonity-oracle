@@ -1,6 +1,7 @@
 package main
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/plugins/common"
 	"autonity-oracle/types"
 	"encoding/json"
@@ -20,7 +21,7 @@ const (
 	apiKey     = "apikey"
 )
 
-var defaultConfig = types.PluginConfig{
+var defaultConfig = config.PluginConfig{
 	Name:               "forex_currencyfreaks",
 	Key:                "",
 	Scheme:             "https",
@@ -45,12 +46,12 @@ type CFRates struct {
 }
 
 type CFClient struct {
-	conf   *types.PluginConfig
+	conf   *config.PluginConfig
 	client *common.Client
 	logger hclog.Logger
 }
 
-func NewCFClient(conf *types.PluginConfig) *CFClient {
+func NewCFClient(conf *config.PluginConfig) *CFClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   conf.Name,
@@ -132,6 +133,7 @@ func (cf *CFClient) symbolsToPrice(s string, res *CFResult) (common.Price, error
 		return price, fmt.Errorf("wrong base %s", to)
 	}
 	price.Symbol = s
+	price.Volume = types.DefaultVolume.String()
 	switch from {
 	case "EUR":
 		pUE, err := decimal.NewFromString(res.Rates.EUR)
@@ -187,7 +189,7 @@ func (cf *CFClient) buildURL(key string) *url.URL {
 
 func main() {
 	conf := common.ResolveConf(os.Args[0], &defaultConfig)
-	adapter := common.NewPlugin(conf, NewCFClient(conf), version)
+	adapter := common.NewPlugin(conf, NewCFClient(conf), version, types.SrcCEX, nil)
 	defer adapter.Close()
 	common.PluginServe(adapter)
 }

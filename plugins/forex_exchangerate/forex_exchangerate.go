@@ -1,6 +1,7 @@
 package main
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/plugins/common"
 	"autonity-oracle/types"
 	"encoding/json"
@@ -19,7 +20,7 @@ const (
 	exVersion = "v6"
 )
 
-var defaultConfig = types.PluginConfig{
+var defaultConfig = config.PluginConfig{
 	Name:               "forex_exchangerate",
 	Key:                "",
 	Scheme:             "https",
@@ -50,12 +51,12 @@ type ConversionRates struct {
 }
 
 type EXClient struct {
-	conf   *types.PluginConfig
+	conf   *config.PluginConfig
 	client *common.Client
 	logger hclog.Logger
 }
 
-func NewEXClient(conf *types.PluginConfig) *EXClient {
+func NewEXClient(conf *config.PluginConfig) *EXClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   "ExchangeClient",
@@ -139,6 +140,7 @@ func (ex *EXClient) symbolsToPrice(s string, res *EXResult) (common.Price, error
 	}
 
 	price.Symbol = s
+	price.Volume = types.DefaultVolume.String()
 	switch from {
 	case "EUR":
 		price.Price = decimal.NewFromInt(1).Div(res.Rates.EUR).String()
@@ -166,7 +168,7 @@ func (ex *EXClient) buildURL(apiKey string) *url.URL {
 
 func main() {
 	conf := common.ResolveConf(os.Args[0], &defaultConfig)
-	adapter := common.NewPlugin(conf, NewEXClient(conf), version)
+	adapter := common.NewPlugin(conf, NewEXClient(conf), version, types.SrcCEX, nil)
 	defer adapter.Close()
 	common.PluginServe(adapter)
 }

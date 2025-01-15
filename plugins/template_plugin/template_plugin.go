@@ -1,6 +1,7 @@
 package main
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/helpers"
 	"autonity-oracle/plugins/common"
 	"autonity-oracle/types"
@@ -8,6 +9,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"github.com/shopspring/decimal"
+	"math/big"
 	"net/url"
 	"os"
 	"time"
@@ -17,8 +19,8 @@ const (
 	version = "v0.2.0"
 )
 
-var defaultConfig = types.PluginConfig{
-	Name:               "pluginBinaryName",
+var defaultConfig = config.PluginConfig{
+	Name:               "template_plugin",
 	Key:                "",
 	Scheme:             "https",
 	Endpoint:           "127.0.0.1:8080",
@@ -33,11 +35,11 @@ type TemplatePlugin struct {
 	symbolSeparator  string
 	logger           hclog.Logger
 	client           common.DataSourceClient
-	conf             *types.PluginConfig
+	conf             *config.PluginConfig
 	cachePrices      map[string]types.Price
 }
 
-func NewTemplatePlugin(conf *types.PluginConfig, client common.DataSourceClient, version string) *TemplatePlugin {
+func NewTemplatePlugin(conf *config.PluginConfig, client common.DataSourceClient, version string) *TemplatePlugin {
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:       conf.Name,
 		Level:      hclog.Info,
@@ -79,16 +81,23 @@ func (g *TemplatePlugin) FetchPrices(symbols []string) (types.PluginPriceReport,
 
 	now := time.Now().Unix()
 	for _, v := range res {
-		dec, err := decimal.NewFromString(v.Price)
+		decPrice, err := decimal.NewFromString(v.Price)
 		if err != nil {
 			g.logger.Error("cannot convert price string to decimal: ", "price", v.Price, "error", err.Error())
+			continue
+		}
+
+		decVol, ok := new(big.Int).SetString(v.Volume, 0)
+		if !ok {
+			g.logger.Error("cannot convert price to decimal: ", "price", v.Price, "error", v.Volume)
 			continue
 		}
 
 		pr := types.Price{
 			Timestamp: now,
 			Symbol:    availableSymMap[v.Symbol], // set the symbol with the symbol style used in oracle server side.
-			Price:     dec,
+			Price:     decPrice,
+			Volume:    decVol,
 		}
 		g.cachePrices[v.Symbol] = pr
 		report.Prices = append(report.Prices, pr)
@@ -97,8 +106,8 @@ func (g *TemplatePlugin) FetchPrices(symbols []string) (types.PluginPriceReport,
 	return report, nil
 }
 
-func (g *TemplatePlugin) State() (types.PluginState, error) {
-	var state types.PluginState
+func (g *TemplatePlugin) State(_ int64) (types.PluginStatement, error) {
+	var state types.PluginStatement
 
 	symbols, err := g.client.AvailableSymbols()
 	if err != nil {
@@ -126,7 +135,8 @@ func (g *TemplatePlugin) State() (types.PluginState, error) {
 	state.KeyRequired = g.client.KeyRequired()
 	state.Version = g.version
 	state.AvailableSymbols = symbols
-
+	state.DataSource = g.conf.Scheme + "://" + g.conf.Endpoint
+	state.DataSourceType = types.SrcCEX
 	return state, nil
 }
 
@@ -176,12 +186,12 @@ func (g *TemplatePlugin) resolveSymbols(askedSymbols []string) ([]string, []stri
 }
 
 type TemplateClient struct {
-	conf   *types.PluginConfig
+	conf   *config.PluginConfig
 	client *common.Client
 	logger hclog.Logger
 }
 
-func NewTemplateClient(conf *types.PluginConfig) *TemplateClient {
+func NewTemplateClient(conf *config.PluginConfig) *TemplateClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   conf.Name,
@@ -233,6 +243,7 @@ func (tc *TemplateClient) FetchPrice(symbols []string) (common.Prices, error) {
 	for _, s := range symbols {
 		var price common.Price
 		price.Symbol = s
+		price.Volume = types.DefaultVolume.String()
 		price.Price = helpers.ResolveSimulatedPrice(s).String()
 		prices = append(prices, price)
 	}
@@ -257,7 +268,7 @@ func (tc *TemplateClient) AvailableSymbols() ([]string, error) {
 	// we add some symbols required for the test as well.
 	res := append(common.DefaultForexSymbols, common.DefaultCryptoSymbols...)
 	res = append(res, common.DefaultUSDCSymbol)
-	res = append(res, types.SymbolBTCETH)
+	res = append(res, helpers.SymbolBTCETH)
 
 	return res, nil
 }
