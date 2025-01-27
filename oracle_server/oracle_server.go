@@ -959,7 +959,7 @@ func (os *OracleServer) Start() {
 
 		case roundEvent := <-os.chRoundEvent:
 			os.logger.Info("handle new round", "round", roundEvent.Round.Uint64(), "required sampling TS",
-				roundEvent.Timestamp.Uint64(), "height", roundEvent.Height.Uint64(), "round period", roundEvent.VotePeriod.Uint64())
+				roundEvent.Timestamp.Uint64(), "height", roundEvent.Raw.BlockNumber, "round period", roundEvent.VotePeriod.Uint64())
 
 			if metrics.Enabled {
 				oracleRound.Update(roundEvent.Round.Int64())
@@ -968,7 +968,7 @@ func (os *OracleServer) Start() {
 			// save the round rotation info to coordinate the pre-sampling.
 			os.curRound = roundEvent.Round.Uint64()
 			os.votePeriod = roundEvent.VotePeriod.Uint64()
-			os.curSampleHeight = roundEvent.Height.Uint64()
+			os.curSampleHeight = roundEvent.Raw.BlockNumber
 			os.curSampleTS = roundEvent.Timestamp.Int64()
 
 			err := os.handleRoundVote()
