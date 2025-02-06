@@ -53,6 +53,7 @@ func TestServerState(t *testing.T) {
 			Symbol:               NTNUSDC,
 			Median:               uint64(100000000000),
 			Reported:             uint64(200000000000),
+			SlashingAmount:       uint64(300000000000),
 		},
 		LoggedAt: time.Now().Format(time.RFC3339),
 	}

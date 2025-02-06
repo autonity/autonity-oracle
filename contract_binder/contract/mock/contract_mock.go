@@ -218,18 +218,3 @@ func (mr *MockContractAPIMockRecorder) WatchPenalized(opts, sink, _participant i
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchPenalized", reflect.TypeOf((*MockContractAPI)(nil).WatchPenalized), opts, sink, _participant)
 }
-
-// WatchVoted mocks base method.
-func (m *MockContractAPI) WatchVoted(opts *bind.WatchOpts, sink chan<- *oracle.OracleVoted, _voter []common.Address) (event.Subscription, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WatchVoted", opts, sink, _voter)
-	ret0, _ := ret[0].(event.Subscription)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// WatchVoted indicates an expected call of WatchVoted.
-func (mr *MockContractAPIMockRecorder) WatchVoted(opts, sink, _voter interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchVoted", reflect.TypeOf((*MockContractAPI)(nil).WatchVoted), opts, sink, _voter)
-}

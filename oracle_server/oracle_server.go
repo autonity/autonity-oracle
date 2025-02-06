@@ -83,6 +83,7 @@ type OutlierRecord struct {
 	Symbol               string         `json:"symbol"`
 	Median               uint64         `json:"median"`
 	Reported             uint64         `json:"reported"`
+	SlashingAmount       uint64         `json:"slashingAmount"`
 }
 
 // flush dumps the ServerMemories into a JSON file in the specified profile directory.
@@ -926,7 +927,7 @@ func (os *OracleServer) Start() {
 
 			os.logger.Warn("Oracle client get penalized as an outlier", "node", penalizeEvent.Participant,
 				"currency symbol", penalizeEvent.Symbol, "median value", penalizeEvent.Median.String(),
-				"reported value", penalizeEvent.Reported.String(), "block", penalizeEvent.Raw.BlockNumber)
+				"reported value", penalizeEvent.Reported.String(), "block", penalizeEvent.Raw.BlockNumber, "slashed amount", penalizeEvent.SlashingAmount.Uint64())
 			os.logger.Warn("your next vote will be postponed", "in blocks", os.conf.VoteBuffer)
 
 			if metrics.Enabled {
@@ -940,6 +941,7 @@ func (os *OracleServer) Start() {
 					Symbol:               penalizeEvent.Symbol,
 					Median:               penalizeEvent.Median.Uint64(),
 					Reported:             penalizeEvent.Reported.Uint64(),
+					SlashingAmount:       penalizeEvent.SlashingAmount.Uint64(),
 				},
 				LoggedAt: time.Now().Format(time.RFC3339),
 			}
