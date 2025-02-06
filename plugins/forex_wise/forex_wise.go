@@ -67,7 +67,7 @@ func (wc *WiseClient) buildURL(source, target string) *url.URL {
 func NewWiseClient(conf *config.PluginConfig) *WiseClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
 	logger := hclog.New(&hclog.LoggerOptions{
-		Name:   "WiseForex",
+		Name:   conf.Name,
 		Level:  hclog.Info,
 		Output: os.Stdout,
 	})
@@ -161,6 +161,7 @@ func (wl *WiseClient) symbolsToPrice(s string, res *WRResult) (common.Price, err
 	}
 
 	price.Symbol = s
+	price.Volume = types.DefaultVolume.String()
 	switch from {
 	case "EUR":
 		price.Price = decimal.NewFromInt(1).Div(res.Rate).String()
