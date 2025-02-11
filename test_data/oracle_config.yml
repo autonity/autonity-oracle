@@ -35,12 +35,12 @@ confidenceStrategy: 0  # 0: linear, 1: fixed
 #
 # The crypto data plugins are used to fetch market prices for the crypto currency pairs: ATN-USDC, NTN-USDC, NTN-ATN and
 # USDC-USD. USDC liquidity is bridged to the Autonity public testnet from the Polygon Amoy testnet via a bridge service.
-# Out-the-box plugins for collecting ATN-USDC and NTN-USDC market data are available for UniSwap V2 and AirSwap protocols.  NTN-ATN market price is derived from
-# that market data, and USDC pricing is converted to USD. ATN-NTN, ATN-USD, and NTN-USD prices are then submitted on-chain.
-# To retrieve ATN and NTN prices, put the `crypto_uniswap` plugin and `crypto_airswap` plugin in your plugin directory.
-# Oracle server can then discover and load them. Configuring the `crypto_uniswap` and `crypto_airswap` plugin does not
-# require an API key, it is an open and free data source of a standard EVM RPC websocket service endpoint. The
-# end user can connect to specific EVM RPC endpoint base on the blockchain which hosts the uniswap and airswap contracts.
+# Out-the-box plugins for collecting ATN-USDC and NTN-USDC market data are available for UniSwap V2 and AirSwap protocols.
+# NTN-ATN market price is derived from that market data, and USDC pricing is converted to USD. ATN-NTN, ATN-USD, and
+# NTN-USD prices are then submitted on-chain. To retrieve ATN and NTN prices, put the `crypto_uniswap` plugin in your plugin directory.
+# Oracle server can then discover and load them. Configuring the `crypto_uniswap` plugin does not require an API key,
+# it is an open and free data source of a standard EVM RPC websocket service endpoint. The end user can connect to specific
+# EVM RPC endpoint base on the blockchain which hosts the uniswap contract.
 
 # USDC-USD prices are required by the protocol to convert the ATN-USDC and NTN-USDC to ATN-USD and NTN-USD. This enables
 # the reporting of ATN and NTN prices in USD to the ASM. Three plugins are implemented to source the USDC-USD datapoint

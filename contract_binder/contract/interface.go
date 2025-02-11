@@ -21,5 +21,4 @@ type ContractAPI interface {
 	GetRoundData(opts *bind.CallOpts, _round *big.Int, _symbol string) (IOracleRoundData, error)
 	LatestRoundData(opts *bind.CallOpts, _symbol string) (IOracleRoundData, error)
 	GetDecimals(opts *bind.CallOpts) (uint8, error)
-	WatchVoted(opts *bind.WatchOpts, sink chan<- *OracleVoted, _voter []common.Address) (event.Subscription, error)
 }

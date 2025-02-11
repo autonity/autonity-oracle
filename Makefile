@@ -2,7 +2,7 @@
 # with Go source code. If you know what GOPATH is then you probably
 # don't need to bother with make.
 
-.PHONY: mkdir oracle-server conf-file e2e-test-stuffs forex-plugins dex-plugins amm-plugins cex-plugins autoracle test e2e_test clean lint dep all
+.PHONY: mkdir oracle-server conf-file e2e-test-stuffs forex-plugins amm-plugins cex-plugins autoracle test e2e_test clean lint dep all
 
 LINTER = ./bin/golangci-lint
 GOLANGCI_LINT_VERSION = v1.62.0 # Change this to the desired version
@@ -78,9 +78,8 @@ e2e-test-stuffs:
 	go build -o $(E2E_TEST_PRD_PLUGIN_DIR)/binance $(PLUGIN_SRC_DIR)/binance/binance.go
 	chmod +x $(E2E_TEST_PRD_PLUGIN_DIR)/binance
 
-	# build amm and dex plugins for e2e test.
+	# build amm plugin for e2e test.
 	go build -o $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/uniswap_usdcx/crypto_uniswap_usdcx.go
-	go build -o $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_airswap $(PLUGIN_SRC_DIR)/crypto_airswap/crypto_airswap.go
 	chmod +x $(E2E_TEST_CRYPTO_PLUGIN_DIR)/*
 
     # build bakerloo simulator plugin for e2e test.
@@ -114,11 +113,6 @@ cex-plugins:
 	go build -o $(PLUGIN_DIR)/crypto_coinbase $(PLUGIN_SRC_DIR)/crypto_coinbase/crypto_coinbase.go
 	go build -o $(PLUGIN_DIR)/crypto_coingecko $(PLUGIN_SRC_DIR)/crypto_coingecko/crypto_coingecko.go
 	go build -o $(PLUGIN_DIR)/crypto_kraken $(PLUGIN_SRC_DIR)/crypto_kraken/crypto_kraken.go
-	chmod +x $(PLUGIN_DIR)/*
-
-# dex plugins are not officially release yet.
-dex-plugins:
-	go build -o $(PLUGIN_DIR)/crypto_airswap $(PLUGIN_SRC_DIR)/crypto_airswap/crypto_airswap.go
 	chmod +x $(PLUGIN_DIR)/*
 
 # amm plugins are not officially release yet.
