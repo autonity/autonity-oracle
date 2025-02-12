@@ -419,7 +419,7 @@ func (tc *TemplateClient) FetchPrice(symbols []string) (common.Prices, error) {
 			return nil, err
 		}
 
-		tc.logger.Info("binance", "data", prices)
+		tc.logger.Info("template_plugin", "data", prices)
 	*/
 
 	// in this template, we just return fix values.
