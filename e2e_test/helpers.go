@@ -36,7 +36,6 @@ var (
 	outlierPlugDir     = "./plugins/outlier_plugins"
 	forexPlugDir       = "./plugins/forex_plugins"
 	cryptoPlugDir      = "./plugins/crypto_plugins"
-	binancePlugDir     = "./plugins/production_plugins"
 	simulatorPlugDir   = "./plugins/simulator_plugins"
 	mixPluginDir       = "./plugins/mix_plugins"
 	defaultGenesis     = "./autonity_l1_config/genesis_template.json"

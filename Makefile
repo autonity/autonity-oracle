@@ -12,7 +12,6 @@ CONF_FILE = ./config/oracle_config.yml
 E2E_TEST_DIR = ./e2e_test
 E2E_TEST_PLUGIN_DIR = $(E2E_TEST_DIR)/plugins
 E2E_TEST_TEMPLATE_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/template_plugins
-E2E_TEST_PRD_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/production_plugins
 E2E_TEST_SML_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/simulator_plugins
 E2E_TEST_OUTLIER_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/outlier_plugins
 E2E_TEST_MIX_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/mix_plugins
@@ -44,7 +43,6 @@ mkdir:
 	mkdir -p $(SIMULATOR_BIN_DIR)
 	mkdir -p $(E2E_TEST_PLUGIN_DIR)
 	mkdir -p $(E2E_TEST_TEMPLATE_PLUGIN_DIR)
-	mkdir -p $(E2E_TEST_PRD_PLUGIN_DIR)
 	mkdir -p $(E2E_TEST_SML_PLUGIN_DIR)
 	mkdir -p $(E2E_TEST_MIX_PLUGIN_DIR)
 	mkdir -p $(E2E_TEST_FOREX_PLUGIN_DIR)
@@ -73,10 +71,6 @@ e2e-test-stuffs:
     # build simulator for e2e test
 	go build -o $(E2E_TEST_DIR)/simulator $(SIMULATOR_SRC_DIR)/main.go
 	chmod +x $(E2E_TEST_DIR)/simulator
-
-	# build binance plugin for e2e test.
-	go build -o $(E2E_TEST_PRD_PLUGIN_DIR)/binance $(PLUGIN_SRC_DIR)/binance/binance.go
-	chmod +x $(E2E_TEST_PRD_PLUGIN_DIR)/binance
 
 	# build amm plugin for e2e test.
 	go build -o $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/uniswap_usdcx/crypto_uniswap_usdcx.go
@@ -119,13 +113,6 @@ cex-plugins:
 amm-plugins:
 	go build -o $(PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/uniswap_usdcx/crypto_uniswap_usdcx.go
 	chmod +x $(PLUGIN_DIR)/*
-
-# legacy piccadilly cax plugin, it sources order books from a CEX service built in python.
-piccadilly-cax-plugin:
-	go build -o $(PLUGIN_DIR)/pcgc_cax $(PLUGIN_SRC_DIR)/pcgc_cax/
-	chmod +x $(PLUGIN_DIR)/pcgc_cax
-	# cp autonity round4 game PCGC CAX plugins for e2e testing
-	cp $(PLUGIN_DIR)/pcgc_cax $(E2E_TEST_CRYPTO_PLUGIN_DIR)/pcgc_cax
 
 # build ATN-USDC, NTN-USDC, NTN-ATN data point simulator binary
 crypto_source_simulator:

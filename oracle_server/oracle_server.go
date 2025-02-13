@@ -384,8 +384,6 @@ func (os *OracleServer) checkHealth() {
 		os.lostSync = false
 		return
 	}
-
-	os.logger.Debug("checking heart beat", "current round", os.curRound)
 }
 
 func (os *OracleServer) isVoter() (bool, error) {
@@ -917,6 +915,9 @@ func (os *OracleServer) Start() {
 				os.subPenalizedEvent.Unsubscribe()
 			}
 		case <-os.psTicker.C:
+			// shorten the health checker, if we have L1 connectivity issue, try to repair it before pre sampling starts.
+			os.checkHealth()
+
 			preSampleTS := time.Now().Unix()
 			err := os.handlePreSampling(preSampleTS)
 			if err != nil {
@@ -987,8 +988,8 @@ func (os *OracleServer) Start() {
 			os.logger.Info("handle new symbols", "new symbols", newSymbolEvent.Symbols, "activate at round", newSymbolEvent.Round)
 			os.handleNewSymbolsEvent(newSymbolEvent.Symbols)
 		case <-os.regularTicker.C:
-			os.checkHealth()
 			os.gcRoundData()
+			os.logger.Debug("round rotation", "current oracle round", os.curRound)
 		}
 	}
 }
@@ -1145,7 +1146,8 @@ func ComputeConfidence(symbol string, numOfSamples, strategy int) uint8 {
 		return MaxConfidence
 	}
 
-	// Forex currencies with linear strategy.
+	// Forex currencies with "linear" strategy. Labeled "linear" but uses exponential scaling (1.75^n) since we
+	// are at the network bootstrapping phase with very limited number of data sources.
 	weight := BaseConfidence + SourceScalingFactor*uint64(math.Pow(1.75, float64(numOfSamples)))
 
 	if weight > MaxConfidence {
@@ -1155,9 +1157,9 @@ func ComputeConfidence(symbol string, numOfSamples, strategy int) uint8 {
 	return uint8(weight) //nolint
 }
 
+// by according to the spreading of price timestamp from the target timestamp,
+// we reduce the confidence of the price, set the lowest confidence as 1.
 func confidenceAdjustedPrice(historicRoundPrice *types.Price, target int64) (*types.Price, error) {
-	// by according to the spreading of price timestamp from the target timestamp,
-	// we reduce the confidence of the price, set the lowest confidence as 1.
 	// Calculate the time difference between the target timestamp and the historic price timestamp
 	timeDifference := target - historicRoundPrice.Timestamp
 

@@ -201,30 +201,6 @@ func TestAddCommitteeMember(t *testing.T) {
 	testNewValidatorJoinToCommittee(t, network, client, o, aut, endRound, pricePrecision)
 }
 
-func TestHappyCaseWithBinanceDataService(t *testing.T) {
-	var netConf = &NetworkConfig{
-		EnableL1Logs: false,
-		Symbols:      []string{"BTC-USD", "BTC-USDC", "BTC-USDT", "BTC-USD4"},
-		VotePeriod:   defaultVotePeriod,
-		PluginDIRs:   []string{binancePlugDir, binancePlugDir, binancePlugDir, binancePlugDir},
-	}
-	network, err := createNetwork(netConf, numberOfValidators)
-	require.NoError(t, err)
-	defer network.Stop()
-
-	client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d", network.L1Nodes[0].Host, network.L1Nodes[0].WSPort))
-	require.NoError(t, err)
-	defer client.Close()
-
-	// bind client with oracle contract address
-	o, err := contract.NewOracle(types.OracleContractAddress, client)
-	require.NoError(t, err)
-
-	// first test happy case.
-	endRound := uint64(10)
-	testBinanceDataHappyCase(t, o, endRound)
-}
-
 func TestFeeRefund(t *testing.T) {
 	var netConf = &NetworkConfig{
 		EnableL1Logs: false,
@@ -817,36 +793,6 @@ func testRestartL1Node(t *testing.T, net *Network, index int, o *contract.Oracle
 		// verify result.
 		_, err = os.FindProcess(net.L2Nodes[index].Command.Process.Pid)
 		require.NoError(t, err)
-		break
-	}
-}
-
-func testBinanceDataHappyCase(t *testing.T, o *contract.Oracle, beforeRound uint64) {
-	for {
-		time.Sleep(1 * time.Minute)
-		round, err := o.GetRound(nil)
-		require.NoError(t, err)
-
-		// continue to wait until end round.
-		if round.Uint64() < beforeRound {
-			continue
-		}
-
-		symbols, err := o.GetSymbols(nil)
-		require.NoError(t, err)
-
-		// as current round is not finalized yet, thus the round data of it haven't being aggregate,
-		// thus we will query the last round's data for the verification.
-		lastRound := new(big.Int).SetUint64(round.Uint64() - 1)
-
-		// get last round data for each symbol.
-		for _, s := range symbols {
-			d, err := o.GetRoundData(nil, lastRound, s)
-			require.NoError(t, err)
-			require.NotEqual(t, uint64(0), d.Price.Uint64())
-			require.Equal(t, true, d.Success)
-		}
-
 		break
 	}
 }
