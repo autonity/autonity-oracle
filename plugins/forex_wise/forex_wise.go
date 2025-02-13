@@ -18,7 +18,6 @@ import (
 
 const (
 	version = "v0.2.0"
-	apiPath = "/v1/rates"
 )
 
 var defaultConfig = config.PluginConfig{
@@ -28,11 +27,6 @@ var defaultConfig = config.PluginConfig{
 	Endpoint:           "api.transferwise.com",
 	Timeout:            10, // Timeout in seconds
 	DataUpdateInterval: 30,
-}
-
-type Price struct {
-	Symbol string `json:"symbol"`
-	Price  string `json:"price"`
 }
 
 type WiseClient struct {
@@ -146,7 +140,7 @@ func (wc *WiseClient) FetchPrice(symbols []string) (common.Prices, error) {
 	return prices, nil
 }
 
-func (wl *WiseClient) symbolsToPrice(s string, res *WRResult) (common.Price, error) {
+func (wc *WiseClient) symbolsToPrice(s string, res *WRResult) (common.Price, error) {
 	var price common.Price
 	sep := common.ResolveSeparator(s)
 	codes := strings.Split(s, sep)
@@ -183,14 +177,7 @@ func (wl *WiseClient) symbolsToPrice(s string, res *WRResult) (common.Price, err
 
 // AvailableSymbols returns the supported symbols.
 func (wc *WiseClient) AvailableSymbols() ([]string, error) {
-	return []string{
-		"EUR-USD",
-		"JPY-USD",
-		"GBP-USD",
-		"AUD-USD",
-		"CAD-USD",
-		"SEK-USD",
-	}, nil
+	return common.DefaultForexSymbols, nil
 }
 
 func (wc *WiseClient) Close() {
