@@ -101,6 +101,7 @@ forex-plugins:
 	go build -o $(PLUGIN_DIR)/forex_currencylayer $(PLUGIN_SRC_DIR)/forex_currencylayer/forex_currencylayer.go
 	go build -o $(PLUGIN_DIR)/forex_exchangerate $(PLUGIN_SRC_DIR)/forex_exchangerate/forex_exchangerate.go
 	go build -o $(PLUGIN_DIR)/forex_openexchange $(PLUGIN_SRC_DIR)/forex_openexchange/forex_openexchange.go
+	go build -o $(PLUGIN_DIR)/forex_wise $(PLUGIN_SRC_DIR)/forex_wise/forex_wise.go	
 	chmod +x $(PLUGIN_DIR)/*
 
 cex-plugins:

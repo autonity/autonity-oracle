@@ -8,6 +8,7 @@ import (
 
 type Connection interface {
 	Request(scheme string, endpoint *url.URL) (*http.Response, error)
+	Do(req *http.Request) (*http.Response, error)
 	Close()
 }
 
@@ -43,6 +44,10 @@ func (conn *connection) Request(scheme string, endpoint *url.URL) (*http.Respons
 	endpoint.Host = conn.host
 	targetUrl := endpoint.String()
 	return conn.client.Get(targetUrl)
+}
+
+func (conn *connection) Do(req *http.Request) (*http.Response, error) {
+	return conn.client.Do(req)
 }
 
 type Client struct {

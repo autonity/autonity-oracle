@@ -85,6 +85,10 @@ confidenceStrategy: 0  # 0: linear, 1: fixed
 #  - name: forex_exchangerate                # required, it is the plugin file name in the plugin directory.
 #    key: 111f04e4775bb86c20296530           # required, visit https://www.exchangerate-api.com to get your key, and replace it.
 #    refresh: 3600                           # optional, buffered data within 3600s, recommended for API rate limited data source.
+
+#  - name: forex_wise                        # required, it is the plugin file name in the plugin directory.
+#    key: 1234                               # required, visit https://www.wise.com to get your key, and replace it.
+#    refresh: 30                             # optional, buffered data within 30s, recommended for API rate limited data source.
 # Un-comment below lines to config the RPC endpoint of a Piccadilly Network Full Node for your AMM plugin which sources ATN & NTN market data from an on-chain AMM.
 #  - name: crypto_uniswap
 #    scheme: "wss"                                          # Only websocket please, available values are: "ws" or "wss", default value is "wss" for uniswap plugins.
