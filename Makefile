@@ -2,18 +2,16 @@
 # with Go source code. If you know what GOPATH is then you probably
 # don't need to bother with make.
 
-.PHONY: mkdir oracle-server conf-file e2e-test-stuffs forex-plugins dex-plugins amm-plugins cex-plugins autoracle test e2e_test clean lint dep all
+.PHONY: mkdir oracle-server conf-file e2e-test-stuffs forex-plugins amm-plugins cex-plugins autoracle test e2e_test clean lint dep all
 
 LINTER = ./bin/golangci-lint
 GOLANGCI_LINT_VERSION = v1.62.0 # Change this to the desired version
 SOLC_VERSION = 0.8.2
 BIN_DIR = ./build/bin
-CONF_FILE = ./config/oracle-server.config
-PLUGIN_CONF_FILE = ./config/plugins-conf.yml
+CONF_FILE = ./config/oracle_config.yml
 E2E_TEST_DIR = ./e2e_test
 E2E_TEST_PLUGIN_DIR = $(E2E_TEST_DIR)/plugins
 E2E_TEST_TEMPLATE_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/template_plugins
-E2E_TEST_PRD_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/production_plugins
 E2E_TEST_SML_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/simulator_plugins
 E2E_TEST_OUTLIER_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/outlier_plugins
 E2E_TEST_MIX_PLUGIN_DIR = $(E2E_TEST_PLUGIN_DIR)/mix_plugins
@@ -45,7 +43,6 @@ mkdir:
 	mkdir -p $(SIMULATOR_BIN_DIR)
 	mkdir -p $(E2E_TEST_PLUGIN_DIR)
 	mkdir -p $(E2E_TEST_TEMPLATE_PLUGIN_DIR)
-	mkdir -p $(E2E_TEST_PRD_PLUGIN_DIR)
 	mkdir -p $(E2E_TEST_SML_PLUGIN_DIR)
 	mkdir -p $(E2E_TEST_MIX_PLUGIN_DIR)
 	mkdir -p $(E2E_TEST_FOREX_PLUGIN_DIR)
@@ -59,15 +56,15 @@ oracle-server:
 	cp $(BIN_DIR)/autoracle $(E2E_TEST_DIR)/autoracle
 
 conf-file:
-    # copy example plugin-conf
-	cp $(PLUGIN_CONF_FILE) $(BIN_DIR)
-	# copy example oracle-server.conf
+	# copy example oracle_config.yml
 	cp $(CONF_FILE) $(BIN_DIR)
 
 e2e-test-stuffs:
-    # build template plugin for e2e test
+    # build template plugin for e2e test and unit test.
+	go build -o $(PLUGIN_SRC_DIR)/template_plugin/bin/template_plugin $(PLUGIN_SRC_DIR)/template_plugin/template_plugin.go
 	go build -o $(E2E_TEST_MIX_PLUGIN_DIR)/template_plugin $(PLUGIN_SRC_DIR)/template_plugin/template_plugin.go
 	go build -o $(E2E_TEST_TEMPLATE_PLUGIN_DIR)/template_plugin $(PLUGIN_SRC_DIR)/template_plugin/template_plugin.go
+	chmod +x $(PLUGIN_SRC_DIR)/template_plugin/bin/template_plugin
 	chmod +x $(E2E_TEST_MIX_PLUGIN_DIR)/template_plugin
 	chmod +x $(E2E_TEST_TEMPLATE_PLUGIN_DIR)/template_plugin
 
@@ -75,22 +72,12 @@ e2e-test-stuffs:
 	go build -o $(E2E_TEST_DIR)/simulator $(SIMULATOR_SRC_DIR)/main.go
 	chmod +x $(E2E_TEST_DIR)/simulator
 
-	# build binance plugin for e2e test.
-	go build -o $(E2E_TEST_PRD_PLUGIN_DIR)/binance $(PLUGIN_SRC_DIR)/binance/binance.go
-	chmod +x $(E2E_TEST_PRD_PLUGIN_DIR)/binance
-
-	# build amm and dex plugins for e2e test.
-	go build -o $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/crypto_uniswap.go
-	go build -o $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_airswap $(PLUGIN_SRC_DIR)/crypto_airswap/crypto_airswap.go
+	# build amm plugin for e2e test.
+	go build -o $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/uniswap_usdcx/crypto_uniswap_usdcx.go
 	chmod +x $(E2E_TEST_CRYPTO_PLUGIN_DIR)/*
 
     # build bakerloo simulator plugin for e2e test.
-	go build -o $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go
-	chmod +x $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin
-	cp  $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin $(E2E_TEST_MIX_PLUGIN_DIR)/simulator_plugin
-
-    # build bakerloo simulator plugin for e2e test.
-	go build -o $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go
+	go build -o $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/bakerloo/simulator_plugin.go
 	chmod +x $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin
 	cp  $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin $(E2E_TEST_MIX_PLUGIN_DIR)/simulator_plugin
 
@@ -114,6 +101,7 @@ forex-plugins:
 	go build -o $(PLUGIN_DIR)/forex_currencylayer $(PLUGIN_SRC_DIR)/forex_currencylayer/forex_currencylayer.go
 	go build -o $(PLUGIN_DIR)/forex_exchangerate $(PLUGIN_SRC_DIR)/forex_exchangerate/forex_exchangerate.go
 	go build -o $(PLUGIN_DIR)/forex_openexchange $(PLUGIN_SRC_DIR)/forex_openexchange/forex_openexchange.go
+	go build -o $(PLUGIN_DIR)/forex_wise $(PLUGIN_SRC_DIR)/forex_wise/forex_wise.go	
 	chmod +x $(PLUGIN_DIR)/*
 
 cex-plugins:
@@ -122,22 +110,10 @@ cex-plugins:
 	go build -o $(PLUGIN_DIR)/crypto_kraken $(PLUGIN_SRC_DIR)/crypto_kraken/crypto_kraken.go
 	chmod +x $(PLUGIN_DIR)/*
 
-# dex plugins are not officially release yet.
-dex-plugins:
-	go build -o $(PLUGIN_DIR)/crypto_airswap $(PLUGIN_SRC_DIR)/crypto_airswap/crypto_airswap.go
-	chmod +x $(PLUGIN_DIR)/*
-
 # amm plugins are not officially release yet.
 amm-plugins:
-	go build -o $(PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/crypto_uniswap.go
+	go build -o $(PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/uniswap_usdcx/crypto_uniswap_usdcx.go
 	chmod +x $(PLUGIN_DIR)/*
-
-# legacy piccadilly cax plugin, it sources order books from a CEX service built in python.
-piccadilly-cax-plugin:
-	go build -o $(PLUGIN_DIR)/pcgc_cax $(PLUGIN_SRC_DIR)/pcgc_cax/
-	chmod +x $(PLUGIN_DIR)/pcgc_cax
-	# cp autonity round4 game PCGC CAX plugins for e2e testing
-	cp $(PLUGIN_DIR)/pcgc_cax $(E2E_TEST_CRYPTO_PLUGIN_DIR)/pcgc_cax
 
 # build ATN-USDC, NTN-USDC, NTN-ATN data point simulator binary
 crypto_source_simulator:
@@ -146,12 +122,12 @@ crypto_source_simulator:
 
 # build simulator plugin for bakerloo network.
 bakerloo-sim-plugin:
-	go build -o $(PLUGIN_DIR)/simulator_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go
+	go build -o $(PLUGIN_DIR)/simulator_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/bakerloo/simulator_plugin.go
 	chmod +x $(PLUGIN_DIR)/simulator_plugin
 
 # build simulator plugin for piccadilly network.
 piccadilly-sim-plugin:
-	go build -o $(PLUGIN_DIR)/simulator_plugin -tags pic $(PLUGIN_SRC_DIR)/simulator_plugin/simulator_plugin.go
+	go build -o $(PLUGIN_DIR)/simulator_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/piccadilly/simulator_plugin.go
 	chmod +x $(PLUGIN_DIR)/simulator_plugin
 
 # build the whole components for bakerloo network.

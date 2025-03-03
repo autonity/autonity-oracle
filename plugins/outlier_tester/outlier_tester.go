@@ -1,6 +1,7 @@
 package main
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/helpers"
 	"autonity-oracle/plugins/common"
 	"autonity-oracle/types"
@@ -8,6 +9,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"github.com/shopspring/decimal"
+	"math/big"
 	"os"
 	"time"
 )
@@ -16,7 +18,7 @@ const (
 	version = "v0.2.0"
 )
 
-var defaultConfig = types.PluginConfig{
+var defaultConfig = config.PluginConfig{
 	Name:               "outlier_tester_plugin",
 	Timeout:            10, //10s
 	DataUpdateInterval: 30, //30s
@@ -30,11 +32,11 @@ type OutlierTesterPlugin struct {
 	symbolSeparator  string
 	logger           hclog.Logger
 	client           common.DataSourceClient
-	conf             *types.PluginConfig
+	conf             *config.PluginConfig
 	cachePrices      map[string]types.Price
 }
 
-func NewOutlierPlugin(conf *types.PluginConfig, client common.DataSourceClient, version string) *OutlierTesterPlugin {
+func NewOutlierPlugin(conf *config.PluginConfig, client common.DataSourceClient, version string) *OutlierTesterPlugin {
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:       conf.Name,
 		Level:      hclog.Info,
@@ -76,16 +78,23 @@ func (g *OutlierTesterPlugin) FetchPrices(symbols []string) (types.PluginPriceRe
 
 	now := time.Now().Unix()
 	for _, v := range res {
-		dec, err := decimal.NewFromString(v.Price)
+		decPrice, err := decimal.NewFromString(v.Price)
 		if err != nil {
 			g.logger.Error("cannot convert price string to decimal: ", "price", v.Price, "error", err.Error())
+			continue
+		}
+
+		decVol, ok := new(big.Int).SetString(v.Volume, 0)
+		if !ok {
+			g.logger.Error("cannot convert volume to big.Int: ", "volume", v.Volume)
 			continue
 		}
 
 		pr := types.Price{
 			Timestamp: now,
 			Symbol:    availableSymMap[v.Symbol], // set the symbol with the symbol style used in oracle server side.
-			Price:     dec,
+			Price:     decPrice,
+			Volume:    decVol,
 		}
 		g.cachePrices[v.Symbol] = pr
 		report.Prices = append(report.Prices, pr)
@@ -94,8 +103,8 @@ func (g *OutlierTesterPlugin) FetchPrices(symbols []string) (types.PluginPriceRe
 	return report, nil
 }
 
-func (g *OutlierTesterPlugin) State() (types.PluginState, error) {
-	var state types.PluginState
+func (g *OutlierTesterPlugin) State(_ int64) (types.PluginStatement, error) {
+	var state types.PluginStatement
 
 	symbols, err := g.client.AvailableSymbols()
 	if err != nil {
@@ -123,7 +132,8 @@ func (g *OutlierTesterPlugin) State() (types.PluginState, error) {
 	state.KeyRequired = g.client.KeyRequired()
 	state.Version = g.version
 	state.AvailableSymbols = symbols
-
+	state.DataSource = g.conf.Scheme + "://" + g.conf.Endpoint
+	state.DataSourceType = types.SrcCEX
 	return state, nil
 }
 
@@ -173,12 +183,12 @@ func (g *OutlierTesterPlugin) resolveSymbols(askedSymbols []string) ([]string, [
 }
 
 type OutlierClient struct {
-	conf   *types.PluginConfig
+	conf   *config.PluginConfig
 	client *common.Client
 	logger hclog.Logger
 }
 
-func NewOutlierClient(conf *types.PluginConfig) *OutlierClient {
+func NewOutlierClient(conf *config.PluginConfig) *OutlierClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   conf.Name,
@@ -199,6 +209,7 @@ func (tc *OutlierClient) FetchPrice(symbols []string) (common.Prices, error) {
 	var prices common.Prices
 	for _, s := range symbols {
 		var price common.Price
+		price.Volume = types.DefaultVolume.String()
 		price.Symbol = s
 		// it is a malicious behaviour to set the price into an outlier range by multiply with 3.0
 		p := helpers.ResolveSimulatedPrice(s).Mul(decimal.RequireFromString("3.0"))
@@ -213,7 +224,7 @@ func (tc *OutlierClient) FetchPrice(symbols []string) (common.Prices, error) {
 func (tc *OutlierClient) AvailableSymbols() ([]string, error) {
 	res := append(common.DefaultForexSymbols, common.DefaultCryptoSymbols...)
 	res = append(res, common.DefaultUSDCSymbol)
-	res = append(res, types.SymbolBTCETH)
+	res = append(res, helpers.SymbolBTCETH)
 	res = append(res, []string{"ATN-USD", "NTN-USD"}...)
 	return res, nil
 }

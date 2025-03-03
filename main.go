@@ -1,17 +1,17 @@
 package main
 
 import (
+	"autonity-oracle/config"
+	contract "autonity-oracle/contract_binder/contract"
+	"autonity-oracle/monitor"
+	"autonity-oracle/oracle_server"
+	"autonity-oracle/types"
+	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/ethereum/go-ethereum/metrics/influxdb"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
-
-	"autonity-oracle/config"
-	contract "autonity-oracle/contract_binder/contract"
-	"autonity-oracle/helpers"
-	"autonity-oracle/monitor"
-	"autonity-oracle/oracle_server"
-	"autonity-oracle/types"
 )
 
 func main() { //nolint
@@ -24,14 +24,12 @@ func main() { //nolint
 	client, err := dialer.Dial(conf.AutonityWSUrl)
 	if err != nil {
 		log.Printf("cannot connect to Autonity network via web socket: %s", err.Error())
-		helpers.PrintUsage()
 		os.Exit(1)
 	}
 
 	oc, err := contract.NewOracle(types.OracleContractAddress, client)
 	if err != nil {
 		log.Printf("cannot bind to oracle contract in Autonity network via web socket: %s", err.Error())
-		helpers.PrintUsage()
 		os.Exit(1)
 	}
 
@@ -40,8 +38,39 @@ func main() { //nolint
 	defer oracle.Stop()
 
 	monitorConfig := monitor.DefaultMonitorConfig
-	ms := monitor.New(&monitorConfig, config.DefaultProfileDir)
+	ms := monitor.New(&monitorConfig, conf.ProfileDir)
 	ms.Start()
+
+	// start metrics reporter if it is enabled.
+	tagsMap := config.SplitTagsFlag(conf.MetricConfigs.InfluxDBTags)
+	if conf.MetricConfigs.EnableInfluxDB {
+		metrics.Enabled = true
+		log.Printf("InfluxDB metrics enabled")
+		go influxdb.InfluxDBWithTags(metrics.DefaultRegistry,
+			config.MetricsInterval,
+			conf.MetricConfigs.InfluxDBEndpoint,
+			conf.MetricConfigs.InfluxDBDatabase,
+			conf.MetricConfigs.InfluxDBUsername,
+			conf.MetricConfigs.InfluxDBPassword,
+			config.MetricsNameSpace, tagsMap)
+
+		// Start system runtime metrics collection
+		go metrics.CollectProcessMetrics(config.MetricsInterval)
+	} else if conf.MetricConfigs.EnableInfluxDBV2 {
+		metrics.Enabled = true
+		log.Printf("InfluxDBV2 metrics enabled")
+		go influxdb.InfluxDBV2WithTags(metrics.DefaultRegistry,
+			config.MetricsInterval,
+			conf.MetricConfigs.InfluxDBEndpoint,
+			conf.MetricConfigs.InfluxDBToken,
+			conf.MetricConfigs.InfluxDBBucket,
+			conf.MetricConfigs.InfluxDBOrganization,
+			config.MetricsNameSpace, tagsMap)
+
+		// Start system runtime metrics collection
+		go metrics.CollectProcessMetrics(config.MetricsInterval)
+	}
+
 	// Wait for interrupt signal to gracefully shut down the server with
 	// a timeout of 5 seconds.
 	quit := make(chan os.Signal, 1)

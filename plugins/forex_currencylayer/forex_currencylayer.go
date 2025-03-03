@@ -1,6 +1,7 @@
 package main
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/plugins/common"
 	"autonity-oracle/types"
 	"encoding/json"
@@ -20,7 +21,7 @@ const (
 	accessKey = "access_key"
 )
 
-var defaultConfig = types.PluginConfig{
+var defaultConfig = config.PluginConfig{
 	Name:               "forex_currencylayer",
 	Key:                "",
 	Scheme:             "http",
@@ -48,12 +49,12 @@ type Quotes struct {
 }
 
 type CLClient struct {
-	conf   *types.PluginConfig
+	conf   *config.PluginConfig
 	client *common.Client
 	logger hclog.Logger
 }
 
-func NewCLClient(conf *types.PluginConfig) *CLClient {
+func NewCLClient(conf *config.PluginConfig) *CLClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   conf.Name,
@@ -138,6 +139,7 @@ func (cl *CLClient) symbolsToPrice(s string, res *CLResult) (common.Price, error
 	}
 
 	price.Symbol = s
+	price.Volume = types.DefaultVolume.String()
 	switch from {
 	case "EUR":
 		price.Price = decimal.NewFromInt(1).Div(res.Quotes.USDEUR).String()
@@ -170,7 +172,7 @@ func (cl *CLClient) buildURL(apiKey string) *url.URL {
 
 func main() {
 	conf := common.ResolveConf(os.Args[0], &defaultConfig)
-	adapter := common.NewPlugin(conf, NewCLClient(conf), version)
+	adapter := common.NewPlugin(conf, NewCLClient(conf), version, types.SrcCEX, nil)
 	defer adapter.Close()
 	common.PluginServe(adapter)
 }

@@ -1,40 +1,36 @@
 package helpers
 
 import (
-	"autonity-oracle/types"
 	"encoding/csv"
+	"errors"
 	"fmt"
-	"github.com/namsral/flag"
 	"github.com/shopspring/decimal"
 	"io"
 	"io/fs"
 	"io/ioutil" //nolint
+	"math/big"
 	"os"
 	"sort"
 )
 
 var (
-	pEURUSD  = decimal.RequireFromString("1.086")
-	pJPYUSD  = decimal.RequireFromString("0.0073")
-	pGBPUSD  = decimal.RequireFromString("1.25")
-	pAUDUSD  = decimal.RequireFromString("0.67")
-	pCADUSD  = decimal.RequireFromString("0.74")
-	pSEKUSD  = decimal.RequireFromString("0.096")
-	pATNUSD  = decimal.RequireFromString("1.0")
-	pUSDCUSD = decimal.RequireFromString("1.0")
-	pNTNUSD  = decimal.RequireFromString("10.0")
-	pBTCETH  = decimal.RequireFromString("29.41")
+	pEURUSD        = decimal.RequireFromString("1.086")
+	pJPYUSD        = decimal.RequireFromString("0.0073")
+	pGBPUSD        = decimal.RequireFromString("1.25")
+	pAUDUSD        = decimal.RequireFromString("0.67")
+	pCADUSD        = decimal.RequireFromString("0.74")
+	pSEKUSD        = decimal.RequireFromString("0.096")
+	pATNUSD        = decimal.RequireFromString("1.0")
+	pUSDCUSD       = decimal.RequireFromString("1.0")
+	pNTNUSD        = decimal.RequireFromString("10.0")
+	pBTCETH        = decimal.RequireFromString("29.41")
+	simulatedPrice = decimal.RequireFromString("11.11")
+	SymbolBTCETH   = "BTC-ETH" // for simulation and tests only.
+	DefaultSymbols = []string{"AUD-USD", "CAD-USD", "EUR-USD", "GBP-USD", "JPY-USD", "SEK-USD", "ATN-USD", "NTN-USD", "NTN-ATN"}
 )
 
-func PrintUsage() {
-	fmt.Print("Usage of Autonity Oracle Server:\n")
-	fmt.Print("Sub commands: \n  version: print the version of the oracle server.\n")
-	fmt.Print("Flags:\n")
-	flag.PrintDefaults()
-}
-
 func ResolveSimulatedPrice(s string) decimal.Decimal {
-	defaultPrice := types.SimulatedPrice
+	defaultPrice := simulatedPrice
 	switch s {
 	case "EUR-USD":
 		defaultPrice = pEURUSD
@@ -58,7 +54,7 @@ func ResolveSimulatedPrice(s string) decimal.Decimal {
 		defaultPrice = pNTNUSD
 	case "USDC-USD":
 		defaultPrice = pUSDCUSD
-	case types.SymbolBTCETH:
+	case SymbolBTCETH:
 		defaultPrice = pBTCETH
 	}
 	return defaultPrice
@@ -104,24 +100,61 @@ func Median(prices []decimal.Decimal) (decimal.Decimal, error) {
 	return prices[l/2], nil
 }
 
-func ListPlugins(path string) ([]fs.FileInfo, error) {
-	var plugins []fs.FileInfo
+// VWAP computes the volume weighted average price for the input prices with their corresponding volumes
+func VWAP(prices []decimal.Decimal, volumes []*big.Int) (decimal.Decimal, *big.Int, error) {
+	if len(prices) == 0 || len(volumes) == 0 || len(prices) != len(volumes) {
+		return decimal.Zero, nil, errors.New("prices and volumes must be of the same non-zero length")
+	}
+
+	var totalWeightedPrice decimal.Decimal
+	totalVolume := big.NewInt(0)
+	highestVol := new(big.Int).Set(volumes[0])
+
+	for i := range prices {
+		if volumes[i].Cmp(highestVol) > 0 {
+			highestVol.Set(volumes[i])
+		}
+
+		// Convert volume to decimal.Decimal
+		volumeDecimal := decimal.NewFromBigInt(volumes[i], 0)
+
+		// Calculate weighted price for current price and volume
+		weightedPrice := prices[i].Mul(volumeDecimal) // Use decimal.Decimal for precision
+		totalWeightedPrice = totalWeightedPrice.Add(weightedPrice)
+
+		// Accumulate total volume
+		totalVolume.Add(totalVolume, volumes[i])
+	}
+
+	// Avoid division by zero
+	if totalVolume.Cmp(big.NewInt(0)) == 0 {
+		return decimal.Zero, nil, errors.New("total volume cannot be zero")
+	}
+
+	// Calculate VWAP
+	vwap := totalWeightedPrice.Div(decimal.NewFromBigInt(totalVolume, 0))
+	return vwap, highestVol, nil
+}
+
+// ListPlugins returns a mapping of file names to fs.FileInfo for executable files in the specified path.
+func ListPlugins(path string) (map[string]fs.FileInfo, error) {
+	plugins := make(map[string]fs.FileInfo)
+
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, file := range files {
-		f := file
-		if f.IsDir() {
+		if file.IsDir() {
 			continue
 		}
-		// only executable binaries are returned.
-		if !IsExecOwnerGroup(f.Mode()) {
+		// Only executable binaries are returned.
+		if !IsExecOwnerGroup(file.Mode()) {
 			continue
 		}
 
-		plugins = append(plugins, f)
+		plugins[file.Name()] = file
 	}
 	return plugins, nil
 }

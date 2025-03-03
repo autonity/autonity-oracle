@@ -7,6 +7,7 @@ run:
   skip-dirs-use-default: true
   skip-dirs:
     - e2e_test
+    - metrics
 
 modules-download-mode: readonly
 
@@ -43,3 +44,10 @@ issues:
     - path: '(.+)_test\.go'
       linters:
         - deadcode
+    - path: metrics/
+      linters:
+        - errcheck
+        - goconst
+        - gosec
+        - govet
+        - staticcheck

@@ -2,6 +2,7 @@ package pluginwrapper
 
 import (
 	"autonity-oracle/types"
+	"github.com/hashicorp/go-hclog"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -11,8 +12,10 @@ import (
 func TestPluginWrapper(t *testing.T) {
 	t.Run("test finding nearest data sample", func(t *testing.T) {
 		p := PluginWrapper{
+			logger:           hclog.NewNullLogger(),
 			samples:          make(map[string]map[int64]types.Price),
 			latestTimestamps: make(map[string]int64),
+			dataSrcType:      types.SrcCEX,
 		}
 
 		now := time.Now().Unix()
@@ -31,48 +34,48 @@ func TestPluginWrapper(t *testing.T) {
 		}
 
 		target := now
-		price, err := p.GetSample("NTNGBP", target)
+		price, err := p.AggregatedPrice("NTNGBP", target)
 		require.NoError(t, err)
 		require.Equal(t, now, price.Timestamp)
 
 		// upper bound
 		target = now + 100
-		price, err = p.GetSample("NTNGBP", target)
+		price, err = p.AggregatedPrice("NTNGBP", target)
 		require.NoError(t, err)
 		require.Equal(t, now+59, price.Timestamp)
 
 		// lower bound
 		target = now - 1
-		price, err = p.GetSample("NTNGBP", target)
+		price, err = p.AggregatedPrice("NTNGBP", target)
 		require.NoError(t, err)
 		require.Equal(t, now, price.Timestamp)
 
 		// middle
 		target = now + 29
-		price, err = p.GetSample("NTNGBP", target)
+		price, err = p.AggregatedPrice("NTNGBP", target)
 		require.NoError(t, err)
 		require.Equal(t, now+28, price.Timestamp)
 
 		// middle
 		target = now + 33
-		price, err = p.GetSample("NTNGBP", target)
+		price, err = p.AggregatedPrice("NTNGBP", target)
 		require.NoError(t, err)
 		require.Equal(t, now+35, price.Timestamp)
 
 		// middle
 		target = now + 34
-		price, err = p.GetSample("NTNGBP", target)
+		price, err = p.AggregatedPrice("NTNGBP", target)
 		require.NoError(t, err)
 		require.Equal(t, now+35, price.Timestamp)
 
 		// middle
 		target = now + 35
-		price, err = p.GetSample("NTNGBP", target)
+		price, err = p.AggregatedPrice("NTNGBP", target)
 		require.NoError(t, err)
 		require.Equal(t, now+35, price.Timestamp)
 
 		// test gc, at least 1 sample is kept in the cache.
-		p.GCSamples()
+		p.GCExpiredSamples()
 		require.Equal(t, 1, len(p.samples))
 	})
 }

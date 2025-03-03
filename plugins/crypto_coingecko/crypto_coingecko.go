@@ -1,6 +1,7 @@
 package main
 
 import (
+	"autonity-oracle/config"
 	"autonity-oracle/plugins/common"
 	"autonity-oracle/types"
 	"encoding/json"
@@ -21,7 +22,7 @@ const (
 	quote        = "usd"
 )
 
-var defaultConfig = types.PluginConfig{
+var defaultConfig = config.PluginConfig{
 	Name:               "crypto_coingecko",
 	Key:                "",
 	Scheme:             "https",
@@ -39,12 +40,12 @@ type Response struct {
 }
 
 type CoinGeckoClient struct {
-	conf   *types.PluginConfig
+	conf   *config.PluginConfig
 	client *common.Client
 	logger hclog.Logger
 }
 
-func NewCoinGeckoClient(conf *types.PluginConfig) *CoinGeckoClient {
+func NewCoinGeckoClient(conf *config.PluginConfig) *CoinGeckoClient {
 	client := common.NewClient(conf.Key, time.Second*time.Duration(conf.Timeout), conf.Endpoint)
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   conf.Name,
@@ -88,6 +89,7 @@ func (c *CoinGeckoClient) FetchPrice(_ []string) (common.Prices, error) {
 	prices = append(prices, common.Price{
 		Symbol: common.DefaultUSDCSymbol,
 		Price:  strconv.FormatFloat(result.USDCoin.USD, 'f', 6, 64),
+		Volume: types.DefaultVolume.String(),
 	})
 
 	return prices, nil
@@ -113,7 +115,7 @@ func (c *CoinGeckoClient) buildURL() *url.URL {
 
 func main() {
 	conf := common.ResolveConf(os.Args[0], &defaultConfig)
-	adapter := common.NewPlugin(conf, NewCoinGeckoClient(conf), version)
+	adapter := common.NewPlugin(conf, NewCoinGeckoClient(conf), version, types.SrcCEX, nil)
 	defer adapter.Close()
 	common.PluginServe(adapter)
 }

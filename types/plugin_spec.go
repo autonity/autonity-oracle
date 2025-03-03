@@ -8,6 +8,15 @@ import (
 // This file defines the autonity oracle plugins specification on top of go-plugin framework which leverage the localhost
 // net rpc, or grpc for plugin integrations.
 
+// DataSourceType is used by oracle server to aggregate pre-samples with different strategy.
+type DataSourceType int
+
+const (
+	SrcAMM DataSourceType = iota
+	SrcCEX
+	SrcAFQ
+)
+
 // HandshakeConfig are used to just do a basic handshake between
 // a plugin and host. If the handshake fails, a user-friendly error is shown.
 // This prevents users from executing bad plugins or executing a plugin
@@ -25,12 +34,13 @@ type PluginPriceReport struct {
 	UnRecognizableSymbols []string
 }
 
-// PluginState is the returned data when the oracle host want to initialise the plugin with basic information: version,
-// and available symbols that the data source support.
-type PluginState struct {
+// PluginStatement is the returned when the oracle server loads a plugin.
+type PluginStatement struct {
 	KeyRequired      bool
 	Version          string
+	DataSource       string
 	AvailableSymbols []string
+	DataSourceType   DataSourceType
 }
 
 // Adapter is the interface that we're exposing as a plugin.
@@ -40,9 +50,11 @@ type Adapter interface {
 	// one need to filter invalid symbols to make sure valid symbol's data be collected. The return PluginPriceReport
 	// contains the valid symbols' prices and a set of invalid symbols.
 	FetchPrices(symbols []string) (PluginPriceReport, error)
-	// State is called by oracle server to instantiate a plugin, it returns the plugin's version and a set of symbol that
-	// the data source support, this information is just used for logging at the bootstrap phase of a plugin.
-	State() (PluginState, error)
+	// State is called by oracle server to get the statement of a plugin, it returns the plugin's statement of their version,
+	// supported symbols, datasource, data source type, and if a key is required. It also checks the chainID from plugin
+	// side to determine if it is compatible to run the plugin with current L1 blockchain, it would stop to start if the
+	// chain ID is mismatched.
+	State(chainID int64) (PluginStatement, error)
 }
 
 // AdapterRPCClient is an implementation that talks over RPC client
@@ -58,9 +70,9 @@ func (g *AdapterRPCClient) FetchPrices(symbols []string) (PluginPriceReport, err
 	return resp, nil
 }
 
-func (g *AdapterRPCClient) State() (PluginState, error) {
-	var resp PluginState
-	err := g.client.Call("Plugin.State", new(interface{}), &resp)
+func (g *AdapterRPCClient) State(chainID int64) (PluginStatement, error) {
+	var resp PluginStatement
+	err := g.client.Call("Plugin.State", chainID, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -80,8 +92,8 @@ func (s *AdapterRPCServer) FetchPrices(symbols []string, resp *PluginPriceReport
 	return err
 }
 
-func (s *AdapterRPCServer) State(args interface{}, resp *PluginState) error {
-	v, err := s.Impl.State()
+func (s *AdapterRPCServer) State(chainID int64, resp *PluginStatement) error {
+	v, err := s.Impl.State(chainID)
 	*resp = v
 	return err
 }
@@ -97,6 +109,6 @@ func (p *AdapterPlugin) Server(*plugin.MuxBroker) (interface{}, error) {
 	return &AdapterRPCServer{Impl: p.Impl}, nil
 }
 
-func (AdapterPlugin) Client(b *plugin.MuxBroker, c *rpc.Client) (interface{}, error) {
+func (AdapterPlugin) Client(_ *plugin.MuxBroker, c *rpc.Client) (interface{}, error) {
 	return &AdapterRPCClient{client: c}, nil
 }
