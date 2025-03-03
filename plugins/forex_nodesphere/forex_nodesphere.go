@@ -136,6 +136,7 @@ func (cl *NPClient) symbolsToPrice(s string, res *NPResult) (common.Price, error
 	}
 
 	price.Symbol = s
+	price.Volume = types.DefaultVolume.String()
 	switch from {
 	case "EUR":
 		price.Price = res.Quotes.EURUSD.String()
@@ -168,7 +169,7 @@ func (cl *NPClient) buildURL(apiKey string) *url.URL {
 
 func main() {
 	conf := common.ResolveConf(os.Args[0], &defaultConfig)
-	adapter := common.NewPlugin(conf, NewNPClient(conf), version)
+	adapter := common.NewPlugin(conf, NewNPClient(conf), version, types.SrcCEX, nil)
 	defer adapter.Close()
 	common.PluginServe(adapter)
 }
