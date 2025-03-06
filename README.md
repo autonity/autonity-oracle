@@ -44,7 +44,7 @@ The configuration file:
 # Oracle Server Configuration
 
 logLevel: 3  # Logging verbosity: 0: NoLevel, 1: Trace, 2: Debug, 3: Info, 4: Warn, 5: Error
-gasTipCap: 1  # Set the gas priority fee cap to issue the oracle data report transactions.
+gasTipCap: 1000000000  # 1GWei, the gas priority fee cap for oracle vote message which will be reimbursed by Autonity network.
 
 #Set the buffering time window in blocks to continue vote after the last penalty event. Default value is 86400 (1 day).
 #With such time buffer, the node operator can check and repair the local infra without being slashed due to the voting.

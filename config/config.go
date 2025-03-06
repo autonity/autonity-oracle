@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	defaultLogVerbosity           = 3 // 0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error
-	defaultGasTipCap              = uint64(1)
+	defaultLogVerbosity           = 3                     // 0: NoLevel, 1: Trace, 2:Debug, 3: Info, 4: Warn, 5: Error
+	defaultGasTipCap              = uint64(1_000_000_000) //1GWei, the gas priority fee cap for oracle vote message which will be reimbursed by Autonity network.
 	defaultAutonityWSUrl          = "ws://127.0.0.1:8546"
 	defaultKeyFile                = "./UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"
 	defaultKeyPassword            = "123"
