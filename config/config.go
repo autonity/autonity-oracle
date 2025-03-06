@@ -106,17 +106,18 @@ type ServerConfig struct {
 
 // PluginConfig is the schema of plugins' config.
 type PluginConfig struct {
-	Name               string `json:"name" yaml:"name"`                         // The name of the plugin binary.
-	Key                string `json:"key" yaml:"key"`                           // The API key granted by your data provider to access their data API.
-	Scheme             string `json:"scheme" yaml:"scheme"`                     // The data service scheme, http or https.
-	Endpoint           string `json:"endpoint" yaml:"endpoint"`                 // The data service endpoint url of the data provider.
-	Timeout            int    `json:"timeout" yaml:"timeout"`                   // The timeout period in seconds that an API request is lasting for.
-	DataUpdateInterval int    `json:"refresh" yaml:"refresh"`                   // The interval in seconds to fetch data from data provider due to rate limit.
-	NTNTokenAddress    string `json:"ntnTokenAddress" yaml:"ntnTokenAddress"`   // The NTN erc20 token address on the target blockchain.
-	ATNTokenAddress    string `json:"atnTokenAddress" yaml:"atnTokenAddress"`   // The Wrapped ATN erc20 token address on the target blockchain.
-	USDCTokenAddress   string `json:"usdcTokenAddress" yaml:"usdcTokenAddress"` // The USDC erc20 token address on the target blockchain.
-	SwapAddress        string `json:"swapAddress" yaml:"swapAddress"`           // The UniSwap factory contract address or AirSwap SwapERC20 contract address on the target blockchain.
-	Disabled           bool   `json:"disabled" yaml:"disabled"`                 // The flag to disable a plugin.
+	Name               string `json:"name" yaml:"name"`         // The name of the plugin binary.
+	Key                string `json:"key" yaml:"key"`           // The API key granted by your data provider to access their data API.
+	Scheme             string `json:"scheme" yaml:"scheme"`     // The data service scheme, http or https.
+	Disabled           bool   `json:"disabled" yaml:"disabled"` // The flag to disable a plugin.
+	Endpoint           string `json:"endpoint" yaml:"endpoint"` // The data service endpoint url of the data provider.
+	Timeout            int    `json:"timeout" yaml:"timeout"`   // The timeout period in seconds that an API request is lasting for.
+	DataUpdateInterval int    `json:"refresh" yaml:"refresh"`   // The interval in seconds to fetch data from data provider due to rate limit.
+	// Below configurations are reserved only for on-chain AMM marketplaces.
+	NTNTokenAddress  string `json:"ntnTokenAddress" yaml:"ntnTokenAddress"`   // The NTN erc20 token address on the target blockchain.
+	ATNTokenAddress  string `json:"atnTokenAddress" yaml:"atnTokenAddress"`   // The Wrapped ATN erc20 token address on the target blockchain.
+	USDCTokenAddress string `json:"usdcTokenAddress" yaml:"usdcTokenAddress"` // The USDC erc20 token address on the target blockchain.
+	SwapAddress      string `json:"swapAddress" yaml:"swapAddress"`           // The UniSwap factory contract address or AirSwap SwapERC20 contract address on the target blockchain.
 }
 
 // Config is the resolved configuration of the oracle-server.
