@@ -263,12 +263,12 @@ All the data points collected from the plugin are tracked in metrics with such i
 ### Plugin Development
 To add a new plugin, please visit the README.md under plugins directory, before releasing a 3rd party plugin, we will
 have to check below criteria:
-- Document
+- **Document**    
 Please add a README.md into your plugin's code directory, to describe the data source of your plugin, the data quality of it,
 how can people subscribe a service key from the data provider if there is a service key required.
-- Implementation and Testing
-Reuse the plugin framework and the standard interface of the plugin as much as possible, it will keep the code simple.
-- Help the user to use it
+- **Implementation and Testing**    
+Reuse the plugin framework and the standard interface of the plugin as much as possible, add test for it, help to keep the code be simple.
+- **Help the user**     
 In the plugin's README.md and the oracle server configuration file, add comments to guide people on how to config your
 plugin, for example, the data providers' official site, how to subscribe the service key from the provider, etc...
 
