@@ -74,15 +74,16 @@ where the statements in PluginState:
 - DataSource states the data source URL, it will be logged by oracle server.
 - DataSourceType states the type of the data source, for example, an AMM, CEX or an AskForQuote marketplace.
 
-## Criteria for release a plugin
-- Document
-  Please add a README.md into your plugin's code directory, to describe the data source of your plugin, the data quality of it,
-  how can people subscribe a service key from the data provider if there is a service key required.
-- Implementation and Testing
-  Reuse the plugin framework and the standard interface of the plugin as much as possible, it will keep the code simple.
-- Help the user to use it
-  In the plugin's README.md and the oracle server configuration file, add comments to guide people on how to config your
-  plugin, for example, the data providers' official site, how to subscribe the service key from the provider, etc...
+### Criteria for releasing 3rd party plugin
+Before releasing a 3rd party plugin, we will have to check below criteria:
+- **Document**    
+Please add a README.md into your plugin's code directory, to describe the data source of your plugin, the data quality of it,
+how can people subscribe a service key from the data provider if there is a service key required.
+- **Implementation and Testing**    
+Reuse the plugin framework and the standard interface of the plugin as much as possible, add test for it, help to keep the code be simple.
+- **Help the user**     
+In the plugin's README.md and the oracle server configuration file, add comments to guide people on how to config your
+plugin, for example, the data providers' official site, how to subscribe the service key from the provider, etc...
 
 ## Implement a plugin
 Create a directory for your plugin under the autonity-oracle/plugins directory. There is a template_plugin directory
