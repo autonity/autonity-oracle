@@ -31,8 +31,10 @@ type Price struct {
 	Timestamp  int64 // TS on when the data is being sampled in time's seconds since Jan 1 1970 (Unix time).
 	Symbol     string
 	Price      decimal.Decimal
-	Volume     *big.Int // recent trade volume in quoto of USDCx.
-	Confidence uint8    // confidence resolved by the server.
+	Confidence uint8 // confidence of the data point is resolved by the oracle server.
+	// Below field is reserved for data providers which can provide recent trade volumes of the pair,
+	// otherwise it will be resolved by oracle server.
+	Volume *big.Int // recent trade volume in quote of USDCx for on-chain AMM marketplace.
 }
 
 // PriceBySymbol group the price by symbols.
