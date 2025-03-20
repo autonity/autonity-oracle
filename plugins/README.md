@@ -4,21 +4,22 @@ The oracle server provides a plugin framework for the development and management
 ## The plugin configuration
 Every plugin has a unified configuration, that is configured by oracle server in the `plugins-conf.yml` file. When you implement a new plugin, you will need to prepare the default values for the plugin, for example:
 ```go
-var defaultConfig = types.PluginConfig{
-	Key:                "",
-	Scheme:             "https",
-	Endpoint:           "127.0.0.1:8080",
-	Timeout:            10, //10s
-	DataUpdateInterval: 30, //30s
+// PluginConfig is the schema of plugins' config.
+type PluginConfig struct {
+	Name               string `json:"name" yaml:"name"`                         // The name of the plugin binary.
+	Key                string `json:"key" yaml:"key"`                           // The API key granted by your data provider to access their data API.
+	Scheme             string `json:"scheme" yaml:"scheme"`                     // The data service scheme, http or https.
+	Disabled           bool   `json:"disabled" yaml:"disabled"`                 // The flag to disable a plugin.
+	Endpoint           string `json:"endpoint" yaml:"endpoint"`                 // The data service endpoint url of the data provider.
+	Timeout            int    `json:"timeout" yaml:"timeout"`                   // The timeout period in seconds that an API request is lasting for.
+	DataUpdateInterval int    `json:"refresh" yaml:"refresh"`                   // The interval in seconds to fetch data from data provider due to rate limit.
+	// Below configurations are reserved only for on-chain AMM marketplaces.
+	NTNTokenAddress    string `json:"ntnTokenAddress" yaml:"ntnTokenAddress"`   // The NTN erc20 token address on the target blockchain.
+	ATNTokenAddress    string `json:"atnTokenAddress" yaml:"atnTokenAddress"`   // The Wrapped ATN erc20 token address on the target blockchain.
+	USDCTokenAddress   string `json:"usdcTokenAddress" yaml:"usdcTokenAddress"` // The USDC erc20 token address on the target blockchain.
+	SwapAddress        string `json:"swapAddress" yaml:"swapAddress"`           // The UniSwap factory contract address or AirSwap SwapERC20 contract address on the target blockchain.
 }
 ```
-where:
-- Key is a string contains the data access service key of your data provider, keep it empty if the provider does not require one.
-- Scheme is either "http" or "https" depends on your data provider service.
-- Endpoint is the host endpoint of your data provider's service.
-- Timeout is the timer in seconds to cancel a single data request RPC.
-- DataUpdateInterval is the interval in seconds to fetch data from the data provider, it is very useful for those rate limited data service.
-
 ## Interface
 The interface in between the oracle server and the plugin are simple:
 ```go
@@ -29,9 +30,11 @@ type Adapter interface {
 	// one need to filter invalid symbols to make sure valid symbol's data be collected. The return PluginPriceReport
 	// contains the valid symbols' prices and a set of invalid symbols.
 	FetchPrices(symbols []string) (PluginPriceReport, error)
-	// State is called by oracle server to instantiate a plugin, it returns the plugin's version and a set of symbol that
-	// the data source support, this information is just used for logging at the bootstrap phase of a plugin.
-	State() (PluginState, error)
+	// State is called by oracle server to get the statement of a plugin, it returns the plugin's statement of their version,
+	// supported symbols, datasource, data source type, and if a key is required. It also checks the chainID from plugin
+	// side to determine if it is compatible to run the plugin with current L1 blockchain, it would stop to start if the
+	// chain ID is mismatched.
+	State(chainID int64) (PluginStatement, error)
 }
 
 // PluginPriceReport is the returned data samples from adapters which carry the prices and those symbols of no data if
@@ -44,23 +47,43 @@ type PluginPriceReport struct {
 // in autonity-oracle/types/types.go, there is a type Price:
 // Price is the structure contains the exchange rate of a symbol with a timestamp at which the sampling happens.
 type Price struct {
-	Timestamp int64 // TS on when the data is being sampled in time's seconds since Jan 1 1970 (Unix time).
-	Symbol    string
-	Price     decimal.Decimal
+	Timestamp  int64 // TS on when the data is being sampled in time's seconds since Jan 1 1970 (Unix time).
+	Symbol     string
+	Price      decimal.Decimal
+	Confidence uint8    // confidence of the data point is resolved by the oracle server.
+	// Below field is reserved for data providers which can provide recent trade volumes of the pair,
+	// otherwise it will be resolved by oracle server.
+	Volume     *big.Int // recent trade volume in quote of USDCx for on-chain AMM marketplace.
 }
 
-// PluginState is the returned data when the oracle host want to initialise the plugin with basic information: version,
-// and available symbols that the data source support.
-type PluginState struct {
+// PluginStatement is the returned data when the oracle host want to initialise the plugin with basic information: version,
+// data source, data source type, and available symbols that the data source support.
+// PluginStatement is the returned when the oracle server loads a plugin.
+type PluginStatement struct {
 	KeyRequired      bool
 	Version          string
+	DataSource       string
 	AvailableSymbols []string
+	DataSourceType   DataSourceType
 }
 ```
 where the statements in PluginState:
 - KeyRequired states if the plugin needs a service key to be configured. When the plugin requires a key, oracle server will not start the plugin if a key is missing from the configuration.
 - Version states the version of the plugin.
 - AvailableSymbols states the set of symbols the data plugin is configured to fetch.
+- DataSource states the data source URL, it will be logged by oracle server.
+- DataSourceType states the type of the data source, for example, an AMM, CEX or an AskForQuote marketplace.
+
+### Criteria for releasing 3rd party plugin
+Before releasing a 3rd party plugin, we will have to check below criteria:
+- **Document**    
+Please add a README.md into your plugin's code directory, to describe the data source of your plugin, the data quality of it,
+how can people subscribe a service key from the data provider if there is a service key required.
+- **Implementation and Testing**    
+Reuse the plugin framework and the standard interface of the plugin as much as possible, add test for it, help to keep the code be simple.
+- **Help the user**     
+In the plugin's README.md and the oracle server configuration file, add comments to guide people on how to config your
+plugin, for example, the data providers' official site, how to subscribe the service key from the provider, etc...
 
 ## Implement a plugin
 Create a directory for your plugin under the autonity-oracle/plugins directory. There is a template_plugin directory
