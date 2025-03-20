@@ -152,7 +152,6 @@ func MakeConfig() *Config {
 	config, err := LoadServerConfig(oracleConfFile)
 	if err != nil {
 		log.SetFlags(0)
-		log.Printf("could not load oracle_server config: %s, err: %s", oracleConfFile, err.Error())
 		printUsage()
 		os.Exit(1)
 	}
