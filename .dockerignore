@@ -1,0 +1,15 @@
+# Exclude version control files
+.git
+.gitignore
+
+# Exclude temporary files
+*.log
+*.tmp
+*.swp
+*.bak
+*.old
+
+# Exclude IDE/editor configuration files
+.vscode
+.idea
+*.iml
