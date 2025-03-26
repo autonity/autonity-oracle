@@ -272,14 +272,21 @@ Reuse the plugin framework and the standard interface of the plugin as much as p
 In the plugin's README.md and the oracle server configuration file, add comments to guide people on how to config your
 plugin, for example, the data providers' official site, how to subscribe the service key from the provider, etc...
 
-### Build for Bakerloo net
-```shell
-make autoracle-bakerloo
-```
-### Build for Piccadilly net
+### Build for Autonity mainnet
 ```shell
 make autoracle
 ```
+
+### Build for Bakerloo network
+```shell
+make autoracle-bakerloo
+```
+
+### Build for Piccadilly network
+```shell
+make autoracle-piccadilly
+```
+
 ### Other build helpers
 To build the data source simulator run
 ```shell

@@ -17,8 +17,12 @@ import (
 )
 
 var (
-	ChainIDPiccadilly    = big.NewInt(65_100_004)
-	ChainIDBakerloo      = big.NewInt(65_010_003)
+	// ChainIDMainNet chain ID for Autonity public main network, please visit below link for the chain ID naming rules.
+	// https://github.com/clearmatics/autonity-protocol/blob/master/decisions/adr-010-naming-numbering-conventions.md#chain-id
+	ChainIDMainNet    = big.NewInt(65_000_000) // the 1st instance of autonity main network.
+	ChainIDPiccadilly = big.NewInt(65_100_004) // the 4th instance of autonity piccadilly network.
+	ChainIDBakerloo   = big.NewInt(65_010_004) // the 4th instance of autonity bakerloo network.
+
 	Zero                 = big.NewInt(0)
 	DefaultForexSymbols  = []string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"}
 	NTNATNSymbol         = "NTN-ATN"
