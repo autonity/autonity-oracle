@@ -9,11 +9,11 @@ import (
 )
 
 // todo: double check with DEVOP for those endpoints and addresses.
-// configs for the ATN-USDCx, NTN-USDCx, NTN-ATN market place in Bakerloo network.
-var defaultConfigBakerloo = config.PluginConfig{
+// configs for the ATN-USDCx, NTN-USDCx, NTN-ATN market place in Autonity main network.
+var defaultConfig = config.PluginConfig{
 	Name:               "crypto_uniswap",
 	Scheme:             "wss",                                        // both http/s ws/s works for this plugin
-	Endpoint:           "rpc-internal-1.bakerloo.autonity.org/ws",    // default websocket endpoint for bakerloo network.
+	Endpoint:           "rpc-internal-1.mainnet.autonity.org/ws",     // default websocket endpoint for autonity main network.
 	Timeout:            10,                                           // 10s
 	DataUpdateInterval: common.DefaultAMMDataUpdateInterval,          // 1s, shorten the default data point refresh interval for AMM market data, as they can move very fast.
 	NTNTokenAddress:    types.AutonityContractAddress.Hex(),          // Same as 0xBd770416a3345F91E4B34576cb804a576fa48EB1, Autonity contract address.
@@ -23,7 +23,7 @@ var defaultConfigBakerloo = config.PluginConfig{
 }
 
 func main() {
-	conf := common.ResolveConf(os.Args[0], &defaultConfigBakerloo)
+	conf := common.ResolveConf(os.Args[0], &defaultConfig)
 	c, err := client.NewUniswapClient(conf)
 	if err != nil {
 		return
@@ -32,7 +32,7 @@ func main() {
 	// start the uniswapV2 event watching for price aggregation of ATN-USDCx & NTN-USDCx
 	go c.StartWatcher()
 
-	adapter := common.NewPlugin(conf, c, client.Version, types.SrcAMM, common.ChainIDBakerloo)
+	adapter := common.NewPlugin(conf, c, client.Version, types.SrcAMM, common.ChainIDMainNet)
 	defer adapter.Close()
 	common.PluginServe(adapter)
 }

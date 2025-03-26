@@ -9,7 +9,7 @@ import (
 )
 
 // configs for the ATN-USDCx, NTN-USDCx, NTN-ATN market place in Piccadilly network.
-var defaultConfigPicc = config.PluginConfig{
+var defaultConfig = config.PluginConfig{
 	Name:               "crypto_uniswap",
 	Scheme:             "wss",                                        // both http/s ws/s works for this plugin
 	Endpoint:           "rpc-internal-1.piccadilly.autonity.org/ws",  // default websocket endpoint for piccadilly network.
@@ -22,7 +22,7 @@ var defaultConfigPicc = config.PluginConfig{
 }
 
 func main() {
-	conf := common.ResolveConf(os.Args[0], &defaultConfigPicc)
+	conf := common.ResolveConf(os.Args[0], &defaultConfig)
 	c, err := client.NewUniswapClient(conf)
 	if err != nil {
 		return

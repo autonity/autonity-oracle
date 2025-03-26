@@ -73,7 +73,7 @@ e2e-test-stuffs:
 	chmod +x $(E2E_TEST_DIR)/simulator
 
 	# build amm plugin for e2e test.
-	go build -o $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/uniswap_usdcx/crypto_uniswap_usdcx_piccadilly.go
+	go build -o $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/uniswap_usdcx/piccadilly/crypto_uniswap_usdcx.go
 	chmod +x $(E2E_TEST_CRYPTO_PLUGIN_DIR)/*
 
     # build piccadilly simulator plugin for e2e test.
@@ -117,17 +117,17 @@ cex-plugins:
 
 # build amm plugins for piccadilly network:
 amm-plugins-piccadilly:
-	go build -o $(PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/uniswap_usdcx/crypto_uniswap_usdcx_piccadilly.go
+	go build -o $(PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/uniswap_usdcx/piccadilly/crypto_uniswap_usdcx.go
 	chmod +x $(PLUGIN_DIR)/*
 
 # build amm plugins for bakerloo network:
 amm-plugins-bakerloo:
-	go build -o $(PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/uniswap_usdcx/crypto_uniswap_usdcx_bakerloo.go
+	go build -o $(PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/uniswap_usdcx/bakerloo/crypto_uniswap_usdcx.go
 	chmod +x $(PLUGIN_DIR)/*
 
 # build amm plugins for main network:
 amm-plugins-mainnet:
-	go build -o $(PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/uniswap_usdcx/crypto_uniswap_usdcx_mainnet.go
+	go build -o $(PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/uniswap_usdcx/mainnet/crypto_uniswap_usdcx.go
 	chmod +x $(PLUGIN_DIR)/*
 
 # build simulator plugin for main network.
