@@ -487,7 +487,7 @@ func (os *OracleServer) handleRoundVote() error {
 	// query last round's prices, its random salt which will reveal last round's report.
 	lastRoundData, ok := os.roundData[os.curRound-1]
 	if !ok {
-		os.logger.Debug("no last round data, client is no longer a voter or it will report with commitment hash")
+		os.logger.Debug("no last round data, client is no longer a voter or it reports just current round commitment")
 	}
 
 	// if node is no longer a validator, and it doesn't have last round data, skip reporting.
@@ -508,28 +508,34 @@ func (os *OracleServer) handleRoundVote() error {
 		return nil
 	}
 
+	// assemble round data.
+	curRoundData, err := os.buildRoundData(os.curRound)
+	// if the voter failed to assemble current round data, but it has last round data available, then reveal it.
+	if err != nil && lastRoundData != nil && isVoter {
+		return os.reportWithoutCommitment(lastRoundData)
+	}
+
+	// round data was successfully assembled, save current round data.
+	os.roundData[os.curRound] = curRoundData
 	if isVoter {
 		if metrics.Enabled {
 			isVoterFlag.Update(1)
 		}
 		// report with last round data and with current round commitment hash.
-		return os.reportWithCommitment(os.curRound, lastRoundData)
+		return os.reportWithCommitment(curRoundData, lastRoundData)
 	}
 
-	// voter reports with last round data but without current round commitment since it is not committee member now.
-	return os.reportWithoutCommitment(lastRoundData)
+	// edge case, voter is no longer a committee member, it has to reveal the last round data that was committed to.
+	if lastRoundData != nil {
+		return os.reportWithoutCommitment(lastRoundData)
+	}
+	return nil
 }
 
-func (os *OracleServer) reportWithCommitment(newRound uint64, lastRoundData *types.RoundData) error {
-	curRoundData, err := os.buildRoundData(newRound)
-	if err != nil {
-		os.logger.Error("build round data", "error", err)
-		return err
-	}
-
-	// save current round data.
-	os.roundData[newRound] = curRoundData
-
+// reportWithCommitment reports the commitment of current round, and with last round data if the last round data is available.
+// if the input last round data is nil, we just need to report the commitment of current round without last round data.
+func (os *OracleServer) reportWithCommitment(curRoundData, lastRoundData *types.RoundData) error {
+	var err error
 	// prepare the transaction which carry current round's commitment, and last round's data.
 	curRoundData.Tx, err = os.doReport(curRoundData.CommitmentHash, lastRoundData)
 	if err != nil {
@@ -602,10 +608,8 @@ func (os *OracleServer) doReport(curRoundCommitmentHash common.Hash, lastRoundDa
 	auth.GasTipCap = new(big.Int).SetUint64(os.conf.GasTipCap)
 	auth.GasLimit = uint64(3000000)
 
-	// if there is no last round data or there were missing datapoint in last round data, then we just submit the
-	// commitment hash of current round as data might be available at current round. This vote will be reimbursed by the
-	// protocol, however it won't be abused as it is limited by the 1 vote per round rule.
-	if lastRoundData == nil || lastRoundData.MissingData {
+	// if there is no last round data, then we just submit the commitment hash of current round.
+	if lastRoundData == nil {
 		var reports []contract.IOracleReport
 		return os.oracleContract.Vote(auth, new(big.Int).SetBytes(curRoundCommitmentHash.Bytes()), reports, invalidSalt, config.Version)
 	}
@@ -709,7 +713,7 @@ func (os *OracleServer) assembleReportData(round uint64, symbols []string, price
 			// This is an edge case, which means there is no liquidity in the market for this symbol.
 			price := pr.Price.Mul(os.pricePrecision).BigInt()
 			if price.Cmp(invalidPrice) == 0 {
-				os.logger.Info("zero price measured from market", "symbol", s)
+				os.logger.Info("please check your data source, zero data point measured from market", "symbol", s)
 				missingData = true
 			}
 			reports = append(reports, contract.IOracleReport{
@@ -717,13 +721,15 @@ func (os *OracleServer) assembleReportData(round uint64, symbols []string, price
 				Confidence: pr.Confidence,
 			})
 		} else {
-			// logging the missing of data points for all symbols
+			// logging the missing of data points for symbols
 			missingData = true
-			os.logger.Info("round report miss data point for symbol", "symbol", s)
-			reports = append(reports, contract.IOracleReport{
-				Price: invalidPrice,
-			})
+			os.logger.Info("please check your data source, missing data point for symbol", "symbol", s)
 		}
+	}
+
+	// we won't assemble the round data if any data point is missing.
+	if missingData {
+		return nil, types.ErrMissingDataPoint
 	}
 
 	salt, err := rand.Int(rand.Reader, saltRange)
@@ -738,7 +744,6 @@ func (os *OracleServer) assembleReportData(round uint64, symbols []string, price
 		return nil, err
 	}
 
-	roundData.MissingData = missingData
 	roundData.Reports = reports
 	roundData.Salt = salt
 	roundData.CommitmentHash = commitmentHash
