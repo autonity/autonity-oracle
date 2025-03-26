@@ -508,16 +508,19 @@ func (os *OracleServer) handleRoundVote() error {
 		return nil
 	}
 
-	// assemble round data.
-	curRoundData, err := os.buildRoundData(os.curRound)
-	// if the voter failed to assemble current round data, but it has last round data available, then reveal it.
-	if err != nil && lastRoundData != nil && isVoter {
-		return os.reportWithoutCommitment(lastRoundData)
-	}
-
-	// round data was successfully assembled, save current round data.
-	os.roundData[os.curRound] = curRoundData
 	if isVoter {
+		// a voter need to assemble current round data to report it.
+		curRoundData, err := os.buildRoundData(os.curRound)
+		// if the voter failed to assemble current round data, but it has last round data available, then reveal it.
+		if err != nil {
+			if lastRoundData != nil {
+				return os.reportWithoutCommitment(lastRoundData)
+			}
+			return err
+		}
+
+		// round data was successfully assembled, save current round data.
+		os.roundData[os.curRound] = curRoundData
 		if metrics.Enabled {
 			isVoterFlag.Update(1)
 		}
