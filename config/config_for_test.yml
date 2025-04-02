@@ -1,5 +1,6 @@
 # Oracle Server Configuration
 
+# Below is the list of default configuration for oracle server:
 logLevel: 3  # Logging verbosity: 0: NoLevel, 1: Trace, 2: Debug, 3: Info, 4: Warn, 5: Error
 gasTipCap: 1000000000  # 1GWei, the gas priority fee cap for oracle vote message which will be reimbursed by Autonity network.
 

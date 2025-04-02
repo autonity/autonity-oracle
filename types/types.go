@@ -23,6 +23,7 @@ var (
 	ErrNoAvailablePrice  = errors.New("no available prices collected yet")
 	ErrNoDataRound       = errors.New("no data collected at current round")
 	ErrNoSymbolsObserved = errors.New("no symbols observed from oracle contract")
+	ErrMissingDataPoint  = errors.New("missing data point")
 	ErrMissingServiceKey = errors.New("the key to access the data source is missing, please check the plugin config")
 )
 
@@ -50,7 +51,6 @@ type RoundData struct {
 	Prices         PriceBySymbol
 	Symbols        []string
 	Reports        []contract.IOracleReport
-	MissingData    bool
 }
 
 // JSONRPCMessage is the JSON spec to carry those data response from the binance data simulator.
