@@ -96,7 +96,7 @@ jobs:
 
       - name: unit tests
         run: | 
-          make autoracle
+          make autoracle-piccadilly
           go test ./config/... -coverprofile=coverage.out
           go test ./helpers/... -coverprofile=coverage.out
           go test ./oracle_server/... -coverprofile=coverage.out
