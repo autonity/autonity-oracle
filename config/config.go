@@ -120,6 +120,20 @@ type PluginConfig struct {
 	SwapAddress      string `json:"swapAddress" yaml:"swapAddress"`           // The UniSwap factory contract address or AirSwap SwapERC20 contract address on the target blockchain.
 }
 
+func (pc *PluginConfig) Diff(other *PluginConfig) bool {
+	return pc.Name != other.Name ||
+		pc.Key != other.Key ||
+		pc.Scheme != other.Scheme ||
+		pc.Disabled != other.Disabled ||
+		pc.Endpoint != other.Endpoint ||
+		pc.Timeout != other.Timeout ||
+		pc.DataUpdateInterval != other.DataUpdateInterval ||
+		pc.NTNTokenAddress != other.NTNTokenAddress ||
+		pc.ATNTokenAddress != other.ATNTokenAddress ||
+		pc.USDCTokenAddress != other.USDCTokenAddress ||
+		pc.SwapAddress != other.SwapAddress
+}
+
 // Config is the resolved configuration of the oracle-server.
 type Config struct {
 	ConfigFile         string

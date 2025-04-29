@@ -1020,7 +1020,7 @@ func (os *OracleServer) Stop() {
 
 func (os *OracleServer) PluginRuntimeManagement() {
 	// load plugin configs before start them.
-	plugConfs, err := config.LoadPluginsConfig(os.conf.ConfigFile)
+	newConfs, err := config.LoadPluginsConfig(os.conf.ConfigFile)
 	if err != nil {
 		os.logger.Error("cannot load plugin configuration", "error", err.Error())
 		return
@@ -1035,6 +1035,7 @@ func (os *OracleServer) PluginRuntimeManagement() {
 
 	// shutdown the plugins which are removed from the plugin directory, or disabled from config.
 	for name, plugin := range os.runningPlugins {
+		// shutdown the plugins that were removed.
 		if _, ok := binaries[name]; !ok {
 			os.logger.Info("removing plugin", "name", name)
 			plugin.Close()
@@ -1042,10 +1043,18 @@ func (os *OracleServer) PluginRuntimeManagement() {
 			continue
 		}
 
-		// shutdown the plugin that are runtime disabled.
-		pConf := plugConfs[name]
-		if pConf.Disabled {
+		// shutdown the plugins that are runtime disabled.
+		newConf := newConfs[name]
+		if newConf.Disabled {
 			os.logger.Info("disabling plugin", "name", name)
+			plugin.Close()
+			delete(os.runningPlugins, name)
+			continue
+		}
+
+		// shutdown the plugins that with config updates, they will be reloaded after the shutdown.
+		if plugin.Config().Diff(&newConf) {
+			os.logger.Info("updating plugin", "name", name)
 			plugin.Close()
 			delete(os.runningPlugins, name)
 		}
@@ -1054,7 +1063,7 @@ func (os *OracleServer) PluginRuntimeManagement() {
 	// try to load new plugins.
 	for _, file := range binaries {
 		f := file
-		pConf := plugConfs[f.Name()]
+		pConf := newConfs[f.Name()]
 
 		if pConf.Disabled {
 			continue
