@@ -1033,7 +1033,7 @@ func (os *OracleServer) PluginRuntimeManagement() {
 		return
 	}
 
-	// shutdown the plugins which are removed from the plugin directory, or disabled from config.
+	// shutdown the plugins which are removed, disabled or with config update.
 	for name, plugin := range os.runningPlugins {
 		// shutdown the plugins that were removed.
 		if _, ok := binaries[name]; !ok {
