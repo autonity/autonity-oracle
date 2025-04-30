@@ -28,9 +28,6 @@ func main() {
 		return
 	}
 
-	// start the uniswapV2 event watching for price aggregation of ATN-USDCx & NTN-USDCx
-	go c.StartWatcher()
-
 	adapter := common.NewPlugin(conf, c, client.Version, types.SrcAMM, common.ChainIDPiccadilly)
 	defer adapter.Close()
 	common.PluginServe(adapter)

@@ -26,7 +26,9 @@ var (
 	Zero                 = big.NewInt(0)
 	DefaultForexSymbols  = []string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"}
 	NTNATNSymbol         = "NTN-ATN"
-	DefaultCryptoSymbols = []string{"ATN-USDC", "NTN-USDC", NTNATNSymbol}
+	ATNUSDCSymbol        = "ATN-USDC"
+	NTNUSDCSymbol        = "NTN-USDC"
+	DefaultCryptoSymbols = []string{ATNUSDCSymbol, NTNUSDCSymbol, NTNATNSymbol}
 	DefaultUSDCSymbol    = "USDC-USD"
 	ErrDataNotAvailable  = fmt.Errorf("data is not available")
 	ErrKnownSymbols      = fmt.Errorf("the data source does not have all the data asked by oracle server")
