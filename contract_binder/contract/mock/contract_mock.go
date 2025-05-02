@@ -218,3 +218,33 @@ func (mr *MockContractAPIMockRecorder) WatchPenalized(opts, sink, _participant i
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchPenalized", reflect.TypeOf((*MockContractAPI)(nil).WatchPenalized), opts, sink, _participant)
 }
+
+// WatchSuccessfulVote mocks base method.
+func (m *MockContractAPI) WatchSuccessfulVote(opts *bind.WatchOpts, sink chan<- *oracle.OracleSuccessfulVote, reporter []common.Address) (event.Subscription, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WatchSuccessfulVote", opts, sink, reporter)
+	ret0, _ := ret[0].(event.Subscription)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// WatchSuccessfulVote indicates an expected call of WatchSuccessfulVote.
+func (mr *MockContractAPIMockRecorder) WatchSuccessfulVote(opts, sink, reporter interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchSuccessfulVote", reflect.TypeOf((*MockContractAPI)(nil).WatchSuccessfulVote), opts, sink, reporter)
+}
+
+// WatchTotalOracleRewards mocks base method.
+func (m *MockContractAPI) WatchTotalOracleRewards(opts *bind.WatchOpts, sink chan<- *oracle.OracleTotalOracleRewards) (event.Subscription, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WatchTotalOracleRewards", opts, sink)
+	ret0, _ := ret[0].(event.Subscription)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// WatchTotalOracleRewards indicates an expected call of WatchTotalOracleRewards.
+func (mr *MockContractAPIMockRecorder) WatchTotalOracleRewards(opts, sink interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchTotalOracleRewards", reflect.TypeOf((*MockContractAPI)(nil).WatchTotalOracleRewards), opts, sink)
+}
