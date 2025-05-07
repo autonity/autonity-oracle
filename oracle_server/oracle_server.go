@@ -854,7 +854,7 @@ func (os *OracleServer) aggMulSrcPrice(symbol string, ts int64, sourcedPrices []
 				return bestConfidentPrice, nil
 			}
 		}
-		// return with the highest confidence and CWAP price for Linear strategy.
+		// return with the highest confidence and CWAP price for Linear strategy or for Max strategy when there is no best confidence price addressed.
 		aggPrice, _, err := helpers.XWAP(prices, confidences)
 		if err != nil {
 			return nil, err
@@ -876,7 +876,7 @@ func (os *OracleServer) aggMulSrcPrice(symbol string, ts int64, sourcedPrices []
 		}
 	}
 
-	// return with the highest confidence and VWAP price for Linear strategy
+	// return with the highest confidence and VWAP price for Linear strategy or for Max strategy when there is no best confidence price addressed.
 	aggPrice, totalVol, err := helpers.XWAP(prices, volumes)
 	if err != nil {
 		return nil, err
