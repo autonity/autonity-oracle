@@ -26,6 +26,7 @@ var defaultConfig = config.PluginConfig{
 	Scheme:             "https",
 	Endpoint:           "api.kraken.com",
 	Timeout:            10, // 10s
+	Confidence:         90, // range from [1, 100], the higher, the better data quality is.
 	DataUpdateInterval: 30, // 30s, tested and passed the rate limit policy of public data service of kraken.
 }
 
@@ -122,7 +123,7 @@ func (k *KrakenClient) toPrice(symbol string, res *Response) (common.Price, erro
 
 	price.Symbol = symbol
 	price.Price = usdcResult.P[0] // take the volume weighted average price of today.
-	price.Volume = types.DefaultVolume.String()
+	price.Volume = types.NoVolumeData.String()
 	return price, nil
 }
 

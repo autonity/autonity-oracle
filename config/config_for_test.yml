@@ -90,6 +90,7 @@ pluginConfigs:
   - name: crypto_uniswap
     scheme: "wss"                                          # Available values are: "ws" or "wss", default value is "wss".
     endpoint: "rpc-internal-1.piccadilly.autonity.org/ws"  # The default URL might not be stable for public usage, we recommend you to change it with your validator node's RPC endpoint.
+    confidence: 100                         # optional, the data confidence of the data service.
 
 #Enable the metric collection for oracle server, supported TS-DB engines are influxDB v1 and v2.
 metricConfigs:

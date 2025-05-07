@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"autonity-oracle/types"
 	"encoding/csv"
 	"errors"
 	"fmt"
@@ -10,7 +11,6 @@ import (
 	"io/ioutil" //nolint
 	"math/big"
 	"os"
-	"sort"
 )
 
 var (
@@ -29,6 +29,7 @@ var (
 	DefaultSymbols = []string{"AUD-USD", "CAD-USD", "EUR-USD", "GBP-USD", "JPY-USD", "SEK-USD", "ATN-USD", "NTN-USD", "NTN-ATN"}
 )
 
+// ResolveSimulatedPrice only for e2e testing.
 func ResolveSimulatedPrice(s string) decimal.Decimal {
 	defaultPrice := simulatedPrice
 	switch s {
@@ -60,6 +61,21 @@ func ResolveSimulatedPrice(s string) decimal.Decimal {
 	return defaultPrice
 }
 
+// ResolveSimulatedVolume only for e2e testing.
+func ResolveSimulatedVolume(s string) *big.Int {
+	defaultVolume := types.NoVolumeData
+	initialVolume := new(big.Int).SetUint64(100)
+	switch s {
+	case "ATN-USDC": //nolint
+		defaultVolume = initialVolume
+	case "NTN-USDC": //nolint
+		defaultVolume = initialVolume
+	case "NTN-ATN": //nolint
+		defaultVolume = initialVolume
+	}
+	return defaultVolume
+}
+
 func ParsePlaybookHeader(playbook string) ([]string, error) {
 	f, err := os.Open(playbook)
 	if err != nil {
@@ -78,62 +94,32 @@ func ParsePlaybookHeader(playbook string) ([]string, error) {
 	return rec, nil
 }
 
-// Median return the median value in the provided data set
-func Median(prices []decimal.Decimal) (decimal.Decimal, error) {
-	l := len(prices)
-	if l == 0 {
-		return decimal.Decimal{}, fmt.Errorf("empty data set for median aggregation")
+// XWAP computes the X(volume/confidence) weighted average price for the input prices with their corresponding weights
+func XWAP(prices []decimal.Decimal, weights []*big.Int) (decimal.Decimal, *big.Int, error) {
+	if len(prices) == 0 || len(weights) == 0 || len(prices) != len(weights) {
+		return decimal.Zero, nil, errors.New("prices and weights must be of the same non-zero length")
 	}
 
-	if l == 1 {
-		return prices[0], nil
-	}
-
-	sort.SliceStable(prices, func(i, j int) bool {
-		return prices[i].Cmp(prices[j]) == -1
-	})
-
-	if len(prices)%2 == 0 {
-		return prices[l/2-1].Add(prices[l/2]).Div(decimal.RequireFromString("2.0")), nil
-	}
-
-	return prices[l/2], nil
-}
-
-// VWAP computes the volume weighted average price for the input prices with their corresponding volumes
-func VWAP(prices []decimal.Decimal, volumes []*big.Int) (decimal.Decimal, *big.Int, error) {
-	if len(prices) == 0 || len(volumes) == 0 || len(prices) != len(volumes) {
-		return decimal.Zero, nil, errors.New("prices and volumes must be of the same non-zero length")
-	}
-
-	var totalWeightedPrice decimal.Decimal
-	totalVolume := big.NewInt(0)
-	highestVol := new(big.Int).Set(volumes[0])
+	var totalValue decimal.Decimal
+	totalWeights := big.NewInt(0)
 
 	for i := range prices {
-		if volumes[i].Cmp(highestVol) > 0 {
-			highestVol.Set(volumes[i])
-		}
-
-		// Convert volume to decimal.Decimal
-		volumeDecimal := decimal.NewFromBigInt(volumes[i], 0)
-
-		// Calculate weighted price for current price and volume
-		weightedPrice := prices[i].Mul(volumeDecimal) // Use decimal.Decimal for precision
-		totalWeightedPrice = totalWeightedPrice.Add(weightedPrice)
+		volume := decimal.NewFromBigInt(weights[i], 0)
+		value := prices[i].Mul(volume)
+		totalValue = totalValue.Add(value)
 
 		// Accumulate total volume
-		totalVolume.Add(totalVolume, volumes[i])
+		totalWeights.Add(totalWeights, weights[i])
 	}
 
 	// Avoid division by zero
-	if totalVolume.Cmp(big.NewInt(0)) == 0 {
+	if totalWeights.Cmp(big.NewInt(0)) == 0 {
 		return decimal.Zero, nil, errors.New("total volume cannot be zero")
 	}
 
-	// Calculate VWAP
-	vwap := totalWeightedPrice.Div(decimal.NewFromBigInt(totalVolume, 0))
-	return vwap, highestVol, nil
+	// Calculate XWAP
+	vwap := totalValue.Div(decimal.NewFromBigInt(totalWeights, 0))
+	return vwap, totalWeights, nil
 }
 
 // ListPlugins returns a mapping of file names to fs.FileInfo for executable files in the specified path.

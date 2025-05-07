@@ -14,6 +14,7 @@ var defaultConfig = config.PluginConfig{
 	Name:               "crypto_uniswap",
 	Scheme:             "wss",                                        // both http/s ws/s works for this plugin
 	Endpoint:           "rpc-internal-1.mainnet.autonity.org/ws",     // default websocket endpoint for autonity main network.
+	Confidence:         90,                                           // range from [1, 100], the higher, the better data quality is.
 	Timeout:            10,                                           // 10s
 	DataUpdateInterval: common.DefaultAMMDataUpdateInterval,          // 1s, shorten the default data point refresh interval for AMM market data, as they can move very fast.
 	NTNTokenAddress:    types.AutonityContractAddress.Hex(),          // Same as 0xBd770416a3345F91E4B34576cb804a576fa48EB1, Autonity contract address.

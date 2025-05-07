@@ -21,9 +21,9 @@ var (
 	defaultProfileDir             = "."
 	defaultVoteBufferAfterPenalty = uint64(3600 * 24) // The buffering time window in blocks to continue vote after the last penalty event.
 
-	ConfidenceStrategyLinear  = 0
-	ConfidenceStrategyFixed   = 1
-	defaultConfidenceStrategy = ConfidenceStrategyLinear // 0: linear, 1: fixed.
+	ConfidenceStrategyMax     = 0                     // use the confidence of the plugin with the max confidence value among the plugins.
+	ConfidenceStrategyLinear  = 1                     // linear aggregate the confidences from all plugins.
+	defaultConfidenceStrategy = ConfidenceStrategyMax // 0: max, 1: linear, 2: fixed.
 )
 
 // Version number of the oracle server in uint8. It is required
@@ -106,13 +106,14 @@ type ServerConfig struct {
 
 // PluginConfig is the schema of plugins' config.
 type PluginConfig struct {
-	Name               string `json:"name" yaml:"name"`         // The name of the plugin binary.
-	Key                string `json:"key" yaml:"key"`           // The API key granted by your data provider to access their data API.
-	Scheme             string `json:"scheme" yaml:"scheme"`     // The data service scheme, http or https.
-	Disabled           bool   `json:"disabled" yaml:"disabled"` // The flag to disable a plugin.
-	Endpoint           string `json:"endpoint" yaml:"endpoint"` // The data service endpoint url of the data provider.
-	Timeout            int    `json:"timeout" yaml:"timeout"`   // The timeout period in seconds that an API request is lasting for.
-	DataUpdateInterval int    `json:"refresh" yaml:"refresh"`   // The interval in seconds to fetch data from data provider due to rate limit.
+	Name               string `json:"name" yaml:"name"`             // The name of the plugin binary.
+	Key                string `json:"key" yaml:"key"`               // The API key granted by your data provider to access their data API.
+	Scheme             string `json:"scheme" yaml:"scheme"`         // The data service scheme, http or https.
+	Disabled           bool   `json:"disabled" yaml:"disabled"`     // The flag to disable a plugin.
+	Endpoint           string `json:"endpoint" yaml:"endpoint"`     // The data service endpoint url of the data provider.
+	Timeout            int    `json:"timeout" yaml:"timeout"`       // The timeout period in seconds that an API request is lasting for.
+	DataUpdateInterval int    `json:"refresh" yaml:"refresh"`       // The interval in seconds to fetch data from data provider due to rate limit.
+	Confidence         uint8  `json:"confidence" yaml:"confidence"` // The confidence of the data that are going to be sourced from the provider's service. Valid range is [0, 100].
 	// Below configurations are reserved only for on-chain AMM marketplaces.
 	NTNTokenAddress  string `json:"ntnTokenAddress" yaml:"ntnTokenAddress"`   // The NTN erc20 token address on the target blockchain.
 	ATNTokenAddress  string `json:"atnTokenAddress" yaml:"atnTokenAddress"`   // The Wrapped ATN erc20 token address on the target blockchain.
@@ -153,6 +154,13 @@ func MakeConfig() *Config {
 	if err != nil {
 		log.SetFlags(0)
 		printUsage()
+		os.Exit(1)
+	}
+
+	if config.ConfidenceStrategy != ConfidenceStrategyMax &&
+		config.ConfidenceStrategy != ConfidenceStrategyLinear {
+		log.SetFlags(0)
+		log.Printf("wrong confidence strategy was set: %d", config.ConfidenceStrategy)
 		os.Exit(1)
 	}
 

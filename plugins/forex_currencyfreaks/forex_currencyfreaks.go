@@ -26,8 +26,9 @@ var defaultConfig = config.PluginConfig{
 	Key:                "",
 	Scheme:             "https",
 	Endpoint:           "api.currencyfreaks.com",
-	Timeout:            10, //10s
-	DataUpdateInterval: 30, //30s
+	Confidence:         types.BaseConfidence, // range from [1, 100], the higher, the better data quality is.
+	Timeout:            10,                   //10s
+	DataUpdateInterval: 30,                   //30s
 }
 
 type CFResult struct {
@@ -133,7 +134,7 @@ func (cf *CFClient) symbolsToPrice(s string, res *CFResult) (common.Price, error
 		return price, fmt.Errorf("wrong base %s", to)
 	}
 	price.Symbol = s
-	price.Volume = types.DefaultVolume.String()
+	price.Volume = types.NoVolumeData.String()
 	switch from {
 	case "EUR":
 		pUE, err := decimal.NewFromString(res.Rates.EUR)

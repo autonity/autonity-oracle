@@ -28,6 +28,7 @@ var (
 	NTNUSDC           = "NTN-USDC"
 	supportedSymbols  = common.DefaultCryptoSymbols
 	NTNTokenAddress   = types.AutonityContractAddress // Autonity protocol contract is the NTN token contract.
+	initialVolume     = new(big.Int).SetUint64(100)   // The initial volume used before a swap event happens.
 )
 
 type Order struct {
@@ -447,7 +448,7 @@ func (e *UniswapClient) fetchPrice(pair *WrappedPair, symbol string) (common.Pri
 
 	price.Symbol = symbol
 	price.Price = p.String()
-	price.Volume = types.DefaultVolume.String()
+	price.Volume = initialVolume.String()
 	return price, nil
 }
 

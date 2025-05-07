@@ -24,8 +24,22 @@ pluginDir: "./plugins"  # Directory for plugins
 #Set the profiling report directory, where some runtime state will be saved at.
 profileDir: "."  # Profile directory
 
-#Set the confidence strategy, available strategies are: 0: linear, 1: fixed.
-confidenceStrategy: 0  # 0: linear, 1: fixed
+#Confidence and confidence strategies:
+#Each plugin can be configured with a confidence value within the range of [1, 100]. A higher confidence value
+#indicates better data quality provided by the data source. User can config multiple plugins of different data sources
+#to maintain high availability of data, setting one of them with higher confidence as primary, and the others as backup
+# with lower confidence.
+
+# Available strategies:
+# When there are multiple data sources, the strategies determine the data aggregation and confidence computing:
+# 0: max - Selects the data sample from the plugin with the highest confidence for data reporting.
+#  In the plugin config section, users can assign a confidence value (ranging from [1 to 100]) to each plugin.
+#  When multiple samples from different data sources have equal confidence, for currencies without collected volume data,
+#  it performs a confidence - weighted price calculation for data submission.
+
+# 1: linear - For currencies without collected volume data, it uses a confidence - weighted price for data submission.
+#  For currencies with collected volume data, it takes a volume - weighted price for submission.
+confidenceStrategy: 0  # 0: max, 1: linear, default value is 0.
 
 #Set the plugin configs.
 # The forex data plugins are used to fetch realtime rate of currency pairs:
@@ -54,45 +68,53 @@ confidenceStrategy: 0  # 0: linear, 1: fixed
 # namely `name` and `key`. The configuration settings of a plugin are:
 #
 
-# // PluginConfig carry the configuration of plugins.
+#  // PluginConfig is the schema of plugins' config.
 #  type PluginConfig struct {
-#  Name               string `json:"name" yaml:"name"`                         // the name of the plugin binary.
-#  Key                string `json:"key" yaml:"key"`                           // the API key granted by your data provider to access their data API.
-#  Scheme             string `json:"scheme" yaml:"scheme"`                     // the data service scheme, http, https, ws or wss.
-#  Endpoint           string `json:"endpoint" yaml:"endpoint"`                 // the data service endpoint url of the data provider.
-#  Timeout            int    `json:"timeout" yaml:"timeout"`                   // the timeout period in seconds that an API request is lasting for.
-#  DataUpdateInterval int    `json:"refresh" yaml:"refresh"`                   // the interval in seconds to fetch data from data provider due to rate limit.
-#  NTNTokenAddress    string `json:"ntnTokenAddress" yaml:"ntnTokenAddress"`   // The NTN erc20 token address on the target blockchain.
-#  ATNTokenAddress    string `json:"atnTokenAddress" yaml:"atnTokenAddress"`   // The Wrapped ATN erc20 token address on the target blockchain.
-#  USDCTokenAddress   string `json:"usdcTokenAddress" yaml:"usdcTokenAddress"` // USDCx erc20 token address on the target blockchain.
-#  SwapAddress        string `json:"swapAddress" yaml:"swapAddress"`           // UniSwap factory contract address or AirSwap SwapERC20 contract address on the target blockchain.
-#  Disabled           bool   `json:"disabled" yaml:"disabled"`                 // The flag to disable/enable a plugin.
-#}
+#  Name               string `json:"name" yaml:"name"`         // The name of the plugin binary.
+#  Key                string `json:"key" yaml:"key"`           // The API key granted by your data provider to access their data API.
+#  Scheme             string `json:"scheme" yaml:"scheme"`     // The data service scheme, http or https.
+#  Disabled           bool   `json:"disabled" yaml:"disabled"` // The flag to disable a plugin.
+#  Endpoint           string `json:"endpoint" yaml:"endpoint"` // The data service endpoint url of the data provider.
+#  Timeout            int    `json:"timeout" yaml:"timeout"`   // The timeout period in seconds that an API request is lasting for.
+#  DataUpdateInterval int    `json:"refresh" yaml:"refresh"`   // The interval in seconds to fetch data from data provider due to rate limit.
+#  Confidence         uint8  `json:"confidence" yaml:"confidence"` // The confidence of the data that are going to be sourced from the provider's service. Valid range is [0, 100].
+#  // Below configurations are reserved only for on-chain AMM marketplaces.
+#  NTNTokenAddress  string `json:"ntnTokenAddress" yaml:"ntnTokenAddress"`   // The NTN erc20 token address on the target blockchain.
+#  ATNTokenAddress  string `json:"atnTokenAddress" yaml:"atnTokenAddress"`   // The Wrapped ATN erc20 token address on the target blockchain.
+#  USDCTokenAddress string `json:"usdcTokenAddress" yaml:"usdcTokenAddress"` // The USDC erc20 token address on the target blockchain.
+#  SwapAddress      string `json:"swapAddress" yaml:"swapAddress"`           // The UniSwap factory contract address or AirSwap SwapERC20 contract address on the target blockchain.
+}
 
 # Un-comment below lines to enable your forex data plugin's configuration on demand. Your production configurations start from below:
 #pluginConfigs:
 #  - name: forex_currencyfreaks              # required, it is the plugin file name in the plugin directory.
 #    key: 175aab9e47e54790bf6d502c48407c10   # required, visit https://currencyfreaks.com to get your key, and replace it.
+#    confidence: 60                          # optional, the user can decide the data confidence base on the data quality of the data service. Valid range is [0, 100], the higher value the better data quality is.
 #    refresh: 3600                           # optional, buffered data within 3600s, recommended for API rate limited data source.
 
 #  - name: forex_openexchange                # required, it is the plugin file name in the plugin directory.
 #    key: 1be02ca33c4843ee968c4cedd2686f01   # required, visit https://openexchangerates.org to get your key, and replace it.
+#    confidence: 60                          # optional, the user can decide the data confidence base on the data quality of the data service. Valid range is [0, 100], the higher value the better data quality is.
 #    refresh: 3600                           # optional, buffered data within 3600s, recommended for API rate limited data source.
 
 #  - name: forex_currencylayer               # required, it is the plugin file name in the plugin directory.
 #    key: 105af082ac7f7d150c87303d4e2f049e   # required, visit https://currencylayer.com  to get your key, and replace it.
+#    confidence: 60                          # optional, the user can decide the data confidence base on the data quality of the data service. Valid range is [0, 100], the higher value the better data quality is.
 #    refresh: 3600                           # optional, buffered data within 3600s, recommended for API rate limited data source.
 
 #  - name: forex_exchangerate                # required, it is the plugin file name in the plugin directory.
 #    key: 111f04e4775bb86c20296530           # required, visit https://www.exchangerate-api.com to get your key, and replace it.
+#    confidence: 60                          # optional, the user can decide the data confidence base on the data quality of the data service. Valid range is [0, 100], the higher value the better data quality is.
 #    refresh: 3600                           # optional, buffered data within 3600s, recommended for API rate limited data source.
 
 #  - name: forex_wise                        # required, it is the plugin file name in the plugin directory.
 #    key: 1234                               # required, visit https://www.wise.com to get your key, and replace it.
+#    confidence: 60                          # optional, the user can decide the data confidence base on the data quality of the data service. Valid range is [0, 100], the higher value the better data quality is.
 #    refresh: 30                             # optional, buffered data within 30s, recommended for API rate limited data source.
 # Un-comment below lines to config the RPC endpoint of a Piccadilly Network Validator Node for your AMM plugin which sources ATN & NTN market data from an on-chain AMM.
 #  - name: crypto_uniswap
-#    scheme: "wss"                                          # Only websocket please, available values are: "ws" or "wss", default value is "wss" for uniswap plugins.
+#    scheme: "wss"                           # Only websocket please, available values are: "ws" or "wss", default value is "wss" for uniswap plugins.
+#    confidence: 60                          # optional, the user can decide the data confidence base on the data quality of the data service. Valid range is [0, 100], the higher value the better data quality is.
 #    endpoint: "rpc-internal-1.piccadilly.autonity.org/ws"  # The default URL might not be stable for public usage, we recommend you to change it with your validator node's RPC endpoint.
 
 #Enable the metric collection for oracle server, supported TS-DB engines are influxDB v1 and v2.

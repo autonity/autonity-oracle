@@ -29,15 +29,6 @@ import (
 	"time"
 )
 
-var ForexCurrencies = map[string]struct{}{
-	"AUD-USD": {},
-	"CAD-USD": {},
-	"EUR-USD": {},
-	"GBP-USD": {},
-	"JPY-USD": {},
-	"SEK-USD": {},
-}
-
 var (
 	saltRange       = new(big.Int).SetUint64(math.MaxInt64)
 	alertBalance    = new(big.Int).SetUint64(2000000000000) // 2000 Gwei, 0.000002 Ether
@@ -57,16 +48,14 @@ var (
 )
 
 const (
-	ATNUSD              = "ATN-USD"
-	NTNUSD              = "NTN-USD"
-	USDCUSD             = "USDC-USD"
-	ATNUSDC             = "ATN-USDC"
-	NTNUSDC             = "NTN-USDC"
-	MaxConfidence       = 100
-	BaseConfidence      = 40
+	ATNUSD  = "ATN-USD"
+	NTNUSD  = "NTN-USD"
+	USDCUSD = "USDC-USD"
+	ATNUSDC = "ATN-USDC"
+	NTNUSDC = "NTN-USDC"
+
 	OracleDecimals      = uint8(18)
 	MaxBufferedRounds   = 10
-	SourceScalingFactor = uint64(10)
 	serverStateDumpFile = "server_state_dump.json"
 )
 
@@ -643,19 +632,19 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 
 func (os *OracleServer) aggregateProtocolSymbolPrices() (types.PriceBySymbol, error) {
 	prices := make(types.PriceBySymbol)
-	usdcPrice, err := os.aggregatePrice(USDCUSD, os.curSampleTS)
+	usdcPrice, err := os.timePointPrice(USDCUSD, os.curSampleTS)
 	if err != nil {
 		os.logger.Error("aggregate USDC-USD price", "error", err.Error())
 	}
 
 	for _, s := range os.protocolSymbols {
-		// aggregate bridged symbols
+		// resolve price for the protocol bridged symbols: ATN-USD, NTN-USD with underlying ATN-USDC, NTN-USDC market data.
 		if s == ATNUSD || s == NTNUSD {
 			if usdcPrice == nil {
 				continue
 			}
 
-			p, e := os.aggregateBridgedPrice(s, os.curSampleTS, usdcPrice)
+			p, e := os.convertBridgerPrice(s, os.curSampleTS, usdcPrice)
 			if e != nil {
 				os.logger.Error("aggregate bridged price", "error", e.Error(), "symbol", s)
 				continue
@@ -664,8 +653,8 @@ func (os *OracleServer) aggregateProtocolSymbolPrices() (types.PriceBySymbol, er
 			continue
 		}
 
-		// aggregate none bridged symbols
-		p, e := os.aggregatePrice(s, os.curSampleTS)
+		// resolve price for none bridged symbols.
+		p, e := os.timePointPrice(s, os.curSampleTS)
 		if e != nil {
 			os.logger.Debug("no data for aggregation", "reason", e.Error(), "symbol", s)
 			continue
@@ -758,9 +747,9 @@ func (os *OracleServer) handleNewSymbolsEvent(symbols []string) {
 	os.AddNewSymbols(symbols)
 }
 
-// aggregateBridgedPrice ATN-USD or NTN-USD from bridged ATN-USDC or NTN-USDC with USDC-USD price,
+// convertBridgerPrice resolve price of ATN-USD or NTN-USD from the underlying ATN-USDC, NTN-USDC and USDC-USD market data.
 // it assumes the input usdcPrice is not nil.
-func (os *OracleServer) aggregateBridgedPrice(srcSymbol string, target int64, usdcPrice *types.Price) (*types.Price, error) {
+func (os *OracleServer) convertBridgerPrice(srcSymbol string, target int64, usdcPrice *types.Price) (*types.Price, error) {
 	var bridgedSymbol string
 	if srcSymbol == ATNUSD {
 		bridgedSymbol = ATNUSDC
@@ -770,7 +759,8 @@ func (os *OracleServer) aggregateBridgedPrice(srcSymbol string, target int64, us
 		bridgedSymbol = NTNUSDC
 	}
 
-	p, err := os.aggregatePrice(bridgedSymbol, target)
+	// resolve the underlying ATN-USDC or NTN-USDC price.
+	p, err := os.timePointPrice(bridgedSymbol, target)
 	if err != nil {
 		os.logger.Error("aggregate bridged price", "error", err.Error(), "symbol", bridgedSymbol)
 		return nil, err
@@ -784,21 +774,20 @@ func (os *OracleServer) aggregateBridgedPrice(srcSymbol string, target int64, us
 	return p, nil
 }
 
-// aggregatePrice takes the symbol's aggregated data points from all the supported plugins, if there are multiple
-// markets' datapoint, it will do a final VWAP aggregation to form the final reporting value.
-func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, error) {
-	var prices []decimal.Decimal
-	var volumes []*big.Int
+// timePointPrice select a target time point price if there is single data source for the symbol,
+// otherwise it aggregate prices of that time point from multiple data sources.
+func (os *OracleServer) timePointPrice(s string, target int64) (*types.Price, error) {
+	// collect prices from different plugins.
+	var sourcedPrices []types.Price
 	for _, plugin := range os.runningPlugins {
-		p, err := plugin.AggregatedPrice(s, target)
+		p, err := plugin.SelectSample(s, target)
 		if err != nil {
 			continue
 		}
-		prices = append(prices, p.Price)
-		volumes = append(volumes, p.Volume)
+		sourcedPrices = append(sourcedPrices, p)
 	}
 
-	if len(prices) == 0 {
+	if len(sourcedPrices) == 0 {
 		historicRoundPrice, err := os.queryHistoricRoundPrice(s)
 		if err != nil {
 			return nil, err
@@ -807,40 +796,98 @@ func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, er
 		return confidenceAdjustedPrice(&historicRoundPrice, target)
 	}
 
-	// compute confidence of the symbol from the num of plugins' samples of it.
-	confidence := ComputeConfidence(s, len(prices), os.conf.ConfidenceStrategy)
-	price := &types.Price{
-		Timestamp:  target,
-		Price:      prices[0],
-		Volume:     volumes[0],
-		Symbol:     s,
-		Confidence: confidence,
+	// short break for single data source
+	if len(sourcedPrices) == 1 {
+		return &sourcedPrices[0], nil
 	}
 
-	_, isForex := ForexCurrencies[s]
+	// return the aggregated price, volume and confidence of multiple data source.
+	return os.aggMulSrcPrice(s, target, sourcedPrices)
+}
 
-	// we have multiple markets' data for this forex symbol, update the price with median value.
-	if len(prices) > 1 && isForex {
-		p, err := helpers.Median(prices)
+func preCheckPrices(sourcedPrices []types.Price) (noVolumes bool, bestConfidentPrice *types.Price, highestConfidence uint8, prices []decimal.Decimal, confidences []*big.Int, volumes []*big.Int) {
+	noVolumes = true
+	highestConfidenceCount := 0
+	var highestConfidencePrice *types.Price
+
+	for _, price := range sourcedPrices {
+		if price.Volume != nil && price.Volume.Cmp(common.Big0) > 0 {
+			noVolumes = false
+		}
+		prices = append(prices, price.Price)
+		volumes = append(volumes, price.Volume)
+		confidenceBigInt := big.NewInt(int64(price.Confidence))
+		confidences = append(confidences, confidenceBigInt)
+
+		// address the best confident price.
+		if price.Confidence > highestConfidence {
+			highestConfidence = price.Confidence
+			highestConfidenceCount = 1
+			highestConfidencePrice = &price
+		} else if price.Confidence == highestConfidence {
+			highestConfidenceCount++
+		}
+	}
+
+	// if there is single one best confident price, set bestConfidentPrice
+	if highestConfidenceCount == 1 {
+		bestConfidentPrice = highestConfidencePrice
+	}
+
+	return noVolumes, bestConfidentPrice, highestConfidence, prices, confidences, volumes
+}
+
+// aggMulSrcPrice, aggregates price, volume and confidence for symbol by according to configurations.
+func (os *OracleServer) aggMulSrcPrice(symbol string, ts int64, sourcedPrices []types.Price) (*types.Price, error) {
+
+	noVolumes, bestConfidentPrice, highestConfidence, prices, confidences, volumes := preCheckPrices(sourcedPrices)
+	if highestConfidence == 0 || highestConfidence > types.MaxConfidence {
+		return nil, fmt.Errorf("highest confidence out of range")
+	}
+
+	// no volumes data available for forex, and USDC-USD, they come here:
+	if noVolumes {
+		// return with the best confident price when Max strategy is configured.
+		if os.conf.ConfidenceStrategy == config.ConfidenceStrategyMax {
+			if bestConfidentPrice != nil {
+				return bestConfidentPrice, nil
+			}
+		}
+		// return with the highest confidence and CWAP price for Linear strategy.
+		aggPrice, _, err := helpers.XWAP(prices, confidences)
 		if err != nil {
 			return nil, err
 		}
-		price.Price = p
-		price.Volume = types.DefaultVolume
-		return price, nil
+		return &types.Price{
+			Timestamp:  ts,
+			Symbol:     symbol,
+			Price:      aggPrice,
+			Confidence: highestConfidence,
+			Volume:     common.Big0,
+		}, nil
 	}
 
-	// we have multiple markets' data for this crypto symbol, update the price with VWAP.
-	if len(prices) > 1 && !isForex {
-		p, vol, err := helpers.VWAP(prices, volumes)
-		if err != nil {
-			return nil, err
+	// AMM cryptos with volumes data, (ATN-USDC, NTN-USDC, NTN-ATN etc...) come here:
+	// return with the best confident price when Max strategy is configured.
+	if os.conf.ConfidenceStrategy == config.ConfidenceStrategyMax {
+		if bestConfidentPrice != nil {
+			return bestConfidentPrice, nil
 		}
-		price.Price = p
-		price.Volume = vol
 	}
 
-	return price, nil
+	// return with the highest confidence and VWAP price for Linear strategy
+	aggPrice, totalVol, err := helpers.XWAP(prices, volumes)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.Price{
+		Timestamp:  ts,
+		Symbol:     symbol,
+		Price:      aggPrice,
+		Confidence: highestConfidence,
+		Volume:     totalVol,
+	}, nil
 }
 
 // queryHistoricRoundPrice queries the last available price for a given symbol from the historic rounds.
@@ -1136,33 +1183,6 @@ func (os *OracleServer) ApplyPluginConf(name string, plugConf *config.PluginConf
 		return err
 	}
 	return nil
-}
-
-// ComputeConfidence calculates the confidence weight based on the number of data samples. Note! Cryptos take
-// fixed strategy as we have very limited number of data sources at the genesis phase. Thus, the confidence
-// computing is just for forex currencies for the time being.
-func ComputeConfidence(symbol string, numOfSamples, strategy int) uint8 {
-
-	// Todo: once the community have more extensive AMM and DEX markets, we will remove this to enable linear
-	//  strategy as well for cryptos.
-	if _, is := ForexCurrencies[symbol]; !is {
-		return MaxConfidence
-	}
-
-	// Forex currencies with fixed strategy.
-	if strategy == config.ConfidenceStrategyFixed {
-		return MaxConfidence
-	}
-
-	// Forex currencies with "linear" strategy. Labeled "linear" but uses exponential scaling (1.75^n) since we
-	// are at the network bootstrapping phase with very limited number of data sources.
-	weight := BaseConfidence + SourceScalingFactor*uint64(math.Pow(1.75, float64(numOfSamples)))
-
-	if weight > MaxConfidence {
-		weight = MaxConfidence
-	}
-
-	return uint8(weight) //nolint
 }
 
 // by according to the spreading of price timestamp from the target timestamp,

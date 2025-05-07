@@ -13,9 +13,12 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+const MaxConfidence = 100
+const BaseConfidence = 40
+
 var (
 	Deployer                = common.Address{}
-	DefaultVolume           = new(big.Int).SetInt64(1000000) // used by forex currency which does not have trade volumes.
+	NoVolumeData            = new(big.Int).SetInt64(0) // used by those plugins which cannot get volume info from data source.
 	AutonityContractAddress = crypto.CreateAddress(Deployer, 0)
 	OracleContractAddress   = crypto.CreateAddress(Deployer, 2)
 
@@ -32,9 +35,8 @@ type Price struct {
 	Timestamp  int64 // TS on when the data is being sampled in time's seconds since Jan 1 1970 (Unix time).
 	Symbol     string
 	Price      decimal.Decimal
-	Confidence uint8 // confidence of the data point is resolved by the oracle server.
+	Confidence uint8 // confidence of the data point is resolved by the plugin by according to config.
 	// Below field is reserved for data providers which can provide recent trade volumes of the pair,
-	// otherwise it will be resolved by oracle server.
 	Volume *big.Int // recent trade volume in quote of USDCx for on-chain AMM marketplace.
 }
 
