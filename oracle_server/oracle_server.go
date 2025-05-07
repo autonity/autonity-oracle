@@ -823,7 +823,8 @@ func preCheckPrices(sourcedPrices []types.Price) (noVolumes bool, bestConfidentP
 		if price.Confidence > highestConfidence {
 			highestConfidence = price.Confidence
 			highestConfidenceCount = 1
-			highestConfidencePrice = &price
+			priceCopy := price
+			highestConfidencePrice = &priceCopy
 		} else if price.Confidence == highestConfidence {
 			highestConfidenceCount++
 		}

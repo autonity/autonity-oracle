@@ -13,9 +13,9 @@ var defaultConfig = config.PluginConfig{
 	Key:                "",
 	Scheme:             "https",
 	Endpoint:           "simfeed.mainnet.autonity.org",
-	Confidence:         types.BaseConfidence,  // range from [1, 100], the higher, the better data quality is.
-	Timeout:            10, //10s
-	DataUpdateInterval: 10, //10s
+	Confidence:         types.BaseConfidence, // range from [1, 100], the higher, the better data quality is.
+	Timeout:            10,                   //10s
+	DataUpdateInterval: 10,                   //10s
 }
 
 func main() {
