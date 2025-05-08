@@ -25,7 +25,8 @@ var defaultConfig = config.PluginConfig{
 	Key:                "0x123",
 	Scheme:             "https",
 	Endpoint:           "api.transferwise.com",
-	Timeout:            10, // Timeout in seconds
+	Confidence:         types.BaseConfidence, // range from [1, 100], the higher, the better data quality is.
+	Timeout:            10,                   // Timeout in seconds
 	DataUpdateInterval: 30,
 }
 
@@ -155,7 +156,7 @@ func (wc *WiseClient) symbolsToPrice(s string, res *WRResult) (common.Price, err
 	}
 
 	price.Symbol = s
-	price.Volume = types.DefaultVolume.String()
+	price.Volume = types.NoVolumeData.String()
 	switch from {
 	case "EUR":
 		price.Price = decimal.NewFromInt(1).Div(res.Rate).String()

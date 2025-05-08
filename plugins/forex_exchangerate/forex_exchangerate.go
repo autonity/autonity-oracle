@@ -25,8 +25,9 @@ var defaultConfig = config.PluginConfig{
 	Key:                "",
 	Scheme:             "https",
 	Endpoint:           "v6.exchangerate-api.com",
-	Timeout:            10, //10s
-	DataUpdateInterval: 30, //30s
+	Confidence:         types.BaseConfidence, // range from [1, 100], the higher, the better data quality is.
+	Timeout:            10,                   //10s
+	DataUpdateInterval: 30,                   //30s
 }
 
 type EXResult struct {
@@ -140,7 +141,7 @@ func (ex *EXClient) symbolsToPrice(s string, res *EXResult) (common.Price, error
 	}
 
 	price.Symbol = s
-	price.Volume = types.DefaultVolume.String()
+	price.Volume = types.NoVolumeData.String()
 	switch from {
 	case "EUR":
 		price.Price = decimal.NewFromInt(1).Div(res.Rates.EUR).String()

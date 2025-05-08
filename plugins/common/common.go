@@ -120,10 +120,11 @@ func (p *Plugin) FetchPrices(symbols []string) (types.PluginPriceReport, error) 
 		}
 
 		pr := types.Price{
-			Timestamp: now,
-			Symbol:    availableSymMap[v.Symbol], // set the symbol with the symbol style used in oracle server side.
-			Price:     decPrice,
-			Volume:    decVol,
+			Timestamp:  now,
+			Symbol:     availableSymMap[v.Symbol], // set the symbol with the symbol style used in oracle server side.
+			Price:      decPrice,
+			Confidence: p.conf.Confidence,
+			Volume:     decVol,
 		}
 		p.cachePrices[v.Symbol] = pr
 		report.Prices = append(report.Prices, pr)
@@ -161,6 +162,7 @@ func (p *Plugin) State(chainID int64) (types.PluginStatement, error) {
 	state.Version = p.version
 	state.AvailableSymbols = symbols
 	state.KeyRequired = p.client.KeyRequired()
+	state.Confidence = p.conf.Confidence
 	state.DataSource = p.conf.Scheme + "://" + p.conf.Endpoint
 	state.DataSourceType = p.dataSourceType
 
@@ -252,6 +254,10 @@ func ResolveConf(cmd string, defConf *config.PluginConfig) *config.PluginConfig 
 	if err != nil {
 		println("cannot load conf: ", err.Error(), cmd)
 		os.Exit(-1)
+	}
+
+	if conf.Confidence == 0 || conf.Confidence > types.MaxConfidence {
+		conf.Confidence = defConf.Confidence
 	}
 
 	if conf.Timeout == 0 {

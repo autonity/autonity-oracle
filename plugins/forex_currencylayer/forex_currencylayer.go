@@ -26,8 +26,9 @@ var defaultConfig = config.PluginConfig{
 	Key:                "",
 	Scheme:             "http",
 	Endpoint:           "api.currencylayer.com",
-	Timeout:            10, //10s
-	DataUpdateInterval: 30, //30s
+	Confidence:         types.BaseConfidence, // range from [1, 100], the higher, the better data quality is.
+	Timeout:            10,                   //10s
+	DataUpdateInterval: 30,                   //30s
 }
 
 type CLResult struct {
@@ -139,7 +140,7 @@ func (cl *CLClient) symbolsToPrice(s string, res *CLResult) (common.Price, error
 	}
 
 	price.Symbol = s
-	price.Volume = types.DefaultVolume.String()
+	price.Volume = types.NoVolumeData.String()
 	switch from {
 	case "EUR":
 		price.Price = decimal.NewFromInt(1).Div(res.Quotes.USDEUR).String()

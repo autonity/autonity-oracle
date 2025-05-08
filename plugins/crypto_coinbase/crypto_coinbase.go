@@ -22,6 +22,7 @@ var defaultConfig = config.PluginConfig{
 	Key:                "",
 	Scheme:             "https",
 	Endpoint:           "api.coinbase.com",
+	Confidence:         90, // range from [1, 100], the higher, the better data quality is.
 	Timeout:            10, // 10s
 	DataUpdateInterval: 30, // 30s, tested and passed the rate limit policy of public data service of coinbase.
 }
@@ -88,7 +89,7 @@ func (c *CoinBaseClient) FetchPrice(_ []string) (common.Prices, error) {
 	prices = append(prices, common.Price{
 		Symbol: common.DefaultUSDCSymbol,
 		Price:  data.Data.Amount,
-		Volume: types.DefaultVolume.String(),
+		Volume: types.NoVolumeData.String(),
 	})
 
 	return prices, nil

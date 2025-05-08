@@ -28,6 +28,7 @@ var defaultConfig = config.PluginConfig{
 	Scheme:             "https",
 	Endpoint:           "api.coingecko.com",
 	Timeout:            10, // 10s
+	Confidence:         90, // range from [1, 100], the higher, the better data quality is.
 	DataUpdateInterval: 30, // 30s, tested and passed the rate limit policy of public data service of coin-gecko.
 }
 
@@ -89,7 +90,7 @@ func (c *CoinGeckoClient) FetchPrice(_ []string) (common.Prices, error) {
 	prices = append(prices, common.Price{
 		Symbol: common.DefaultUSDCSymbol,
 		Price:  strconv.FormatFloat(result.USDCoin.USD, 'f', 6, 64),
-		Volume: types.DefaultVolume.String(),
+		Volume: types.NoVolumeData.String(),
 	})
 
 	return prices, nil

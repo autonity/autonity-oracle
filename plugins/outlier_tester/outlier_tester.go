@@ -20,8 +20,9 @@ const (
 
 var defaultConfig = config.PluginConfig{
 	Name:               "outlier_tester_plugin",
-	Timeout:            10, //10s
-	DataUpdateInterval: 30, //30s
+	Confidence:         types.BaseConfidence, // range from [1, 100], the higher, the better data quality is.
+	Timeout:            10,                   //10s
+	DataUpdateInterval: 30,                   //30s
 }
 
 // OutlierTesterPlugin is only used for internal e2e testing,
@@ -130,6 +131,7 @@ func (g *OutlierTesterPlugin) State(_ int64) (types.PluginStatement, error) {
 	}
 
 	state.KeyRequired = g.client.KeyRequired()
+	state.Confidence = g.conf.Confidence
 	state.Version = g.version
 	state.AvailableSymbols = symbols
 	state.DataSource = g.conf.Scheme + "://" + g.conf.Endpoint
@@ -209,7 +211,7 @@ func (tc *OutlierClient) FetchPrice(symbols []string) (common.Prices, error) {
 	var prices common.Prices
 	for _, s := range symbols {
 		var price common.Price
-		price.Volume = types.DefaultVolume.String()
+		price.Volume = types.NoVolumeData.String()
 		price.Symbol = s
 		// it is a malicious behaviour to set the price into an outlier range by multiply with 3.0
 		p := helpers.ResolveSimulatedPrice(s).Mul(decimal.RequireFromString("3.0"))

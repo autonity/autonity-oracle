@@ -24,8 +24,9 @@ var defaultConfig = config.PluginConfig{
 	Key:                "",
 	Scheme:             "https",
 	Endpoint:           "127.0.0.1:8080",
-	Timeout:            10, //10s
-	DataUpdateInterval: 30, //30s
+	Confidence:         types.BaseConfidence, // range from [1, 100], the higher, the better data quality is.
+	Timeout:            10,                   //10s
+	DataUpdateInterval: 30,                   //30s
 }
 
 // TemplatePlugin Here is an implementation of a plugin which returns simulated data points.
@@ -94,10 +95,11 @@ func (g *TemplatePlugin) FetchPrices(symbols []string) (types.PluginPriceReport,
 		}
 
 		pr := types.Price{
-			Timestamp: now,
-			Symbol:    availableSymMap[v.Symbol], // set the symbol with the symbol style used in oracle server side.
-			Price:     decPrice,
-			Volume:    decVol,
+			Timestamp:  now,
+			Symbol:     availableSymMap[v.Symbol], // set the symbol with the symbol style used in oracle server side.
+			Price:      decPrice,
+			Confidence: g.conf.Confidence,
+			Volume:     decVol,
 		}
 		g.cachePrices[v.Symbol] = pr
 		report.Prices = append(report.Prices, pr)
@@ -133,6 +135,7 @@ func (g *TemplatePlugin) State(_ int64) (types.PluginStatement, error) {
 	}
 
 	state.KeyRequired = g.client.KeyRequired()
+	state.Confidence = g.conf.Confidence
 	state.Version = g.version
 	state.AvailableSymbols = symbols
 	state.DataSource = g.conf.Scheme + "://" + g.conf.Endpoint
@@ -243,7 +246,7 @@ func (tc *TemplateClient) FetchPrice(symbols []string) (common.Prices, error) {
 	for _, s := range symbols {
 		var price common.Price
 		price.Symbol = s
-		price.Volume = types.DefaultVolume.String()
+		price.Volume = helpers.ResolveSimulatedVolume(s).String()
 		price.Price = helpers.ResolveSimulatedPrice(s).String()
 		prices = append(prices, price)
 	}

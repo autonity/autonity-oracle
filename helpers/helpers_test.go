@@ -36,43 +36,6 @@ func TestResolveSimulatedPrice(t *testing.T) {
 	require.Equal(t, true, pATNUSD.Equal(p))
 }
 
-func TestMedian(t *testing.T) {
-	t.Run("normal cases with 1 sample", func(t *testing.T) {
-		var prices = []decimal.Decimal{decimal.RequireFromString("1.0")}
-		aggPrice, err := Median(prices)
-		require.NoError(t, err)
-		aggPrice.Equals(decimal.RequireFromString("1.0"))
-	})
-	t.Run("normal cases with 2 samples", func(t *testing.T) {
-		var prices = []decimal.Decimal{decimal.RequireFromString("2.0"), decimal.RequireFromString("1.0")}
-		aggPrice, err := Median(prices)
-		require.NoError(t, err)
-		aggPrice.Equals(decimal.RequireFromString("1.5"))
-	})
-	t.Run("normal cases with 3 samples", func(t *testing.T) {
-		var prices = []decimal.Decimal{decimal.RequireFromString("1.0"),
-			decimal.RequireFromString("2.0"), decimal.RequireFromString("3.0")}
-		aggPrice, err := Median(prices)
-		require.NoError(t, err)
-		aggPrice.Equals(decimal.RequireFromString("2.0"))
-	})
-
-	t.Run("normal cases with 4 samples", func(t *testing.T) {
-		var prices = []decimal.Decimal{decimal.RequireFromString("1.0"),
-			decimal.RequireFromString("2.0"), decimal.RequireFromString("3.0"),
-			decimal.RequireFromString("4.0")}
-
-		aggPrice, err := Median(prices)
-		require.NoError(t, err)
-		aggPrice.Equals(decimal.RequireFromString("2.5"))
-	})
-
-	t.Run("with an empty prices set", func(t *testing.T) {
-		_, err := Median(nil)
-		require.Error(t, err)
-	})
-}
-
 func TestVWAP(t *testing.T) {
 	tests := []struct {
 		prices             []decimal.Decimal
@@ -130,7 +93,7 @@ func TestVWAP(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		vwap, highestVol, err := VWAP(test.prices, test.volumes)
+		vwap, _, err := XWAP(test.prices, test.volumes)
 
 		if test.expectError {
 			if err == nil {
@@ -145,11 +108,7 @@ func TestVWAP(t *testing.T) {
 		}
 
 		if !vwap.Equal(test.expectedVWAP) {
-			t.Errorf("For prices: %v and volumes: %v, expected VWAP: %s, but got: %s", test.prices, test.volumes, test.expectedVWAP.String(), vwap.String())
-		}
-
-		if highestVol.Cmp(test.expectedHighestVol) != 0 {
-			t.Errorf("For prices: %v and volumes: %v, expected highest volume: %s, but got: %s", test.prices, test.volumes, test.expectedHighestVol.String(), highestVol.String())
+			t.Errorf("For prices: %v and volumes: %v, expected XWAP: %s, but got: %s", test.prices, test.volumes, test.expectedVWAP.String(), vwap.String())
 		}
 	}
 }

@@ -24,8 +24,8 @@ pluginDir: "./plugins"  # Directory for plugins
 #Set the profiling report directory, where some runtime state will be saved at.
 profileDir: "."  # Profile directory
 
-#Set the confidence strategy, available strategies are: 0: linear, 1: fixed.
-confidenceStrategy: 0  # 0: linear, 1: fixed
+#Set the confidence strategy, available strategies are: 0: max, 1: aggregated.
+confidenceStrategy: 0  # 0: max, 1: aggregated.
 
 #Set the plugin configs.
 # The forex data plugins are used to fetch realtime rate of currency pairs:
@@ -90,6 +90,7 @@ pluginConfigs:
   - name: crypto_uniswap
     scheme: "wss"                                          # Available values are: "ws" or "wss", default value is "wss".
     endpoint: "rpc-internal-1.piccadilly.autonity.org/ws"  # The default URL might not be stable for public usage, we recommend you to change it with your validator node's RPC endpoint.
+    confidence: 100                         # optional, the data confidence of the data service.
 
 #Enable the metric collection for oracle server, supported TS-DB engines are influxDB v1 and v2.
 metricConfigs:
