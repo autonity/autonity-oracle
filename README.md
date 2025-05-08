@@ -80,9 +80,9 @@ profileDir: "."  # Profile directory
 #  When multiple samples from different data sources have equal confidence, for currencies without collected volume data,
 #  it performs a confidence - weighted price calculation for data submission.
 
-# 1: linear - For currencies without collected volume data, it uses a confidence - weighted price for data submission.
+# 1: aggregated - For currencies without collected volume data, it uses a confidence - weighted price for data submission.
 #  For currencies with collected volume data, it takes a volume - weighted price for submission.
-confidenceStrategy: 0  # 0: max, 1: linear, default value is 0.
+confidenceStrategy: 0  # 0: max, 1: aggregated, default value is 0.
 
 #Set the plugin configs.
 # The forex data plugins are used to fetch realtime rate of currency pairs:

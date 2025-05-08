@@ -21,9 +21,9 @@ var (
 	defaultProfileDir             = "."
 	defaultVoteBufferAfterPenalty = uint64(3600 * 24) // The buffering time window in blocks to continue vote after the last penalty event.
 
-	ConfidenceStrategyMax     = 0                     // use the confidence of the plugin with the max confidence value among the plugins.
-	ConfidenceStrategyLinear  = 1                     // linear aggregate the confidences from all plugins.
-	defaultConfidenceStrategy = ConfidenceStrategyMax // 0: max, 1: linear, 2: fixed.
+	ConfidenceStrategyMax        = 0                     // use the confidence of the plugin with the max confidence value among the plugins.
+	ConfidenceStrategyAggregated = 1                     // aggregate the confidences from all plugins.
+	defaultConfidenceStrategy    = ConfidenceStrategyMax // 0: max, 1: aggregated.
 )
 
 // Version number of the oracle server in uint8. It is required
@@ -158,7 +158,7 @@ func MakeConfig() *Config {
 	}
 
 	if config.ConfidenceStrategy != ConfidenceStrategyMax &&
-		config.ConfidenceStrategy != ConfidenceStrategyLinear {
+		config.ConfidenceStrategy != ConfidenceStrategyAggregated {
 		log.SetFlags(0)
 		log.Printf("wrong confidence strategy was set: %d", config.ConfidenceStrategy)
 		os.Exit(1)

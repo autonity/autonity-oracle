@@ -23,8 +23,8 @@ pluginDir: "../plugins/template_plugin/bin"  # Directory for plugins
 #Set the profiling report directory, where some runtime state will be saved at.
 profileDir: "."  # Profile directory
 
-#Set the confidence strategy, available strategies are: 0: linear, 1: fixed.
-confidenceStrategy: 0  # 0: linear, 1: fixed
+#Set the confidence strategy, available strategies are: 0: max, 1: aggregated.
+confidenceStrategy: 0  # 0: max, 1: aggregated.
 
 #Set the plugin configs.
 # The forex data plugins are used to fetch realtime rate of currency pairs:
