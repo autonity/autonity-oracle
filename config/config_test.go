@@ -19,6 +19,10 @@ func TestConfigs(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, pluginConfigs)
 	require.Equal(t, 5, len(pluginConfigs))
+
+	cf, ok := pluginConfigs["not exists"]
+	require.False(t, ok)
+	require.NotNil(t, cf)
 }
 
 func TestFormatVersion(t *testing.T) {

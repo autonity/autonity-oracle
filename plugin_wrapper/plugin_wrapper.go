@@ -87,6 +87,10 @@ func NewPluginWrapper(logLevel hclog.Level, name string, pluginDir string, sub t
 	return p
 }
 
+func (pw *PluginWrapper) Config() *config.PluginConfig {
+	return pw.conf
+}
+
 func (pw *PluginWrapper) AddSample(prices []types.Price, ts int64) {
 	pw.lockSamples.Lock()
 	defer pw.lockSamples.Unlock()
