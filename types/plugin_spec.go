@@ -14,7 +14,6 @@ type DataSourceType int
 const (
 	SrcAMM DataSourceType = iota
 	SrcCEX
-	SrcAFQ
 )
 
 // HandshakeConfig are used to just do a basic handshake between

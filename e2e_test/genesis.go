@@ -111,29 +111,35 @@ func (h storageJSON) MarshalText() ([]byte, error) {
 // types to construct genesis.
 
 type AutonityContractGenesis struct {
-	Bytecode                hexutil.Bytes         `json:"bytecode,omitempty" toml:",omitempty"`
-	ABI                     *abi.ABI              `json:"abi,omitempty" toml:",omitempty"`
-	MinBaseFee              uint64                `json:"minBaseFee"`
-	EpochPeriod             uint64                `json:"epochPeriod"`
-	UnbondingPeriod         uint64                `json:"unbondingPeriod"`
-	BlockPeriod             uint64                `json:"blockPeriod"`
-	MaxCommitteeSize        uint64                `json:"maxCommitteeSize"`
-	MaxScheduleDuration     uint64                `json:"maxScheduleDuration"`
-	Operator                common.Address        `json:"operator"`
-	Treasury                common.Address        `json:"treasury"`
-	WithheldRewardsPool     common.Address        `json:"withheldRewardsPool"`
-	TreasuryFee             uint64                `json:"treasuryFee"`
-	DelegationRate          uint64                `json:"delegationRate"`
-	WithholdingThreshold    uint64                `json:"withholdingThreshold"`
-	ProposerRewardRate      uint64                `json:"proposerRewardRate"`
-	OracleRewardRate        uint64                `json:"oracleRewardRate"`
-	InitialInflationReserve *math.HexOrDecimal256 `json:"initialInflationReserve"`
-	Validators              []*Validator          `json:"validators"` // todo: Can we change that to []Validator
-	Schedules               []Schedule            `json:"schedules"`
+	Bytecode                 hexutil.Bytes         `json:"bytecode,omitempty" toml:",omitempty"`
+	ABI                      *abi.ABI              `json:"abi,omitempty" toml:",omitempty"`
+	MinBaseFee               uint64                `json:"minBaseFee"`
+	EpochPeriod              uint64                `json:"epochPeriod"`
+	UnbondingPeriod          uint64                `json:"unbondingPeriod"`
+	BlockPeriod              uint64                `json:"blockPeriod"`
+	MaxCommitteeSize         uint64                `json:"maxCommitteeSize"`
+	MaxScheduleDuration      uint64                `json:"maxScheduleDuration"`
+	GasLimit                 uint64                `json:"gasLimit"`
+	GasLimitBoundDivisor     uint64                `json:"gasLimitBoundDivisor"`
+	BaseFeeChangeDenominator uint64                `json:"baseFeeChangeDenominator"`
+	ElasticityMultiplier     uint64                `json:"elasticityMultiplier"`
+	Operator                 common.Address        `json:"operator"`
+	Treasury                 common.Address        `json:"treasury"`
+	WithheldRewardsPool      common.Address        `json:"withheldRewardsPool"`
+	TreasuryFee              uint64                `json:"treasuryFee"`
+	DelegationRate           uint64                `json:"delegationRate"`
+	WithholdingThreshold     uint64                `json:"withholdingThreshold"`
+	ProposerRewardRate       uint64                `json:"proposerRewardRate"`
+	OracleRewardRate         uint64                `json:"oracleRewardRate"`
+	InitialInflationReserve  *math.HexOrDecimal256 `json:"initialInflationReserve"`
+	Validators               []*Validator          `json:"validators"` // todo: Can we change that to []Validator
+	Schedules                []Schedule            `json:"schedules"`
 }
 
 type AccountabilityGenesis struct {
 	InnocenceProofSubmissionWindow uint64 `json:"innocenceProofSubmissionWindow"`
+	Delta                          uint64 `json:"delta"`
+	Range                          uint64 `json:"range"`
 
 	// Slashing parameters
 	BaseSlashingRateLow  uint64 `json:"baseSlashingRateLow"`

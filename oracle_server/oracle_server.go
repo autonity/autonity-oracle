@@ -156,6 +156,12 @@ type OracleServer struct {
 	pricePrecision  decimal.Decimal
 	roundData       map[uint64]*types.RoundData
 
+	chVotedEvent  chan *contract.OracleSuccessfulVote
+	subVotedEvent event.Subscription
+
+	chRewardEvent  chan *contract.OracleTotalOracleRewards
+	subRewardEvent event.Subscription
+
 	chPenalizedEvent  chan *contract.OraclePenalized
 	subPenalizedEvent event.Subscription
 
@@ -317,6 +323,28 @@ func (os *OracleServer) syncStates() error {
 
 	os.chPenalizedEvent = chPenalizedEvent
 	os.subPenalizedEvent = subPenalizedEvent
+
+	// subscribe voted event
+	chVotedEvent := make(chan *contract.OracleSuccessfulVote)
+	subVotedEvent, err := os.oracleContract.WatchSuccessfulVote(new(bind.WatchOpts), chVotedEvent, []common.Address{os.conf.Key.Address})
+	if err != nil {
+		os.logger.Error("failed to subscribe voted event", "error", err.Error())
+		return err
+	}
+
+	os.chVotedEvent = chVotedEvent
+	os.subVotedEvent = subVotedEvent
+
+	// subscribe reward event
+	chRewardEvent := make(chan *contract.OracleTotalOracleRewards)
+	subRewardEvent, err := os.oracleContract.WatchTotalOracleRewards(new(bind.WatchOpts), chRewardEvent)
+	if err != nil {
+		os.logger.Error("failed to subscribe reward event", "error", err.Error())
+		return err
+	}
+
+	os.chRewardEvent = chRewardEvent
+	os.subRewardEvent = subRewardEvent
 
 	return nil
 }
@@ -912,13 +940,25 @@ func (os *OracleServer) Start() {
 			}
 		case err := <-os.subRoundEvent.Err():
 			if err != nil {
-				os.logger.Info("subscription error of new roundEvent", err)
+				os.logger.Info("subscription error of new round event", err)
 				os.handleConnectivityError()
 				os.subRoundEvent.Unsubscribe()
 			}
+		case err := <-os.subRewardEvent.Err():
+			if err != nil {
+				os.logger.Info("subscription error of reward event", err)
+				os.handleConnectivityError()
+				os.subRewardEvent.Unsubscribe()
+			}
+		case err := <-os.subVotedEvent.Err():
+			if err != nil {
+				os.logger.Info("subscription error of voted event", err)
+				os.handleConnectivityError()
+				os.subVotedEvent.Unsubscribe()
+			}
 		case err := <-os.subPenalizedEvent.Err():
 			if err != nil {
-				os.logger.Info("subscription error of new roundEvent", err)
+				os.logger.Info("subscription error of penalty event", err)
 				os.handleConnectivityError()
 				os.subPenalizedEvent.Unsubscribe()
 			}
@@ -932,6 +972,14 @@ func (os *OracleServer) Start() {
 				os.logger.Error("handle pre-sampling", "error", err.Error())
 			}
 			os.lastSampledTS = preSampleTS
+
+		case votedEvent := <-os.chVotedEvent:
+			os.logger.Info("received voted event", "oracle client", votedEvent.Reporter, "height", votedEvent.Raw.BlockNumber)
+
+		case rewardEvent := <-os.chRewardEvent:
+			os.logger.Info("received reward distribution event", "height", rewardEvent.Raw.BlockNumber,
+				"total distributed ATN", rewardEvent.AtnReward.Uint64(), "total distributed NTN", rewardEvent.NtnReward.Uint64())
+
 		case penalizeEvent := <-os.chPenalizedEvent:
 
 			os.logger.Warn("Oracle client get penalized as an outlier", "node", penalizeEvent.Participant,
@@ -1007,6 +1055,8 @@ func (os *OracleServer) Stop() {
 	os.subRoundEvent.Unsubscribe()
 	os.subSymbolsEvent.Unsubscribe()
 	os.subPenalizedEvent.Unsubscribe()
+	os.subVotedEvent.Unsubscribe()
+	os.subRewardEvent.Unsubscribe()
 	if os.fsWatcher != nil {
 		os.fsWatcher.Close() //nolint
 	}

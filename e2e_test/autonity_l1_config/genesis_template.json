@@ -17,6 +17,10 @@
     "londonBlock": 0,
     "arrowGlacierBlock": 0,
     "autonity": {
+      "gasLimit": 20000000,
+      "gasLimitBoundDivisor": 1024,
+      "baseFeeChangeDenominator":8,
+      "elasticityMultiplier":2,
       "minBaseFee": 500000000,
       "epochPeriod": 300,
       "unbondingPeriod": 21600,
@@ -40,6 +44,8 @@
       "baseSlashingRate": 10
     },
     "accountability": {
+      "delta": 5,
+      "range": 40,
       "innocenceProofSubmissionWindow": 30,
       "baseSlashingRateLow": 500,
       "baseSlashingRateMid": 1000,

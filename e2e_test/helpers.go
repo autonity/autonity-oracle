@@ -221,8 +221,8 @@ func (n *L1Node) GenCMD(genesisFile string) {
 	c := exec.Command("./autonity",
 		"--ipcdisable", "--datadir", n.DataDir, "--genesis", genesisFile, "--autonitykeys", n.NodeKey.AutonityKeysFile, "--ws",
 		"--ws.addr", n.Host, "--ws.port", fmt.Sprintf("%d", n.WSPort), "--consensus.port", fmt.Sprintf("%d", n.ACNPort),
-		"--ws.api", "tendermint,eth,web3,admin,debug,miner,personal,txpool,net", "--syncmode", "full", "--miner.gaslimit",
-		"100000000", "--miner.threads", fmt.Sprintf("%d", 1), "--port", fmt.Sprintf("%d", n.P2PPort))
+		"--ws.api", "tendermint,eth,web3,admin,debug,miner,personal,txpool,net", "--syncmode", "full",
+		"--miner.threads", fmt.Sprintf("%d", 1), "--port", fmt.Sprintf("%d", n.P2PPort))
 
 	// enable logging in the standard outputs.
 	if n.EnableLog {
