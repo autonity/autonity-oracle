@@ -44,7 +44,7 @@ type IOracleRoundData struct {
 
 // OracleMetaData contains all meta data concerning the Oracle contract.
 var OracleMetaData = &bind.MetaData{
-	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"string\",\"name\":\"cause\",\"type\":\"string\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"reporter\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"expValue\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"actualValue\",\"type\":\"uint256\"}],\"name\":\"InvalidVote\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"_round\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"_timestamp\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"_votePeriod\",\"type\":\"uint256\"}],\"name\":\"NewRound\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"string[]\",\"name\":\"_symbols\",\"type\":\"string[]\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"_round\",\"type\":\"uint256\"}],\"name\":\"NewSymbols\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"reporter\",\"type\":\"address\"}],\"name\":\"NewVoter\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"_participant\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"_slashingAmount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"_symbol\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"int256\",\"name\":\"_median\",\"type\":\"int256\"},{\"indexed\":false,\"internalType\":\"uint120\",\"name\":\"_reported\",\"type\":\"uint120\"}],\"name\":\"Penalized\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"price\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"round\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"symbol\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"bool\",\"name\":\"status\",\"type\":\"bool\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"}],\"name\":\"PriceUpdated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"reporter\",\"type\":\"address\"}],\"name\":\"SuccessfulVote\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"ntnReward\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"atnReward\",\"type\":\"uint256\"}],\"name\":\"TotalOracleRewards\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_ntnRewards\",\"type\":\"uint256\"}],\"name\":\"distributeRewards\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"finalize\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getDecimals\",\"outputs\":[{\"internalType\":\"uint8\",\"name\":\"\",\"type\":\"uint8\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getNewVoters\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"\",\"type\":\"address[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getRound\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_round\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"_symbol\",\"type\":\"string\"}],\"name\":\"getRoundData\",\"outputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"round\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"price\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"},{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"internalType\":\"structIOracle.RoundData\",\"name\":\"data\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getSymbols\",\"outputs\":[{\"internalType\":\"string[]\",\"name\":\"_symbols\",\"type\":\"string[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getVotePeriod\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getVoters\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"\",\"type\":\"address[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"_symbol\",\"type\":\"string\"}],\"name\":\"latestRoundData\",\"outputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"round\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"price\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"},{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"internalType\":\"structIOracle.RoundData\",\"name\":\"data\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_operator\",\"type\":\"address\"}],\"name\":\"setOperator\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string[]\",\"name\":\"_symbols\",\"type\":\"string[]\"}],\"name\":\"setSymbols\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"_newVoters\",\"type\":\"address[]\"},{\"internalType\":\"address[]\",\"name\":\"_treasury\",\"type\":\"address[]\"},{\"internalType\":\"address[]\",\"name\":\"_validator\",\"type\":\"address[]\"}],\"name\":\"setVoters\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"updateVotersAndSymbol\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_commit\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"uint120\",\"name\":\"price\",\"type\":\"uint120\"},{\"internalType\":\"uint8\",\"name\":\"confidence\",\"type\":\"uint8\"}],\"internalType\":\"structIOracle.Report[]\",\"name\":\"_reports\",\"type\":\"tuple[]\"},{\"internalType\":\"uint256\",\"name\":\"_salt\",\"type\":\"uint256\"},{\"internalType\":\"uint8\",\"name\":\"_extra\",\"type\":\"uint8\"}],\"name\":\"vote\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"_voter\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"_round\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"_nonRevealCount\",\"type\":\"uint256\"}],\"name\":\"CommitRevealMissed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"string\",\"name\":\"cause\",\"type\":\"string\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"reporter\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"expValue\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"actualValue\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint8\",\"name\":\"extra\",\"type\":\"uint8\"}],\"name\":\"InvalidVote\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"_round\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"_timestamp\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"_votePeriod\",\"type\":\"uint256\"}],\"name\":\"NewRound\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"string[]\",\"name\":\"_symbols\",\"type\":\"string[]\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"_round\",\"type\":\"uint256\"}],\"name\":\"NewSymbols\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"reporter\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint8\",\"name\":\"extra\",\"type\":\"uint8\"}],\"name\":\"NewVoter\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"_voter\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"_round\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"_missedReveal\",\"type\":\"uint256\"}],\"name\":\"NoRevealPenalty\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"_participant\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"_slashingAmount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"_symbol\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"int256\",\"name\":\"_median\",\"type\":\"int256\"},{\"indexed\":false,\"internalType\":\"uint120\",\"name\":\"_reported\",\"type\":\"uint120\"}],\"name\":\"Penalized\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"price\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"round\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"symbol\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"bool\",\"name\":\"status\",\"type\":\"bool\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"}],\"name\":\"PriceUpdated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"reporter\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint8\",\"name\":\"extra\",\"type\":\"uint8\"}],\"name\":\"SuccessfulVote\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"ntnReward\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"atnReward\",\"type\":\"uint256\"}],\"name\":\"TotalOracleRewards\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_ntnRewards\",\"type\":\"uint256\"}],\"name\":\"distributeRewards\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"finalize\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getDecimals\",\"outputs\":[{\"internalType\":\"uint8\",\"name\":\"\",\"type\":\"uint8\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getNewVotePeriod\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getNewVoters\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"\",\"type\":\"address[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getNonRevealThreshold\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getRound\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_round\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"_symbol\",\"type\":\"string\"}],\"name\":\"getRoundData\",\"outputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"round\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"price\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"},{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"internalType\":\"structIOracle.RoundData\",\"name\":\"data\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getSymbols\",\"outputs\":[{\"internalType\":\"string[]\",\"name\":\"_symbols\",\"type\":\"string[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getVotePeriod\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getVoters\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"\",\"type\":\"address[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"_symbol\",\"type\":\"string\"}],\"name\":\"latestRoundData\",\"outputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"round\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"price\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"timestamp\",\"type\":\"uint256\"},{\"internalType\":\"bool\",\"name\":\"success\",\"type\":\"bool\"}],\"internalType\":\"structIOracle.RoundData\",\"name\":\"data\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_threshold\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_resetInterval\",\"type\":\"uint256\"}],\"name\":\"setCommitRevealConfig\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_operator\",\"type\":\"address\"}],\"name\":\"setOperator\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"int256\",\"name\":\"_outlierSlashingThreshold\",\"type\":\"int256\"},{\"internalType\":\"int256\",\"name\":\"_outlierDetectionThreshold\",\"type\":\"int256\"},{\"internalType\":\"uint256\",\"name\":\"_baseSlashingRate\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_slashingRateCap\",\"type\":\"uint256\"}],\"name\":\"setSlashingConfig\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string[]\",\"name\":\"_symbols\",\"type\":\"string[]\"}],\"name\":\"setSymbols\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"_newVoters\",\"type\":\"address[]\"},{\"internalType\":\"address[]\",\"name\":\"_treasury\",\"type\":\"address[]\"},{\"internalType\":\"address[]\",\"name\":\"_validator\",\"type\":\"address[]\"}],\"name\":\"setVoters\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"updateVotersAndSymbol\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_commit\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"uint120\",\"name\":\"price\",\"type\":\"uint120\"},{\"internalType\":\"uint8\",\"name\":\"confidence\",\"type\":\"uint8\"}],\"internalType\":\"structIOracle.Report[]\",\"name\":\"_reports\",\"type\":\"tuple[]\"},{\"internalType\":\"uint256\",\"name\":\"_salt\",\"type\":\"uint256\"},{\"internalType\":\"uint8\",\"name\":\"_extra\",\"type\":\"uint8\"}],\"name\":\"vote\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
 }
 
 // OracleABI is the input ABI used to generate the binding from.
@@ -224,6 +224,37 @@ func (_Oracle *OracleCallerSession) GetDecimals() (uint8, error) {
 	return _Oracle.Contract.GetDecimals(&_Oracle.CallOpts)
 }
 
+// GetNewVotePeriod is a free data retrieval call binding the contract method 0x57eba759.
+//
+// Solidity: function getNewVotePeriod() view returns(uint256)
+func (_Oracle *OracleCaller) GetNewVotePeriod(opts *bind.CallOpts) (*big.Int, error) {
+	var out []interface{}
+	err := _Oracle.contract.Call(opts, &out, "getNewVotePeriod")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetNewVotePeriod is a free data retrieval call binding the contract method 0x57eba759.
+//
+// Solidity: function getNewVotePeriod() view returns(uint256)
+func (_Oracle *OracleSession) GetNewVotePeriod() (*big.Int, error) {
+	return _Oracle.Contract.GetNewVotePeriod(&_Oracle.CallOpts)
+}
+
+// GetNewVotePeriod is a free data retrieval call binding the contract method 0x57eba759.
+//
+// Solidity: function getNewVotePeriod() view returns(uint256)
+func (_Oracle *OracleCallerSession) GetNewVotePeriod() (*big.Int, error) {
+	return _Oracle.Contract.GetNewVotePeriod(&_Oracle.CallOpts)
+}
+
 // GetNewVoters is a free data retrieval call binding the contract method 0x077945d3.
 //
 // Solidity: function getNewVoters() view returns(address[])
@@ -253,6 +284,37 @@ func (_Oracle *OracleSession) GetNewVoters() ([]common.Address, error) {
 // Solidity: function getNewVoters() view returns(address[])
 func (_Oracle *OracleCallerSession) GetNewVoters() ([]common.Address, error) {
 	return _Oracle.Contract.GetNewVoters(&_Oracle.CallOpts)
+}
+
+// GetNonRevealThreshold is a free data retrieval call binding the contract method 0xed78349d.
+//
+// Solidity: function getNonRevealThreshold() view returns(uint256)
+func (_Oracle *OracleCaller) GetNonRevealThreshold(opts *bind.CallOpts) (*big.Int, error) {
+	var out []interface{}
+	err := _Oracle.contract.Call(opts, &out, "getNonRevealThreshold")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetNonRevealThreshold is a free data retrieval call binding the contract method 0xed78349d.
+//
+// Solidity: function getNonRevealThreshold() view returns(uint256)
+func (_Oracle *OracleSession) GetNonRevealThreshold() (*big.Int, error) {
+	return _Oracle.Contract.GetNonRevealThreshold(&_Oracle.CallOpts)
+}
+
+// GetNonRevealThreshold is a free data retrieval call binding the contract method 0xed78349d.
+//
+// Solidity: function getNonRevealThreshold() view returns(uint256)
+func (_Oracle *OracleCallerSession) GetNonRevealThreshold() (*big.Int, error) {
+	return _Oracle.Contract.GetNonRevealThreshold(&_Oracle.CallOpts)
 }
 
 // GetRound is a free data retrieval call binding the contract method 0x9f8743f7.
@@ -483,6 +545,27 @@ func (_Oracle *OracleTransactorSession) Finalize() (*types.Transaction, error) {
 	return _Oracle.Contract.Finalize(&_Oracle.TransactOpts)
 }
 
+// SetCommitRevealConfig is a paid mutator transaction binding the contract method 0x3f422ef3.
+//
+// Solidity: function setCommitRevealConfig(uint256 _threshold, uint256 _resetInterval) returns()
+func (_Oracle *OracleTransactor) SetCommitRevealConfig(opts *bind.TransactOpts, _threshold *big.Int, _resetInterval *big.Int) (*types.Transaction, error) {
+	return _Oracle.contract.Transact(opts, "setCommitRevealConfig", _threshold, _resetInterval)
+}
+
+// SetCommitRevealConfig is a paid mutator transaction binding the contract method 0x3f422ef3.
+//
+// Solidity: function setCommitRevealConfig(uint256 _threshold, uint256 _resetInterval) returns()
+func (_Oracle *OracleSession) SetCommitRevealConfig(_threshold *big.Int, _resetInterval *big.Int) (*types.Transaction, error) {
+	return _Oracle.Contract.SetCommitRevealConfig(&_Oracle.TransactOpts, _threshold, _resetInterval)
+}
+
+// SetCommitRevealConfig is a paid mutator transaction binding the contract method 0x3f422ef3.
+//
+// Solidity: function setCommitRevealConfig(uint256 _threshold, uint256 _resetInterval) returns()
+func (_Oracle *OracleTransactorSession) SetCommitRevealConfig(_threshold *big.Int, _resetInterval *big.Int) (*types.Transaction, error) {
+	return _Oracle.Contract.SetCommitRevealConfig(&_Oracle.TransactOpts, _threshold, _resetInterval)
+}
+
 // SetOperator is a paid mutator transaction binding the contract method 0xb3ab15fb.
 //
 // Solidity: function setOperator(address _operator) returns()
@@ -502,6 +585,27 @@ func (_Oracle *OracleSession) SetOperator(_operator common.Address) (*types.Tran
 // Solidity: function setOperator(address _operator) returns()
 func (_Oracle *OracleTransactorSession) SetOperator(_operator common.Address) (*types.Transaction, error) {
 	return _Oracle.Contract.SetOperator(&_Oracle.TransactOpts, _operator)
+}
+
+// SetSlashingConfig is a paid mutator transaction binding the contract method 0xda39fbfe.
+//
+// Solidity: function setSlashingConfig(int256 _outlierSlashingThreshold, int256 _outlierDetectionThreshold, uint256 _baseSlashingRate, uint256 _slashingRateCap) returns()
+func (_Oracle *OracleTransactor) SetSlashingConfig(opts *bind.TransactOpts, _outlierSlashingThreshold *big.Int, _outlierDetectionThreshold *big.Int, _baseSlashingRate *big.Int, _slashingRateCap *big.Int) (*types.Transaction, error) {
+	return _Oracle.contract.Transact(opts, "setSlashingConfig", _outlierSlashingThreshold, _outlierDetectionThreshold, _baseSlashingRate, _slashingRateCap)
+}
+
+// SetSlashingConfig is a paid mutator transaction binding the contract method 0xda39fbfe.
+//
+// Solidity: function setSlashingConfig(int256 _outlierSlashingThreshold, int256 _outlierDetectionThreshold, uint256 _baseSlashingRate, uint256 _slashingRateCap) returns()
+func (_Oracle *OracleSession) SetSlashingConfig(_outlierSlashingThreshold *big.Int, _outlierDetectionThreshold *big.Int, _baseSlashingRate *big.Int, _slashingRateCap *big.Int) (*types.Transaction, error) {
+	return _Oracle.Contract.SetSlashingConfig(&_Oracle.TransactOpts, _outlierSlashingThreshold, _outlierDetectionThreshold, _baseSlashingRate, _slashingRateCap)
+}
+
+// SetSlashingConfig is a paid mutator transaction binding the contract method 0xda39fbfe.
+//
+// Solidity: function setSlashingConfig(int256 _outlierSlashingThreshold, int256 _outlierDetectionThreshold, uint256 _baseSlashingRate, uint256 _slashingRateCap) returns()
+func (_Oracle *OracleTransactorSession) SetSlashingConfig(_outlierSlashingThreshold *big.Int, _outlierDetectionThreshold *big.Int, _baseSlashingRate *big.Int, _slashingRateCap *big.Int) (*types.Transaction, error) {
+	return _Oracle.Contract.SetSlashingConfig(&_Oracle.TransactOpts, _outlierSlashingThreshold, _outlierDetectionThreshold, _baseSlashingRate, _slashingRateCap)
 }
 
 // SetSymbols is a paid mutator transaction binding the contract method 0x8d4f75d2.
@@ -588,6 +692,152 @@ func (_Oracle *OracleTransactorSession) Vote(_commit *big.Int, _reports []IOracl
 	return _Oracle.Contract.Vote(&_Oracle.TransactOpts, _commit, _reports, _salt, _extra)
 }
 
+// OracleCommitRevealMissedIterator is returned from FilterCommitRevealMissed and is used to iterate over the raw logs and unpacked data for CommitRevealMissed events raised by the Oracle contract.
+type OracleCommitRevealMissedIterator struct {
+	Event *OracleCommitRevealMissed // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *OracleCommitRevealMissedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(OracleCommitRevealMissed)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(OracleCommitRevealMissed)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *OracleCommitRevealMissedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *OracleCommitRevealMissedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// OracleCommitRevealMissed represents a CommitRevealMissed event raised by the Oracle contract.
+type OracleCommitRevealMissed struct {
+	Voter          common.Address
+	Round          *big.Int
+	NonRevealCount *big.Int
+	Raw            types.Log // Blockchain specific contextual infos
+}
+
+// FilterCommitRevealMissed is a free log retrieval operation binding the contract event 0x176956a4e941f6737f81a3c9a09d8571dd0438d86e25a432beb2013aced43092.
+//
+// Solidity: event CommitRevealMissed(address indexed _voter, uint256 _round, uint256 _nonRevealCount)
+func (_Oracle *OracleFilterer) FilterCommitRevealMissed(opts *bind.FilterOpts, _voter []common.Address) (*OracleCommitRevealMissedIterator, error) {
+
+	var _voterRule []interface{}
+	for _, _voterItem := range _voter {
+		_voterRule = append(_voterRule, _voterItem)
+	}
+
+	logs, sub, err := _Oracle.contract.FilterLogs(opts, "CommitRevealMissed", _voterRule)
+	if err != nil {
+		return nil, err
+	}
+	return &OracleCommitRevealMissedIterator{contract: _Oracle.contract, event: "CommitRevealMissed", logs: logs, sub: sub}, nil
+}
+
+// WatchCommitRevealMissed is a free log subscription operation binding the contract event 0x176956a4e941f6737f81a3c9a09d8571dd0438d86e25a432beb2013aced43092.
+//
+// Solidity: event CommitRevealMissed(address indexed _voter, uint256 _round, uint256 _nonRevealCount)
+func (_Oracle *OracleFilterer) WatchCommitRevealMissed(opts *bind.WatchOpts, sink chan<- *OracleCommitRevealMissed, _voter []common.Address) (event.Subscription, error) {
+
+	var _voterRule []interface{}
+	for _, _voterItem := range _voter {
+		_voterRule = append(_voterRule, _voterItem)
+	}
+
+	logs, sub, err := _Oracle.contract.WatchLogs(opts, "CommitRevealMissed", _voterRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(OracleCommitRevealMissed)
+				if err := _Oracle.contract.UnpackLog(event, "CommitRevealMissed", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseCommitRevealMissed is a log parse operation binding the contract event 0x176956a4e941f6737f81a3c9a09d8571dd0438d86e25a432beb2013aced43092.
+//
+// Solidity: event CommitRevealMissed(address indexed _voter, uint256 _round, uint256 _nonRevealCount)
+func (_Oracle *OracleFilterer) ParseCommitRevealMissed(log types.Log) (*OracleCommitRevealMissed, error) {
+	event := new(OracleCommitRevealMissed)
+	if err := _Oracle.contract.UnpackLog(event, "CommitRevealMissed", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
 // OracleInvalidVoteIterator is returned from FilterInvalidVote and is used to iterate over the raw logs and unpacked data for InvalidVote events raised by the Oracle contract.
 type OracleInvalidVoteIterator struct {
 	Event *OracleInvalidVote // Event containing the contract specifics and raw log
@@ -661,12 +911,13 @@ type OracleInvalidVote struct {
 	Reporter    common.Address
 	ExpValue    *big.Int
 	ActualValue *big.Int
+	Extra       uint8
 	Raw         types.Log // Blockchain specific contextual infos
 }
 
-// FilterInvalidVote is a free log retrieval operation binding the contract event 0x8d0c4ae8fc49937cda4c0d5cd328adf8ebee0ee2ac4e269c10dc549ef2317f51.
+// FilterInvalidVote is a free log retrieval operation binding the contract event 0x04ca4e0efda95f8b780c116574d1521309010b38d8f7b75705495703a0f570b1.
 //
-// Solidity: event InvalidVote(string cause, address indexed reporter, uint256 expValue, uint256 actualValue)
+// Solidity: event InvalidVote(string cause, address indexed reporter, uint256 expValue, uint256 actualValue, uint8 extra)
 func (_Oracle *OracleFilterer) FilterInvalidVote(opts *bind.FilterOpts, reporter []common.Address) (*OracleInvalidVoteIterator, error) {
 
 	var reporterRule []interface{}
@@ -681,9 +932,9 @@ func (_Oracle *OracleFilterer) FilterInvalidVote(opts *bind.FilterOpts, reporter
 	return &OracleInvalidVoteIterator{contract: _Oracle.contract, event: "InvalidVote", logs: logs, sub: sub}, nil
 }
 
-// WatchInvalidVote is a free log subscription operation binding the contract event 0x8d0c4ae8fc49937cda4c0d5cd328adf8ebee0ee2ac4e269c10dc549ef2317f51.
+// WatchInvalidVote is a free log subscription operation binding the contract event 0x04ca4e0efda95f8b780c116574d1521309010b38d8f7b75705495703a0f570b1.
 //
-// Solidity: event InvalidVote(string cause, address indexed reporter, uint256 expValue, uint256 actualValue)
+// Solidity: event InvalidVote(string cause, address indexed reporter, uint256 expValue, uint256 actualValue, uint8 extra)
 func (_Oracle *OracleFilterer) WatchInvalidVote(opts *bind.WatchOpts, sink chan<- *OracleInvalidVote, reporter []common.Address) (event.Subscription, error) {
 
 	var reporterRule []interface{}
@@ -723,9 +974,9 @@ func (_Oracle *OracleFilterer) WatchInvalidVote(opts *bind.WatchOpts, sink chan<
 	}), nil
 }
 
-// ParseInvalidVote is a log parse operation binding the contract event 0x8d0c4ae8fc49937cda4c0d5cd328adf8ebee0ee2ac4e269c10dc549ef2317f51.
+// ParseInvalidVote is a log parse operation binding the contract event 0x04ca4e0efda95f8b780c116574d1521309010b38d8f7b75705495703a0f570b1.
 //
-// Solidity: event InvalidVote(string cause, address indexed reporter, uint256 expValue, uint256 actualValue)
+// Solidity: event InvalidVote(string cause, address indexed reporter, uint256 expValue, uint256 actualValue, uint8 extra)
 func (_Oracle *OracleFilterer) ParseInvalidVote(log types.Log) (*OracleInvalidVote, error) {
 	event := new(OracleInvalidVote)
 	if err := _Oracle.contract.UnpackLog(event, "InvalidVote", log); err != nil {
@@ -1076,12 +1327,13 @@ func (it *OracleNewVoterIterator) Close() error {
 // OracleNewVoter represents a NewVoter event raised by the Oracle contract.
 type OracleNewVoter struct {
 	Reporter common.Address
+	Extra    uint8
 	Raw      types.Log // Blockchain specific contextual infos
 }
 
-// FilterNewVoter is a free log retrieval operation binding the contract event 0x668b14b635e60c984edc522ab57ecf4f7df5f95e912da87692905dc5aa111487.
+// FilterNewVoter is a free log retrieval operation binding the contract event 0xd2ec8e890a03083998d3e16f98044fd3dd13fe3e61b7bc2e58ee6da43b50af73.
 //
-// Solidity: event NewVoter(address reporter)
+// Solidity: event NewVoter(address reporter, uint8 extra)
 func (_Oracle *OracleFilterer) FilterNewVoter(opts *bind.FilterOpts) (*OracleNewVoterIterator, error) {
 
 	logs, sub, err := _Oracle.contract.FilterLogs(opts, "NewVoter")
@@ -1091,9 +1343,9 @@ func (_Oracle *OracleFilterer) FilterNewVoter(opts *bind.FilterOpts) (*OracleNew
 	return &OracleNewVoterIterator{contract: _Oracle.contract, event: "NewVoter", logs: logs, sub: sub}, nil
 }
 
-// WatchNewVoter is a free log subscription operation binding the contract event 0x668b14b635e60c984edc522ab57ecf4f7df5f95e912da87692905dc5aa111487.
+// WatchNewVoter is a free log subscription operation binding the contract event 0xd2ec8e890a03083998d3e16f98044fd3dd13fe3e61b7bc2e58ee6da43b50af73.
 //
-// Solidity: event NewVoter(address reporter)
+// Solidity: event NewVoter(address reporter, uint8 extra)
 func (_Oracle *OracleFilterer) WatchNewVoter(opts *bind.WatchOpts, sink chan<- *OracleNewVoter) (event.Subscription, error) {
 
 	logs, sub, err := _Oracle.contract.WatchLogs(opts, "NewVoter")
@@ -1128,12 +1380,158 @@ func (_Oracle *OracleFilterer) WatchNewVoter(opts *bind.WatchOpts, sink chan<- *
 	}), nil
 }
 
-// ParseNewVoter is a log parse operation binding the contract event 0x668b14b635e60c984edc522ab57ecf4f7df5f95e912da87692905dc5aa111487.
+// ParseNewVoter is a log parse operation binding the contract event 0xd2ec8e890a03083998d3e16f98044fd3dd13fe3e61b7bc2e58ee6da43b50af73.
 //
-// Solidity: event NewVoter(address reporter)
+// Solidity: event NewVoter(address reporter, uint8 extra)
 func (_Oracle *OracleFilterer) ParseNewVoter(log types.Log) (*OracleNewVoter, error) {
 	event := new(OracleNewVoter)
 	if err := _Oracle.contract.UnpackLog(event, "NewVoter", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// OracleNoRevealPenaltyIterator is returned from FilterNoRevealPenalty and is used to iterate over the raw logs and unpacked data for NoRevealPenalty events raised by the Oracle contract.
+type OracleNoRevealPenaltyIterator struct {
+	Event *OracleNoRevealPenalty // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *OracleNoRevealPenaltyIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(OracleNoRevealPenalty)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(OracleNoRevealPenalty)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *OracleNoRevealPenaltyIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *OracleNoRevealPenaltyIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// OracleNoRevealPenalty represents a NoRevealPenalty event raised by the Oracle contract.
+type OracleNoRevealPenalty struct {
+	Voter        common.Address
+	Round        *big.Int
+	MissedReveal *big.Int
+	Raw          types.Log // Blockchain specific contextual infos
+}
+
+// FilterNoRevealPenalty is a free log retrieval operation binding the contract event 0x9e6b40f10c60d1ad09594f3b6ed7043d0e978f584d354ace6e1f6025660c42b1.
+//
+// Solidity: event NoRevealPenalty(address indexed _voter, uint256 _round, uint256 _missedReveal)
+func (_Oracle *OracleFilterer) FilterNoRevealPenalty(opts *bind.FilterOpts, _voter []common.Address) (*OracleNoRevealPenaltyIterator, error) {
+
+	var _voterRule []interface{}
+	for _, _voterItem := range _voter {
+		_voterRule = append(_voterRule, _voterItem)
+	}
+
+	logs, sub, err := _Oracle.contract.FilterLogs(opts, "NoRevealPenalty", _voterRule)
+	if err != nil {
+		return nil, err
+	}
+	return &OracleNoRevealPenaltyIterator{contract: _Oracle.contract, event: "NoRevealPenalty", logs: logs, sub: sub}, nil
+}
+
+// WatchNoRevealPenalty is a free log subscription operation binding the contract event 0x9e6b40f10c60d1ad09594f3b6ed7043d0e978f584d354ace6e1f6025660c42b1.
+//
+// Solidity: event NoRevealPenalty(address indexed _voter, uint256 _round, uint256 _missedReveal)
+func (_Oracle *OracleFilterer) WatchNoRevealPenalty(opts *bind.WatchOpts, sink chan<- *OracleNoRevealPenalty, _voter []common.Address) (event.Subscription, error) {
+
+	var _voterRule []interface{}
+	for _, _voterItem := range _voter {
+		_voterRule = append(_voterRule, _voterItem)
+	}
+
+	logs, sub, err := _Oracle.contract.WatchLogs(opts, "NoRevealPenalty", _voterRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(OracleNoRevealPenalty)
+				if err := _Oracle.contract.UnpackLog(event, "NoRevealPenalty", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseNoRevealPenalty is a log parse operation binding the contract event 0x9e6b40f10c60d1ad09594f3b6ed7043d0e978f584d354ace6e1f6025660c42b1.
+//
+// Solidity: event NoRevealPenalty(address indexed _voter, uint256 _round, uint256 _missedReveal)
+func (_Oracle *OracleFilterer) ParseNoRevealPenalty(log types.Log) (*OracleNoRevealPenalty, error) {
+	event := new(OracleNoRevealPenalty)
+	if err := _Oracle.contract.UnpackLog(event, "NoRevealPenalty", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
@@ -1506,12 +1904,13 @@ func (it *OracleSuccessfulVoteIterator) Close() error {
 // OracleSuccessfulVote represents a SuccessfulVote event raised by the Oracle contract.
 type OracleSuccessfulVote struct {
 	Reporter common.Address
+	Extra    uint8
 	Raw      types.Log // Blockchain specific contextual infos
 }
 
-// FilterSuccessfulVote is a free log retrieval operation binding the contract event 0xcf892949eadabf9f5d4d3badcf0d8a401531e7af3b0760566c37eca1b9a7f03d.
+// FilterSuccessfulVote is a free log retrieval operation binding the contract event 0x8bdddd7f2f2c74679ffa6beb8f86aa18bfa5baf1bfaf534d0b66596babc53f08.
 //
-// Solidity: event SuccessfulVote(address indexed reporter)
+// Solidity: event SuccessfulVote(address indexed reporter, uint8 extra)
 func (_Oracle *OracleFilterer) FilterSuccessfulVote(opts *bind.FilterOpts, reporter []common.Address) (*OracleSuccessfulVoteIterator, error) {
 
 	var reporterRule []interface{}
@@ -1526,9 +1925,9 @@ func (_Oracle *OracleFilterer) FilterSuccessfulVote(opts *bind.FilterOpts, repor
 	return &OracleSuccessfulVoteIterator{contract: _Oracle.contract, event: "SuccessfulVote", logs: logs, sub: sub}, nil
 }
 
-// WatchSuccessfulVote is a free log subscription operation binding the contract event 0xcf892949eadabf9f5d4d3badcf0d8a401531e7af3b0760566c37eca1b9a7f03d.
+// WatchSuccessfulVote is a free log subscription operation binding the contract event 0x8bdddd7f2f2c74679ffa6beb8f86aa18bfa5baf1bfaf534d0b66596babc53f08.
 //
-// Solidity: event SuccessfulVote(address indexed reporter)
+// Solidity: event SuccessfulVote(address indexed reporter, uint8 extra)
 func (_Oracle *OracleFilterer) WatchSuccessfulVote(opts *bind.WatchOpts, sink chan<- *OracleSuccessfulVote, reporter []common.Address) (event.Subscription, error) {
 
 	var reporterRule []interface{}
@@ -1568,9 +1967,9 @@ func (_Oracle *OracleFilterer) WatchSuccessfulVote(opts *bind.WatchOpts, sink ch
 	}), nil
 }
 
-// ParseSuccessfulVote is a log parse operation binding the contract event 0xcf892949eadabf9f5d4d3badcf0d8a401531e7af3b0760566c37eca1b9a7f03d.
+// ParseSuccessfulVote is a log parse operation binding the contract event 0x8bdddd7f2f2c74679ffa6beb8f86aa18bfa5baf1bfaf534d0b66596babc53f08.
 //
-// Solidity: event SuccessfulVote(address indexed reporter)
+// Solidity: event SuccessfulVote(address indexed reporter, uint8 extra)
 func (_Oracle *OracleFilterer) ParseSuccessfulVote(log types.Log) (*OracleSuccessfulVote, error) {
 	event := new(OracleSuccessfulVote)
 	if err := _Oracle.contract.UnpackLog(event, "SuccessfulVote", log); err != nil {
