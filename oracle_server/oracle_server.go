@@ -38,6 +38,11 @@ var ForexCurrencies = map[string]struct{}{
 	"SEK-USD": {},
 }
 
+var BridgedSymbols = map[string]string{
+	ATNUSD: ATNUSDC,
+	NTNUSD: NTNUSDC,
+}
+
 var (
 	saltRange       = new(big.Int).SetUint64(math.MaxInt64)
 	alertBalance    = new(big.Int).SetUint64(2000000000000) // 2000 Gwei, 0.000002 Ether
@@ -45,8 +50,6 @@ var (
 	invalidSalt     = big.NewInt(0)
 	tenSecsInterval = 10 * time.Second // ticker to check L2 connectivity and gc round data.
 	oneSecsInterval = 1 * time.Second  // sampling interval during data pre-sampling period.
-
-	bridgerSymbols = []string{"ATN-USDC", "NTN-USDC", "USDC-USD"} // used for value bridging to USD by USDC
 
 	numOfPlugins       = metrics.GetOrRegisterGauge("oracle/plugins", nil)
 	oracleRound        = metrics.GetOrRegisterGauge("oracle/round", nil)
@@ -288,10 +291,9 @@ func (os *OracleServer) syncStates() error {
 		return err
 	}
 
-	os.logger.Info("syncStates", "CurrentRound", os.curRound, "Num of AvailableSymbols", len(os.protocolSymbols), "CurrentSymbols", os.protocolSymbols)
-	os.AddNewSymbols(os.protocolSymbols)
-	os.logger.Info("syncStates", "CurrentRound", os.curRound, "Num of bridgerSymbols", len(bridgerSymbols), "bridgerSymbols", bridgerSymbols)
-	os.AddNewSymbols(bridgerSymbols)
+	// reset sampling symbols with the latest protocol symbols, it adds bridger symbols by according to the protocol symbols.
+	os.ResetSamplingSymbols(os.protocolSymbols)
+	os.logger.Info("syncStates", "CurrentRound", os.curRound, "protocol symbols", os.protocolSymbols, "sampling symbols", os.samplingSymbols)
 
 	// subscribe on-chain round rotation event
 	chRoundEvent := make(chan *contract.OracleNewRound)
@@ -608,6 +610,24 @@ func (os *OracleServer) reportWithoutCommitment(lastRoundData *types.RoundData) 
 	return nil
 }
 
+// ResetSamplingSymbols reset the latest sampling symbol set with the protocol symbol set.
+func (os *OracleServer) ResetSamplingSymbols(protocolSymbols []string) {
+	os.samplingSymbols = protocolSymbols
+
+	// check if we need to add bridger symbols on demand.
+	bridged := false
+	for _, s := range protocolSymbols {
+		if bridger, ok := BridgedSymbols[s]; ok {
+			bridged = true
+			os.samplingSymbols = append(os.samplingSymbols, bridger)
+		}
+	}
+
+	if bridged {
+		os.samplingSymbols = append(os.samplingSymbols, USDCUSD)
+	}
+}
+
 // AddNewSymbols adds new symbols to the local symbol set for data fetching, duplicated one is not added.
 func (os *OracleServer) AddNewSymbols(newSymbols []string) {
 	var symbolsMap = make(map[string]struct{})
@@ -615,10 +635,23 @@ func (os *OracleServer) AddNewSymbols(newSymbols []string) {
 		symbolsMap[s] = struct{}{}
 	}
 
+	// check if we need to add bridger symbols on demand.
+	bridged := false
 	for _, newS := range newSymbols {
 		if _, ok := symbolsMap[newS]; !ok {
 			os.samplingSymbols = append(os.samplingSymbols, newS)
+			// if the new symbol requires a bridger symbol, add it too.
+			if bridger, ok := BridgedSymbols[newS]; ok {
+				bridged = true
+				if _, ok := symbolsMap[bridger]; !ok {
+					os.samplingSymbols = append(os.samplingSymbols, bridger)
+				}
+			}
 		}
+	}
+
+	if _, ok := symbolsMap[USDCUSD]; !ok && bridged {
+		os.samplingSymbols = append(os.samplingSymbols, USDCUSD)
 	}
 }
 
@@ -1030,17 +1063,17 @@ func (os *OracleServer) Start() {
 			os.curSampleHeight = roundEvent.Raw.BlockNumber
 			os.curSampleTS = roundEvent.Timestamp.Int64()
 
+			// sync protocol symbols, and submit round vote by according to node's membership.
 			err := os.handleRoundVote()
 			if err != nil {
 				os.logger.Error("round voting failed", "error", err.Error())
 			}
 			// at the end of each round, gc expired samples of per plugin.
 			os.gcExpiredSamples()
-			// after vote finished, gc useless symbols by protocol required symbols.
-			os.samplingSymbols = os.protocolSymbols
-			// attach the bridger symbols too once the sampling symbols is replaced by protocol symbols.
-			os.AddNewSymbols(bridgerSymbols)
+			// after vote finished, reset sampling symbols by the latest synced protocol symbols.
+			os.ResetSamplingSymbols(os.protocolSymbols)
 		case newSymbolEvent := <-os.chSymbolsEvent:
+			// New symbols are added, add them into the sampling set to prepare data in advance for the coming round's vote.
 			os.logger.Info("handle new symbols", "new symbols", newSymbolEvent.Symbols, "activate at round", newSymbolEvent.Round)
 			os.handleNewSymbolsEvent(newSymbolEvent.Symbols)
 		case <-os.regularTicker.C:
