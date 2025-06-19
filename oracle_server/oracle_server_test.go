@@ -26,6 +26,7 @@ import (
 	"time"
 )
 
+var BridgerSymbols = []string{NTNUSDC, ATNUSDC, USDCUSD}
 var DefaultSampledSymbols = []string{"AUD-USD", "CAD-USD", "EUR-USD", "GBP-USD", "JPY-USD", "SEK-USD", "ATN-USD", "NTN-USD", "NTN-ATN", "ATN-USDC", "NTN-USDC", "USDC-USD"}
 var ChainIDPiccadilly = big.NewInt(65_100_004)
 
@@ -291,7 +292,7 @@ func TestOracleServer(t *testing.T) {
 
 		nSymbols := append(helpers.DefaultSymbols, "NTNETH", "NTNBTC", "NTNCNY")
 		srv.handleNewSymbolsEvent(nSymbols)
-		require.Equal(t, len(nSymbols)+len(bridgerSymbols), len(srv.samplingSymbols))
+		require.Equal(t, len(nSymbols)+len(BridgerSymbols), len(srv.samplingSymbols))
 		srv.runningPlugins["template_plugin"].Close()
 	})
 

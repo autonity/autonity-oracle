@@ -55,12 +55,12 @@ func NewUniswapClient(conf *config.PluginConfig) (*UniswapClient, error) {
 
 	atnUsdcPair, err := NewWrappedPair(common.ATNUSDCSymbol, atnTokenAddress, usdcTokenAddress, factoryAddress, url, logger)
 	if err != nil {
-		logger.Info("binding with AMM ATN-USDC marketplace", "err", err)
+		logger.Info("AMM ATN-USDC marketplace is not created yet", "err", err)
 	}
 
 	ntnUsdcPair, err := NewWrappedPair(common.NTNUSDCSymbol, ntnTokenAddress, usdcTokenAddress, factoryAddress, url, logger)
 	if err != nil {
-		logger.Info("binding with AMM NTN-USDC marketplace", "err", err)
+		logger.Info("AMM NTN-USDC marketplace is not created yet", "err", err)
 	}
 
 	return &UniswapClient{
@@ -121,7 +121,7 @@ func (e *UniswapClient) FetchPrice(symbols []string) (common.Prices, error) {
 		if symbol == common.ATNUSDCSymbol {
 			atnUSDCPrice, err = e.tryFetch(e.atnUSDCPairContract, symbol)
 			if err != nil {
-				e.logger.Error("failed to fetch ATN-USDC pair", "symbol", symbol, "err", err)
+				e.logger.Info("fetch price", "symbol", symbol, "err", err)
 				continue
 			}
 
@@ -132,7 +132,7 @@ func (e *UniswapClient) FetchPrice(symbols []string) (common.Prices, error) {
 		if symbol == common.NTNUSDCSymbol {
 			ntnUSDCPrice, err = e.tryFetch(e.ntnUSDCPairContract, symbol)
 			if err != nil {
-				e.logger.Error("failed to fetch NTN-USDC pair", "symbol", symbol, "err", err)
+				e.logger.Info("fetch price", "symbol", symbol, "err", err)
 				continue
 			}
 			prices = append(prices, ntnUSDCPrice)
@@ -189,33 +189,33 @@ func NewWrappedPair(symbol string, baseTokenAddress ecommon.Address, quoteTokenA
 	url string, logger hclog.Logger) (*WrappedPair, error) {
 	client, err := ethclient.Dial(url)
 	if err != nil {
-		logger.Error("cannot dial to L1 node", "error", err)
+		logger.Error("cannot dial to L1 validator node", "error", err)
 		return nil, err
 	}
 	// bind uniswap factory contract, it manages the pair contracts in the AMM.
 	factoryContract, err := factory.NewFactory(factoryAddress, client)
 	if err != nil {
-		logger.Error("cannot bind uniswap factory contract", "error", err)
+		logger.Info("connect to uniswap factory contract", "error", err, "address", factoryAddress.String())
 		client.Close()
 		return nil, err
 	}
 
 	pairAddress, err := factoryContract.GetPair(nil, baseTokenAddress, quoteTokenAddress)
 	if err != nil {
-		logger.Error("cannot find pair contract from uniswap factory contract", "error", err, "token1", baseTokenAddress, "token2", quoteTokenAddress)
+		logger.Info("connect to token pair contract in uniswap factory", "error", err, "token1", baseTokenAddress, "token2", quoteTokenAddress)
 		client.Close()
 		return nil, err
 	}
 
 	if pairAddress == (ecommon.Address{}) {
-		logger.Error("cannot find pair contract from uniswap factory contract", "error", err, "token1", baseTokenAddress, "token2", quoteTokenAddress)
+		logger.Info("pair contract is not created yet in uniswap factory", "token1", baseTokenAddress, "token2", quoteTokenAddress)
 		client.Close()
-		return nil, fmt.Errorf("pair contract from uniswap factory not found, pair: %s, %s", baseTokenAddress, quoteTokenAddress)
+		return nil, fmt.Errorf("pair contract is not created yet, pair: %s, %s", baseTokenAddress, quoteTokenAddress)
 	}
 
 	pairContract, err := pair.NewPair(pairAddress, client)
 	if err != nil {
-		logger.Error("cannot bind pair contract", "error", err, "address", pairAddress)
+		logger.Error("bind pair contract", "error", err, "address", pairAddress)
 		client.Close()
 		return nil, err
 	}
