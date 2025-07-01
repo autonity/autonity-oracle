@@ -185,6 +185,7 @@ func TestOracleServer(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		chainHeight := uint64(55)
+		header := &tp.Header{BaseFee: common.Big256}
 
 		var voters []common.Address
 		voters = append(voters, conf.Key.Address)
@@ -218,6 +219,8 @@ func TestOracleServer(t *testing.T) {
 		l1Mock.EXPECT().BlockNumber(gomock.Any()).AnyTimes().Return(chainHeight, nil)
 		l1Mock.EXPECT().SyncProgress(gomock.Any()).Return(nil, nil)
 		l1Mock.EXPECT().ChainID(gomock.Any()).Return(new(big.Int).SetUint64(1000), nil)
+		l1Mock.EXPECT().SuggestGasTipCap(gomock.Any()).Return(new(big.Int).SetUint64(1000), nil)
+		l1Mock.EXPECT().HeaderByNumber(gomock.Any(), nil).Return(header, nil)
 		l1Mock.EXPECT().BalanceAt(gomock.Any(), gomock.Any(), gomock.Any()).Return(alertBalance, nil)
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 

@@ -655,6 +655,21 @@ func (os *OracleServer) AddNewSymbols(newSymbols []string) {
 	}
 }
 
+func (os *OracleServer) resolveGasTipCap() *big.Int {
+	configured := new(big.Int).SetUint64(os.conf.GasTipCap)
+	suggested, err := os.client.SuggestGasTipCap(context.Background())
+	if err != nil {
+		os.logger.Warn("cannot get fee history, using configured gas tip cap", "error", err.Error())
+		return configured
+	}
+
+	// take the max one to let the report get mine with higher priority.
+	if suggested.Cmp(configured) > 0 {
+		return suggested
+	}
+	return configured
+}
+
 func (os *OracleServer) doReport(curRoundCommitmentHash common.Hash, lastRoundData *types.RoundData) (*tp.Transaction, error) {
 	chainID, err := os.client.ChainID(context.Background())
 	if err != nil {
@@ -668,8 +683,21 @@ func (os *OracleServer) doReport(curRoundCommitmentHash common.Hash, lastRoundDa
 		return nil, err
 	}
 
+	gasTipCap := os.resolveGasTipCap()
+	// Get base fee for pending block
+	header, err := os.client.HeaderByNumber(context.Background(), nil)
+	if err != nil {
+		os.logger.Error("get header by number", "error", err.Error())
+		return nil, err
+	}
+
+	// Calculate MaxFeePerGas (baseFee * 2 + gasTipCap)
+	maxFeePerGas := new(big.Int).Mul(header.BaseFee, big.NewInt(2))
+	maxFeePerGas.Add(maxFeePerGas, gasTipCap)
+
 	auth.Value = big.NewInt(0)
-	auth.GasTipCap = new(big.Int).SetUint64(os.conf.GasTipCap)
+	auth.GasTipCap = gasTipCap
+	auth.GasFeeCap = maxFeePerGas
 	auth.GasLimit = uint64(3000000)
 
 	// if there is no last round data, then we just submit the commitment hash of current round.
