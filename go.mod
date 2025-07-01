@@ -17,7 +17,7 @@ require (
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible
 	github.com/shopspring/decimal v1.3.1
 	github.com/stretchr/testify v1.9.0
-	github.com/supranational/blst v0.3.11
+	github.com/supranational/blst v0.3.14
 	github.com/zfjagann/golang-ring v0.0.0-20220330170733-19bcea1b6289
 	golang.org/x/sys v0.28.0
 	gopkg.in/yaml.v2 v2.4.0
