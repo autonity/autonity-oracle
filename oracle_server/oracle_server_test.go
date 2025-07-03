@@ -26,6 +26,7 @@ import (
 	"time"
 )
 
+var BridgerSymbols = []string{NTNUSDC, ATNUSDC, USDCUSD}
 var DefaultSampledSymbols = []string{"AUD-USD", "CAD-USD", "EUR-USD", "GBP-USD", "JPY-USD", "SEK-USD", "ATN-USD", "NTN-USD", "NTN-ATN", "ATN-USDC", "NTN-USDC", "USDC-USD"}
 var ChainIDPiccadilly = big.NewInt(65_100_004)
 
@@ -184,6 +185,7 @@ func TestOracleServer(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		chainHeight := uint64(55)
+		header := &tp.Header{BaseFee: common.Big256}
 
 		var voters []common.Address
 		voters = append(voters, conf.Key.Address)
@@ -217,6 +219,8 @@ func TestOracleServer(t *testing.T) {
 		l1Mock.EXPECT().BlockNumber(gomock.Any()).AnyTimes().Return(chainHeight, nil)
 		l1Mock.EXPECT().SyncProgress(gomock.Any()).Return(nil, nil)
 		l1Mock.EXPECT().ChainID(gomock.Any()).Return(new(big.Int).SetUint64(1000), nil)
+		l1Mock.EXPECT().SuggestGasTipCap(gomock.Any()).Return(new(big.Int).SetUint64(1000), nil)
+		l1Mock.EXPECT().HeaderByNumber(gomock.Any(), nil).Return(header, nil)
 		l1Mock.EXPECT().BalanceAt(gomock.Any(), gomock.Any(), gomock.Any()).Return(alertBalance, nil)
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 
@@ -291,7 +295,7 @@ func TestOracleServer(t *testing.T) {
 
 		nSymbols := append(helpers.DefaultSymbols, "NTNETH", "NTNBTC", "NTNCNY")
 		srv.handleNewSymbolsEvent(nSymbols)
-		require.Equal(t, len(nSymbols)+len(bridgerSymbols), len(srv.samplingSymbols))
+		require.Equal(t, len(nSymbols)+len(BridgerSymbols), len(srv.samplingSymbols))
 		srv.runningPlugins["template_plugin"].Close()
 	})
 
