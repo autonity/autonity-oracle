@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-// todo: resolve below config for the upcoming bakerloo network regenesis.
+// todo: resolve below default config for the upcoming bakerloo network regenesis.
 // configs for the ATN-USDCx, NTN-USDCx, NTN-ATN market place in Bakerloo network.
 var defaultConfig = config.PluginConfig{
 	Name:               "crypto_uniswap",
