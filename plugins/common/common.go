@@ -17,6 +17,7 @@ import (
 )
 
 var (
+	// Todo: resolve below 3 chain IDs for the upcoming network genesis.
 	// ChainIDMainNet chain ID for Autonity public main network, please visit below link for the chain ID naming rules.
 	// https://github.com/clearmatics/autonity-protocol/blob/master/decisions/adr-010-naming-numbering-conventions.md#chain-id
 	ChainIDMainNet    = big.NewInt(65_000_000) // the 1st instance of autonity main network.

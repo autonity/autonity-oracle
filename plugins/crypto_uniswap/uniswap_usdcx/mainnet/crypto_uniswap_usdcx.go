@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-// todo: double check with DEVOP for those endpoints and addresses.
+// todo: resolve below config for the upcoming main network regenesis.
 // configs for the ATN-USDCx, NTN-USDCx, NTN-ATN market place in Autonity main network.
 var defaultConfig = config.PluginConfig{
 	Name:               "crypto_uniswap",

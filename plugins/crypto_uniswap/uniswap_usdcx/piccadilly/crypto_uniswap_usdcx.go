@@ -8,6 +8,7 @@ import (
 	"os"
 )
 
+// todo: resolve below config for the upcoming piccadilly network regenesis.
 // configs for the ATN-USDCx, NTN-USDCx, NTN-ATN market place in Piccadilly network.
 var defaultConfig = config.PluginConfig{
 	Name:               "crypto_uniswap",

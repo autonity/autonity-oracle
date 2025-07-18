@@ -5,7 +5,7 @@
 
 This project assumes the following:
 
-* Go 1.22
+* Go 1.24
 * Linux operating system
 
 ## Overview
@@ -116,23 +116,23 @@ confidenceStrategy: 0  # 0: linear, 1: fixed
 #pluginConfigs:
 #  - name: forex_currencyfreaks              # required, it is the plugin file name in the plugin directory.
 #    key: 175aab9e47e54790bf6d502c48407c10   # required, visit https://currencyfreaks.com to get your key, and replace it.
-#    refresh: 3600                           # optional, buffered data within 3600s, recommended for API rate limited data source.
+#    refresh: 300                            # optional, buffered data within 300s, recommended for API rate limited data source.
 
 #  - name: forex_openexchange                # required, it is the plugin file name in the plugin directory.
 #    key: 1be02ca33c4843ee968c4cedd2686f01   # required, visit https://openexchangerates.org to get your key, and replace it.
-#    refresh: 3600                           # optional, buffered data within 3600s, recommended for API rate limited data source.
+#    refresh: 300                            # optional, buffered data within 300s, recommended for API rate limited data source.
 
 #  - name: forex_currencylayer               # required, it is the plugin file name in the plugin directory.
 #    key: 105af082ac7f7d150c87303d4e2f049e   # required, visit https://currencylayer.com  to get your key, and replace it.
-#    refresh: 3600                           # optional, buffered data within 3600s, recommended for API rate limited data source.
+#    refresh: 300                            # optional, buffered data within 300s, recommended for API rate limited data source.
 
 #  - name: forex_exchangerate                # required, it is the plugin file name in the plugin directory.
 #    key: 111f04e4775bb86c20296530           # required, visit https://www.exchangerate-api.com to get your key, and replace it.
-#    refresh: 3600                           # optional, buffered data within 3600s, recommended for API rate limited data source.
+#    refresh: 300                            # optional, buffered data within 300s, recommended for API rate limited data source.
 
-#  - name: forex_wise              # required, it is the plugin file name in the plugin directory.
-#    key: 1234          # required, visit https://www.wise.com to get your key, and replace it.
-#    refresh: 30                           # optional, buffered data within 30s, recommended for API rate limited data source.
+#  - name: forex_wise                        # required, it is the plugin file name in the plugin directory.
+#    key: 1234                               # required, visit https://www.wise.com to get your key, and replace it.
+#    refresh: 300                            # optional, buffered data within 300s, recommended for API rate limited data source.
 # Un-comment below lines to config the RPC endpoint of a Piccadilly Network Full Node for your AMM plugin which sources ATN & NTN market data from an on-chain AMM.
 #  - name: crypto_uniswap
 #    scheme: "wss"                                          # Available values are: "http", "https", "ws" or "wss", default value is "wss".
