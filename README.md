@@ -133,10 +133,11 @@ confidenceStrategy: 0  # 0: linear, 1: fixed
 #  - name: forex_wise                        # required, it is the plugin file name in the plugin directory.
 #    key: 1234                               # required, visit https://www.wise.com to get your key, and replace it.
 #    refresh: 300                            # optional, buffered data within 300s, recommended for API rate limited data source.
-# Un-comment below lines to config the RPC endpoint of a Piccadilly Network Full Node for your AMM plugin which sources ATN & NTN market data from an on-chain AMM.
+
+# Un-comment below lines to config the RPC endpoint of the target Network Validator Node for your AMM plugin which sources ATN & NTN market data from an on-chain AMM.
 #  - name: crypto_uniswap
-#    scheme: "wss"                                          # Available values are: "http", "https", "ws" or "wss", default value is "wss".
-#    endpoint: "rpc-internal-1.piccadilly.autonity.org/ws"  # The default URL might not be stable for public usage, we recommend you to change it with your validator node's RPC endpoint.
+#    scheme: "wss"                                          # Only websocket please, available values are: "ws" or "wss", default value is "wss" for uniswap plugins.
+#    endpoint: "rpc-internal-1.piccadilly.autonity.org/ws"  # Change it with your validator node's web socket RPC endpoint, as the default one isn't for public usage.
 
 #Enable the metric collection for oracle server, supported TS-DB engines are influxDB v1 and v2.
 #metricConfigs:
