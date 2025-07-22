@@ -8,13 +8,12 @@ import (
 	"os"
 )
 
-// todo: double check with DEVOP for those endpoints and addresses.
-// configs for the ATN-USDCx, NTN-USDCx, NTN-ATN market place in Bakerloo network.
+// configs for the ATN-USDCx marketplace in Bakerloo network.
 var defaultConfig = config.PluginConfig{
 	Name:               "crypto_uniswap",
-	Scheme:             "wss",                                        // both http/s ws/s works for this plugin
-	Endpoint:           "rpc-internal-1.bakerloo.autonity.org/ws",    // default websocket endpoint for bakerloo network.
-	Timeout:            10,                                           // 10s
+	Scheme:             "wss",                                        // both ws and wss works for this plugin.
+	Endpoint:           "replace with your host:port/path",           // default websocket endpoint for bakerloo network.
+	Timeout:            10,                                           // 10s.
 	DataUpdateInterval: common.DefaultAMMDataUpdateInterval,          // 1s, shorten the default data point refresh interval for AMM market data, as they can move very fast.
 	NTNTokenAddress:    types.AutonityContractAddress.Hex(),          // Same as 0xBd770416a3345F91E4B34576cb804a576fa48EB1, Autonity contract address.
 	ATNTokenAddress:    "0xcE17e51cE4F0417A1aB31a3c5d6831ff3BbFa1d2", // Wrapped ATN ERC20 contract address on the target blockchain.
