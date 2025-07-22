@@ -91,10 +91,15 @@ confidenceStrategy: 0  # 0: linear, 1: fixed
 #    key: 1234                               # required, visit https://www.wise.com to get your key, and replace it.
 #    refresh: 300                             # optional, buffered data within 300s, recommended for API rate limited data source.
 
-# Un-comment below lines to config the RPC endpoint of the target Network Validator Node for your AMM plugin which sources ATN & NTN market data from an on-chain AMM.
-#  - name: crypto_uniswap
-#    scheme: "wss"                                          # Only websocket please, available values are: "ws" or "wss", default value is "wss" for uniswap plugins.
-#    endpoint: "rpc-internal-1.piccadilly.autonity.org/ws"  # Change it with your validator node's web socket RPC endpoint, as the default one isn't for public usage.
+# Once the Autonity foundation creates the AMM marketplace for ATN-USDC, NTN-USDC pairs on Autonity blockchain, the
+# foundation will announce to un-comment below lines to config the uniswap plugin to source the price of ATN-USDC and NTN-USDC.
+# IMPORTANT: Do not load and config this plugin from your oracle server until officially announced.
+#  - name: crypto_uniswap                          # required, it is the plugin file name in the plugin directory.
+#    scheme: "wss"                                 # "wss" or "ws" please, default value is "wss" for uniswap plugin.
+#    endpoint: "replace with your host:port/path"  # Change it with your validator node's web socket RPC endpoint, as the default one isn't for public usage.
+#    atnTokenAddress:    "0xcE17e51cE4F0417A1aB31a3c5d6831ff3BbFa1d2", // Wrapped ATN ERC20 contract address on the target blockchain.
+#    usdcTokenAddress:   "0xB855D5e83363A4494e09f0Bb3152A70d3f161940", // USDCx ERC20 contract address on the target blockchain.
+#    swapAddress:        "0x218F76e357594C82Cc29A88B90dd67b180827c88", // UniSwap factory contract address on the target blockchain.
 
 #Enable the metric collection for oracle server, supported TS-DB engines are influxDB v1 and v2.
 #metricConfigs:

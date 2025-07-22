@@ -173,3 +173,32 @@ func TestNewUniswapClientWithWrongSwapAddress(t *testing.T) {
 		t.Log(prices)
 	}
 }
+
+func TestNewUniswapClientWithWrongRPCEndpoint(t *testing.T) {
+	// using current piccadilly protocol configs.
+	config := config2.PluginConfig{
+		Name:               "crypto_uniswap",
+		Scheme:             "wss",
+		Endpoint:           "replace with your host:port/path",
+		Timeout:            10,
+		DataUpdateInterval: 30,
+		// set the ATN token address with an un exist value, to let the market cannot be discovered.
+		ATNTokenAddress:  "0xcE17e51cE4F0417A1aB31a3c5d6831ff3BbFa1d2",
+		NTNTokenAddress:  types.AutonityContractAddress.Hex(),
+		USDCTokenAddress: "0xB855D5e83363A4494e09f0Bb3152A70d3f161940",
+		SwapAddress:      "0x218F76e357594C82Cc29A88B90dd67b180827c88",
+	}
+
+	client, err := NewUniswapClient(&config)
+	require.NoError(t, err)
+
+	defer client.Close()
+
+	// The client would not panic with the wrong rpc endpoint.
+	for i := 0; i < 5; i++ {
+		time.Sleep(1 * time.Second)
+		prices, err := client.FetchPrice(supportedSymbols)
+		require.NoError(t, err)
+		require.Equal(t, 0, len(prices))
+	}
+}

@@ -73,11 +73,11 @@ e2e-test-stuffs:
 	chmod +x $(E2E_TEST_DIR)/simulator
 
 	# build amm plugin for e2e test.
-	go build -o $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/uniswap_usdcx/piccadilly/crypto_uniswap_usdcx.go
+	go build -o $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/uniswap_usdcx/mainnet/crypto_uniswap_usdcx.go
 	chmod +x $(E2E_TEST_CRYPTO_PLUGIN_DIR)/*
 
-    # build piccadilly simulator plugin for e2e test.
-	go build -o $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/piccadilly/simulator_plugin.go
+    # build mainnet simulator plugin for e2e test.
+	go build -o $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/mainnet/simulator_plugin.go
 	chmod +x $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin
 	cp  $(E2E_TEST_SML_PLUGIN_DIR)/simulator_plugin $(E2E_TEST_MIX_PLUGIN_DIR)/simulator_plugin
 
@@ -115,11 +115,6 @@ cex-plugins:
 	go build -o $(PLUGIN_DIR)/crypto_kraken $(PLUGIN_SRC_DIR)/crypto_kraken/crypto_kraken.go
 	chmod +x $(PLUGIN_DIR)/*
 
-# build amm plugins for piccadilly network:
-amm-plugins-piccadilly:
-	go build -o $(PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/uniswap_usdcx/piccadilly/crypto_uniswap_usdcx.go
-	chmod +x $(PLUGIN_DIR)/*
-
 # build amm plugins for bakerloo network:
 amm-plugins-bakerloo:
 	go build -o $(PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/uniswap_usdcx/bakerloo/crypto_uniswap_usdcx.go
@@ -140,25 +135,15 @@ sim-plugin-bakerloo:
 	go build -o $(PLUGIN_DIR)/simulator_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/bakerloo/simulator_plugin.go
 	chmod +x $(PLUGIN_DIR)/simulator_plugin
 
-# build simulator plugin for piccadilly network.
-sim-plugin-piccadilly:
-	go build -o $(PLUGIN_DIR)/simulator_plugin $(PLUGIN_SRC_DIR)/simulator_plugin/piccadilly/simulator_plugin.go
-	chmod +x $(PLUGIN_DIR)/simulator_plugin
-
 # build the whole components for autonity main network.
-autoracle: mkdir oracle-server forex-plugins cex-plugins amm-plugins-mainnet sim-plugin-mainnet crypto_source_simulator conf-file
+autoracle: mkdir oracle-server forex-plugins cex-plugins amm-plugins-mainnet conf-file e2e-test-stuffs
 	@echo "Done oracle server and plugins building for autonity main network."
 	@echo "Run \"$(BIN_DIR)/autoracle\" to launch autonity oracle server for autonity main network."
 
 # build the whole components for bakerloo network.
-autoracle-bakerloo: mkdir oracle-server forex-plugins cex-plugins amm-plugins-bakerloo sim-plugin-bakerloo crypto_source_simulator conf-file
+autoracle-bakerloo: mkdir oracle-server forex-plugins cex-plugins amm-plugins-bakerloo conf-file
 	@echo "Done oracle server and plugins building for autonity bakerloo network."
 	@echo "Run \"$(BIN_DIR)/autoracle\" to launch autonity oracle server for autonity bakerloo network."
-
-# build the whole components for for piccadilly.
-autoracle-piccadilly: mkdir oracle-server forex-plugins cex-plugins amm-plugins-piccadilly sim-plugin-piccadilly conf-file e2e-test-stuffs
-	@echo "Done oracle server and plugins building for autonity piccadilly network."
-	@echo "Run \"$(BIN_DIR)/autoracle\" to launch autonity oracle server for autonity piccadilly network."
 
 oracle-contract:
 	mkdir -p $(BIN_DIR)
