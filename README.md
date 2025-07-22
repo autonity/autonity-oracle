@@ -289,11 +289,6 @@ make autoracle
 make autoracle-bakerloo
 ```
 
-### Build for Piccadilly network
-```shell
-make autoracle-piccadilly
-```
-
 ### Other build helpers
 To build the data source simulator run
 ```shell
