@@ -138,8 +138,8 @@ confidenceStrategy: 0  # 0: linear, 1: fixed
 # foundation will announce to un-comment below lines to config the uniswap plugin to source the price of ATN-USDC.
 # IMPORTANT: Do not load and config this plugin from your oracle server until officially announced.
 #  - name: crypto_uniswap                          # required, it is the plugin file name in the plugin directory.
-#    scheme: "wss"                                 # "ws" or "wss" please, default value is "wss" for uniswap plugin.
-#    endpoint: "replace with your host:port/path"  # Change it with your validator node's web socket RPC endpoint please.
+#    scheme: "wss"                                 # "wss" or "ws" please, default value is "wss" for uniswap plugin.
+#    endpoint: "replace with your host:port/path"  # Change it with your validator node's web socket RPC endpoint, as the default one isn't for public usage.
 #    atnTokenAddress:    "0xcE17e51cE4F0417A1aB31a3c5d6831ff3BbFa1d2", // Wrapped ATN ERC20 contract address on the target blockchain.
 #    usdcTokenAddress:   "0xB855D5e83363A4494e09f0Bb3152A70d3f161940", // Bridged USDC (Mainnet) / USDCx (Bakerloo) ERC20 contract address on the target blockchain.
 #    swapAddress:        "0x218F76e357594C82Cc29A88B90dd67b180827c88", // UniSwap factory contract address on the target blockchain.
