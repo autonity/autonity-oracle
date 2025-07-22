@@ -134,7 +134,7 @@ confidenceStrategy: 0  # 0: linear, 1: fixed
 #    key: 1234                               # required, visit https://www.wise.com to get your key, and replace it.
 #    refresh: 300                            # optional, buffered data within 300s, recommended for API rate limited data source.
 
-# Once the Autonity genesis foundation creates the AMM marketplace for ATN-USDC pair on Autonity blockchain, the
+# Once the Autonity Genesis Foundation creates the AMM marketplace for ATN-USDC pair on Autonity blockchain, the
 # foundation will announce to un-comment below lines to config the uniswap plugin to source the price of ATN-USDC.
 # IMPORTANT: Do not load and config this plugin from your oracle server until officially announced.
 #  - name: crypto_uniswap                          # required, it is the plugin file name in the plugin directory.
