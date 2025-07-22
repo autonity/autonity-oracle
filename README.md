@@ -135,7 +135,7 @@ confidenceStrategy: 0  # 0: linear, 1: fixed
 #    refresh: 300                            # optional, buffered data within 300s, recommended for API rate limited data source.
 
 # Once the Autonity foundation creates the AMM marketplace for ATN-USDC pair on Autonity blockchain, the
-# foundation will announce to un-comment below lines to config the uniswap plugin to source the price of ATN-USDC and NTN-USDC.
+# foundation will announce to un-comment below lines to config the uniswap plugin to source the price of ATN-USDC.
 # IMPORTANT: Do not load and config this plugin from your oracle server until officially announced.
 #  - name: crypto_uniswap                          # required, it is the plugin file name in the plugin directory.
 #    scheme: "wss"                                 # "ws" or "wss" please, default value is "wss" for uniswap plugin.
