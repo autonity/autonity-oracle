@@ -284,9 +284,15 @@ plugin, for example, the data providers' official site, how to subscribe the ser
 make autoracle
 ```
 
-### Build for Bakerloo network
+### Build for Bakerloo test network
 ```shell
 make autoracle-bakerloo
+```
+
+### Build for an Autonity develop network.
+If you are running a develop network for development purpose, please build the oracle components with this command:
+```shell
+make autoracle-dev
 ```
 
 ### Other build helpers

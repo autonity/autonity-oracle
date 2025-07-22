@@ -115,6 +115,11 @@ cex-plugins:
 	go build -o $(PLUGIN_DIR)/crypto_kraken $(PLUGIN_SRC_DIR)/crypto_kraken/crypto_kraken.go
 	chmod +x $(PLUGIN_DIR)/*
 
+# build amm plugins for develop network:
+amm-plugins-dev:
+	go build -o $(PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/uniswap_usdcx/develop/crypto_uniswap_usdcx.go
+	chmod +x $(PLUGIN_DIR)/*
+
 # build amm plugins for bakerloo network:
 amm-plugins-bakerloo:
 	go build -o $(PLUGIN_DIR)/crypto_uniswap $(PLUGIN_SRC_DIR)/crypto_uniswap/uniswap_usdcx/bakerloo/crypto_uniswap_usdcx.go
@@ -144,6 +149,11 @@ autoracle: mkdir oracle-server forex-plugins cex-plugins amm-plugins-mainnet con
 autoracle-bakerloo: mkdir oracle-server forex-plugins cex-plugins amm-plugins-bakerloo conf-file
 	@echo "Done oracle server and plugins building for autonity bakerloo network."
 	@echo "Run \"$(BIN_DIR)/autoracle\" to launch autonity oracle server for autonity bakerloo network."
+
+# build the whole components for develop network which can have customized chain IDs.
+autoracle-dev: mkdir oracle-server forex-plugins cex-plugins amm-plugins-dev conf-file
+	@echo "Done oracle server and plugins building for autonity develop network."
+	@echo "Run \"$(BIN_DIR)/autoracle\" to launch autonity oracle server for autonity develop network."
 
 oracle-contract:
 	mkdir -p $(BIN_DIR)
