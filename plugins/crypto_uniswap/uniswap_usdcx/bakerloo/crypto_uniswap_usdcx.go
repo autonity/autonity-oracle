@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-// configs for the ATN-USDCx, NTN-USDCx, NTN-ATN marketplace in Bakerloo network.
+// configs for the ATN-USDCx marketplace in Bakerloo network.
 var defaultConfig = config.PluginConfig{
 	Name:               "crypto_uniswap",
 	Scheme:             "wss",                                        // both ws and wss works for this plugin.
