@@ -47,27 +47,11 @@ func NewUniswapClient(conf *config.PluginConfig) (*UniswapClient, error) {
 		Output: os.Stdout,
 	})
 
-	url := conf.Scheme + "://" + conf.Endpoint
-	atnTokenAddress := ecommon.HexToAddress(conf.ATNTokenAddress)
-	ntnTokenAddress := ecommon.HexToAddress(conf.NTNTokenAddress)
-	usdcTokenAddress := ecommon.HexToAddress(conf.USDCTokenAddress)
-	factoryAddress := ecommon.HexToAddress(conf.SwapAddress)
-
-	atnUsdcPair, err := NewWrappedPair(common.ATNUSDCSymbol, atnTokenAddress, usdcTokenAddress, factoryAddress, url, logger)
-	if err != nil {
-		logger.Info("AMM ATN-USDC marketplace is not created yet", "err", err)
-	}
-
-	ntnUsdcPair, err := NewWrappedPair(common.NTNUSDCSymbol, ntnTokenAddress, usdcTokenAddress, factoryAddress, url, logger)
-	if err != nil {
-		logger.Info("AMM NTN-USDC marketplace is not created yet", "err", err)
-	}
-
+	// just load config and logger for uniswap client, as the crypto-pair markets can be
+	// resolved during runtime now on-demand.
 	return &UniswapClient{
-		conf:                conf,
-		logger:              logger,
-		atnUSDCPairContract: atnUsdcPair,
-		ntnUSDCPairContract: ntnUsdcPair,
+		conf:   conf,
+		logger: logger,
 	}, nil
 }
 
