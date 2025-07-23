@@ -75,16 +75,17 @@ confidenceStrategy: 0  # 0: linear, 1: fixed
 # EUR-USD, JPY-USD, GBP-USD, AUD-USD, CAD-USD and SEK-USD from commercial data providers. There are 4 implemented forex
 # data plugins, each of them requires the end user to apply for their own service key from the selected data provider.
 # The selection of which forex data plugin(s) to use is for the end user to decide. The user can use any one of them,
-# or he/she can use multiple forex data plugins in the setup.
+# or he/she can use multiple forex data plugins in the setup. We recommend using a highly qualified data service from
+# your data vendor. Avoid free or developer plans, as outdated data points will lead to penalties on your validator node's stake.
 #
 # The crypto data plugins are used to fetch market prices for the crypto currency pairs: ATN-USDC, NTN-USDC, NTN-ATN and
 # USDC-USD. USDC liquidity is bridged to the Autonity public testnet from the Polygon Amoy testnet via a bridge service.
 # Out-the-box plugins for collecting ATN-USDC and NTN-USDC market data are available for UniSwap V2 and AirSwap protocols.
-# NTN-ATN market price is derived from that market data, and USDC pricing is converted to USD. ATN-NTN, ATN-USD, and NTN-USD
-# prices are then submitted on-chain. To retrieve ATN and NTN prices, put the `crypto_uniswap` plugin plugin in your plugin directory.
-# Oracle server can then discover and load them. Configuring the `crypto_uniswap` plugin does not
-# require an API key, it is an open and free data source of a standard EVM RPC websocket service endpoint. The
-# end user can connect to specific EVM RPC endpoint base on the blockchain which hosts the uniswap contract.
+# NTN-ATN market price is derived from that market data, and USDC pricing is converted to USD. ATN-NTN, ATN-USD, and
+# NTN-USD prices are then submitted on-chain. To retrieve ATN and NTN prices, put the `crypto_uniswap` plugin in your plugin directory.
+# Oracle server can then discover and load them. Configuring the `crypto_uniswap` plugin does not require an API key,
+# it is an open and free data source of a standard EVM RPC websocket service endpoint. The end user can connect to specific
+# EVM RPC endpoint base on the blockchain which hosts the uniswap contract.
 
 # USDC-USD prices are required by the protocol to convert the ATN-USDC and NTN-USDC to ATN-USD and NTN-USD. This enables
 # the reporting of ATN and NTN prices in USD to the ASM. Three plugins are implemented to source the USDC-USD datapoint
@@ -101,7 +102,7 @@ confidenceStrategy: 0  # 0: linear, 1: fixed
 #  type PluginConfig struct {
 #  Name               string `json:"name" yaml:"name"`                         // the name of the plugin binary.
 #  Key                string `json:"key" yaml:"key"`                           // the API key granted by your data provider to access their data API.
-#  Scheme             string `json:"scheme" yaml:"scheme"`                     // the data service scheme, http or https.
+#  Scheme             string `json:"scheme" yaml:"scheme"`                     // the data service scheme, http, https, ws or wss.
 #  Endpoint           string `json:"endpoint" yaml:"endpoint"`                 // the data service endpoint url of the data provider.
 #  Timeout            int    `json:"timeout" yaml:"timeout"`                   // the timeout period in seconds that an API request is lasting for.
 #  DataUpdateInterval int    `json:"refresh" yaml:"refresh"`                   // the interval in seconds to fetch data from data provider due to rate limit.
@@ -112,27 +113,29 @@ confidenceStrategy: 0  # 0: linear, 1: fixed
 #  Disabled           bool   `json:"disabled" yaml:"disabled"`                 // The flag to disable/enable a plugin.
 #}
 
-# Un-comment below lines to enable your forex data plugin's configuration on demand. Your production configurations start from below:
+# Un-comment below lines to enable your forex data plugin's configuration on demand.
+# IMPORTANT: do not use free or developer service plan from your data vendor!
+# Your production configurations start from below:
 #pluginConfigs:
 #  - name: forex_currencyfreaks              # required, it is the plugin file name in the plugin directory.
-#    key: 175aab9e47e54790bf6d502c48407c10   # required, visit https://currencyfreaks.com to get your key, and replace it.
-#    refresh: 300                            # optional, buffered data within 300s, recommended for API rate limited data source.
+#    key: 175aab9e47e54790bf6d502c48407c10   # required, visit https://currencyfreaks.com to get your key, IMPORTANT: do not use free or developer service plan.
+#    refresh: 300                           # optional, buffered data within 300s, recommended for API rate limited data source.
 
 #  - name: forex_openexchange                # required, it is the plugin file name in the plugin directory.
-#    key: 1be02ca33c4843ee968c4cedd2686f01   # required, visit https://openexchangerates.org to get your key, and replace it.
-#    refresh: 300                            # optional, buffered data within 300s, recommended for API rate limited data source.
+#    key: 1be02ca33c4843ee968c4cedd2686f01   # required, visit https://openexchangerates.org to get your key, IMPORTANT: do not use free or developer service plan.
+#    refresh: 300                           # optional, buffered data within 300s, recommended for API rate limited data source.
 
 #  - name: forex_currencylayer               # required, it is the plugin file name in the plugin directory.
-#    key: 105af082ac7f7d150c87303d4e2f049e   # required, visit https://currencylayer.com  to get your key, and replace it.
-#    refresh: 300                            # optional, buffered data within 300s, recommended for API rate limited data source.
+#    key: 105af082ac7f7d150c87303d4e2f049e   # required, visit https://currencylayer.com  to get your key, IMPORTANT: do not use free or developer service plan.
+#    refresh: 300                           # optional, buffered data within 300s, recommended for API rate limited data source.
 
 #  - name: forex_exchangerate                # required, it is the plugin file name in the plugin directory.
-#    key: 111f04e4775bb86c20296530           # required, visit https://www.exchangerate-api.com to get your key, and replace it.
-#    refresh: 300                            # optional, buffered data within 300s, recommended for API rate limited data source.
+#    key: 111f04e4775bb86c20296530           # required, visit https://www.exchangerate-api.com to get your key, IMPORTANT: do not use free or developer service plan.
+#    refresh: 300                           # optional, buffered data within 300s, recommended for API rate limited data source.
 
 #  - name: forex_wise                        # required, it is the plugin file name in the plugin directory.
-#    key: 1234                               # required, visit https://www.wise.com to get your key, and replace it.
-#    refresh: 300                            # optional, buffered data within 300s, recommended for API rate limited data source.
+#    key: 1234                               # required, visit https://www.wise.com to get your key, IMPORTANT: do not use free or developer service plan.
+#    refresh: 300                             # optional, buffered data within 300s, recommended for API rate limited data source.
 
 # Once the Autonity Genesis Foundation creates the AMM marketplace for ATN-USDC pair on Autonity blockchain, the
 # foundation will announce to un-comment below lines to config the uniswap plugin to source the price of ATN-USDC.
@@ -149,13 +152,14 @@ confidenceStrategy: 0  # 0: linear, 1: fixed
 #  influxDBEndpoint: "http://localhost:8086"
 #  influxDBTags: "host=localhost"
 #  enableInfluxDB: false
-#  influxDBDatabase: "oracle"
+#  influxDBDatabase: "autonity"
 #  influxDBUsername: "test"
 #  influxDBPassword: "test"
 #  enableInfluxDBV2: false
 #  influxDBToken: "test"
-#  influxDBBucket: "oracle"
-#  influxDBOrganization: "oracle"
+#  influxDBBucket: "autonity"
+#  influxDBOrganization: "autonity"
+
 ```
 ## CLI Flags
 Print the version of the oracle server:
