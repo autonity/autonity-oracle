@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	version      = "v0.2.0"
+	version      = "v0.2.4"
 	path         = "api/v3/simple/price"
 	ids          = "ids"
 	vsCurrencies = "vs_currencies"
