@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	version   = "v0.2.0"
+	version   = "v0.2.4"
 	pathLive  = "live"
 	accessKey = "access_key"
 )
