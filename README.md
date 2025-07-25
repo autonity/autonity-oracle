@@ -76,7 +76,7 @@ confidenceStrategy: 0  # 0: linear, 1: fixed
 # data plugins, each of them requires the end user to apply for their own service key from the selected data provider.
 # The selection of which forex data plugin(s) to use is for the end user to decide. The user can use any one of them,
 # or he/she can use multiple forex data plugins in the setup. We recommend using a highly qualified data service from
-# your data vendor. Avoid free or developer plans, as outdated data points will lead to penalties on your validator node's stake.
+# your data vendor. Avoid free or developer plans, as outdated data points may be outliers resulting in outlier penalties on your validator node's stake.
 #
 # The crypto data plugins are used to fetch market prices for the crypto currency pairs: ATN-USDC, NTN-USDC, NTN-ATN and
 # USDC-USD. USDC liquidity is bridged to the Autonity public testnet from the Polygon Amoy testnet via a bridge service.
