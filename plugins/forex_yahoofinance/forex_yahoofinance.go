@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/hashicorp/go-hclog"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -104,9 +104,14 @@ func (yh *YahooFinanceClient) FetchPrice(symbols []string) (common.Prices, error
 	}
 
 	var response YahooResponse
-	body, err := ioutil.ReadAll(resp.Body)
-	if err = json.Unmarshal(body, &response); err != nil {
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
 		yh.logger.Error("Error parsing JSON response", "error", err)
+		return prices, err
+	}
+
+	if err = json.Unmarshal(body, &response); err != nil {
+		yh.logger.Error("cannot unmarshall JSON", "error", err)
 		return prices, err
 	}
 
