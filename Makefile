@@ -90,6 +90,8 @@ e2e-test-stuffs:
 	cp $(PLUGIN_DIR)/forex_currencylayer $(E2E_TEST_FOREX_PLUGIN_DIR)/forex_currencylayer
 	cp $(PLUGIN_DIR)/forex_exchangerate $(E2E_TEST_FOREX_PLUGIN_DIR)/forex_exchangerate
 	cp $(PLUGIN_DIR)/forex_openexchange $(E2E_TEST_FOREX_PLUGIN_DIR)/forex_openexchange
+	cp $(PLUGIN_DIR)/forex_wise $(E2E_TEST_FOREX_PLUGIN_DIR)/forex_wise
+	cp $(PLUGIN_DIR)/forex_yahoofinance $(E2E_TEST_FOREX_PLUGIN_DIR)/forex_yahoofinance
 
     # cp cex plugins for e2e testing
 	cp $(PLUGIN_DIR)/crypto_coinbase $(E2E_TEST_CRYPTO_PLUGIN_DIR)/crypto_coinbase
@@ -107,6 +109,7 @@ forex-plugins:
 	go build -o $(PLUGIN_DIR)/forex_exchangerate $(PLUGIN_SRC_DIR)/forex_exchangerate/forex_exchangerate.go
 	go build -o $(PLUGIN_DIR)/forex_openexchange $(PLUGIN_SRC_DIR)/forex_openexchange/forex_openexchange.go
 	go build -o $(PLUGIN_DIR)/forex_wise $(PLUGIN_SRC_DIR)/forex_wise/forex_wise.go	
+	go build -o $(PLUGIN_DIR)/forex_yahoofinance $(PLUGIN_SRC_DIR)/forex_yahoofinance/forex_yahoofinance.go
 	chmod +x $(PLUGIN_DIR)/*
 
 cex-plugins:
