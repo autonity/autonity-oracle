@@ -21,7 +21,7 @@ const (
 )
 
 var defaultConfig = config.PluginConfig{
-	Name:               "yahoo_finance",
+	Name:               "forex_yahoofinance",
 	Key:                "",
 	Scheme:             "https",
 	Endpoint:           "yfapi.net",
