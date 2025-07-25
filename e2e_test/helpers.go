@@ -123,7 +123,10 @@ func (o *Oracle) ConfigOracleServer(wsEndpoint string) {
 	defaultConfig.KeyPassword = o.Key.Password
 	defaultConfig.PluginDIR = o.PluginDir
 	defaultConfig.LoggingLevel = int(hclog.Debug)
-	defaultConfig.PluginConfigs = []config.PluginConfig{{Name: "template_plugin", Endpoint: "127.0.0.1:50991"}}
+	defaultConfig.PluginConfigs = []config.PluginConfig{
+		{Name: "template_plugin", Endpoint: "127.0.0.1:50991"},
+		{Name: "forex_yahoofinance", Key: "Snp9kNMKrs8TiKvz4aMC96KqoHo6edIj9Y2xbPzR"},
+	}
 	// enable the metric collection by default for e2e test.
 	defaultConfig.MetricConfigs.EnableInfluxDBV2 = true
 

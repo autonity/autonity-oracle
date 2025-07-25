@@ -117,6 +117,13 @@ confidenceStrategy: 0  # 0: linear, 1: fixed
 # IMPORTANT: do not use free or developer service plan from your data vendor!
 # Your production configurations start from below:
 #pluginConfigs:
+#  - name: forex_yahoofinance                # required, it is the plugin file name in the plugin directory.
+#    key: Snp9kNMKrs8Ti ...... dIj9Y2xbPzR   # required, visit https://financeapi.net/pricing to get your key, IMPORTANT: do not use free or developer service plan.
+
+#  - name: forex_wise                        # required, it is the plugin file name in the plugin directory.
+#    key: 1234                               # required, visit https://www.wise.com to get your key, IMPORTANT: do not use free or developer service plan.
+#    refresh: 300                            # optional, buffered data within 300s, recommended for API rate limited data source.
+
 #  - name: forex_currencyfreaks              # required, it is the plugin file name in the plugin directory.
 #    key: 175aab9e47e54790bf6d502c48407c10   # required, visit https://currencyfreaks.com to get your key, IMPORTANT: do not use free or developer service plan.
 #    refresh: 300                           # optional, buffered data within 300s, recommended for API rate limited data source.
@@ -132,10 +139,6 @@ confidenceStrategy: 0  # 0: linear, 1: fixed
 #  - name: forex_exchangerate                # required, it is the plugin file name in the plugin directory.
 #    key: 111f04e4775bb86c20296530           # required, visit https://www.exchangerate-api.com to get your key, IMPORTANT: do not use free or developer service plan.
 #    refresh: 300                           # optional, buffered data within 300s, recommended for API rate limited data source.
-
-#  - name: forex_wise                        # required, it is the plugin file name in the plugin directory.
-#    key: 1234                               # required, visit https://www.wise.com to get your key, IMPORTANT: do not use free or developer service plan.
-#    refresh: 300                             # optional, buffered data within 300s, recommended for API rate limited data source.
 
 # Once the Autonity Genesis Foundation creates the AMM marketplace for ATN-USDC pair on Autonity blockchain, the
 # foundation will announce to un-comment below lines to config the uniswap plugin to source the price of ATN-USDC.

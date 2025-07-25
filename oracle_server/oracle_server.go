@@ -29,15 +29,6 @@ import (
 	"time"
 )
 
-var ForexCurrencies = map[string]struct{}{
-	"AUD-USD": {},
-	"CAD-USD": {},
-	"EUR-USD": {},
-	"GBP-USD": {},
-	"JPY-USD": {},
-	"SEK-USD": {},
-}
-
 var BridgedSymbols = map[string]string{
 	ATNUSD: ATNUSDC,
 	NTNUSD: NTNUSDC,
@@ -906,7 +897,7 @@ func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, er
 		Confidence: confidence,
 	}
 
-	_, isForex := ForexCurrencies[s]
+	_, isForex := common2.ForexCurrencies[s]
 
 	// we have multiple markets' data for this forex symbol, update the price with median value.
 	if len(prices) > 1 && isForex {
@@ -1265,7 +1256,7 @@ func ComputeConfidence(symbol string, numOfSamples, strategy int) uint8 {
 
 	// Todo: once the community have more extensive AMM and DEX markets, we will remove this to enable linear
 	//  strategy as well for cryptos.
-	if _, is := ForexCurrencies[symbol]; !is {
+	if _, is := common2.ForexCurrencies[symbol]; !is {
 		return MaxConfidence
 	}
 

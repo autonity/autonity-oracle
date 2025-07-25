@@ -345,3 +345,12 @@ func ComputeDerivedPrice(ntnUSD, atnUSD string) (Price, error) {
 	priceNTNATN.Price = pNTN.Div(pATN).String()
 	return priceNTNATN, nil
 }
+
+var ForexCurrencies = map[string]struct{}{
+	"AUD-USD": {},
+	"CAD-USD": {},
+	"EUR-USD": {},
+	"GBP-USD": {},
+	"JPY-USD": {},
+	"SEK-USD": {},
+}

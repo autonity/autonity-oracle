@@ -323,7 +323,6 @@ func TestWithBinanceSimulatorTimeout(t *testing.T) {
 }
 
 func TestForexPluginsHappyCase(t *testing.T) {
-	t.Skip("As those free service keys get expired, we skip this test")
 	var netConf = &NetworkConfig{
 		EnableL1Logs: false,
 		Symbols:      []string{"EUR-USD", "JPY-USD", "GBP-USD", "AUD-USD", "CAD-USD", "SEK-USD"},
