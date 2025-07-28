@@ -1034,10 +1034,25 @@ func (os *OracleServer) Start() {
 
 		case penalizeEvent := <-os.chPenalizedEvent:
 
-			os.logger.Warn("Oracle client get penalized as an outlier", "node", penalizeEvent.Participant,
+			// As the OutlierDetectionThreshold is set to low level, e.g. 3% against the median, and the OutlierSlashingThreshold
+			// is configured at (10%, 15%) which is much higher, a penalization event may occur with zero slashing amount.
+			// This indicates that the current client has been identified as an outlier but is not penalized, as its data
+			// point falls below the OutlierSlashingThreshold when compared to the median price. To ensure a broader participation
+			// of nodes within the oracle network and maintain its operational liveness, we continue to allow these
+			// non-slashed outliers to contribute data samples to the network.
+			if penalizeEvent.SlashingAmount.Cmp(common.Big0) == 0 {
+				os.logger.Warn("Client addressed as an outlier without offense the OutlierSlashingThreshold, "+
+					"it is allowed to continue the reporting", "symbol", penalizeEvent.Symbol, "median value",
+					penalizeEvent.Median.String(), "reported value", penalizeEvent.Reported.String())
+				os.logger.Warn("IMPORTANT: please double check your data source for data precision before getting penalized")
+				continue
+			}
+
+			os.logger.Warn("Client get penalized as an outlier", "node", penalizeEvent.Participant,
 				"currency symbol", penalizeEvent.Symbol, "median value", penalizeEvent.Median.String(),
 				"reported value", penalizeEvent.Reported.String(), "block", penalizeEvent.Raw.BlockNumber, "slashed amount", penalizeEvent.SlashingAmount.Uint64())
 			os.logger.Warn("your next vote will be postponed", "in blocks", os.conf.VoteBuffer)
+			os.logger.Warn("IMPORTANT: please repair your data setups for data precision before getting penalized again")
 
 			if metrics.Enabled {
 				slashEventCounter.Inc(1)
