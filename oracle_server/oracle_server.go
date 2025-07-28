@@ -1041,7 +1041,7 @@ func (os *OracleServer) Start() {
 			// of nodes within the oracle network and maintain its operational liveness, we continue to allow these
 			// non-slashed outliers to contribute data samples to the network.
 			if penalizeEvent.SlashingAmount.Cmp(common.Big0) == 0 {
-				os.logger.Warn("Client addressed as an outlier, this vote won't be counted for reward distribution, "+
+				os.logger.Warn("Client addressed as an outlier, the last vote won't be counted for reward distribution, "+
 					"please use high quality data source.", "symbol", penalizeEvent.Symbol, "median value",
 					penalizeEvent.Median.String(), "reported value", penalizeEvent.Reported.String())
 				os.logger.Warn("IMPORTANT: please double check your data source setup before getting penalized")
