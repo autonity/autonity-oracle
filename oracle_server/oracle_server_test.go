@@ -140,12 +140,13 @@ func TestOracleServer(t *testing.T) {
 	})
 
 	t.Run("test pre-sampling happy case", func(t *testing.T) {
+		roundID := currentRound.Uint64() + 1
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		chainHeight := uint64(56)
 		dialerMock := mock.NewMockDialer(ctrl)
 		contractMock := cMock.NewMockContractAPI(ctrl)
-		contractMock.EXPECT().GetRound(nil).Return(currentRound, nil)
+		contractMock.EXPECT().GetRound(nil).Return(new(big.Int).SetUint64(roundID), nil)
 		contractMock.EXPECT().GetSymbols(nil).Return(helpers.DefaultSymbols, nil)
 		contractMock.EXPECT().GetVotePeriod(nil).Return(votePeriod, nil)
 		contractMock.EXPECT().WatchNewRound(gomock.Any(), gomock.Any()).Return(subRoundEvent, nil)
@@ -169,9 +170,9 @@ func TestOracleServer(t *testing.T) {
 			time.Sleep(time.Second)
 		}
 
-		roundData, err := srv.buildRoundData(1)
+		roundData, err := srv.buildRoundData(roundID)
 		require.NoError(t, err)
-		require.Equal(t, uint64(1), roundData.RoundID)
+		require.Equal(t, roundID, roundData.RoundID)
 		require.Equal(t, helpers.DefaultSymbols, roundData.Symbols)
 		require.Equal(t, len(helpers.DefaultSymbols), len(roundData.Prices))
 		require.Equal(t, true, helpers.ResolveSimulatedPrice(NTNUSD).Equal(roundData.Prices[NTNUSD].Price))
@@ -182,6 +183,7 @@ func TestOracleServer(t *testing.T) {
 	})
 
 	t.Run("test round vote happy case, with commitment and round data", func(t *testing.T) {
+		round := new(big.Int).SetUint64(2)
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		chainHeight := uint64(55)
@@ -190,7 +192,7 @@ func TestOracleServer(t *testing.T) {
 		var voters []common.Address
 		voters = append(voters, conf.Key.Address)
 		price := contract.IOracleRoundData{
-			Round:     currentRound,
+			Round:     round,
 			Price:     new(big.Int).SetUint64(0),
 			Timestamp: new(big.Int).SetUint64(10000),
 			Success:   true,
@@ -198,14 +200,14 @@ func TestOracleServer(t *testing.T) {
 
 		dialerMock := mock.NewMockDialer(ctrl)
 		contractMock := cMock.NewMockContractAPI(ctrl)
-		contractMock.EXPECT().GetRound(nil).Return(currentRound, nil)
+		contractMock.EXPECT().GetRound(nil).Return(round, nil)
 		contractMock.EXPECT().GetSymbols(nil).AnyTimes().Return(helpers.DefaultSymbols, nil)
 		contractMock.EXPECT().GetVotePeriod(nil).Return(votePeriod, nil)
 		contractMock.EXPECT().WatchNewRound(gomock.Any(), gomock.Any()).Return(subRoundEvent, nil)
 		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
 		contractMock.EXPECT().WatchPenalized(gomock.Any(), gomock.Any(), gomock.Any()).Return(subPenalizeEvent, nil)
 		contractMock.EXPECT().GetVoters(nil).Return(voters, nil)
-		contractMock.EXPECT().GetRoundData(nil, new(big.Int).SetUint64(1), gomock.Any()).AnyTimes().Return(price, nil)
+		contractMock.EXPECT().GetRoundData(nil, new(big.Int).SetUint64(2), gomock.Any()).AnyTimes().Return(price, nil)
 		contractMock.EXPECT().LatestRoundData(nil, gomock.Any()).AnyTimes().Return(price, nil)
 		contractMock.EXPECT().WatchSuccessfulVote(gomock.Any(), gomock.Any(), gomock.Any()).Return(subVoteEvent, nil)
 		contractMock.EXPECT().WatchTotalOracleRewards(gomock.Any(), gomock.Any()).Return(subReportedEvent, nil)

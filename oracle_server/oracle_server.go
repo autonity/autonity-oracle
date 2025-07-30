@@ -51,6 +51,7 @@ var (
 )
 
 const (
+	FirstRound          = uint64(1)
 	ATNUSD              = "ATN-USD"
 	NTNUSD              = "NTN-USD"
 	USDCUSD             = "USDC-USD"
@@ -452,6 +453,32 @@ func (os *OracleServer) printLatestRoundData(newRound uint64) {
 }
 
 func (os *OracleServer) handlePreSampling(preSampleTS int64) error {
+
+	// start to sample data point for the 1st round as the round period could be longer than 30s, we don't want to
+	// wait for another round to get the data be available on-chain.
+	if os.curRound == FirstRound {
+		nextRoundHeight := os.votePeriod
+		curHeight, err := os.client.BlockNumber(context.Background())
+		if err != nil {
+			os.logger.Error("handle pre-sampling", "error", err.Error())
+			return err
+		}
+
+		if curHeight > nextRoundHeight {
+			return nil
+		}
+
+		if nextRoundHeight-curHeight > uint64(config.PreSamplingRange) { //nolint
+			return nil
+		}
+
+		// do the data pre-sampling.
+		os.logger.Debug("data pre-sampling", "round", os.curRound, "on height", curHeight, "TS", preSampleTS)
+		os.samplePrice(os.samplingSymbols, preSampleTS)
+
+		return nil
+	}
+
 	// taking the 1st round and the round after a node recover from a disaster as a special case, to skip the
 	// pre-sampling. In this special case, the regular 10s samples will be used for data reporting.
 	if os.curSampleTS == 0 || os.curSampleHeight == 0 {
@@ -470,7 +497,7 @@ func (os *OracleServer) handlePreSampling(preSampleTS int64) error {
 	}
 
 	// do the data pre-sampling.
-	os.logger.Debug("data pre-sampling", "on height", curHeight, "TS", preSampleTS)
+	os.logger.Debug("data pre-sampling", "round", os.curRound, "on height", curHeight, "TS", preSampleTS)
 	os.samplePrice(os.samplingSymbols, preSampleTS)
 
 	return nil
@@ -1097,7 +1124,7 @@ func (os *OracleServer) Start() {
 			os.handleNewSymbolsEvent(newSymbolEvent.Symbols)
 		case <-os.regularTicker.C:
 			os.gcRoundData()
-			os.logger.Debug("round rotation", "current oracle round", os.curRound)
+			os.logger.Debug("current round ID", "round", os.curRound)
 		}
 	}
 }
