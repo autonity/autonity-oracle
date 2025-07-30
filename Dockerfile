@@ -4,7 +4,7 @@ ARG VERSION=""
 ARG BUILDNUM=""
 
 # Build autoracle in a stock Go builder container
-FROM golang:1.22-alpine as builder
+FROM golang:1.24-alpine AS builder
 
 LABEL org.opencontainers.image.source https://github.com/autonity/autonity-oracle
 
