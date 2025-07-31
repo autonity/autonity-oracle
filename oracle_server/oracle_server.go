@@ -1025,14 +1025,12 @@ func (os *OracleServer) Start() {
 		case err, ok := <-os.configWatcher.Errors:
 			if !ok {
 				os.logger.Error("failed to watch oracle config file")
-				return
 			}
 			os.logger.Error("oracle config file watcher err", "err", err.Error())
 
 		case err, ok := <-os.pluginsWatcher.Errors:
 			if !ok {
 				os.logger.Error("failed to watch plugin dir")
-				return
 			}
 			os.logger.Error("plugin watcher errors", "err", err.Error())
 
