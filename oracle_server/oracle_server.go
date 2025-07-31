@@ -174,8 +174,9 @@ type OracleServer struct {
 
 	serverMemories *ServerMemories // server memories to be flushed.
 
-	fsWatcher *fsnotify.Watcher // FS watcher watches the changes of plugins and the plugins' configs.
-	chainID   int64             // ChainID saves the L1 chain ID, it is used for plugin compatibility check.
+	configWatcher  *fsnotify.Watcher // config file watcher which watches the config changes.
+	pluginsWatcher *fsnotify.Watcher // plugins watcher which watches the changes of plugins and the plugins' configs.
+	chainID        int64             // ChainID saves the L1 chain ID, it is used for plugin compatibility check.
 }
 
 func NewOracleServer(conf *config.Config, dialer types.Dialer, client types.Blockchain,
@@ -250,25 +251,35 @@ func NewOracleServer(conf *config.Config, dialer types.Dialer, client types.Bloc
 	}
 	os.lostSync = false
 
-	// subscribe FS notifications of the watched plugins and config file.
-	watcher, err := fsnotify.NewWatcher()
+	// subscribe FS notifications of the watched plugins.
+	pluginsWatcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		os.logger.Error("cannot create fsnotify watcher", "error", err)
 		o.Exit(1)
 	}
 
-	err = watcher.Add(conf.PluginDIR)
+	err = pluginsWatcher.Add(conf.PluginDIR)
 	if err != nil {
 		os.logger.Error("cannot watch plugin dir", "error", err)
 		o.Exit(1)
 	}
+	os.pluginsWatcher = pluginsWatcher
 
-	err = watcher.Add(conf.ConfigFile)
+	// subscribe FS notification of the watched config file.
+	configWatcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		os.logger.Error("cannot watch config file", "error", err)
+		os.logger.Error("cannot create fsnotify watcher", "error", err)
 		o.Exit(1)
 	}
-	os.fsWatcher = watcher
+
+	dir := filepath.Dir(conf.ConfigFile)
+	err = configWatcher.Add(dir) // Watch parent directory
+	if err != nil {
+		os.logger.Error("cannot watch oracle config directory", "error", err)
+		o.Exit(1)
+	}
+
+	os.configWatcher = configWatcher
 	return os
 }
 
@@ -1011,13 +1022,19 @@ func (os *OracleServer) Start() {
 			os.psTicker.Stop()
 			os.logger.Info("oracle service is stopped")
 			return
-
-		case err, ok := <-os.fsWatcher.Errors:
+		case err, ok := <-os.configWatcher.Errors:
 			if !ok {
-				os.logger.Error("failed to watch filesystem")
+				os.logger.Error("failed to watch oracle config file")
 				return
 			}
-			os.logger.Error("fs-watcher errors", "err", err.Error())
+			os.logger.Error("oracle config file watcher err", "err", err.Error())
+
+		case err, ok := <-os.pluginsWatcher.Errors:
+			if !ok {
+				os.logger.Error("failed to watch plugin dir")
+				return
+			}
+			os.logger.Error("plugin watcher errors", "err", err.Error())
 
 		case err := <-os.subSymbolsEvent.Err():
 			if err != nil {
@@ -1109,13 +1126,37 @@ func (os *OracleServer) Start() {
 			if err := os.serverMemories.flush(os.conf.ProfileDir); err != nil {
 				os.logger.Error("failed to flush oracle state", "error", err.Error())
 			}
-		case fsEvent, ok := <-os.fsWatcher.Events:
+		case fsEvent, ok := <-os.configWatcher.Events:
 			if !ok {
-				os.logger.Error("fs watcher has been closed")
+				os.logger.Error("config watcher channel has been closed")
+				return
+			}
+			// filter unwatched files in the dir.
+			if fsEvent.Name != os.conf.ConfigFile {
+				continue
 			}
 
-			os.logger.Info("watched new fs event", "file", fsEvent.Name, "event", fsEvent.Op.String())
-			// updates on the watched config and plugin directory will trigger plugin management.
+			switch {
+			// tools like sed issues write event for the updates.
+			case fsEvent.Op&fsnotify.Write > 0:
+				// apply plugin config changes.
+				os.logger.Info("config file content changed", "file", fsEvent.Name)
+				os.PluginRuntimeManagement()
+
+			// tools like vim or vscode issues rename, chmod and remove events for the update for an atomic change mode.
+			case fsEvent.Op&fsnotify.Rename > 0:
+				os.logger.Info("config file changed", "file", fsEvent.Name)
+				os.PluginRuntimeManagement()
+			}
+
+		case fsEvent, ok := <-os.pluginsWatcher.Events:
+			if !ok {
+				os.logger.Error("plugin watcher channel has been closed")
+				return
+			}
+
+			os.logger.Info("watched plugins fs event", "file", fsEvent.Name, "event", fsEvent.Op.String())
+			// updates on the watched plugin directory will trigger plugin management.
 			os.PluginRuntimeManagement()
 
 		case roundEvent := <-os.chRoundEvent:
@@ -1159,8 +1200,12 @@ func (os *OracleServer) Stop() {
 	os.subPenalizedEvent.Unsubscribe()
 	os.subVotedEvent.Unsubscribe()
 	os.subRewardEvent.Unsubscribe()
-	if os.fsWatcher != nil {
-		os.fsWatcher.Close() //nolint
+	if os.pluginsWatcher != nil {
+		os.pluginsWatcher.Close() //nolint
+	}
+
+	if os.configWatcher != nil {
+		os.configWatcher.Close() //nolint
 	}
 
 	os.doneCh <- struct{}{}
