@@ -1020,20 +1020,23 @@ func (os *OracleServer) Start() {
 		case <-os.doneCh:
 			os.regularTicker.Stop()
 			os.psTicker.Stop()
+			if os.pluginsWatcher != nil {
+				os.pluginsWatcher.Close() //nolint
+			}
+
+			if os.configWatcher != nil {
+				os.configWatcher.Close() //nolint
+			}
 			os.logger.Info("oracle service is stopped")
 			return
-		case err, ok := <-os.configWatcher.Errors:
-			if !ok {
-				os.logger.Error("failed to watch oracle config file")
+		case err := <-os.configWatcher.Errors:
+			if err != nil {
+				os.logger.Error("oracle config file watcher err", "err", err.Error())
 			}
-			os.logger.Error("oracle config file watcher err", "err", err.Error())
-
-		case err, ok := <-os.pluginsWatcher.Errors:
-			if !ok {
-				os.logger.Error("failed to watch plugin dir")
+		case err := <-os.pluginsWatcher.Errors:
+			if err != nil {
+				os.logger.Error("plugin watcher errors", "err", err.Error())
 			}
-			os.logger.Error("plugin watcher errors", "err", err.Error())
-
 		case err := <-os.subSymbolsEvent.Err():
 			if err != nil {
 				os.logger.Info("subscription error of new symbols event", err)
@@ -1198,13 +1201,6 @@ func (os *OracleServer) Stop() {
 	os.subPenalizedEvent.Unsubscribe()
 	os.subVotedEvent.Unsubscribe()
 	os.subRewardEvent.Unsubscribe()
-	if os.pluginsWatcher != nil {
-		os.pluginsWatcher.Close() //nolint
-	}
-
-	if os.configWatcher != nil {
-		os.configWatcher.Close() //nolint
-	}
 
 	os.doneCh <- struct{}{}
 	for _, c := range os.runningPlugins {
