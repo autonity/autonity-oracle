@@ -26,6 +26,7 @@ import (
 	"math/big"
 	o "os"
 	"path/filepath"
+	"slices"
 	"time"
 )
 
@@ -750,9 +751,16 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 
 func (os *OracleServer) aggregateProtocolSymbolPrices() (types.PriceBySymbol, error) {
 	prices := make(types.PriceBySymbol)
-	usdcPrice, err := os.aggregatePrice(USDCUSD, os.curSampleTS)
-	if err != nil {
-		os.logger.Error("aggregate USDC-USD price", "error", err.Error())
+
+	// if we need a bridger pair USDC-USD to convert ATN-USD or NTN-USD from ATN-USDC or NTN-USDC,
+	// then we need to aggregate USDC-USD data point first.
+	var usdcPrice *types.Price
+	var err error
+	if slices.Contains(os.protocolSymbols, ATNUSD) || slices.Contains(os.protocolSymbols, NTNUSD) {
+		usdcPrice, err = os.aggregatePrice(USDCUSD, os.curSampleTS)
+		if err != nil {
+			os.logger.Error("aggregate USDC-USD price", "error", err.Error())
+		}
 	}
 
 	for _, s := range os.protocolSymbols {
