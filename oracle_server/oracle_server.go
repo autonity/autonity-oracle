@@ -251,7 +251,7 @@ func NewOracleServer(conf *config.Config, dialer types.Dialer, client types.Bloc
 	}
 	os.lostSync = false
 
-	// subscribe FS notifications of the watched plugins and config file.
+	// subscribe FS notifications of the watched plugins.
 	pluginsWatcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		os.logger.Error("cannot create fsnotify watcher", "error", err)
@@ -265,6 +265,7 @@ func NewOracleServer(conf *config.Config, dialer types.Dialer, client types.Bloc
 	}
 	os.pluginsWatcher = pluginsWatcher
 
+	// subscribe FS notification of the watched config file.
 	configWatcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		os.logger.Error("cannot create fsnotify watcher", "error", err)
@@ -1127,8 +1128,10 @@ func (os *OracleServer) Start() {
 			}
 		case fsEvent, ok := <-os.configWatcher.Events:
 			if !ok {
-				os.logger.Error("config watcher has been closed")
+				os.logger.Error("config watcher channel has been closed")
+				return
 			}
+			// filter unwatched files in the dir.
 			if fsEvent.Name != os.conf.ConfigFile {
 				continue
 			}
@@ -1148,11 +1151,12 @@ func (os *OracleServer) Start() {
 
 		case fsEvent, ok := <-os.pluginsWatcher.Events:
 			if !ok {
-				os.logger.Error("plugin watcher has been closed")
+				os.logger.Error("plugin watcher channel has been closed")
+				return
 			}
 
 			os.logger.Info("watched plugins fs event", "file", fsEvent.Name, "event", fsEvent.Op.String())
-			// updates on the watched config and plugin directory will trigger plugin management.
+			// updates on the watched plugin directory will trigger plugin management.
 			os.PluginRuntimeManagement()
 
 		case roundEvent := <-os.chRoundEvent:
