@@ -164,6 +164,21 @@ confidenceStrategy: 0  # 0: linear, 1: fixed
 #  influxDBOrganization: "autonity"
 
 ```
+## Data Source Selection Strategy
+As there are different data sources in the data API market, when selecting data vendor, you'd need to consider below
+factors.
+- accuracy
+  The data vendor should provide fresh price to reflect the current state of market. Thus, when you subscribe your service plan,
+  you need to double check if your option could return fresh price within at least 10minutes of the market. For those daily or hourly updated prices
+  would risk your oracle client with economic penalty.
+- frequency
+  As current oracle vote round last for about 10 minutes, thus the oracle server should at least provide a successful sample of the round. This can
+  determine the rate limit level when you select your data vendor.
+- high availability
+  For mainnet, we recommend people to keep the diversity of your data, or at least to keep dual data vendor running at the same time, although a single
+  data source also works, but it would risk your oracle client be omission faulty when the provider is in a disaster state. An omission faulty oracle
+  client will lose the ATN fee reward and NTN inflation reward planned by the protocol.
+
 ## CLI Flags
 Print the version of the oracle server:
 ```
