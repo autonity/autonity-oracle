@@ -164,20 +164,16 @@ confidenceStrategy: 0  # 0: linear, 1: fixed
 #  influxDBOrganization: "autonity"
 
 ```
-## Data Source Selection Strategy
-As there are different data sources in the data API market, when selecting data vendor, you'd need to consider below
-factors.
-- accuracy
-  The data vendor should provide fresh price to reflect the current state of market. Thus, when you subscribe your service plan,
-  you need to double check if your option could return fresh price within at least 10minutes of the market. For those daily or hourly updated prices
-  would risk your oracle client with economic penalty.
-- frequency
-  As current oracle vote round last for about 10 minutes, thus the oracle server should at least provide a successful sample of the round. This can
-  determine the rate limit level when you select your data vendor.
-- high availability
-  For mainnet, we recommend people to keep the diversity of your data, or at least to keep dual data vendor running at the same time, although a single
-  data source also works, but it would risk your oracle client be omission faulty when the provider is in a disaster state. An omission faulty oracle
-  client will lose the ATN fee reward and NTN inflation reward planned by the protocol.
+## Data Source Strategy
+When choosing a data vendor in the data API market, there are several factors to consider:
+
+- Accuracy: The vendor must provide up-to-date pricing that accurately reflects market conditions. Therefore, when selecting a service plan, verify that it offers fresh prices at least every 10 minutes. Relying on daily or hourly updates could expose your oracle client to financial penalties.
+
+- Frequency: Given that current oracle vote round last around 10 minutes, the oracle server should provide a successful sample within this timeframe. This will help determine the rate limit level associated with your chosen data vendor.
+
+- High Availability: For mainnet usage, it’s advisable to diversify your data sources, or at least operate two data vendors simultaneously. While a single data source may suffice, it poses a risk of omission faults if the provider encounters issues. An oracle client that experiences omission faults risks losing ATN fee rewards and NTN inflation rewards as established by the protocol.
+
+Taking these factors into consideration, we recommend utilizing `forex_yahoofinance` with its `PRO` subscription plan for both your testnet and mainnet configurations. Additionally, it's advisable to choose a backup data provider from the available forex plugins to establish a dual data source system. Having more data vendors will enhance your availability, but it may also increase costs.
 
 ## CLI Flags
 Print the version of the oracle server:
