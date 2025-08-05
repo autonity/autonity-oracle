@@ -167,7 +167,7 @@ confidenceStrategy: 0  # 0: linear, 1: fixed
 ## Data Source Strategy
 When choosing a data vendor in the data API market, there are several factors to consider:
 
-- Accuracy: The vendor must provide up-to-date pricing that accurately reflects market conditions. Therefore, when selecting a service plan, verify that it offers fresh prices at least every 10 minutes. Relying on daily or hourly updates could expose your oracle client to financial penalties.
+- Accuracy: The vendor must provide up-to-date pricing that accurately reflects market conditions. Therefore, it is recommended to select service plan for your data sources that offer fresh prices at least every 10 minutes. Relying on daily or hourly updates could expose your oracle client to financial penalties.
 
 - Frequency: Given that current oracle vote round last around 10 minutes, the oracle server should provide a successful sample within this timeframe. This will help determine the rate limit level associated with your chosen data vendor.
 
