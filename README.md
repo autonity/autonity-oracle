@@ -164,6 +164,17 @@ confidenceStrategy: 0  # 0: linear, 1: fixed
 #  influxDBOrganization: "autonity"
 
 ```
+## Data Source Strategy
+When choosing a data vendor in the data API market, there are several factors to consider:
+
+- Accuracy: The vendor must provide up-to-date pricing that accurately reflects market conditions. Therefore, it is recommended to select service plan for your data sources that offer fresh prices at least every 10 minutes. Relying on daily or hourly updates could expose your oracle client to financial penalties.
+
+- Frequency: Given that current oracle vote round last around 10 minutes, the oracle server should provide a successful sample within this timeframe. This will help determine the rate limit level associated with your chosen data vendor.
+
+- High Availability: For mainnet usage, it’s advisable to diversify your data sources, or at least operate two data vendors simultaneously. While a single data source may suffice, it poses a risk of omission faults if the provider encounters issues. An oracle client that experiences omission faults risks losing ATN fee rewards and NTN inflation rewards as established by the protocol.
+
+Taking these factors into consideration, we recommend utilizing `forex_yahoofinance` with its `PRO` subscription plan for both your testnet and mainnet configurations. Additionally, it's advisable to choose a backup data provider from the available forex plugins to establish a dual data source system. Having more data vendors will enhance your availability, but it may also increase costs.
+
 ## CLI Flags
 Print the version of the oracle server:
 ```
