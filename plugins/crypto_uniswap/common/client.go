@@ -23,7 +23,7 @@ import (
 
 var (
 	orderBookCapacity = 64
-	Version           = "v0.2.4"
+	Version           = "v0.2.5"
 	supportedSymbols  = common.DefaultCryptoSymbols
 )
 

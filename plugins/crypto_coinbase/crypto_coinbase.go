@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	version = "v0.2.4"
+	version = "v0.2.5"
 	path    = "v2/prices/USDC-USD/spot"
 )
 
