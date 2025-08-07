@@ -32,7 +32,8 @@ no shutdown of the oracle client is required to detect and apply the change.
 ### Overview
 To coordinate data sampling in the oracle network, the L1 oracle contract issues a round event on every vote period. The round event carries a tuple `(RoundID, SampleTS, Height, VotePeriod)`, which tells the oracle servers that on round with ID `RoundID`, a data sample with timestamp `SampleTS` is required for the data submission. The `Height` stands for the start height of the new round, while the `VotePeriod` stands for the round length of the new round. Thus the oracle server can estimate and manage data pre-samplings for the new round and then pick up the nearest sample referring to the required `SampleTS`.
 
-<img width="1547" height="821" alt="Screenshot from 2025-08-07 13-00-26" src="https://github.com/user-attachments/assets/043686c9-4fbd-4164-9533-4e299a0067aa" />
+<img width="1564" height="819" alt="Screenshot from 2025-08-07 13-03-30" src="https://github.com/user-attachments/assets/10aa0578-bdd6-4222-aee6-f8abbd37d50d" />
+
 
 
 ### Data pre-sampling
