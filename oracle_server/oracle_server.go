@@ -1091,7 +1091,7 @@ func (os *OracleServer) Start() {
 					"please use high quality data source.", "symbol", penalizeEvent.Symbol, "median value",
 					penalizeEvent.Median.String(), "reported value", penalizeEvent.Reported.String())
 				os.logger.Warn("IMPORTANT: please double check your data source setup before getting penalized")
-				metrics.GetOrRegisterCounter("oracle/outlied_without_slashing", nil).Inc(1)
+				metrics.GetOrRegisterCounter("oracle/outlied_no_slashing", nil).Inc(1)
 				continue
 			}
 
@@ -1102,7 +1102,7 @@ func (os *OracleServer) Start() {
 			os.logger.Warn("IMPORTANT: please repair your data setups for data precision before getting penalized again")
 
 			if metrics.Enabled {
-				metrics.GetOrRegisterCounter("oracle/slashed", nil).Inc(1)
+				metrics.GetOrRegisterCounter("oracle/outlied_with_slashing", nil).Inc(1)
 			}
 
 			newState := &ServerMemories{
