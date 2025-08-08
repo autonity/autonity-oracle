@@ -50,6 +50,9 @@ func main() { //nolint
 		go metrics.CollectProcessMetrics(config.MetricsInterval)
 	}
 
+	// create metrics before the context of the usage.
+	monitor.InitOracleMetrics()
+
 	// dail to L1 network, and start oracle server.
 	dialer := &types.L1Dialer{}
 	client, err := dialer.Dial(conf.AutonityWSUrl)

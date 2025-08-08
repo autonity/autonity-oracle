@@ -174,6 +174,21 @@ func (mr *MockContractAPIMockRecorder) Vote(opts, _commit, _reports, _salt, _ext
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Vote", reflect.TypeOf((*MockContractAPI)(nil).Vote), opts, _commit, _reports, _salt, _extra)
 }
 
+// WatchInvalidVote mocks base method.
+func (m *MockContractAPI) WatchInvalidVote(opts *bind.WatchOpts, sink chan<- *oracle.OracleInvalidVote, reporter []common.Address) (event.Subscription, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WatchInvalidVote", opts, sink, reporter)
+	ret0, _ := ret[0].(event.Subscription)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// WatchInvalidVote indicates an expected call of WatchInvalidVote.
+func (mr *MockContractAPIMockRecorder) WatchInvalidVote(opts, sink, reporter interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchInvalidVote", reflect.TypeOf((*MockContractAPI)(nil).WatchInvalidVote), opts, sink, reporter)
+}
+
 // WatchNewRound mocks base method.
 func (m *MockContractAPI) WatchNewRound(opts *bind.WatchOpts, sink chan<- *oracle.OracleNewRound) (event.Subscription, error) {
 	m.ctrl.T.Helper()

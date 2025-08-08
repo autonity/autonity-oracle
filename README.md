@@ -263,17 +263,18 @@ A disabled plugin will be unloaded from the oracle server, one can enable it aga
 #### User-Plane Metrics
 oracle-server metrics:
 ```golang
-    metrics.GetOrRegisterGauge("oracle/plugins", nil) // counts the num of plugins in use.
-    metrics.GetOrRegisterGauge("oracle/round", nil)   // track the current round ID.
-    metrics.GetOrRegisterGauge("oracle/balance", nil) // track the current voter's account balance in ATN with 1e18 precision.
-    metrics.GetOrRegisterGauge("oracle/isVoter", nil) // track if current client is a voter or not.
-    metrics.GetOrRegisterCounter("oracle/l1/errs", nil) // track the num of L1 connectivity error encountered.
+    PluginMetric         = "oracle/plugins" // counts the num of plugins in use.
+    RoundMetric          = "oracle/round"  // track the current round ID.
+    BalanceMetric        = "oracle/balance" // track the current voter's account balance in ATN with 1e18 precision.
+    IsVoterMetric        = "oracle/isVoter" // track if current client is a voter or not.
+    L1ConnectivityMetric = "oracle/l1/errs" // track the num of L1 connectivity error encountered.
+    InvalidVoteMetric    = "oracle/vote/invalid" // track the num of invalid vote event addressed by the protocol.
+    SuccessfulVoteMetric = "oracle/vote/successful" // track the num of successful votes.
 
-    // Penalize Event metrics.
-    metrics.GetOrRegisterGauge("oracle/outlier/distance/percentage", nil) // track the outlier distance in percentage against the median of the round price.
-    metrics.GetOrRegisterCounter("oracle/outlier/noslash/times", nil)     // track the num of outlier event which is not slashed by the protocol offensed by the server, eg.. the outlier data point is under slashing treshold of median.
-    metrics.GetOrRegisterCounter("oracle/outlier/slash/times", nil)     // track the num of outlier evwnt which is slashed by the protocol offensed by the server, eg.. the outlier data point is over slashing threshold of median.
-    metrics.GetOrRegisterGaugeFloat64("oracle/outlier/penality/total", nil)    // track the total slashed NTN stake of this server.
+    OutlierDistancePercentMetric = "oracle/outlier/distance/percentage" // track the outlier distance in percentage against the median of the round price.
+    OutlierNoSlashTimesMetric    = "oracle/outlier/noslash/times" // track the num of outlier event which is not slashed by the protocol offensed by the server, eg.. the outlier data point is under slashing threshold of median.
+    OutlierSlashTimesMetric      = "oracle/outlier/slash/times"   // track the num of outlier evwnt which is slashed by the protocol offensed by the server, eg.. the outlier data point is over slashing threshold of median.
+    OutlierPenaltyMetric         = "oracle/outlier/penality"      // track the total slashed NTN stake of this server.
 ```
 plugin metrics:
 All the data points collected from the plugin are tracked in metrics with such id pattern: `oracle/plugin_name/symbol/price`:

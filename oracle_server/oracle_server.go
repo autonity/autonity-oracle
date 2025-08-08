@@ -4,6 +4,7 @@ import (
 	"autonity-oracle/config"
 	contract "autonity-oracle/contract_binder/contract"
 	"autonity-oracle/helpers"
+	"autonity-oracle/monitor"
 	pWrapper "autonity-oracle/plugin_wrapper"
 	common2 "autonity-oracle/plugins/common"
 	"autonity-oracle/types"
@@ -144,6 +145,9 @@ type OracleServer struct {
 	protocolSymbols []string //symbols required for the voting on the oracle contract protocol.
 	pricePrecision  decimal.Decimal
 	roundData       map[uint64]*types.RoundData
+
+	chInvalidVote  chan *contract.OracleInvalidVote
+	subInvalidVote event.Subscription
 
 	chVotedEvent  chan *contract.OracleSuccessfulVote
 	subVotedEvent event.Subscription
@@ -334,6 +338,16 @@ func (os *OracleServer) syncStates() error {
 	os.chVotedEvent = chVotedEvent
 	os.subVotedEvent = subVotedEvent
 
+	// subscribe invalid vote event
+	chInvalidVote := make(chan *contract.OracleInvalidVote)
+	subInvalidVote, err := os.oracleContract.WatchInvalidVote(new(bind.WatchOpts), chInvalidVote, []common.Address{os.conf.Key.Address})
+	if err != nil {
+		os.logger.Error("failed to subscribe invalid vote event", "error", err.Error())
+		return err
+	}
+	os.chInvalidVote = chInvalidVote
+	os.subInvalidVote = subInvalidVote
+
 	// subscribe reward event
 	chRewardEvent := make(chan *contract.OracleTotalOracleRewards)
 	subRewardEvent, err := os.oracleContract.WatchTotalOracleRewards(new(bind.WatchOpts), chRewardEvent)
@@ -404,7 +418,7 @@ func (os *OracleServer) checkHealth() {
 		if err != nil && !errors.Is(err, types.ErrNoSymbolsObserved) {
 			os.logger.Info("rebuilding WS connectivity with Autonity L1 node", "error", err)
 			if metrics.Enabled {
-				metrics.GetOrRegisterCounter("oracle/l1/errs", nil).Inc(1)
+				metrics.GetOrRegisterCounter(monitor.L1ConnectivityMetric, nil).Inc(1)
 			}
 			return
 		}
@@ -547,7 +561,7 @@ func (os *OracleServer) handleRoundVote() error {
 	if !isVoter && !ok {
 		os.logger.Debug("skip data reporting since client is no longer a voter")
 		if metrics.Enabled {
-			metrics.GetOrRegisterGauge("oracle/isVoter", nil).Update(0)
+			metrics.GetOrRegisterGauge(monitor.IsVoterMetric, nil).Update(0)
 		}
 		return nil
 	}
@@ -575,7 +589,7 @@ func (os *OracleServer) handleRoundVote() error {
 		// round data was successfully assembled, save current round data.
 		os.roundData[os.curRound] = curRoundData
 		if metrics.Enabled {
-			metrics.GetOrRegisterGauge("oracle/isVoter", nil).Update(1)
+			metrics.GetOrRegisterGauge(monitor.IsVoterMetric, nil).Update(1)
 		}
 		// report with last round data and with current round commitment hash.
 		return os.reportWithCommitment(curRoundData, lastRoundData)
@@ -609,7 +623,7 @@ func (os *OracleServer) reportWithCommitment(curRoundData, lastRoundData *types.
 	}
 
 	if metrics.Enabled {
-		metrics.GetOrRegisterGauge("oracle/balance", nil).Update(balance.Int64())
+		metrics.GetOrRegisterGauge(monitor.BalanceMetric, nil).Update(balance.Int64())
 	}
 
 	os.logger.Info("oracle server account", "address", os.conf.Key.Address, "remaining balance", balance.String())
@@ -1048,6 +1062,12 @@ func (os *OracleServer) Start() {
 				os.handleConnectivityError()
 				os.subRewardEvent.Unsubscribe()
 			}
+		case err := <-os.subInvalidVote.Err():
+			if err != nil {
+				os.logger.Info("subscription error of invalid vote", err)
+				os.handleConnectivityError()
+				os.subInvalidVote.Unsubscribe()
+			}
 		case err := <-os.subVotedEvent.Err():
 			if err != nil {
 				os.logger.Info("subscription error of voted event", err)
@@ -1071,8 +1091,18 @@ func (os *OracleServer) Start() {
 			}
 			os.lastSampledTS = preSampleTS
 
+		case invalidVote := <-os.chInvalidVote:
+			os.logger.Info("received invalid vote", "cause", invalidVote.Cause, "expected",
+				invalidVote.ExpValue.String(), "actual", invalidVote.ActualValue.String(), "txn", invalidVote.Raw.TxHash)
+			if metrics.Enabled {
+				metrics.GetOrRegisterCounter(monitor.InvalidVoteMetric, nil).Inc(1)
+			}
+
 		case votedEvent := <-os.chVotedEvent:
-			os.logger.Info("received voted event", "oracle client", votedEvent.Reporter, "height", votedEvent.Raw.BlockNumber)
+			os.logger.Info("received voted event", "height", votedEvent.Raw.BlockNumber, "txn", votedEvent.Raw.TxHash)
+			if metrics.Enabled {
+				metrics.GetOrRegisterCounter(monitor.SuccessfulVoteMetric, nil).Inc(1)
+			}
 
 		case rewardEvent := <-os.chRewardEvent:
 			os.logger.Info("received reward distribution event", "height", rewardEvent.Raw.BlockNumber,
@@ -1090,7 +1120,7 @@ func (os *OracleServer) Start() {
 			if metrics.Enabled {
 				gap := new(big.Int).Abs(new(big.Int).Sub(penalizeEvent.Reported, penalizeEvent.Median))
 				gapPercent := new(big.Int).Div(new(big.Int).Mul(gap, big.NewInt(100)), penalizeEvent.Median)
-				metrics.GetOrRegisterGauge("oracle/outlier/distance/percentage", nil).Update(gapPercent.Int64())
+				metrics.GetOrRegisterGauge(monitor.OutlierDistancePercentMetric, nil).Update(gapPercent.Int64())
 			}
 
 			if penalizeEvent.SlashingAmount.Cmp(common.Big0) == 0 {
@@ -1099,7 +1129,7 @@ func (os *OracleServer) Start() {
 					penalizeEvent.Median.String(), "reported value", penalizeEvent.Reported.String())
 				os.logger.Warn("IMPORTANT: please double check your data source setup before getting penalized")
 				if metrics.Enabled {
-					metrics.GetOrRegisterCounter("oracle/outlier/noslash/times", nil).Inc(1)
+					metrics.GetOrRegisterCounter(monitor.OutlierNoSlashTimesMetric, nil).Inc(1)
 				}
 				continue
 			}
@@ -1111,11 +1141,11 @@ func (os *OracleServer) Start() {
 			os.logger.Warn("IMPORTANT: please repair your data setups for data precision before getting penalized again")
 
 			if metrics.Enabled {
-				metrics.GetOrRegisterCounter("oracle/outlier/slash/times", nil).Inc(1)
+				metrics.GetOrRegisterCounter(monitor.OutlierSlashTimesMetric, nil).Inc(1)
 				baseUnitsPerNTN := new(big.Float).SetInt(big.NewInt(1e18))
 				amount := new(big.Float).SetUint64(penalizeEvent.SlashingAmount.Uint64())
 				ntnFloat, _ := new(big.Float).Quo(amount, baseUnitsPerNTN).Float64()
-				metrics.GetOrRegisterGaugeFloat64("oracle/outlier/penality/total", nil).Update(ntnFloat)
+				metrics.GetOrRegisterGaugeFloat64(monitor.OutlierPenaltyMetric, nil).Update(ntnFloat)
 			}
 
 			newState := &ServerMemories{
@@ -1172,7 +1202,7 @@ func (os *OracleServer) Start() {
 				roundEvent.Timestamp.Uint64(), "height", roundEvent.Raw.BlockNumber, "round period", roundEvent.VotePeriod.Uint64())
 
 			if metrics.Enabled {
-				metrics.GetOrRegisterGauge("oracle/round", nil).Update(roundEvent.Round.Int64())
+				metrics.GetOrRegisterGauge(monitor.RoundMetric, nil).Update(roundEvent.Round.Int64())
 			}
 
 			// save the round rotation info to coordinate the pre-sampling.
@@ -1197,7 +1227,7 @@ func (os *OracleServer) Start() {
 		case <-os.regularTicker.C:
 			os.gcRoundData()
 			if metrics.Enabled {
-				metrics.GetOrRegisterGauge("oracle/plugins", nil).Update(int64(len(os.runningPlugins)))
+				metrics.GetOrRegisterGauge(monitor.PluginMetric, nil).Update(int64(len(os.runningPlugins)))
 			}
 			os.logger.Debug("current round ID", "round", os.curRound)
 		}
@@ -1210,6 +1240,7 @@ func (os *OracleServer) Stop() {
 	os.subSymbolsEvent.Unsubscribe()
 	os.subPenalizedEvent.Unsubscribe()
 	os.subVotedEvent.Unsubscribe()
+	os.subInvalidVote.Unsubscribe()
 	os.subRewardEvent.Unsubscribe()
 
 	os.doneCh <- struct{}{}

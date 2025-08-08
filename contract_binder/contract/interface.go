@@ -19,6 +19,7 @@ type ContractAPI interface {
 	WatchNewSymbols(opts *bind.WatchOpts, sink chan<- *OracleNewSymbols) (event.Subscription, error)
 	WatchPenalized(opts *bind.WatchOpts, sink chan<- *OraclePenalized, _participant []common.Address) (event.Subscription, error)
 	WatchSuccessfulVote(opts *bind.WatchOpts, sink chan<- *OracleSuccessfulVote, reporter []common.Address) (event.Subscription, error)
+	WatchInvalidVote(opts *bind.WatchOpts, sink chan<- *OracleInvalidVote, reporter []common.Address) (event.Subscription, error)
 	WatchTotalOracleRewards(opts *bind.WatchOpts, sink chan<- *OracleTotalOracleRewards) (event.Subscription, error)
 	GetRoundData(opts *bind.CallOpts, _round *big.Int, _symbol string) (IOracleRoundData, error)
 	LatestRoundData(opts *bind.CallOpts, _symbol string) (IOracleRoundData, error)
