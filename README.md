@@ -263,12 +263,17 @@ A disabled plugin will be unloaded from the oracle server, one can enable it aga
 #### User-Plane Metrics
 oracle-server metrics:
 ```golang
-    numOfPlugins       = metrics.GetOrRegisterGauge("oracle/plugins", nil)
-    oracleRound        = metrics.GetOrRegisterGauge("oracle/round", nil)
-    slashEventCounter  = metrics.GetOrRegisterCounter("oracle/slash", nil)
-    l1ConnectivityErrs = metrics.GetOrRegisterCounter("oracle/l1/errs", nil)
-    accountBalance     = metrics.GetOrRegisterGauge("oracle/balance", nil)
-    isVoterFlag        = metrics.GetOrRegisterGauge("oracle/isVoter", nil)
+    metrics.GetOrRegisterGauge("oracle/plugins", nil) // counts the num of plugins in use.
+    metrics.GetOrRegisterGauge("oracle/round", nil)   // track the current round ID.
+    metrics.GetOrRegisterGauge("oracle/balance", nil) // track the current voter's account balance in ATN with 1e18 precision.
+    metrics.GetOrRegisterGauge("oracle/isVoter", nil) // track if current client is a voter or not.
+    metrics.GetOrRegisterCounter("oracle/l1/errs", nil) // track the num of L1 connectivity error encountered.
+
+    // Penalize Event metrics.
+    metrics.GetOrRegisterGauge("oracle/outlier_distance_percentage", nil) // track the outlier distance in percentage against the median of the round price.
+    metrics.GetOrRegisterCounter("oracle/outlied_no_slashing", nil)       // track the num of outlier event which is not slashed by the protocol offensed by the server, eg.. the outlier data point is under slashing treshold of median.
+    metrics.GetOrRegisterCounter("oracle/outlied_with_slashing", nil)     // track the num of outlier evwnt which is slashed by the protocol offensed by the server, eg.. the outlier data point is over slashing threshold of median.
+    metrics.GetOrRegisterGaugeFloat64("oracle/slashed_ntn_total", nil)    // track the total slashed NTN stake of this server.
 ```
 plugin metrics:
 All the data points collected from the plugin are tracked in metrics with such id pattern: `oracle/plugin_name/symbol/price`:
