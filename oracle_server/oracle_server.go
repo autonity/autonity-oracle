@@ -42,13 +42,6 @@ var (
 	invalidSalt     = big.NewInt(0)
 	tenSecsInterval = 10 * time.Second // ticker to check L2 connectivity and gc round data.
 	oneSecsInterval = 1 * time.Second  // sampling interval during data pre-sampling period.
-
-	numOfPlugins       = metrics.GetOrRegisterGauge("oracle/plugins", nil)
-	oracleRound        = metrics.GetOrRegisterGauge("oracle/round", nil)
-	slashEventCounter  = metrics.GetOrRegisterCounter("oracle/slash", nil)
-	l1ConnectivityErrs = metrics.GetOrRegisterCounter("oracle/l1/errs", nil)
-	accountBalance     = metrics.GetOrRegisterGauge("oracle/balance", nil)
-	isVoterFlag        = metrics.GetOrRegisterGauge("oracle/isVoter", nil)
 )
 
 const (
@@ -411,7 +404,7 @@ func (os *OracleServer) checkHealth() {
 		if err != nil && !errors.Is(err, types.ErrNoSymbolsObserved) {
 			os.logger.Info("rebuilding WS connectivity with Autonity L1 node", "error", err)
 			if metrics.Enabled {
-				l1ConnectivityErrs.Inc(1)
+				metrics.GetOrRegisterCounter("oracle/l1/errs", nil).Inc(1)
 			}
 			return
 		}
@@ -554,7 +547,7 @@ func (os *OracleServer) handleRoundVote() error {
 	if !isVoter && !ok {
 		os.logger.Debug("skip data reporting since client is no longer a voter")
 		if metrics.Enabled {
-			isVoterFlag.Update(0)
+			metrics.GetOrRegisterGauge("oracle/isVoter", nil).Update(0)
 		}
 		return nil
 	}
@@ -582,7 +575,7 @@ func (os *OracleServer) handleRoundVote() error {
 		// round data was successfully assembled, save current round data.
 		os.roundData[os.curRound] = curRoundData
 		if metrics.Enabled {
-			isVoterFlag.Update(1)
+			metrics.GetOrRegisterGauge("oracle/isVoter", nil).Update(1)
 		}
 		// report with last round data and with current round commitment hash.
 		return os.reportWithCommitment(curRoundData, lastRoundData)
@@ -616,7 +609,7 @@ func (os *OracleServer) reportWithCommitment(curRoundData, lastRoundData *types.
 	}
 
 	if metrics.Enabled {
-		accountBalance.Update(balance.Int64())
+		metrics.GetOrRegisterGauge("oracle/balance", nil).Update(balance.Int64())
 	}
 
 	os.logger.Info("oracle server account", "address", os.conf.Key.Address, "remaining balance", balance.String())
@@ -1093,11 +1086,21 @@ func (os *OracleServer) Start() {
 			// point falls below the OutlierSlashingThreshold when compared to the median price. To ensure a broader participation
 			// of nodes within the oracle network and maintain its operational liveness, we continue to allow these
 			// non-slashed outliers to contribute data samples to the network.
+
+			if metrics.Enabled {
+				gap := new(big.Int).Abs(new(big.Int).Sub(penalizeEvent.Reported, penalizeEvent.Median))
+				gapPercent := new(big.Int).Div(new(big.Int).Mul(gap, big.NewInt(100)), penalizeEvent.Median)
+				metrics.GetOrRegisterGauge("oracle/outlier_distance_percentage", nil).Update(gapPercent.Int64())
+			}
+
 			if penalizeEvent.SlashingAmount.Cmp(common.Big0) == 0 {
 				os.logger.Warn("Client addressed as an outlier, the last vote won't be counted for reward distribution, "+
 					"please use high quality data source.", "symbol", penalizeEvent.Symbol, "median value",
 					penalizeEvent.Median.String(), "reported value", penalizeEvent.Reported.String())
 				os.logger.Warn("IMPORTANT: please double check your data source setup before getting penalized")
+				if metrics.Enabled {
+					metrics.GetOrRegisterCounter("oracle/outlied_no_slashing", nil).Inc(1)
+				}
 				continue
 			}
 
@@ -1108,7 +1111,11 @@ func (os *OracleServer) Start() {
 			os.logger.Warn("IMPORTANT: please repair your data setups for data precision before getting penalized again")
 
 			if metrics.Enabled {
-				slashEventCounter.Inc(1)
+				metrics.GetOrRegisterCounter("oracle/outlied_with_slashing", nil).Inc(1)
+				baseUnitsPerNTN := new(big.Float).SetInt(big.NewInt(1e18))
+				amount := new(big.Float).SetUint64(penalizeEvent.SlashingAmount.Uint64())
+				ntnFloat, _ := new(big.Float).Quo(amount, baseUnitsPerNTN).Float64()
+				metrics.GetOrRegisterGaugeFloat64("oracle/slashed_ntn_total", nil).Update(ntnFloat)
 			}
 
 			newState := &ServerMemories{
@@ -1165,7 +1172,7 @@ func (os *OracleServer) Start() {
 				roundEvent.Timestamp.Uint64(), "height", roundEvent.Raw.BlockNumber, "round period", roundEvent.VotePeriod.Uint64())
 
 			if metrics.Enabled {
-				oracleRound.Update(roundEvent.Round.Int64())
+				metrics.GetOrRegisterGauge("oracle/round", nil).Update(roundEvent.Round.Int64())
 			}
 
 			// save the round rotation info to coordinate the pre-sampling.
@@ -1269,7 +1276,7 @@ func (os *OracleServer) PluginRuntimeManagement() {
 	}
 
 	if metrics.Enabled {
-		numOfPlugins.Update(int64(len(os.runningPlugins)))
+		metrics.GetOrRegisterGauge("oracle/plugins", nil).Update(int64(len(os.runningPlugins)))
 	}
 }
 
