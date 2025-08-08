@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	version = "v0.2.5"
+	version = "v0.2.6"
 	api     = "api/latest.json"
 	base    = "base"
 	appID   = "app_id"

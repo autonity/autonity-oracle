@@ -182,7 +182,7 @@ Taking these factors into consideration, we recommend utilizing `forex_yahoofina
 Print the version of the oracle server:
 ```
 $./autoracle version
-v0.2.5
+v0.2.6
 ```
 Run the server:
 ```shell

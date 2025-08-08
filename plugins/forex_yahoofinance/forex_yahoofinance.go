@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	version = "v0.2.5"
+	version = "v0.2.6"
 	path    = "/v6/finance/quote"
 )
 

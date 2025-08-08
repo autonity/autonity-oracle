@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	Version = "v0.2.5"
+	Version = "v0.2.6"
 	apiPath = "api/v3/ticker/price"
 	symbol  = "symbols"
 )
