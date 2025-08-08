@@ -20,27 +20,6 @@ func main() { //nolint
 		"\tby connecting to L1 node: %s\n \ton oracle contract address: %s \n\n\n",
 		config.VersionString(config.Version), conf.PluginDIR, conf.AutonityWSUrl, types.OracleContractAddress)
 
-	dialer := &types.L1Dialer{}
-	client, err := dialer.Dial(conf.AutonityWSUrl)
-	if err != nil {
-		log.Printf("cannot connect to Autonity network via web socket: %s", err.Error())
-		os.Exit(1)
-	}
-
-	oc, err := contract.NewOracle(types.OracleContractAddress, client)
-	if err != nil {
-		log.Printf("cannot bind to oracle contract in Autonity network via web socket: %s", err.Error())
-		os.Exit(1)
-	}
-
-	oracle := oracleserver.NewOracleServer(conf, dialer, client, oc)
-	go oracle.Start()
-	defer oracle.Stop()
-
-	monitorConfig := monitor.DefaultMonitorConfig
-	ms := monitor.New(&monitorConfig, conf.ProfileDir)
-	ms.Start()
-
 	// start metrics reporter if it is enabled.
 	tagsMap := config.SplitTagsFlag(conf.MetricConfigs.InfluxDBTags)
 	if conf.MetricConfigs.EnableInfluxDB {
@@ -70,6 +49,28 @@ func main() { //nolint
 		// Start system runtime metrics collection
 		go metrics.CollectProcessMetrics(config.MetricsInterval)
 	}
+
+	// dail to L1 network, and start oracle server.
+	dialer := &types.L1Dialer{}
+	client, err := dialer.Dial(conf.AutonityWSUrl)
+	if err != nil {
+		log.Printf("cannot connect to Autonity network via web socket: %s", err.Error())
+		os.Exit(1)
+	}
+
+	oc, err := contract.NewOracle(types.OracleContractAddress, client)
+	if err != nil {
+		log.Printf("cannot bind to oracle contract in Autonity network via web socket: %s", err.Error())
+		os.Exit(1)
+	}
+
+	oracle := oracleserver.NewOracleServer(conf, dialer, client, oc)
+	go oracle.Start()
+	defer oracle.Stop()
+
+	monitorConfig := monitor.DefaultMonitorConfig
+	ms := monitor.New(&monitorConfig, conf.ProfileDir)
+	ms.Start()
 
 	// Wait for interrupt signal to gracefully shut down the server with
 	// a timeout of 5 seconds.

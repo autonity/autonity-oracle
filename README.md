@@ -270,10 +270,10 @@ oracle-server metrics:
     metrics.GetOrRegisterCounter("oracle/l1/errs", nil) // track the num of L1 connectivity error encountered.
 
     // Penalize Event metrics.
-    metrics.GetOrRegisterGauge("oracle/outlier_distance_percentage", nil) // track the outlier distance in percentage against the median of the round price.
-    metrics.GetOrRegisterCounter("oracle/outlied_no_slashing", nil)       // track the num of outlier event which is not slashed by the protocol offensed by the server, eg.. the outlier data point is under slashing treshold of median.
-    metrics.GetOrRegisterCounter("oracle/outlied_with_slashing", nil)     // track the num of outlier evwnt which is slashed by the protocol offensed by the server, eg.. the outlier data point is over slashing threshold of median.
-    metrics.GetOrRegisterGaugeFloat64("oracle/slashed_ntn_total", nil)    // track the total slashed NTN stake of this server.
+    metrics.GetOrRegisterGauge("oracle/outlier/distance/percentage", nil) // track the outlier distance in percentage against the median of the round price.
+    metrics.GetOrRegisterCounter("oracle/outlier/noslash/times", nil)     // track the num of outlier event which is not slashed by the protocol offensed by the server, eg.. the outlier data point is under slashing treshold of median.
+    metrics.GetOrRegisterCounter("oracle/outlier/slash/times", nil)     // track the num of outlier evwnt which is slashed by the protocol offensed by the server, eg.. the outlier data point is over slashing threshold of median.
+    metrics.GetOrRegisterGaugeFloat64("oracle/outlier/penality/total", nil)    // track the total slashed NTN stake of this server.
 ```
 plugin metrics:
 All the data points collected from the plugin are tracked in metrics with such id pattern: `oracle/plugin_name/symbol/price`:

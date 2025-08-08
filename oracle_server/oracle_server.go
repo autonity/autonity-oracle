@@ -1090,7 +1090,7 @@ func (os *OracleServer) Start() {
 			if metrics.Enabled {
 				gap := new(big.Int).Abs(new(big.Int).Sub(penalizeEvent.Reported, penalizeEvent.Median))
 				gapPercent := new(big.Int).Div(new(big.Int).Mul(gap, big.NewInt(100)), penalizeEvent.Median)
-				metrics.GetOrRegisterGauge("oracle/outlier_distance_percentage", nil).Update(gapPercent.Int64())
+				metrics.GetOrRegisterGauge("oracle/outlier/distance/percentage", nil).Update(gapPercent.Int64())
 			}
 
 			if penalizeEvent.SlashingAmount.Cmp(common.Big0) == 0 {
@@ -1099,7 +1099,7 @@ func (os *OracleServer) Start() {
 					penalizeEvent.Median.String(), "reported value", penalizeEvent.Reported.String())
 				os.logger.Warn("IMPORTANT: please double check your data source setup before getting penalized")
 				if metrics.Enabled {
-					metrics.GetOrRegisterCounter("oracle/outlied_no_slashing", nil).Inc(1)
+					metrics.GetOrRegisterCounter("oracle/outlier/noslash/times", nil).Inc(1)
 				}
 				continue
 			}
@@ -1111,11 +1111,11 @@ func (os *OracleServer) Start() {
 			os.logger.Warn("IMPORTANT: please repair your data setups for data precision before getting penalized again")
 
 			if metrics.Enabled {
-				metrics.GetOrRegisterCounter("oracle/outlied_with_slashing", nil).Inc(1)
+				metrics.GetOrRegisterCounter("oracle/outlier/slash/times", nil).Inc(1)
 				baseUnitsPerNTN := new(big.Float).SetInt(big.NewInt(1e18))
 				amount := new(big.Float).SetUint64(penalizeEvent.SlashingAmount.Uint64())
 				ntnFloat, _ := new(big.Float).Quo(amount, baseUnitsPerNTN).Float64()
-				metrics.GetOrRegisterGaugeFloat64("oracle/slashed_ntn_total", nil).Update(ntnFloat)
+				metrics.GetOrRegisterGaugeFloat64("oracle/outlier/penality/total", nil).Update(ntnFloat)
 			}
 
 			newState := &ServerMemories{
@@ -1196,6 +1196,9 @@ func (os *OracleServer) Start() {
 			os.handleNewSymbolsEvent(newSymbolEvent.Symbols)
 		case <-os.regularTicker.C:
 			os.gcRoundData()
+			if metrics.Enabled {
+				metrics.GetOrRegisterGauge("oracle/plugins", nil).Update(int64(len(os.runningPlugins)))
+			}
 			os.logger.Debug("current round ID", "round", os.curRound)
 		}
 	}
