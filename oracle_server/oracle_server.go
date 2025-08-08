@@ -1086,12 +1086,21 @@ func (os *OracleServer) Start() {
 			// point falls below the OutlierSlashingThreshold when compared to the median price. To ensure a broader participation
 			// of nodes within the oracle network and maintain its operational liveness, we continue to allow these
 			// non-slashed outliers to contribute data samples to the network.
+
+			if metrics.Enabled {
+				gap := new(big.Int).Abs(new(big.Int).Sub(penalizeEvent.Reported, penalizeEvent.Median))
+				gapPercent := new(big.Int).Div(new(big.Int).Mul(gap, big.NewInt(100)), penalizeEvent.Median)
+				metrics.GetOrRegisterGauge("oracle/outlier_distance_percentage", nil).Update(gapPercent.Int64())
+			}
+
 			if penalizeEvent.SlashingAmount.Cmp(common.Big0) == 0 {
 				os.logger.Warn("Client addressed as an outlier, the last vote won't be counted for reward distribution, "+
 					"please use high quality data source.", "symbol", penalizeEvent.Symbol, "median value",
 					penalizeEvent.Median.String(), "reported value", penalizeEvent.Reported.String())
 				os.logger.Warn("IMPORTANT: please double check your data source setup before getting penalized")
-				metrics.GetOrRegisterCounter("oracle/outlied_no_slashing", nil).Inc(1)
+				if metrics.Enabled {
+					metrics.GetOrRegisterCounter("oracle/outlied_no_slashing", nil).Inc(1)
+				}
 				continue
 			}
 
@@ -1103,6 +1112,10 @@ func (os *OracleServer) Start() {
 
 			if metrics.Enabled {
 				metrics.GetOrRegisterCounter("oracle/outlied_with_slashing", nil).Inc(1)
+				baseUnitsPerNTN := new(big.Float).SetInt(big.NewInt(1e18))
+				amount := new(big.Float).SetUint64(penalizeEvent.SlashingAmount.Uint64())
+				ntnFloat, _ := new(big.Float).Quo(amount, baseUnitsPerNTN).Float64()
+				metrics.GetOrRegisterGaugeFloat64("oracle/slashed_ntn_total", nil).Update(ntnFloat)
 			}
 
 			newState := &ServerMemories{
