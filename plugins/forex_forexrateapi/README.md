@@ -32,7 +32,7 @@ Here is a commented example configuration block to guide you:
 ```yaml
 # In your main oracle server configuration file, under pluginConfigs:
 
-  - name: forex_forexapi                        # required, it is the plugin file name in the plugin directory.
+  - name: forex_forexrateapi                  # required, it is the plugin file name in the plugin directory.
     key: 6ec1e92.....123abc                   # required, visit [https://forexrateapi.com](https://forexrateapi.com) to get your key, IMPORTANT: do not use free or developer service plan.
     refresh: 300                              # optional, buffered data within 300s, recommended for API rate limited data source.
 ````
@@ -43,9 +43,9 @@ Here is a commented example configuration block to guide you:
 
 1.  **Build the Plugin**: Navigate to the root `autonity-oracle` directory and run the build command:
     ```shell
-    go build -o ./build/bin/plugins/forex_forexapi ./plugins/forex_forexapi/forex_forexapi.go
+    go build -o ./build/bin/plugins/forex_forexrateapi ./plugins/forex_forexrateapi/forex_forexrateapi.go
     ```
-    This will create a binary file named `forex_forexapi` inside the `./build/bin/plugins/` directory.
+    This will create a binary file named `forex_forexrateapi` inside the `./build/bin/plugins/` directory.
 2.  **Run**: The oracle server will automatically discover and load the plugin from the `plugins` directory upon startup. Ensure your configuration file is correctly set up as described above.
 
 ```

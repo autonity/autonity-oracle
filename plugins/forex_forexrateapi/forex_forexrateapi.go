@@ -22,7 +22,7 @@ const (
 )
 
 var defaultConfig = config.PluginConfig{
-	Name:               "forexrateapi",
+	Name:               "forex_rateapi",
 	Key:                "",
 	Scheme:             "https",
 	Endpoint:           "api.forexrateapi.com",
