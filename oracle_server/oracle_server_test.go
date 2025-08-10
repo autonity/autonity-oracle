@@ -92,6 +92,7 @@ func TestOracleServer(t *testing.T) {
 	var subVoteEvent event.Subscription
 	var subInvalidVoteEvent event.Subscription
 	var subReportedEvent event.Subscription
+	var subNewVoter event.Subscription
 
 	keyFile := "../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"
 	passWord := config.DefaultConfig.KeyPassword
@@ -127,6 +128,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock.EXPECT().WatchSuccessfulVote(gomock.Any(), gomock.Any(), gomock.Any()).Return(subVoteEvent, nil)
 		contractMock.EXPECT().WatchInvalidVote(gomock.Any(), gomock.Any(), gomock.Any()).Return(subInvalidVoteEvent, nil)
 		contractMock.EXPECT().WatchTotalOracleRewards(gomock.Any(), gomock.Any()).Return(subReportedEvent, nil)
+		contractMock.EXPECT().WatchNewVoter(gomock.Any(), gomock.Any()).Return(subNewVoter, nil)
 
 		l1Mock := mock.NewMockBlockchain(ctrl)
 		l1Mock.EXPECT().ChainID(gomock.Any()).Return(ChainIDPiccadilly, nil)
@@ -157,6 +159,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock.EXPECT().WatchSuccessfulVote(gomock.Any(), gomock.Any(), gomock.Any()).Return(subVoteEvent, nil)
 		contractMock.EXPECT().WatchTotalOracleRewards(gomock.Any(), gomock.Any()).Return(subReportedEvent, nil)
 		contractMock.EXPECT().WatchInvalidVote(gomock.Any(), gomock.Any(), gomock.Any()).Return(subInvalidVoteEvent, nil)
+		contractMock.EXPECT().WatchNewVoter(gomock.Any(), gomock.Any()).Return(subNewVoter, nil)
 		l1Mock := mock.NewMockBlockchain(ctrl)
 		l1Mock.EXPECT().BlockNumber(gomock.Any()).AnyTimes().Return(chainHeight, nil)
 		l1Mock.EXPECT().ChainID(gomock.Any()).Return(ChainIDPiccadilly, nil)
@@ -214,6 +217,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock.EXPECT().WatchSuccessfulVote(gomock.Any(), gomock.Any(), gomock.Any()).Return(subVoteEvent, nil)
 		contractMock.EXPECT().WatchTotalOracleRewards(gomock.Any(), gomock.Any()).Return(subReportedEvent, nil)
 		contractMock.EXPECT().WatchInvalidVote(gomock.Any(), gomock.Any(), gomock.Any()).Return(subInvalidVoteEvent, nil)
+		contractMock.EXPECT().WatchNewVoter(gomock.Any(), gomock.Any()).Return(subNewVoter, nil)
 		txdata := &tp.DynamicFeeTx{ChainID: new(big.Int).SetUint64(1000), Nonce: 1}
 		tx := tp.NewTx(txdata)
 		contractMock.EXPECT().Vote(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(tx, nil)
@@ -226,6 +230,86 @@ func TestOracleServer(t *testing.T) {
 		l1Mock.EXPECT().SuggestGasTipCap(gomock.Any()).Return(new(big.Int).SetUint64(1000), nil)
 		l1Mock.EXPECT().HeaderByNumber(gomock.Any(), nil).Return(header, nil)
 		l1Mock.EXPECT().BalanceAt(gomock.Any(), gomock.Any(), gomock.Any()).Return(alertBalance, nil)
+		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
+
+		// prepare last round data.
+		prices := make(types.PriceBySymbol)
+		for _, s := range helpers.DefaultSymbols {
+			prices[s] = types.Price{
+				Timestamp: 0,
+				Symbol:    s,
+				Price:     helpers.ResolveSimulatedPrice(s),
+			}
+		}
+
+		roundData, err := srv.assembleReportData(srv.curRound, helpers.DefaultSymbols, prices)
+		require.NoError(t, err)
+		srv.roundData[srv.curRound] = roundData
+		roundData.Processed = true
+
+		// pre-sampling with data.
+		ts := time.Now().Unix()
+		srv.curSampleTS = ts
+		srv.curSampleHeight = uint64(30)
+		for sec := ts; sec < ts+15; sec++ {
+			err = srv.handlePreSampling(time.Now().Unix())
+			require.NoError(t, err)
+			time.Sleep(time.Second)
+		}
+
+		// handle vote event that change to next round with
+		srv.curRound = srv.curRound + 1
+		srv.curSampleHeight = 60
+		srv.curSampleTS = time.Now().Unix()
+
+		err = srv.handleRoundVote()
+		require.NoError(t, err)
+
+		require.Equal(t, 2, len(srv.roundData))
+		require.Equal(t, srv.curRound, srv.roundData[srv.curRound].RoundID)
+		require.Equal(t, tx.Hash(), srv.roundData[srv.curRound].Tx.Hash())
+		require.Equal(t, helpers.DefaultSymbols, srv.roundData[srv.curRound].Symbols)
+		hash, err := srv.commitmentHashComputer.CommitmentHash(srv.roundData[srv.curRound].Reports, srv.roundData[srv.curRound].Salt, srv.conf.Key.Address)
+		require.NoError(t, err)
+		require.Equal(t, hash, srv.roundData[srv.curRound].CommitmentHash)
+
+		srv.runningPlugins["template_plugin"].Close()
+	})
+
+	t.Run("last vote dropped, skip current vote to avoid reveal failure", func(t *testing.T) {
+		round := new(big.Int).SetUint64(2)
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		chainHeight := uint64(55)
+
+		var voters []common.Address
+		voters = append(voters, conf.Key.Address)
+		price := contract.IOracleRoundData{
+			Round:     round,
+			Price:     new(big.Int).SetUint64(0),
+			Timestamp: new(big.Int).SetUint64(10000),
+			Success:   true,
+		}
+
+		dialerMock := mock.NewMockDialer(ctrl)
+		contractMock := cMock.NewMockContractAPI(ctrl)
+		contractMock.EXPECT().GetRound(nil).Return(round, nil)
+		contractMock.EXPECT().GetSymbols(nil).AnyTimes().Return(helpers.DefaultSymbols, nil)
+		contractMock.EXPECT().GetVotePeriod(nil).Return(votePeriod, nil)
+		contractMock.EXPECT().WatchNewRound(gomock.Any(), gomock.Any()).Return(subRoundEvent, nil)
+		contractMock.EXPECT().WatchNewSymbols(gomock.Any(), gomock.Any()).Return(subSymbolsEvent, nil)
+		contractMock.EXPECT().WatchPenalized(gomock.Any(), gomock.Any(), gomock.Any()).Return(subPenalizeEvent, nil)
+		contractMock.EXPECT().GetVoters(nil).Return(voters, nil)
+		contractMock.EXPECT().GetRoundData(nil, new(big.Int).SetUint64(2), gomock.Any()).AnyTimes().Return(price, nil)
+		contractMock.EXPECT().LatestRoundData(nil, gomock.Any()).AnyTimes().Return(price, nil)
+		contractMock.EXPECT().WatchSuccessfulVote(gomock.Any(), gomock.Any(), gomock.Any()).Return(subVoteEvent, nil)
+		contractMock.EXPECT().WatchTotalOracleRewards(gomock.Any(), gomock.Any()).Return(subReportedEvent, nil)
+		contractMock.EXPECT().WatchInvalidVote(gomock.Any(), gomock.Any(), gomock.Any()).Return(subInvalidVoteEvent, nil)
+		contractMock.EXPECT().WatchNewVoter(gomock.Any(), gomock.Any()).Return(subNewVoter, nil)
+		l1Mock := mock.NewMockBlockchain(ctrl)
+		l1Mock.EXPECT().BlockNumber(gomock.Any()).AnyTimes().Return(chainHeight, nil)
+		l1Mock.EXPECT().SyncProgress(gomock.Any()).Return(nil, nil)
+		l1Mock.EXPECT().ChainID(gomock.Any()).Return(new(big.Int).SetUint64(1000), nil)
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 
 		// prepare last round data.
@@ -258,16 +342,10 @@ func TestOracleServer(t *testing.T) {
 		srv.curSampleTS = time.Now().Unix()
 
 		err = srv.handleRoundVote()
-		require.NoError(t, err)
+		require.ErrorIs(t, err, types.ErrSkipVote)
 
-		require.Equal(t, 2, len(srv.roundData))
-		require.Equal(t, srv.curRound, srv.roundData[srv.curRound].RoundID)
-		require.Equal(t, tx.Hash(), srv.roundData[srv.curRound].Tx.Hash())
-		require.Equal(t, helpers.DefaultSymbols, srv.roundData[srv.curRound].Symbols)
-		hash, err := srv.commitmentHashComputer.CommitmentHash(srv.roundData[srv.curRound].Reports, srv.roundData[srv.curRound].Salt, srv.conf.Key.Address)
-		require.NoError(t, err)
-		require.Equal(t, hash, srv.roundData[srv.curRound].CommitmentHash)
-
+		require.Equal(t, 1, len(srv.roundData))
+		require.Equal(t, srv.curRound, srv.roundData[srv.curRound-1].RoundID+1)
 		srv.runningPlugins["template_plugin"].Close()
 	})
 
@@ -286,6 +364,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock.EXPECT().WatchSuccessfulVote(gomock.Any(), gomock.Any(), gomock.Any()).Return(subVoteEvent, nil)
 		contractMock.EXPECT().WatchTotalOracleRewards(gomock.Any(), gomock.Any()).Return(subReportedEvent, nil)
 		contractMock.EXPECT().WatchInvalidVote(gomock.Any(), gomock.Any(), gomock.Any()).Return(subInvalidVoteEvent, nil)
+		contractMock.EXPECT().WatchNewVoter(gomock.Any(), gomock.Any()).Return(subNewVoter, nil)
 
 		l1Mock := mock.NewMockBlockchain(ctrl)
 		l1Mock.EXPECT().ChainID(gomock.Any()).Return(ChainIDPiccadilly, nil)
@@ -319,6 +398,8 @@ func TestOracleServer(t *testing.T) {
 		contractMock.EXPECT().WatchSuccessfulVote(gomock.Any(), gomock.Any(), gomock.Any()).Return(subVoteEvent, nil)
 		contractMock.EXPECT().WatchTotalOracleRewards(gomock.Any(), gomock.Any()).Return(subReportedEvent, nil)
 		contractMock.EXPECT().WatchInvalidVote(gomock.Any(), gomock.Any(), gomock.Any()).Return(subInvalidVoteEvent, nil)
+		contractMock.EXPECT().WatchNewVoter(gomock.Any(), gomock.Any()).Return(subNewVoter, nil)
+
 		l1Mock := mock.NewMockBlockchain(ctrl)
 		l1Mock.EXPECT().ChainID(gomock.Any()).Return(ChainIDPiccadilly, nil)
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
@@ -362,6 +443,8 @@ func TestOracleServer(t *testing.T) {
 		contractMock.EXPECT().WatchSuccessfulVote(gomock.Any(), gomock.Any(), gomock.Any()).Return(subVoteEvent, nil)
 		contractMock.EXPECT().WatchTotalOracleRewards(gomock.Any(), gomock.Any()).Return(subReportedEvent, nil)
 		contractMock.EXPECT().WatchInvalidVote(gomock.Any(), gomock.Any(), gomock.Any()).Return(subInvalidVoteEvent, nil)
+		contractMock.EXPECT().WatchNewVoter(gomock.Any(), gomock.Any()).Return(subNewVoter, nil)
+
 		l1Mock := mock.NewMockBlockchain(ctrl)
 		l1Mock.EXPECT().ChainID(gomock.Any()).Return(ChainIDPiccadilly, nil)
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
@@ -400,6 +483,7 @@ func TestOracleServer(t *testing.T) {
 		contractMock.EXPECT().WatchSuccessfulVote(gomock.Any(), gomock.Any(), gomock.Any()).Return(subVoteEvent, nil)
 		contractMock.EXPECT().WatchTotalOracleRewards(gomock.Any(), gomock.Any()).Return(subReportedEvent, nil)
 		contractMock.EXPECT().WatchInvalidVote(gomock.Any(), gomock.Any(), gomock.Any()).Return(subInvalidVoteEvent, nil)
+		contractMock.EXPECT().WatchNewVoter(gomock.Any(), gomock.Any()).Return(subNewVoter, nil)
 
 		l1Mock := mock.NewMockBlockchain(ctrl)
 		l1Mock.EXPECT().ChainID(gomock.Any()).Return(ChainIDPiccadilly, nil)
