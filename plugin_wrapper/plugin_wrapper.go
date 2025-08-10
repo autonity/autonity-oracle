@@ -217,6 +217,15 @@ func (pw *PluginWrapper) Initialize(chainID int64) error {
 	}
 	pw.dataSrcType = state.DataSourceType
 	pw.version = state.Version
+
+	// create metrics for plugin on init phase.
+	if metrics.Enabled {
+		for _, symbol := range state.AvailableSymbols {
+			name := strings.Join([]string{"oracle", pw.Name(), symbol, "price"}, "/")
+			metrics.GetOrRegisterGaugeFloat64(name, nil)
+		}
+	}
+
 	if state.KeyRequired && pw.conf.Key == "" {
 		return types.ErrMissingServiceKey
 	}

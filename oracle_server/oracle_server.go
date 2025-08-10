@@ -578,6 +578,7 @@ func (os *OracleServer) handleRoundVote() error {
 	if isVoter {
 		// a voter need to assemble current round data to report it.
 		curRoundData, err := os.buildRoundData(os.curRound)
+
 		// if the voter failed to assemble current round data, but it has last round data available, then reveal it.
 		if err != nil {
 			if lastRoundData != nil {
@@ -595,7 +596,7 @@ func (os *OracleServer) handleRoundVote() error {
 		return os.reportWithCommitment(curRoundData, lastRoundData)
 	}
 
-	// edge case, voter is no longer a committee member, it has to reveal the last round data that was committed to.
+	// edge case, voter is no longer a committee member, it has to reveal the last round data that it committed to.
 	if lastRoundData != nil {
 		return os.reportWithoutCommitment(lastRoundData)
 	}
