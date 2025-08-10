@@ -146,21 +146,25 @@ type OracleServer struct {
 	pricePrecision  decimal.Decimal
 	roundData       map[uint64]*types.RoundData
 
+	// events that indicate a vote is processed which means the commitment is stored on chain.
+	chNewVoter     chan *contract.OracleNewVoter
+	subNewVoter    event.Subscription
 	chInvalidVote  chan *contract.OracleInvalidVote
 	subInvalidVote event.Subscription
+	chVotedEvent   chan *contract.OracleSuccessfulVote
+	subVotedEvent  event.Subscription
 
-	chVotedEvent  chan *contract.OracleSuccessfulVote
-	subVotedEvent event.Subscription
-
-	chRewardEvent  chan *contract.OracleTotalOracleRewards
-	subRewardEvent event.Subscription
-
+	// governance events for accountability and incentive.
+	chRewardEvent     chan *contract.OracleTotalOracleRewards
+	subRewardEvent    event.Subscription
 	chPenalizedEvent  chan *contract.OraclePenalized
 	subPenalizedEvent event.Subscription
 
+	// round rotation event that coordinate the voting.
 	chRoundEvent  chan *contract.OracleNewRound
 	subRoundEvent event.Subscription
 
+	// symbol update event for data integrity.
 	chSymbolsEvent  chan *contract.OracleNewSymbols
 	subSymbolsEvent event.Subscription
 	lastSampledTS   int64
@@ -337,6 +341,16 @@ func (os *OracleServer) syncStates() error {
 
 	os.chVotedEvent = chVotedEvent
 	os.subVotedEvent = subVotedEvent
+
+	// subscribe new voter event
+	chNewVoter := make(chan *contract.OracleNewVoter)
+	subNewVoter, err := os.oracleContract.WatchNewVoter(new(bind.WatchOpts), chNewVoter)
+	if err != nil {
+		os.logger.Error("failed to subscribe new voter event", "error", err.Error())
+		return err
+	}
+	os.chNewVoter = chNewVoter
+	os.subNewVoter = subNewVoter
 
 	// subscribe invalid vote event
 	chInvalidVote := make(chan *contract.OracleInvalidVote)
@@ -576,28 +590,33 @@ func (os *OracleServer) handleRoundVote() error {
 	}
 
 	if isVoter {
+		if metrics.Enabled {
+			metrics.GetOrRegisterGauge(monitor.IsVoterMetric, nil).Update(1)
+		}
 		// a voter need to assemble current round data to report it.
 		curRoundData, err := os.buildRoundData(os.curRound)
-
-		// if the voter failed to assemble current round data, but it has last round data available, then reveal it.
 		if err != nil {
-			if lastRoundData != nil {
+			// voter just reveal last round data as current round data is not available.
+			if lastRoundData != nil && lastRoundData.Processed {
 				return os.reportWithoutCommitment(lastRoundData)
 			}
 			return err
 		}
 
-		// round data was successfully assembled, save current round data.
-		os.roundData[os.curRound] = curRoundData
-		if metrics.Enabled {
-			metrics.GetOrRegisterGauge(monitor.IsVoterMetric, nil).Update(1)
+		if lastRoundData != nil && !lastRoundData.Processed {
+			// to avoid the reveal failure penality, we have to skip current round voting.
+			os.logger.Info("skip current round voting as last vote was not processed", "round", os.curRound)
+			return types.ErrSkipVote
 		}
-		// report with last round data and with current round commitment hash.
+
+		// if lastRoundData == nil or lastRoundData.Processed, vote with current round commitment and to reveal last
+		// round data if last round data was processed. Otherwise, just vote with current round commitment.
+		os.roundData[os.curRound] = curRoundData
 		return os.reportWithCommitment(curRoundData, lastRoundData)
 	}
 
-	// edge case, voter is no longer a committee member, it has to reveal the last round data that it committed to.
-	if lastRoundData != nil {
+	// voter just reveal last round data as it is leaving the committee.
+	if lastRoundData != nil && lastRoundData.Processed {
 		return os.reportWithoutCommitment(lastRoundData)
 	}
 	return nil
@@ -1063,6 +1082,12 @@ func (os *OracleServer) Start() {
 				os.handleConnectivityError()
 				os.subRewardEvent.Unsubscribe()
 			}
+		case err := <-os.subNewVoter.Err():
+			if err != nil {
+				os.logger.Info("subscription error of new voter event", err)
+				os.handleConnectivityError()
+				os.subNewVoter.Unsubscribe()
+			}
 		case err := <-os.subInvalidVote.Err():
 			if err != nil {
 				os.logger.Info("subscription error of invalid vote", err)
@@ -1091,20 +1116,25 @@ func (os *OracleServer) Start() {
 				os.logger.Error("handle pre-sampling", "error", err.Error())
 			}
 			os.lastSampledTS = preSampleTS
-
+		case newVoter := <-os.chNewVoter:
+			if newVoter.Reporter != os.conf.Key.Address {
+				continue
+			}
+			os.logger.Info("new voter", "address", newVoter.Reporter.Hex())
+			os.voteProcessed(newVoter.Raw.TxHash)
 		case invalidVote := <-os.chInvalidVote:
 			os.logger.Info("received invalid vote", "cause", invalidVote.Cause, "expected",
 				invalidVote.ExpValue.String(), "actual", invalidVote.ActualValue.String(), "txn", invalidVote.Raw.TxHash)
 			if metrics.Enabled {
 				metrics.GetOrRegisterCounter(monitor.InvalidVoteMetric, nil).Inc(1)
 			}
-
+			os.voteProcessed(invalidVote.Raw.TxHash)
 		case votedEvent := <-os.chVotedEvent:
 			os.logger.Info("received voted event", "height", votedEvent.Raw.BlockNumber, "txn", votedEvent.Raw.TxHash)
 			if metrics.Enabled {
 				metrics.GetOrRegisterCounter(monitor.SuccessfulVoteMetric, nil).Inc(1)
 			}
-
+			os.voteProcessed(votedEvent.Raw.TxHash)
 		case rewardEvent := <-os.chRewardEvent:
 			os.logger.Info("received reward distribution event", "height", rewardEvent.Raw.BlockNumber,
 				"total distributed ATN", rewardEvent.AtnReward.Uint64(), "total distributed NTN", rewardEvent.NtnReward.Uint64())
@@ -1235,6 +1265,16 @@ func (os *OracleServer) Start() {
 	}
 }
 
+func (os *OracleServer) voteProcessed(txnHash common.Hash) {
+	for k, roundData := range os.roundData {
+		if roundData.Tx.Hash() == txnHash {
+			os.logger.Info("round vote processed", "round", k, "txnHash", txnHash)
+			roundData.Processed = true
+			break
+		}
+	}
+}
+
 func (os *OracleServer) Stop() {
 	os.client.Close()
 	os.subRoundEvent.Unsubscribe()
@@ -1243,6 +1283,7 @@ func (os *OracleServer) Stop() {
 	os.subVotedEvent.Unsubscribe()
 	os.subInvalidVote.Unsubscribe()
 	os.subRewardEvent.Unsubscribe()
+	os.subNewVoter.Unsubscribe()
 
 	os.doneCh <- struct{}{}
 	for _, c := range os.runningPlugins {

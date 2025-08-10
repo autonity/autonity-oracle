@@ -219,6 +219,21 @@ func (mr *MockContractAPIMockRecorder) WatchNewSymbols(opts, sink interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchNewSymbols", reflect.TypeOf((*MockContractAPI)(nil).WatchNewSymbols), opts, sink)
 }
 
+// WatchNewVoter mocks base method.
+func (m *MockContractAPI) WatchNewVoter(opts *bind.WatchOpts, sink chan<- *oracle.OracleNewVoter) (event.Subscription, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WatchNewVoter", opts, sink)
+	ret0, _ := ret[0].(event.Subscription)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// WatchNewVoter indicates an expected call of WatchNewVoter.
+func (mr *MockContractAPIMockRecorder) WatchNewVoter(opts, sink interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchNewVoter", reflect.TypeOf((*MockContractAPI)(nil).WatchNewVoter), opts, sink)
+}
+
 // WatchPenalized mocks base method.
 func (m *MockContractAPI) WatchPenalized(opts *bind.WatchOpts, sink chan<- *oracle.OraclePenalized, _participant []common.Address) (event.Subscription, error) {
 	m.ctrl.T.Helper()

@@ -19,6 +19,7 @@ var (
 	AutonityContractAddress = crypto.CreateAddress(Deployer, 0)
 	OracleContractAddress   = crypto.CreateAddress(Deployer, 2)
 
+	ErrSkipVote          = errors.New("skip vote to avoid reveal failure")
 	ErrPeerOnSync        = errors.New("l1 node is on peer sync")
 	ErrNoAvailablePrice  = errors.New("no available prices collected yet")
 	ErrNoDataRound       = errors.New("no data collected at current round")
@@ -51,6 +52,7 @@ type RoundData struct {
 	Prices         PriceBySymbol
 	Symbols        []string
 	Reports        []contract.IOracleReport
+	Processed      bool
 }
 
 // JSONRPCMessage is the JSON spec to carry those data response from the binance data simulator.
