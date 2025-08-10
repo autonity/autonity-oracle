@@ -47,5 +47,3 @@ Here is a commented example configuration block to guide you:
     ```
     This will create a binary file named `forex_forexrateapi` inside the `./build/bin/plugins/` directory.
 2.  **Run**: The oracle server will automatically discover and load the plugin from the `plugins` directory upon startup. Ensure your configuration file is correctly set up as described above.
-
-```
