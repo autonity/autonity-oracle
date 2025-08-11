@@ -110,6 +110,7 @@ forex-plugins:
 	go build -o $(PLUGIN_DIR)/forex_openexchange $(PLUGIN_SRC_DIR)/forex_openexchange/forex_openexchange.go
 	go build -o $(PLUGIN_DIR)/forex_wise $(PLUGIN_SRC_DIR)/forex_wise/forex_wise.go	
 	go build -o $(PLUGIN_DIR)/forex_yahoofinance $(PLUGIN_SRC_DIR)/forex_yahoofinance/forex_yahoofinance.go
+	go build -o $(PLUGIN_DIR)/forex_forexrateapi $(PLUGIN_SRC_DIR)/forex_forexrateapi/forex_forexrateapi.go
 	chmod +x $(PLUGIN_DIR)/*
 
 cex-plugins:
