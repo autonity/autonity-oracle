@@ -276,23 +276,20 @@ oracle-server metrics:
     OutlierSlashTimesMetric      = "oracle/outlier/slash/times"   // track the num of outlier evwnt which is slashed by the protocol offensed by the server, eg.. the outlier data point is over slashing threshold of median.
     OutlierPenaltyMetric         = "oracle/outlier/penality"      // track the total slashed NTN stake of this server.
 ```
-plugin metrics:
-All the data points collected from the plugin are tracked in metrics with such id pattern: `oracle/plugin_name/symbol/price`:
+plugin metrics:     
+All the data points collected from the plugin are tracked in metrics with such id pattern: `oracle/$pluginname/$symbol/price`:
+For example, prices collected by plugin forex_yahoofinance will be tracked by metric:
 ```golang
-    func (pw *PluginWrapper) updateMetrics(prices []types.Price) {
-        for _, p := range prices {
-            m, ok := pw.priceMetrics[p.Symbol]
-            if !ok {
-                name := strings.Join([]string{"oracle", pw.Name(), p.Symbol, "price"}, "/")
-                gauge := metrics.GetOrRegisterGaugeFloat64(name, nil)
-                gauge.Update(p.Price.InexactFloat64())
-                pw.priceMetrics[p.Symbol] = gauge
-                continue
-            }
-            m.Update(p.Price.InexactFloat64())
-        }
-    }
+`oracle/forex_yahoofinance/AUD-USD/price`
+`oracle/forex_yahoofinance/EUR-USD/price`
+`oracle/forex_yahoofinance/SEK-USD/price`
+`oracle/forex_yahoofinance/CAD-USD/price`
+`oracle/forex_yahoofinance/JPY-USD/price`
+`oracle/forex_yahoofinance/GBP-USD/price`
+`oracle/forex_yahoofinance/USDC-USD/price`
 ```
+
+
 ## Development
 ### Plugin Development
 To add a new plugin, please visit the README.md under plugins directory, before releasing a 3rd party plugin, we will
