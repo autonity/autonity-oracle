@@ -274,7 +274,7 @@ oracle-server metrics:
     OutlierDistancePercentMetric = "oracle/outlier/distance/percentage" // track the outlier distance in percentage against the median of the round price.
     OutlierNoSlashTimesMetric    = "oracle/outlier/noslash/times" // track the num of outlier event which is not slashed by the protocol offensed by the server, eg.. the outlier data point is under slashing threshold of median.
     OutlierSlashTimesMetric      = "oracle/outlier/slash/times"   // track the num of outlier evwnt which is slashed by the protocol offensed by the server, eg.. the outlier data point is over slashing threshold of median.
-    OutlierPenaltyMetric         = "oracle/outlier/penality"      // track the total slashed NTN stake of this server.
+    OutlierPenaltyMetric         = "oracle/outlier/penality"      // track the slashed NTN stake of a penality event.
 ```
 plugin metrics:     
 All the data points collected from the plugin are tracked in metrics with such id pattern: `oracle/$pluginname/$symbol/price`:
