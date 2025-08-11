@@ -127,6 +127,10 @@ confidenceStrategy: 0  # 0: linear, 1: fixed
 #    key: 1234                               # required, visit https://www.wise.com to get your key, IMPORTANT: do not use free or developer service plan.
 #    refresh: 300                            # optional, buffered data within 300s, recommended for API rate limited data source.
 
+#  - name: forex_forexrateapi                # required, it is the plugin file name in the plugin directory.
+#    key: 6ec1e92.....123abc                 # required, visit https://forexrateapi.com to get your key, IMPORTANT: do not use free or developer service plan.
+#    refresh: 300                            # optional, buffered data within 300s, recommended for API rate limited data source.
+
 #  - name: forex_currencyfreaks              # required, it is the plugin file name in the plugin directory.
 #    key: 175aab9e47e54790bf6d502c48407c10   # required, visit https://currencyfreaks.com to get your key, IMPORTANT: do not use free or developer service plan.
 #    refresh: 300                           # optional, buffered data within 300s, recommended for API rate limited data source.
