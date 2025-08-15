@@ -438,7 +438,7 @@ func (os *OracleServer) handlePenaltyEvent(penalizeEvent *contract.OraclePenaliz
 		metrics.GetOrRegisterGaugeFloat64(monitor.OutlierPenaltyMetric, nil).Update(ntnFloat)
 	}
 
-	if err := os.memories.flushRecord(&OutlierRecord{
+	record := &OutlierRecord{
 		LastPenalizedAtBlock: penalizeEvent.Raw.BlockNumber,
 		Participant:          penalizeEvent.Participant,
 		Symbol:               penalizeEvent.Symbol,
@@ -446,7 +446,9 @@ func (os *OracleServer) handlePenaltyEvent(penalizeEvent *contract.OraclePenaliz
 		Reported:             penalizeEvent.Reported.Uint64(),
 		SlashingAmount:       penalizeEvent.SlashingAmount.Uint64(),
 		LoggedAt:             time.Now().Format(time.RFC3339),
-	}); err != nil {
+	}
+	os.memories.outlierRecord = record
+	if err := os.memories.flushRecord(record); err != nil {
 		return err
 	}
 	return nil
