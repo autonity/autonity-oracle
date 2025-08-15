@@ -306,56 +306,10 @@ func (os *OracleServer) Start() {
 				"total distributed ATN", rewardEvent.AtnReward.Uint64(), "total distributed NTN", rewardEvent.NtnReward.Uint64())
 
 		case penalizeEvent := <-os.chPenalizedEvent:
-
-			// As the OutlierDetectionThreshold is set to low level, e.g. 3% against the median, and the OutlierSlashingThreshold
-			// is configured at (10%, 15%) which is much higher, a penalization event may occur with zero slashing amount.
-			// This indicates that the current client has been identified as an outlier but is not penalized, as its data
-			// point falls below the OutlierSlashingThreshold when compared to the median price. To ensure a broader participation
-			// of nodes within the oracle network and maintain its operational liveness, we continue to allow these
-			// non-slashed outliers to contribute data samples to the network.
-
-			if metrics.Enabled {
-				gap := new(big.Int).Abs(new(big.Int).Sub(penalizeEvent.Reported, penalizeEvent.Median))
-				gapPercent := new(big.Int).Div(new(big.Int).Mul(gap, big.NewInt(100)), penalizeEvent.Median)
-				metrics.GetOrRegisterGauge(monitor.OutlierDistancePercentMetric, nil).Update(gapPercent.Int64())
+			if err := os.handlePenaltyEvent(penalizeEvent); err != nil {
+				os.logger.Error("handle penalty event", "error", err.Error())
 			}
 
-			if penalizeEvent.SlashingAmount.Cmp(common.Big0) == 0 {
-				os.logger.Warn("Client addressed as an outlier, the last vote won't be counted for reward distribution, "+
-					"please use high quality data source.", "symbol", penalizeEvent.Symbol, "median value",
-					penalizeEvent.Median.String(), "reported value", penalizeEvent.Reported.String())
-				os.logger.Warn("IMPORTANT: please double check your data source setup before getting penalized")
-				if metrics.Enabled {
-					metrics.GetOrRegisterCounter(monitor.OutlierNoSlashTimesMetric, nil).Inc(1)
-				}
-				continue
-			}
-
-			os.logger.Warn("Client get penalized as an outlier", "node", penalizeEvent.Participant,
-				"currency symbol", penalizeEvent.Symbol, "median value", penalizeEvent.Median.String(),
-				"reported value", penalizeEvent.Reported.String(), "block", penalizeEvent.Raw.BlockNumber, "slashed amount", penalizeEvent.SlashingAmount.Uint64())
-			os.logger.Warn("your next vote will be postponed", "in blocks", os.conf.VoteBuffer)
-			os.logger.Warn("IMPORTANT: please repair your data setups for data precision before getting penalized again")
-
-			if metrics.Enabled {
-				metrics.GetOrRegisterCounter(monitor.OutlierSlashTimesMetric, nil).Inc(1)
-				baseUnitsPerNTN := new(big.Float).SetInt(big.NewInt(1e18))
-				amount := new(big.Float).SetUint64(penalizeEvent.SlashingAmount.Uint64())
-				ntnFloat, _ := new(big.Float).Quo(amount, baseUnitsPerNTN).Float64()
-				metrics.GetOrRegisterGaugeFloat64(monitor.OutlierPenaltyMetric, nil).Update(ntnFloat)
-			}
-
-			if err := os.memories.flushRecord(&OutlierRecord{
-				LastPenalizedAtBlock: penalizeEvent.Raw.BlockNumber,
-				Participant:          penalizeEvent.Participant,
-				Symbol:               penalizeEvent.Symbol,
-				Median:               penalizeEvent.Median.Uint64(),
-				Reported:             penalizeEvent.Reported.Uint64(),
-				SlashingAmount:       penalizeEvent.SlashingAmount.Uint64(),
-				LoggedAt:             time.Now().Format(time.RFC3339),
-			}); err != nil {
-				os.logger.Error("failed to flush outlier record", "error", err.Error())
-			}
 		case fsEvent, ok := <-os.configWatcher.Events:
 			if !ok {
 				os.logger.Error("config watcher channel has been closed")
@@ -440,6 +394,58 @@ func (os *OracleServer) Stop() {
 		p := c
 		p.Close()
 	}
+}
+
+func (os *OracleServer) handlePenaltyEvent(penalizeEvent *contract.OraclePenalized) error {
+	// As the OutlierDetectionThreshold is set to low level, e.g. 3% against the median, and the OutlierSlashingThreshold
+	// is configured at (10%, 15%) which is much higher, a penalization event may occur with zero slashing amount.
+	// This indicates that the current client has been identified as an outlier but is not penalized, as its data
+	// point falls below the OutlierSlashingThreshold when compared to the median price. To ensure a broader participation
+	// of nodes within the oracle network and maintain its operational liveness, we continue to allow these
+	// non-slashed outliers to contribute data samples to the network.
+	if metrics.Enabled {
+		gap := new(big.Int).Abs(new(big.Int).Sub(penalizeEvent.Reported, penalizeEvent.Median))
+		gapPercent := new(big.Int).Div(new(big.Int).Mul(gap, big.NewInt(100)), penalizeEvent.Median)
+		metrics.GetOrRegisterGauge(monitor.OutlierDistancePercentMetric, nil).Update(gapPercent.Int64())
+	}
+
+	if penalizeEvent.SlashingAmount.Cmp(common.Big0) == 0 {
+		os.logger.Warn("Client addressed as an outlier, the last vote won't be counted for reward distribution, "+
+			"please use high quality data source.", "symbol", penalizeEvent.Symbol, "median value",
+			penalizeEvent.Median.String(), "reported value", penalizeEvent.Reported.String())
+		os.logger.Warn("IMPORTANT: please double check your data source setup before getting penalized")
+		if metrics.Enabled {
+			metrics.GetOrRegisterCounter(monitor.OutlierNoSlashTimesMetric, nil).Inc(1)
+		}
+		return nil
+	}
+
+	os.logger.Warn("Client get penalized as an outlier", "node", penalizeEvent.Participant,
+		"currency symbol", penalizeEvent.Symbol, "median value", penalizeEvent.Median.String(),
+		"reported value", penalizeEvent.Reported.String(), "block", penalizeEvent.Raw.BlockNumber, "slashed amount", penalizeEvent.SlashingAmount.Uint64())
+	os.logger.Warn("your next vote will be postponed", "in blocks", os.conf.VoteBuffer)
+	os.logger.Warn("IMPORTANT: please repair your data setups for data precision before getting penalized again")
+
+	if metrics.Enabled {
+		metrics.GetOrRegisterCounter(monitor.OutlierSlashTimesMetric, nil).Inc(1)
+		baseUnitsPerNTN := new(big.Float).SetInt(big.NewInt(1e18))
+		amount := new(big.Float).SetUint64(penalizeEvent.SlashingAmount.Uint64())
+		ntnFloat, _ := new(big.Float).Quo(amount, baseUnitsPerNTN).Float64()
+		metrics.GetOrRegisterGaugeFloat64(monitor.OutlierPenaltyMetric, nil).Update(ntnFloat)
+	}
+
+	if err := os.memories.flushRecord(&OutlierRecord{
+		LastPenalizedAtBlock: penalizeEvent.Raw.BlockNumber,
+		Participant:          penalizeEvent.Participant,
+		Symbol:               penalizeEvent.Symbol,
+		Median:               penalizeEvent.Median.Uint64(),
+		Reported:             penalizeEvent.Reported.Uint64(),
+		SlashingAmount:       penalizeEvent.SlashingAmount.Uint64(),
+		LoggedAt:             time.Now().Format(time.RFC3339),
+	}); err != nil {
+		return err
+	}
+	return nil
 }
 
 // sync is executed on client startup or after the L1 connection recovery to sync the on-chain oracle contract
