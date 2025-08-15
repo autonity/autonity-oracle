@@ -12,7 +12,14 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
-	"fmt"
+	"io/fs"
+	"math"
+	"math/big"
+	o "os"
+	"path/filepath"
+	"slices"
+	"time"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	tp "github.com/ethereum/go-ethereum/core/types"
@@ -22,13 +29,6 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/modern-go/reflect2"
 	"github.com/shopspring/decimal"
-	"io/fs"
-	"math"
-	"math/big"
-	o "os"
-	"path/filepath"
-	"slices"
-	"time"
 )
 
 var BridgedSymbols = map[string]string{
@@ -57,66 +57,7 @@ const (
 	OracleDecimals      = uint8(18)
 	MaxBufferedRounds   = 10
 	SourceScalingFactor = uint64(10)
-	serverStateDumpFile = "server_state_dump.json"
 )
-
-// ServerMemories is the state that to be flushed into the profiling report directory.
-// For the time being, it just contains the last outlier record of the server. It is loaded on start up.
-type ServerMemories struct {
-	OutlierRecord
-	LoggedAt string `json:"logged_at"`
-}
-
-type OutlierRecord struct {
-	LastPenalizedAtBlock uint64         `json:"last_penalized_at_block"`
-	Participant          common.Address `json:"participant"`
-	Symbol               string         `json:"symbol"`
-	Median               uint64         `json:"median"`
-	Reported             uint64         `json:"reported"`
-	SlashingAmount       uint64         `json:"slashingAmount"`
-}
-
-// flush dumps the ServerMemories into a JSON file in the specified profile directory.
-func (s *ServerMemories) flush(profileDir string) error {
-	if _, err := o.Stat(profileDir); o.IsNotExist(err) {
-		return fmt.Errorf("profile directory does not exist: %s", profileDir)
-	}
-
-	fileName := filepath.Join(profileDir, serverStateDumpFile)
-
-	// Create or open the file for writing
-	file, err := o.Create(fileName)
-	if err != nil {
-		return fmt.Errorf("failed to create file: %v", err)
-	}
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "  ")
-	if err = encoder.Encode(s); err != nil {
-		return fmt.Errorf("failed to encode ServerMemories to JSON: %v", err)
-	}
-
-	return nil
-}
-
-// loadState loads the ServerMemories from a JSON file in the specified profile directory.
-func (s *ServerMemories) loadState(profileDir string) error {
-	fileName := filepath.Join(profileDir, serverStateDumpFile)
-
-	file, err := o.Open(fileName)
-	if err != nil {
-		return fmt.Errorf("failed to open file: %v", err)
-	}
-	defer file.Close()
-
-	decoder := json.NewDecoder(file)
-	if err := decoder.Decode(s); err != nil {
-		return fmt.Errorf("failed to decode JSON into ServerMemories: %v", err)
-	}
-
-	return nil
-}
 
 // OracleServer coordinates the plugin discovery, the data sampling, and do the health checking with L1 connectivity.
 type OracleServer struct {
@@ -169,7 +110,7 @@ type OracleServer struct {
 	lostSync               bool // set to true if the connectivity with L1 Autonity network is dropped during runtime.
 	commitmentHashComputer *CommitmentHashComputer
 
-	serverMemories *ServerMemories // server memories to be flushed.
+	memories Memories
 
 	configWatcher  *fsnotify.Watcher // config file watcher which watches the config changes.
 	pluginsWatcher *fsnotify.Watcher // plugins watcher which watches the changes of plugins and the plugins' configs.
@@ -214,12 +155,8 @@ func NewOracleServer(conf *config.Config, dialer types.Dialer, client types.Bloc
 	os.commitmentHashComputer = commitmentHashComputer
 
 	// load historic state, otherwise default initial state will be used.
-	state := &ServerMemories{}
-	err = state.loadState(os.conf.ProfileDir)
-	if err == nil {
-		os.logger.Info("run oracle server with historical flushed state", "state", state)
-		os.serverMemories = state
-	}
+	os.memories = Memories{dataDir: conf.ProfileDir}
+	os.memories.init(os.logger)
 
 	// discover plugins from plugin dir at startup.
 	binaries, err := helpers.ListPlugins(conf.PluginDIR)
@@ -554,7 +491,13 @@ func (os *OracleServer) handleRoundVote() error {
 	// query last round's prices, its random salt which will reveal last round's report.
 	lastRoundData, ok := os.roundData[os.curRound-1]
 	if !ok {
-		os.logger.Debug("no last round data, client is no longer a voter or it reports just current round commitment")
+		// no last round data was addressed from the buffer, then try to find it from the persistence memory.
+		if os.memories.voteRecord != nil && os.memories.voteRecord.RoundID == os.curRound-1 {
+			os.logger.Info("load last round data from server persistence")
+			lastRoundData = os.memories.voteRecord.ToRoundData()
+		} else {
+			os.logger.Debug("no last round data, client is no longer a voter or it reports just current round commitment")
+		}
 	}
 
 	// if node is no longer a validator, and it doesn't have last round data, skip reporting.
@@ -567,10 +510,10 @@ func (os *OracleServer) handleRoundVote() error {
 	}
 
 	// check with the vote buffer from the last penalty event.
-	if os.serverMemories != nil && os.curSampleHeight-os.serverMemories.LastPenalizedAtBlock <= os.conf.VoteBuffer {
-		left := os.conf.VoteBuffer - (os.curSampleHeight - os.serverMemories.LastPenalizedAtBlock)
+	if os.memories.outlierRecord != nil && os.curSampleHeight-os.memories.outlierRecord.LastPenalizedAtBlock <= os.conf.VoteBuffer {
+		left := os.conf.VoteBuffer - (os.curSampleHeight - os.memories.outlierRecord.LastPenalizedAtBlock)
 		os.logger.Warn("due to the outlier penalty, we postpone your next vote from slashing", "next vote block", left)
-		os.logger.Warn("your last outlier report was", "report", os.serverMemories.OutlierRecord)
+		os.logger.Warn("your last outlier report was", "report", os.memories.outlierRecord)
 		os.logger.Warn("during this period, you can: 1. check your data source infra; 2. restart your oracle-client; 3. contact Autonity team for help;")
 		return nil
 	}
@@ -578,7 +521,6 @@ func (os *OracleServer) handleRoundVote() error {
 	if isVoter {
 		// a voter need to assemble current round data to report it.
 		curRoundData, err := os.buildRoundData(os.curRound)
-
 		// if the voter failed to assemble current round data, but it has last round data available, then reveal it.
 		if err != nil {
 			if lastRoundData != nil {
@@ -588,6 +530,11 @@ func (os *OracleServer) handleRoundVote() error {
 		}
 
 		// round data was successfully assembled, save current round data.
+		if err = os.memories.flushRecord(toVoteRecord(curRoundData)); err != nil {
+			os.logger.Warn("failed to vote record to persistence", "error", err.Error())
+			os.logger.Warn("IMPORTANT: please check your profile data dir, the server need to flush vote record into it.")
+		}
+
 		os.roundData[os.curRound] = curRoundData
 		if metrics.Enabled {
 			metrics.GetOrRegisterGauge(monitor.IsVoterMetric, nil).Update(1)
@@ -1149,21 +1096,16 @@ func (os *OracleServer) Start() {
 				metrics.GetOrRegisterGaugeFloat64(monitor.OutlierPenaltyMetric, nil).Update(ntnFloat)
 			}
 
-			newState := &ServerMemories{
-				OutlierRecord: OutlierRecord{
-					LastPenalizedAtBlock: penalizeEvent.Raw.BlockNumber,
-					Participant:          penalizeEvent.Participant,
-					Symbol:               penalizeEvent.Symbol,
-					Median:               penalizeEvent.Median.Uint64(),
-					Reported:             penalizeEvent.Reported.Uint64(),
-					SlashingAmount:       penalizeEvent.SlashingAmount.Uint64(),
-				},
-				LoggedAt: time.Now().Format(time.RFC3339),
-			}
-
-			os.serverMemories = newState
-			if err := os.serverMemories.flush(os.conf.ProfileDir); err != nil {
-				os.logger.Error("failed to flush oracle state", "error", err.Error())
+			if err := os.memories.flushRecord(&OutlierRecord{
+				LastPenalizedAtBlock: penalizeEvent.Raw.BlockNumber,
+				Participant:          penalizeEvent.Participant,
+				Symbol:               penalizeEvent.Symbol,
+				Median:               penalizeEvent.Median.Uint64(),
+				Reported:             penalizeEvent.Reported.Uint64(),
+				SlashingAmount:       penalizeEvent.SlashingAmount.Uint64(),
+				LoggedAt:             time.Now().Format(time.RFC3339),
+			}); err != nil {
+				os.logger.Error("failed to flush outlier record", "error", err.Error())
 			}
 		case fsEvent, ok := <-os.configWatcher.Events:
 			if !ok {

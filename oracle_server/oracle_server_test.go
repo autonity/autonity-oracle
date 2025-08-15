@@ -8,14 +8,6 @@ import (
 	"autonity-oracle/types"
 	"autonity-oracle/types/mock"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	tp "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/event"
-	"github.com/golang/mock/gomock"
-	"github.com/hashicorp/go-hclog"
-	"github.com/shopspring/decimal"
-	"github.com/stretchr/testify/require"
 	"io/ioutil" //nolint
 	"math"
 	"math/big"
@@ -24,6 +16,14 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	tp "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/event"
+	"github.com/golang/mock/gomock"
+	"github.com/hashicorp/go-hclog"
+	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/require"
 )
 
 var BridgerSymbols = []string{NTNUSDC, ATNUSDC, USDCUSD}
@@ -34,52 +34,6 @@ func TestOracleDecimals(t *testing.T) {
 	decimals := uint8(18)
 	precision := decimal.NewFromBigInt(common.Big1, int32(decimals))
 	require.Equal(t, "1000000000000000000", precision.String())
-}
-
-// TestServerState tests the flush and loadState methods of ServerMemories.
-func TestServerState(t *testing.T) {
-	// Create a temporary directory for testing
-	tempDir := t.TempDir()
-	fileName := filepath.Join(tempDir, serverStateDumpFile)
-
-	nodeKey, err := crypto.GenerateKey()
-	require.NoError(t, err)
-	nodeAddr := crypto.PubkeyToAddress(nodeKey.PublicKey)
-
-	// Create a ServerMemories instance
-	originalState := &ServerMemories{
-		OutlierRecord: OutlierRecord{
-			LastPenalizedAtBlock: 1234556,
-			Participant:          nodeAddr,
-			Symbol:               NTNUSDC,
-			Median:               uint64(100000000000),
-			Reported:             uint64(200000000000),
-			SlashingAmount:       uint64(300000000000),
-		},
-		LoggedAt: time.Now().Format(time.RFC3339),
-	}
-
-	// Test flush method
-	err = originalState.flush(tempDir)
-	if err != nil {
-		t.Fatalf("failed to flush state: %v", err)
-	}
-
-	// Check if the file was created
-	if _, err = os.Stat(fileName); os.IsNotExist(err) {
-		t.Fatalf("expected file %s to be created, but it does not exist", fileName)
-	}
-
-	// Create a new ServerMemories instance to load data into
-	loadedState := &ServerMemories{}
-
-	// Test loadState method
-	err = loadedState.loadState(tempDir)
-	if err != nil {
-		t.Fatalf("failed to load state: %v", err)
-	}
-
-	require.Equal(t, originalState, loadedState)
 }
 
 func TestOracleServer(t *testing.T) {
