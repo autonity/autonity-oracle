@@ -274,7 +274,7 @@ oracle-server metrics:
     IsVoterMetric        = "oracle/isVoter" // track if current client is a voter or not.
     L1ConnectivityMetric = "oracle/l1/errs" // track the num of L1 connectivity error encountered.
     InvalidVoteMetric    = "oracle/vote/invalid" // track the num of invalid vote event addressed by the protocol.
-    NoRevealVoteMetric   = "oracle/vote/noreveal" // track the num of reveal failures.
+    NoRevealVoteMetric   = "oracle/vote/noreveal" // track the num of reveal failures during the recent time window.
     SuccessfulVoteMetric = "oracle/vote/successful" // track the num of successful votes.
 
     OutlierDistancePercentMetric = "oracle/outlier/distance/percentage" // track the outlier distance in percentage against the median of the round price.

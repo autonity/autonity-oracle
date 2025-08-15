@@ -318,7 +318,7 @@ func (os *OracleServer) Start() {
 			os.logger.Info("received no reveal event", "height", noRevealEvent.Raw.BlockNumber, "round", noRevealEvent.Round,
 				"missed", noRevealEvent.MissedReveal.Uint64())
 			if metrics.Enabled {
-				metrics.GetOrRegisterCounter(monitor.NoRevealVoteMetric, nil).Inc(1)
+				metrics.GetOrRegisterGauge(monitor.NoRevealVoteMetric, nil).Update(noRevealEvent.MissedReveal.Int64())
 			}
 
 		case penalizeEvent := <-os.chPenalizedEvent:
@@ -772,7 +772,6 @@ func (os *OracleServer) vote() error {
 	}
 
 	// todo: before voting, double check if a penalty event against self was emitted at the round block.
-
 	os.printLatestRoundData(os.curRound)
 
 	// if client is not a voter, just skip reporting.

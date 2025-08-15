@@ -24,9 +24,10 @@ func InitOracleMetrics() {
 		metrics.GetOrRegisterGauge(RoundMetric, nil)
 		metrics.GetOrRegisterGauge(BalanceMetric, nil)
 		metrics.GetOrRegisterGauge(IsVoterMetric, nil)
+		metrics.GetOrRegisterGauge(NoRevealVoteMetric, nil)
+
 		metrics.GetOrRegisterCounter(L1ConnectivityMetric, nil)
 		metrics.GetOrRegisterCounter(InvalidVoteMetric, nil)
-		metrics.GetOrRegisterCounter(NoRevealVoteMetric, nil)
 		metrics.GetOrRegisterCounter(SuccessfulVoteMetric, nil)
 
 		// create metrics for outlier penalty events in advance.
