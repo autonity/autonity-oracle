@@ -31,6 +31,7 @@ func TestPluginManagement(t *testing.T) {
 	var subVoteEvent event.Subscription
 	var subInvalidVoteEvent event.Subscription
 	var subReportedEvent event.Subscription
+	var subNoRevealEvent event.Subscription
 
 	keyFile := "../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"
 	passWord := config.DefaultConfig.KeyPassword
@@ -66,6 +67,7 @@ func TestPluginManagement(t *testing.T) {
 		contractMock.EXPECT().WatchSuccessfulVote(gomock.Any(), gomock.Any(), gomock.Any()).Return(subVoteEvent, nil)
 		contractMock.EXPECT().WatchTotalOracleRewards(gomock.Any(), gomock.Any()).Return(subReportedEvent, nil)
 		contractMock.EXPECT().WatchInvalidVote(gomock.Any(), gomock.Any(), gomock.Any()).Return(subInvalidVoteEvent, nil)
+		contractMock.EXPECT().WatchNoRevealPenalty(gomock.Any(), gomock.Any(), gomock.Any()).Return(subNoRevealEvent, nil)
 		l1Mock := mock.NewMockBlockchain(ctrl)
 		l1Mock.EXPECT().ChainID(gomock.Any()).Return(ChainIDPiccadilly, nil)
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
@@ -109,6 +111,7 @@ func TestPluginManagement(t *testing.T) {
 		contractMock.EXPECT().WatchSuccessfulVote(gomock.Any(), gomock.Any(), gomock.Any()).Return(subVoteEvent, nil)
 		contractMock.EXPECT().WatchTotalOracleRewards(gomock.Any(), gomock.Any()).Return(subReportedEvent, nil)
 		contractMock.EXPECT().WatchInvalidVote(gomock.Any(), gomock.Any(), gomock.Any()).Return(subInvalidVoteEvent, nil)
+		contractMock.EXPECT().WatchNoRevealPenalty(gomock.Any(), gomock.Any(), gomock.Any()).Return(subNoRevealEvent, nil)
 		l1Mock := mock.NewMockBlockchain(ctrl)
 		l1Mock.EXPECT().ChainID(gomock.Any()).Return(ChainIDPiccadilly, nil)
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
@@ -147,6 +150,7 @@ func TestPluginManagement(t *testing.T) {
 		contractMock.EXPECT().WatchSuccessfulVote(gomock.Any(), gomock.Any(), gomock.Any()).Return(subVoteEvent, nil)
 		contractMock.EXPECT().WatchTotalOracleRewards(gomock.Any(), gomock.Any()).Return(subReportedEvent, nil)
 		contractMock.EXPECT().WatchInvalidVote(gomock.Any(), gomock.Any(), gomock.Any()).Return(subInvalidVoteEvent, nil)
+		contractMock.EXPECT().WatchNoRevealPenalty(gomock.Any(), gomock.Any(), gomock.Any()).Return(subNoRevealEvent, nil)
 
 		l1Mock := mock.NewMockBlockchain(ctrl)
 		l1Mock.EXPECT().ChainID(gomock.Any()).Return(ChainIDPiccadilly, nil)

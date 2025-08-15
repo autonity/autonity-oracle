@@ -94,6 +94,9 @@ type OracleServer struct {
 	chRewardEvent  chan *contract.OracleTotalOracleRewards
 	subRewardEvent event.Subscription
 
+	chNoRevealEvent  chan *contract.OracleNoRevealPenalty
+	subNoRevealEvent event.Subscription
+
 	chPenalizedEvent  chan *contract.OraclePenalized
 	subPenalizedEvent event.Subscription
 
@@ -272,6 +275,12 @@ func (os *OracleServer) Start() {
 				os.handleConnectivityError()
 				os.subVotedEvent.Unsubscribe()
 			}
+		case err := <-os.subNoRevealEvent.Err():
+			if err != nil {
+				os.logger.Info("subscription error of no reveal event", err)
+				os.handleConnectivityError()
+				os.subNoRevealEvent.Unsubscribe()
+			}
 		case err := <-os.subPenalizedEvent.Err():
 			if err != nil {
 				os.logger.Info("subscription error of penalty event", err)
@@ -304,6 +313,13 @@ func (os *OracleServer) Start() {
 		case rewardEvent := <-os.chRewardEvent:
 			os.logger.Info("received reward distribution event", "height", rewardEvent.Raw.BlockNumber,
 				"total distributed ATN", rewardEvent.AtnReward.Uint64(), "total distributed NTN", rewardEvent.NtnReward.Uint64())
+
+		case noRevealEvent := <-os.chNoRevealEvent:
+			os.logger.Info("received no reveal event", "height", noRevealEvent.Raw.BlockNumber, "round", noRevealEvent.Round,
+				"missed", noRevealEvent.MissedReveal.Uint64())
+			if metrics.Enabled {
+				metrics.GetOrRegisterCounter(monitor.NoRevealVoteMetric, nil).Inc(1)
+			}
 
 		case penalizeEvent := <-os.chPenalizedEvent:
 			if err := os.handlePenaltyEvent(penalizeEvent); err != nil {
@@ -369,6 +385,7 @@ func (os *OracleServer) Stop() {
 	os.subRoundEvent.Unsubscribe()
 	os.subSymbolsEvent.Unsubscribe()
 	os.subPenalizedEvent.Unsubscribe()
+	os.subNoRevealEvent.Unsubscribe()
 	os.subVotedEvent.Unsubscribe()
 	os.subInvalidVote.Unsubscribe()
 	os.subRewardEvent.Unsubscribe()
@@ -497,6 +514,16 @@ func (os *OracleServer) subscribeEvents() error {
 	}
 	os.chSymbolsEvent = chSymbolsEvent
 	os.subSymbolsEvent = subSymbolsEvent
+
+	// subscribe on-chain no-reveal event
+	chNoRevealEvent := make(chan *contract.OracleNoRevealPenalty)
+	subNoRevealEvent, err := os.oracleContract.WatchNoRevealPenalty(new(bind.WatchOpts), chNoRevealEvent, []common.Address{os.conf.Key.Address})
+	if err != nil {
+		os.logger.Error("failed to subscribe no reveal event", "error", err.Error())
+		return err
+	}
+	os.chNoRevealEvent = chNoRevealEvent
+	os.subNoRevealEvent = subNoRevealEvent
 
 	// subscribe on-chain penalize event
 	chPenalizedEvent := make(chan *contract.OraclePenalized)
@@ -743,6 +770,8 @@ func (os *OracleServer) vote() error {
 	if err := os.syncProtocolSymbols(); err != nil {
 		return err
 	}
+
+	// todo: before voting, double check if a penalty event against self was emitted at the round block.
 
 	os.printLatestRoundData(os.curRound)
 

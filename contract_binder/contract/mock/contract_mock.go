@@ -219,6 +219,21 @@ func (mr *MockContractAPIMockRecorder) WatchNewSymbols(opts, sink interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchNewSymbols", reflect.TypeOf((*MockContractAPI)(nil).WatchNewSymbols), opts, sink)
 }
 
+// WatchNoRevealPenalty mocks base method.
+func (m *MockContractAPI) WatchNoRevealPenalty(opts *bind.WatchOpts, sink chan<- *oracle.OracleNoRevealPenalty, _voter []common.Address) (event.Subscription, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WatchNoRevealPenalty", opts, sink, _voter)
+	ret0, _ := ret[0].(event.Subscription)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// WatchNoRevealPenalty indicates an expected call of WatchNoRevealPenalty.
+func (mr *MockContractAPIMockRecorder) WatchNoRevealPenalty(opts, sink, _voter interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchNoRevealPenalty", reflect.TypeOf((*MockContractAPI)(nil).WatchNoRevealPenalty), opts, sink, _voter)
+}
+
 // WatchPenalized mocks base method.
 func (m *MockContractAPI) WatchPenalized(opts *bind.WatchOpts, sink chan<- *oracle.OraclePenalized, _participant []common.Address) (event.Subscription, error) {
 	m.ctrl.T.Helper()
