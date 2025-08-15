@@ -6,12 +6,15 @@ import (
 	"autonity-oracle/monitor"
 	"autonity-oracle/oracle_server"
 	"autonity-oracle/types"
-	"github.com/ethereum/go-ethereum/metrics"
-	"github.com/ethereum/go-ethereum/metrics/influxdb"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/ethereum/go-ethereum/metrics/exp"
+	"github.com/ethereum/go-ethereum/metrics/influxdb"
 )
 
 func main() { //nolint
@@ -20,7 +23,16 @@ func main() { //nolint
 		"\tby connecting to L1 node: %s\n \ton oracle contract address: %s \n\n\n",
 		config.VersionString(config.Version), conf.PluginDIR, conf.AutonityWSUrl, types.OracleContractAddress)
 
-	// start metrics reporter if it is enabled.
+	// start prometheus metrics exposer if it is enabled.
+	if conf.MetricConfigs.EnablePrometheusExp {
+		metrics.Enabled = true
+		log.Println("Prometheus metrics exposer enabled")
+		address := fmt.Sprintf("%s:%d", conf.MetricConfigs.HTTP, conf.MetricConfigs.Port)
+		log.Printf("Enabling stand-alone metrics HTTP endpoint: %s", address)
+		exp.Setup(address)
+	}
+
+	// start influxDB metrics reporter if it is enabled.
 	tagsMap := config.SplitTagsFlag(conf.MetricConfigs.InfluxDBTags)
 	if conf.MetricConfigs.EnableInfluxDB {
 		metrics.Enabled = true

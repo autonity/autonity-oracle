@@ -157,8 +157,11 @@ confidenceStrategy: 0  # 0: linear, 1: fixed
 #    usdcTokenAddress:   "0xB855D5e83363A4494e09f0Bb3152A70d3f161940" # Bridged USDC (Mainnet) / USDCx (Bakerloo) ERC20 contract address on the target blockchain.
 #    swapAddress:        "0x218F76e357594C82Cc29A88B90dd67b180827c88" # UniSwap factory contract address on the target blockchain.
 
-#Enable the metric collection for oracle server, supported TS-DB engines are influxDB v1 and v2.
+#Enable the metric collection for oracle server, supported TS-DB engines are influxDB v1, v2 and prometheus.
 #metricConfigs:
+#  enablePrometheusExp: false
+#  http: "127.0.0.1"
+#  port: 6061            # for example, fetch prometheus metrics at: http://127.0.0.1:6061/debug/metrics/prometheus
 #  influxDBEndpoint: "http://localhost:8086"
 #  influxDBTags: "host=localhost"
 #  enableInfluxDB: false

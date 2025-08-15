@@ -10,6 +10,11 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"math/big"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	types2 "github.com/ethereum/go-ethereum/core/types"
@@ -17,10 +22,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
-	"math/big"
-	"os"
-	"testing"
-	"time"
 )
 
 var defaultVotePeriod = uint64(30)
