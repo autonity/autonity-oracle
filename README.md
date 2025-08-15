@@ -67,8 +67,9 @@ autonityWSUrl: "ws://127.0.0.1:8546"
 #Set the directory of the data plugins.
 pluginDir: "./plugins"  # Directory for plugins
 
-#Set the profiling report directory, where some runtime state will be saved at.
-profileDir: "."  # Profile directory
+#IMPORTANT: To avoid the reveal failure slashing, please set the data DIR where it saves the votes and profiling data
+#for the server, thus the server won't be slashed from a resetting or from a disaster recovery.
+profileDir: "."  # Profile and data directory
 
 #Set the confidence strategy, available strategies are: 0: linear, 1: fixed.
 confidenceStrategy: 0  # 0: linear, 1: fixed
