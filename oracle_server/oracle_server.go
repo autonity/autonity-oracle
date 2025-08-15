@@ -281,7 +281,6 @@ func (os *OracleServer) Start() {
 		case <-os.psTicker.C:
 			// shorten the health checker, if we have L1 connectivity issue, try to repair it before pre sampling starts.
 			os.checkHealth()
-
 			preSampleTS := time.Now().Unix()
 			err := os.handlePreSampling(preSampleTS)
 			if err != nil {
@@ -398,27 +397,27 @@ func (os *OracleServer) Start() {
 				metrics.GetOrRegisterGauge(monitor.RoundMetric, nil).Update(roundEvent.Round.Int64())
 			}
 
-			// save the round rotation info to coordinate the pre-sampling.
+			// IMPORTANT! sync the round and vote period carries by the round event, and store the reference points for
+			// next presampling and the target for sample selection.
 			os.curRound = roundEvent.Round.Uint64()
 			os.votePeriod = roundEvent.VotePeriod.Uint64()
 			os.curSampleHeight = roundEvent.Raw.BlockNumber
 			os.curSampleTS = roundEvent.Timestamp.Int64()
 
-			// sync protocol symbols, and submit round vote by according to node's membership.
-			err := os.handleRoundVote()
+			// vote for latest protocol symbols.
+			err := os.vote()
 			if err != nil {
 				os.logger.Error("round voting failed", "error", err.Error())
 			}
-			// at the end of each round, gc expired samples of per plugin.
-			os.gcExpiredSamples()
-			// after vote finished, reset sampling symbols by the latest synced protocol symbols.
+			os.gcStaleSamples()
+			// after vote, reset sampling symbols with the latest protocol symbols.
 			os.resetSamplingSymbols(os.protocolSymbols)
 		case newSymbolEvent := <-os.chSymbolsEvent:
 			// New symbols are added, add them into the sampling set to prepare data in advance for the coming round's vote.
 			os.logger.Info("handle new symbols", "new symbols", newSymbolEvent.Symbols, "activate at round", newSymbolEvent.Round)
 			os.handleNewSymbolsEvent(newSymbolEvent.Symbols)
 		case <-os.regularTicker.C:
-			os.gcRoundData()
+			os.gcVoteRecords()
 			if metrics.Enabled {
 				metrics.GetOrRegisterGauge(monitor.PluginMetric, nil).Update(int64(len(os.runningPlugins)))
 			}
@@ -448,8 +447,8 @@ func (os *OracleServer) Stop() {
 // events of oracle protocol: round event, symbol update event, etc...
 func (os *OracleServer) sync() error {
 	var err error
-	// get initial states from on-chain oracle contract.
-	os.curRound, os.protocolSymbols, os.votePeriod, err = os.initStates()
+	// get initial states from oracle contract.
+	os.curRound, os.protocolSymbols, os.votePeriod, err = os.syncRoundState()
 	if err != nil {
 		os.logger.Error("synchronize oracle contract state", "error", err.Error())
 		return err
@@ -457,8 +456,16 @@ func (os *OracleServer) sync() error {
 
 	// reset sampling symbols with the latest protocol symbols, it adds bridger symbols by according to the protocol symbols.
 	os.resetSamplingSymbols(os.protocolSymbols)
-	os.logger.Info("sync", "CurrentRound", os.curRound, "protocol symbols", os.protocolSymbols, "sampling symbols", os.samplingSymbols)
 
+	// subscribe protocol events
+	if err = os.subscribeEvents(); err != nil {
+		return err
+	}
+	os.logger.Info("synced", "CurrentRound", os.curRound, "protocol symbols", os.protocolSymbols, "sampling symbols", os.samplingSymbols)
+	return nil
+}
+
+func (os *OracleServer) subscribeEvents() error {
 	// subscribe on-chain round rotation event
 	chRoundEvent := make(chan *contract.OracleNewRound)
 	subRoundEvent, err := os.oracleContract.WatchNewRound(new(bind.WatchOpts), chRoundEvent)
@@ -486,7 +493,6 @@ func (os *OracleServer) sync() error {
 		os.logger.Error("failed to subscribe penalized event", "error", err.Error())
 		return err
 	}
-
 	os.chPenalizedEvent = chPenalizedEvent
 	os.subPenalizedEvent = subPenalizedEvent
 
@@ -497,7 +503,6 @@ func (os *OracleServer) sync() error {
 		os.logger.Error("failed to subscribe voted event", "error", err.Error())
 		return err
 	}
-
 	os.chVotedEvent = chVotedEvent
 	os.subVotedEvent = subVotedEvent
 
@@ -518,15 +523,16 @@ func (os *OracleServer) sync() error {
 		os.logger.Error("failed to subscribe reward event", "error", err.Error())
 		return err
 	}
-
 	os.chRewardEvent = chRewardEvent
 	os.subRewardEvent = subRewardEvent
-
 	return nil
 }
 
-// initStates returns round id, symbols and committees on current chain, it is called on the startup of client.
-func (os *OracleServer) initStates() (uint64, []string, uint64, error) {
+// syncRoundState returns round id, symbols and vote period on oracle contract, it is called on the startup of client.
+// Since below steps are not atomic get operation from blockchain, thus they are just being used at the initial phase
+// for data presampling, the correctness of voting is promised by the synchronization triggered by the round event before
+// the voting.
+func (os *OracleServer) syncRoundState() (uint64, []string, uint64, error) {
 	// on the startup, we need to sync the round id, symbols and committees from contract.
 	currentRound, err := os.oracleContract.GetRound(nil)
 	if err != nil {
@@ -554,13 +560,13 @@ func (os *OracleServer) initStates() (uint64, []string, uint64, error) {
 	return currentRound.Uint64(), symbols, votePeriod.Uint64(), nil
 }
 
-func (os *OracleServer) gcExpiredSamples() {
+func (os *OracleServer) gcStaleSamples() {
 	for _, plugin := range os.runningPlugins {
 		plugin.GCExpiredSamples()
 	}
 }
 
-func (os *OracleServer) gcRoundData() {
+func (os *OracleServer) gcVoteRecords() {
 	if len(os.voteRecords) >= MaxBufferedRounds {
 		offset := os.curRound - MaxBufferedRounds
 		for k := range os.voteRecords {
@@ -692,7 +698,7 @@ func (os *OracleServer) isBlockchainSynced() bool {
 	// if the autonity node is on peer synchronization state, just skip the reporting.
 	syncing, err := os.client.SyncProgress(context.Background())
 	if err != nil {
-		os.logger.Error("handleRoundVote get SyncProgress", "error", err.Error())
+		os.logger.Error("vote get SyncProgress", "error", err.Error())
 		return false
 	}
 
@@ -709,14 +715,14 @@ func (os *OracleServer) syncProtocolSymbols() error {
 	var err error
 	os.protocolSymbols, err = os.oracleContract.GetSymbols(nil)
 	if err != nil {
-		os.logger.Error("handleRoundVote get symbols", "error", err.Error())
+		os.logger.Error("vote get symbols", "error", err.Error())
 		return err
 	}
 
 	return nil
 }
 
-func (os *OracleServer) handleRoundVote() error {
+func (os *OracleServer) vote() error {
 	if !os.isBlockchainSynced() {
 		return types.ErrPeerOnSync
 	}
@@ -731,7 +737,7 @@ func (os *OracleServer) handleRoundVote() error {
 	// if client is not a voter, just skip reporting.
 	isVoter, err := os.isVoter()
 	if err != nil {
-		os.logger.Error("handleRoundVote isVoter", "error", err.Error())
+		os.logger.Error("vote isVoter", "error", err.Error())
 		return err
 	}
 

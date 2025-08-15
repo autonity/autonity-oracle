@@ -128,7 +128,7 @@ func TestOracleServer(t *testing.T) {
 		require.Equal(t, true, helpers.ResolveSimulatedPrice(NTNUSD).Equal(voteRecord.Prices[NTNUSD].Price))
 		require.Equal(t, true, helpers.ResolveSimulatedPrice(ATNUSD).Equal(voteRecord.Prices[ATNUSD].Price))
 		t.Log(voteRecord)
-		srv.gcExpiredSamples()
+		srv.gcStaleSamples()
 		srv.runningPlugins["template_plugin"].Close()
 	})
 
@@ -205,7 +205,7 @@ func TestOracleServer(t *testing.T) {
 		srv.curSampleHeight = 60
 		srv.curSampleTS = time.Now().Unix()
 
-		err = srv.handleRoundVote()
+		err = srv.vote()
 		require.NoError(t, err)
 
 		require.Equal(t, 2, len(srv.voteRecords))
@@ -264,7 +264,7 @@ func TestOracleServer(t *testing.T) {
 			}
 		}
 
-		os.gcRoundData()
+		os.gcVoteRecords()
 		require.Equal(t, MaxBufferedRounds, len(os.voteRecords))
 
 	})
