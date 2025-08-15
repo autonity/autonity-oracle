@@ -315,23 +315,7 @@ func (os *OracleServer) Start() {
 				os.logger.Error("config watcher channel has been closed")
 				return
 			}
-			// filter unwatched files in the dir.
-			if fsEvent.Name != os.conf.ConfigFile {
-				continue
-			}
-
-			switch {
-			// tools like sed issues write event for the updates.
-			case fsEvent.Op&fsnotify.Write > 0:
-				// apply plugin config changes.
-				os.logger.Info("config file content changed", "file", fsEvent.Name)
-				os.PluginRuntimeManagement()
-
-			// tools like vim or vscode issues rename, chmod and remove events for the update for an atomic change mode.
-			case fsEvent.Op&fsnotify.Rename > 0:
-				os.logger.Info("config file changed", "file", fsEvent.Name)
-				os.PluginRuntimeManagement()
-			}
+			os.handleConfigEvent(fsEvent)
 
 		case fsEvent, ok := <-os.pluginsWatcher.Events:
 			if !ok {
@@ -393,6 +377,26 @@ func (os *OracleServer) Stop() {
 	for _, c := range os.runningPlugins {
 		p := c
 		p.Close()
+	}
+}
+
+func (os *OracleServer) handleConfigEvent(ev fsnotify.Event) {
+	// filter unwatched files in the dir.
+	if ev.Name != os.conf.ConfigFile {
+		return
+	}
+
+	switch {
+	// tools like sed issues write event for the updates.
+	case ev.Op&fsnotify.Write > 0:
+		// apply plugin config changes.
+		os.logger.Info("config file content changed", "file", ev.Name)
+		os.PluginRuntimeManagement()
+
+	// tools like vim or vscode issues rename, chmod and remove events for the update for an atomic change mode.
+	case ev.Op&fsnotify.Rename > 0:
+		os.logger.Info("config file changed", "file", ev.Name)
+		os.PluginRuntimeManagement()
 	}
 }
 
