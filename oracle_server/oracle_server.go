@@ -85,7 +85,7 @@ type OracleServer struct {
 
 	protocolSymbols []string //symbols required for the voting on the oracle contract protocol.
 	pricePrecision  decimal.Decimal
-	roundData       map[uint64]*types.RoundData
+	voteRecords     map[uint64]*types.VoteRecord
 
 	chInvalidVote  chan *contract.OracleInvalidVote
 	subInvalidVote event.Subscription
@@ -124,7 +124,7 @@ func NewOracleServer(conf *config.Config, dialer types.Dialer, client types.Bloc
 		dialer:             dialer,
 		client:             client,
 		oracleContract:     oc,
-		roundData:          make(map[uint64]*types.RoundData),
+		voteRecords:        make(map[uint64]*types.VoteRecord),
 		runningPlugins:     make(map[string]*pWrapper.PluginWrapper),
 		keyRequiredPlugins: make(map[string]struct{}),
 		doneCh:             make(chan struct{}),
@@ -335,11 +335,11 @@ func (os *OracleServer) gcExpiredSamples() {
 }
 
 func (os *OracleServer) gcRoundData() {
-	if len(os.roundData) >= MaxBufferedRounds {
+	if len(os.voteRecords) >= MaxBufferedRounds {
 		offset := os.curRound - MaxBufferedRounds
-		for k := range os.roundData {
+		for k := range os.voteRecords {
 			if k <= offset {
-				delete(os.roundData, k)
+				delete(os.voteRecords, k)
 			}
 		}
 	}
@@ -489,12 +489,12 @@ func (os *OracleServer) handleRoundVote() error {
 	}
 
 	// query last round's prices, its random salt which will reveal last round's report.
-	lastRoundData, ok := os.roundData[os.curRound-1]
+	lastVoteRecord, ok := os.voteRecords[os.curRound-1]
 	if !ok {
 		// no last round data was addressed from the buffer, then try to find it from the persistence memory.
 		if os.memories.voteRecord != nil && os.memories.voteRecord.RoundID == os.curRound-1 {
 			os.logger.Info("load last round data from server persistence")
-			lastRoundData = os.memories.voteRecord.ToRoundData()
+			lastVoteRecord = os.memories.voteRecord
 		} else {
 			os.logger.Debug("no last round data, client is no longer a voter or it reports just current round commitment")
 		}
@@ -520,42 +520,42 @@ func (os *OracleServer) handleRoundVote() error {
 
 	if isVoter {
 		// a voter need to assemble current round data to report it.
-		curRoundData, err := os.buildRoundData(os.curRound)
+		curVoteRecord, err := os.buildVoteRecord(os.curRound)
 		// if the voter failed to assemble current round data, but it has last round data available, then reveal it.
 		if err != nil {
-			if lastRoundData != nil {
-				return os.reportWithoutCommitment(lastRoundData)
+			if lastVoteRecord != nil {
+				return os.reportWithoutCommitment(lastVoteRecord)
 			}
 			return err
 		}
 
 		// round data was successfully assembled, save current round data.
-		if err = os.memories.flushRecord(toVoteRecord(curRoundData)); err != nil {
+		if err = os.memories.flushRecord(curVoteRecord); err != nil {
 			os.logger.Warn("failed to vote record to persistence", "error", err.Error())
 			os.logger.Warn("IMPORTANT: please check your profile data dir, the server need to flush vote record into it.")
 		}
 
-		os.roundData[os.curRound] = curRoundData
+		os.voteRecords[os.curRound] = curVoteRecord
 		if metrics.Enabled {
 			metrics.GetOrRegisterGauge(monitor.IsVoterMetric, nil).Update(1)
 		}
 		// report with last round data and with current round commitment hash.
-		return os.reportWithCommitment(curRoundData, lastRoundData)
+		return os.reportWithCommitment(curVoteRecord, lastVoteRecord)
 	}
 
 	// edge case, voter is no longer a committee member, it has to reveal the last round data that it committed to.
-	if lastRoundData != nil {
-		return os.reportWithoutCommitment(lastRoundData)
+	if lastVoteRecord != nil {
+		return os.reportWithoutCommitment(lastVoteRecord)
 	}
 	return nil
 }
 
 // reportWithCommitment reports the commitment of current round, and with last round data if the last round data is available.
 // if the input last round data is nil, we just need to report the commitment of current round without last round data.
-func (os *OracleServer) reportWithCommitment(curRoundData, lastRoundData *types.RoundData) error {
+func (os *OracleServer) reportWithCommitment(curRoundData, lastVote *types.VoteRecord) error {
 	var err error
 	// prepare the transaction which carry current round's commitment, and last round's data.
-	curRoundData.Tx, err = os.doReport(curRoundData.CommitmentHash, lastRoundData)
+	curRoundData.Tx, err = os.doReport(curRoundData.CommitmentHash, lastVote)
 	if err != nil {
 		os.logger.Error("do report", "error", err.Error())
 		return err
@@ -583,10 +583,10 @@ func (os *OracleServer) reportWithCommitment(curRoundData, lastRoundData *types.
 }
 
 // report with last round data but without current round commitment, voter is leaving from the committee.
-func (os *OracleServer) reportWithoutCommitment(lastRoundData *types.RoundData) error {
+func (os *OracleServer) reportWithoutCommitment(lastVoteRecord *types.VoteRecord) error {
 
 	// report with no commitment of current round as voter is leaving from the committee.
-	tx, err := os.doReport(common.Hash{}, lastRoundData)
+	tx, err := os.doReport(common.Hash{}, lastVoteRecord)
 	if err != nil {
 		os.logger.Error("do report", "error", err.Error())
 		return err
@@ -655,7 +655,7 @@ func (os *OracleServer) resolveGasTipCap() *big.Int {
 	return configured
 }
 
-func (os *OracleServer) doReport(curRoundCommitmentHash common.Hash, lastRoundData *types.RoundData) (*tp.Transaction, error) {
+func (os *OracleServer) doReport(curRoundCommitmentHash common.Hash, lastVoteRecord *types.VoteRecord) (*tp.Transaction, error) {
 	chainID, err := os.client.ChainID(context.Background())
 	if err != nil {
 		os.logger.Error("get chain id", "error", err.Error())
@@ -686,16 +686,16 @@ func (os *OracleServer) doReport(curRoundCommitmentHash common.Hash, lastRoundDa
 	auth.GasLimit = uint64(3000000)
 
 	// if there is no last round data, then we just submit the commitment hash of current round.
-	if lastRoundData == nil {
+	if lastVoteRecord == nil {
 		var reports []contract.IOracleReport
 		return os.oracleContract.Vote(auth, new(big.Int).SetBytes(curRoundCommitmentHash.Bytes()), reports, invalidSalt, config.Version)
 	}
 
 	// there is last round data, report with current round commitment, and the last round reports and salt to be revealed.
-	return os.oracleContract.Vote(auth, new(big.Int).SetBytes(curRoundCommitmentHash.Bytes()), lastRoundData.Reports, lastRoundData.Salt, config.Version)
+	return os.oracleContract.Vote(auth, new(big.Int).SetBytes(curRoundCommitmentHash.Bytes()), lastVoteRecord.Reports, lastVoteRecord.Salt, config.Version)
 }
 
-func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
+func (os *OracleServer) buildVoteRecord(round uint64) (*types.VoteRecord, error) {
 	if len(os.protocolSymbols) == 0 {
 		return nil, types.ErrNoSymbolsObserved
 	}
@@ -706,13 +706,13 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 	}
 
 	// assemble round data with reports, salt and commitment hash.
-	roundData, err := os.assembleReportData(round, os.protocolSymbols, prices)
+	voteRecord, err := os.assembleReportData(round, os.protocolSymbols, prices)
 	if err != nil {
 		os.logger.Error("failed to assemble round report data", "error", err.Error())
 		return nil, err
 	}
-	os.logger.Info("assembled round report data", "current round", round, "prices", roundData)
-	return roundData, nil
+	os.logger.Info("assembled round report data", "current round", round, "prices", voteRecord)
+	return voteRecord, nil
 }
 
 func (os *OracleServer) aggregateProtocolSymbolPrices() (types.PriceBySymbol, error) {
@@ -783,8 +783,8 @@ func (os *OracleServer) aggregateProtocolSymbolPrices() (types.PriceBySymbol, er
 }
 
 // assemble the final reports, salt and commitment hash.
-func (os *OracleServer) assembleReportData(round uint64, symbols []string, prices types.PriceBySymbol) (*types.RoundData, error) {
-	var roundData = &types.RoundData{
+func (os *OracleServer) assembleReportData(round uint64, symbols []string, prices types.PriceBySymbol) (*types.VoteRecord, error) {
+	var voteRecord = &types.VoteRecord{
 		RoundID: round,
 		Symbols: symbols,
 		Prices:  prices,
@@ -828,10 +828,10 @@ func (os *OracleServer) assembleReportData(round uint64, symbols []string, price
 		return nil, err
 	}
 
-	roundData.Reports = reports
-	roundData.Salt = salt
-	roundData.CommitmentHash = commitmentHash
-	return roundData, nil
+	voteRecord.Reports = reports
+	voteRecord.Salt = salt
+	voteRecord.CommitmentHash = commitmentHash
+	return voteRecord, nil
 }
 
 func (os *OracleServer) handleNewSymbolsEvent(symbols []string) {
@@ -927,26 +927,26 @@ func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, er
 // queryHistoricRoundPrice queries the last available price for a given symbol from the historic rounds.
 func (os *OracleServer) queryHistoricRoundPrice(symbol string) (types.Price, error) {
 
-	if len(os.roundData) == 0 {
+	if len(os.voteRecords) == 0 {
 		return types.Price{}, types.ErrNoDataRound
 	}
 
-	numOfRounds := len(os.roundData)
+	numOfRounds := len(os.voteRecords)
 	// Iterate from the current round backward
 	for i := 0; i < numOfRounds; i++ {
 		roundID := os.curRound - uint64(i) - 1 //nolint
 		// Get the round data for the current round ID
-		roundData, exists := os.roundData[roundID]
+		voteRecord, exists := os.voteRecords[roundID]
 		if !exists {
 			continue
 		}
 
-		if roundData == nil {
+		if voteRecord == nil {
 			continue
 		}
 
 		// Check if the symbol exists in the Prices map
-		if price, found := roundData.Prices[symbol]; found {
+		if price, found := voteRecord.Prices[symbol]; found {
 			return price, nil
 		}
 	}

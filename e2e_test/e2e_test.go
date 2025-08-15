@@ -10,6 +10,11 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"math/big"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	types2 "github.com/ethereum/go-ethereum/core/types"
@@ -17,10 +22,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
-	"math/big"
-	"os"
-	"testing"
-	"time"
 )
 
 var defaultVotePeriod = uint64(30)
@@ -626,6 +627,10 @@ func TestAddAndRemovePlugin(t *testing.T) {
 	// first test happy case.
 	endRound := uint64(10)
 	testAddAndRemovePlugin(t, o, endRound)
+}
+
+func TestResetOracleServer(t *testing.T) {
+	// todo: test oracle server resetting with vote persistence recovery.
 }
 
 // todo: not a high priority, refine the tests in this e2e test framework.

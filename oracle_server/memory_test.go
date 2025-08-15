@@ -44,17 +44,17 @@ func writeTestFile(t *testing.T, dir, filename string, content interface{}) stri
 func TestLoadRecord_ValidCases(t *testing.T) {
 	t.Run("VoteRecord", func(t *testing.T) {
 		dir := setupTestDir(t)
-		expected := &VoteRecord{
+		expected := &types.VoteRecord{
 			RoundID: 100,
 			Salt:    big.NewInt(12345),
-			Reports: []Report{
+			Reports: []contract.IOracleReport{
 				{Price: big.NewInt(100), Confidence: 90},
 			},
 		}
 		writeTestFile(t, dir, voteRecordFile, expected)
 
 		// Execute
-		actual, err := loadRecord[VoteRecord](dir, voteRecordFile)
+		actual, err := loadRecord[types.VoteRecord](dir, voteRecordFile)
 
 		// Validate
 		require.NoError(t, err)
@@ -85,7 +85,7 @@ func TestLoadRecord_ValidCases(t *testing.T) {
 func TestLoadRecord_ErrorScenarios(t *testing.T) {
 	t.Run("NonexistentFile", func(t *testing.T) {
 		dir := setupTestDir(t)
-		_, err := loadRecord[VoteRecord](dir, "missing.json")
+		_, err := loadRecord[types.VoteRecord](dir, "missing.json")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "no such file")
 	})
@@ -95,7 +95,7 @@ func TestLoadRecord_ErrorScenarios(t *testing.T) {
 		path := filepath.Join(dir, voteRecordFile)
 		require.NoError(t, os.WriteFile(path, []byte("{invalid-json}"), 0644))
 
-		_, err := loadRecord[VoteRecord](dir, voteRecordFile)
+		_, err := loadRecord[types.VoteRecord](dir, voteRecordFile)
 		require.Error(t, err)
 	})
 }
@@ -104,7 +104,7 @@ func TestFlushRecord_TypeHandling(t *testing.T) {
 	t.Run("VoteRecord", func(t *testing.T) {
 		dir := setupTestDir(t)
 		mem := &Memories{dataDir: dir}
-		record := &VoteRecord{RoundID: 200}
+		record := &types.VoteRecord{RoundID: 200}
 
 		// Execute
 		err := mem.flushRecord(record)
@@ -114,7 +114,7 @@ func TestFlushRecord_TypeHandling(t *testing.T) {
 		path := filepath.Join(dir, voteRecordFile)
 		assert.FileExists(t, path)
 
-		var loaded VoteRecord
+		var loaded types.VoteRecord
 		data, _ := os.ReadFile(path)
 		require.NoError(t, json.Unmarshal(data, &loaded))
 		assert.Equal(t, uint64(200), loaded.RoundID)
@@ -139,48 +139,6 @@ func TestFlushRecord_TypeHandling(t *testing.T) {
 		require.Panics(t, func() {
 			_ = mem.flushRecord("invalid-type")
 		})
-	})
-}
-
-func TestTypeConversions(t *testing.T) {
-	t.Run("RoundDataRecord_ToRoundData", func(t *testing.T) {
-		rr := &VoteRecord{
-			RoundID: 300,
-			Salt:    big.NewInt(999),
-			Reports: []Report{
-				{Price: big.NewInt(250), Confidence: 95},
-			},
-		}
-
-		// Execute
-		rd := rr.ToRoundData()
-
-		// Validate
-		assert.Equal(t, rr.RoundID, rd.RoundID)
-		assert.Equal(t, rr.Salt.Int64(), rd.Salt.Int64())
-		require.Len(t, rd.Reports, 1)
-		assert.Equal(t, rr.Reports[0].Price.Int64(), rd.Reports[0].Price.Int64())
-		assert.Equal(t, rr.Reports[0].Confidence, rd.Reports[0].Confidence)
-	})
-
-	t.Run("ToRoundRecord_RoundTrip", func(t *testing.T) {
-		original := &types.RoundData{
-			RoundID: 400,
-			Salt:    big.NewInt(111),
-			Reports: []contract.IOracleReport{
-				{Price: big.NewInt(300), Confidence: 85},
-			},
-		}
-
-		// Execute
-		record := toVoteRecord(original)
-		converted := record.ToRoundData()
-
-		// Validate
-		assert.Equal(t, original.RoundID, converted.RoundID)
-		assert.Equal(t, original.Salt.Int64(), converted.Salt.Int64())
-		require.Len(t, converted.Reports, 1)
-		assert.Equal(t, original.Reports[0].Price.Int64(), converted.Reports[0].Price.Int64())
 	})
 }
 

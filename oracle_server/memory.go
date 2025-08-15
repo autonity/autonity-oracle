@@ -1,14 +1,11 @@
 package oracleserver
 
 import (
-	contract "autonity-oracle/contract_binder/contract"
 	"autonity-oracle/types"
 	"encoding/json"
 	"fmt"
-	"math/big"
 	o "os"
 	"path/filepath"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/go-hclog"
@@ -22,33 +19,8 @@ const (
 // Memories stores persistent state loaded from data directory
 type Memories struct {
 	outlierRecord *OutlierRecord
-	voteRecord    *VoteRecord
+	voteRecord    *types.VoteRecord
 	dataDir       string
-}
-
-type Report struct {
-	Price      *big.Int `json:"price"`
-	Confidence uint8    `json:"confidence"`
-}
-
-type VoteRecord struct {
-	RoundID  uint64   `json:"round_id"`
-	Salt     *big.Int `json:"salt"`
-	Reports  []Report `json:"reports"`
-	LoggedAt string   `json:"logged_at"`
-}
-
-func (rr *VoteRecord) ToRoundData() *types.RoundData {
-	to := &types.RoundData{
-		RoundID: rr.RoundID,
-		Salt:    rr.Salt,
-		Reports: make([]contract.IOracleReport, len(rr.Reports)),
-	}
-
-	for i, report := range rr.Reports {
-		to.Reports[i] = contract.IOracleReport{Price: report.Price, Confidence: report.Confidence}
-	}
-	return to
 }
 
 type OutlierRecord struct {
@@ -67,27 +39,11 @@ func (s *Memories) init(logger hclog.Logger) {
 		logger.Info("Loading outlier record file", "error", err)
 	}
 	s.outlierRecord = outlierRecord
-	roundDataRecord, err := s.loadVoteRecord()
+	voteRecord, err := s.loadVoteRecord()
 	if err != nil {
-		logger.Info("loading last round data record file", "error", err)
+		logger.Info("loading last vote record file", "error", err)
 	}
-	s.voteRecord = roundDataRecord
-}
-
-func toVoteRecord(data *types.RoundData) *VoteRecord {
-	record := VoteRecord{
-		RoundID:  data.RoundID,
-		Salt:     data.Salt,
-		LoggedAt: time.Now().Format(time.RFC3339),
-		Reports:  make([]Report, len(data.Reports)),
-	}
-	for i, report := range data.Reports {
-		record.Reports[i] = Report{
-			Price:      report.Price,
-			Confidence: report.Confidence,
-		}
-	}
-	return &record
+	s.voteRecord = voteRecord
 }
 
 func loadRecord[T any](dir, filename string) (*T, error) {
@@ -108,8 +64,8 @@ func loadRecord[T any](dir, filename string) (*T, error) {
 	return &record, nil
 }
 
-func (s *Memories) loadVoteRecord() (*VoteRecord, error) {
-	return loadRecord[VoteRecord](s.dataDir, voteRecordFile)
+func (s *Memories) loadVoteRecord() (*types.VoteRecord, error) {
+	return loadRecord[types.VoteRecord](s.dataDir, voteRecordFile)
 }
 
 func (s *Memories) loadOutlierRecord() (*OutlierRecord, error) {
@@ -122,7 +78,7 @@ func (s *Memories) flushRecord(record interface{}) error {
 	switch record.(type) {
 	case *OutlierRecord:
 		fileName = outlierRecordFile
-	case *VoteRecord:
+	case *types.VoteRecord:
 		fileName = voteRecordFile
 	default:
 		panic("unexpected record type")

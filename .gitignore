@@ -14,6 +14,8 @@ e2e_test/autoracle
 e2e_test/oracle_config/
 e2e_test/autonity_l1_config/nodekeys
 e2e_test/round_data_record.json
+e2e_test/autonity_l1_config/genesis_gen.json
 plugins/template_plugin/bin
 oracle_server/round_data_record.json
 oracle_server/vote_record.json
+oracle_server/*.json

@@ -126,14 +126,14 @@ func TestOracleServer(t *testing.T) {
 			time.Sleep(time.Second)
 		}
 
-		roundData, err := srv.buildRoundData(roundID)
+		voteRecord, err := srv.buildVoteRecord(roundID)
 		require.NoError(t, err)
-		require.Equal(t, roundID, roundData.RoundID)
-		require.Equal(t, helpers.DefaultSymbols, roundData.Symbols)
-		require.Equal(t, len(helpers.DefaultSymbols), len(roundData.Prices))
-		require.Equal(t, true, helpers.ResolveSimulatedPrice(NTNUSD).Equal(roundData.Prices[NTNUSD].Price))
-		require.Equal(t, true, helpers.ResolveSimulatedPrice(ATNUSD).Equal(roundData.Prices[ATNUSD].Price))
-		t.Log(roundData)
+		require.Equal(t, roundID, voteRecord.RoundID)
+		require.Equal(t, helpers.DefaultSymbols, voteRecord.Symbols)
+		require.Equal(t, len(helpers.DefaultSymbols), len(voteRecord.Prices))
+		require.Equal(t, true, helpers.ResolveSimulatedPrice(NTNUSD).Equal(voteRecord.Prices[NTNUSD].Price))
+		require.Equal(t, true, helpers.ResolveSimulatedPrice(ATNUSD).Equal(voteRecord.Prices[ATNUSD].Price))
+		t.Log(voteRecord)
 		srv.gcExpiredSamples()
 		srv.runningPlugins["template_plugin"].Close()
 	})
@@ -192,9 +192,9 @@ func TestOracleServer(t *testing.T) {
 			}
 		}
 
-		roundData, err := srv.assembleReportData(srv.curRound, helpers.DefaultSymbols, prices)
+		voteRecord, err := srv.assembleReportData(srv.curRound, helpers.DefaultSymbols, prices)
 		require.NoError(t, err)
-		srv.roundData[srv.curRound] = roundData
+		srv.voteRecords[srv.curRound] = voteRecord
 
 		// pre-sampling with data.
 		ts := time.Now().Unix()
@@ -214,13 +214,13 @@ func TestOracleServer(t *testing.T) {
 		err = srv.handleRoundVote()
 		require.NoError(t, err)
 
-		require.Equal(t, 2, len(srv.roundData))
-		require.Equal(t, srv.curRound, srv.roundData[srv.curRound].RoundID)
-		require.Equal(t, tx.Hash(), srv.roundData[srv.curRound].Tx.Hash())
-		require.Equal(t, helpers.DefaultSymbols, srv.roundData[srv.curRound].Symbols)
-		hash, err := srv.commitmentHashComputer.CommitmentHash(srv.roundData[srv.curRound].Reports, srv.roundData[srv.curRound].Salt, srv.conf.Key.Address)
+		require.Equal(t, 2, len(srv.voteRecords))
+		require.Equal(t, srv.curRound, srv.voteRecords[srv.curRound].RoundID)
+		require.Equal(t, tx.Hash(), srv.voteRecords[srv.curRound].Tx.Hash())
+		require.Equal(t, helpers.DefaultSymbols, srv.voteRecords[srv.curRound].Symbols)
+		hash, err := srv.commitmentHashComputer.CommitmentHash(srv.voteRecords[srv.curRound].Reports, srv.voteRecords[srv.curRound].Salt, srv.conf.Key.Address)
 		require.NoError(t, err)
-		require.Equal(t, hash, srv.roundData[srv.curRound].CommitmentHash)
+		require.Equal(t, hash, srv.voteRecords[srv.curRound].CommitmentHash)
 
 		srv.runningPlugins["template_plugin"].Close()
 	})
@@ -407,18 +407,18 @@ func TestOracleServer(t *testing.T) {
 
 	t.Run("gcRounddata", func(t *testing.T) {
 		os := &OracleServer{
-			roundData: make(map[uint64]*types.RoundData),
-			curRound:  100,
+			voteRecords: make(map[uint64]*types.VoteRecord),
+			curRound:    100,
 		}
 
 		for rd := uint64(1); rd <= 100; rd++ {
-			os.roundData[rd] = &types.RoundData{
+			os.voteRecords[rd] = &types.VoteRecord{
 				RoundID: rd,
 			}
 		}
 
 		os.gcRoundData()
-		require.Equal(t, MaxBufferedRounds, len(os.roundData))
+		require.Equal(t, MaxBufferedRounds, len(os.voteRecords))
 
 	})
 }
