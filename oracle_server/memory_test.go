@@ -93,7 +93,7 @@ func TestLoadRecord_ErrorScenarios(t *testing.T) {
 	t.Run("InvalidJSON", func(t *testing.T) {
 		dir := setupTestDir(t)
 		path := filepath.Join(dir, voteRecordFile)
-		require.NoError(t, os.WriteFile(path, []byte("{invalid-json}"), 0644))
+		require.NoError(t, os.WriteFile(path, []byte("{invalid-json}"), 0600))
 
 		_, err := loadRecord[types.VoteRecord](dir, voteRecordFile)
 		require.Error(t, err)

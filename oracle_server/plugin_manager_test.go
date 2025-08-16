@@ -6,7 +6,7 @@ import (
 	"autonity-oracle/helpers"
 	"autonity-oracle/types/mock"
 	"fmt"
-	"io/ioutil"
+	"io/ioutil" //nolint
 	"math/big"
 	"os"
 	"path/filepath"
@@ -33,7 +33,7 @@ func TestPluginManagement(t *testing.T) {
 	var subReportedEvent event.Subscription
 	var subNoRevealEvent event.Subscription
 
-	keyFile := "../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"
+	keyFile := testKeyFile
 	passWord := config.DefaultConfig.KeyPassword
 	key, err := config.LoadKey(keyFile, passWord)
 	require.NoError(t, err)
@@ -198,7 +198,6 @@ func TestPluginManagement(t *testing.T) {
 		require.NoError(t, err)
 
 		srv.PluginRuntimeManagement()
-
 		require.Equal(t, 0, len(srv.runningPlugins))
 	})
 }
@@ -215,14 +214,14 @@ func clonePlugins(pluginDIR string, clonePrefix string, destDir string) ([]strin
 
 	for _, file := range files {
 		// read srcFile
-		srcContent, err := ioutil.ReadFile(fmt.Sprintf("%s/%s", pluginDIR, file.Name()))
+		srcContent, err := os.ReadFile(fmt.Sprintf("%s/%s", pluginDIR, file.Name()))
 		if err != nil {
 			return clonedPlugins, err
 		}
 
 		// create dstFile and copy the content
 		newPlugin := fmt.Sprintf("%s/%s%s", destDir, clonePrefix, file.Name())
-		err = ioutil.WriteFile(newPlugin, srcContent, file.Mode())
+		err = os.WriteFile(newPlugin, srcContent, file.Mode())
 		if err != nil {
 			return clonedPlugins, err
 		}
@@ -260,7 +259,7 @@ func replacePlugins(pluginDir string) error {
 // removePlugins removes all executable plugin binaries from the specified plugin directory.
 func removePlugins(pluginDir string) error {
 	// Read the directory
-	files, err := ioutil.ReadDir(pluginDir)
+	files, err := os.ReadDir(pluginDir)
 	if err != nil {
 		return err
 	}
@@ -273,7 +272,7 @@ func removePlugins(pluginDir string) error {
 		}
 
 		// Check if the file is an executable
-		if helpers.IsExecOwnerGroup(file.Mode()) {
+		if helpers.IsExecOwnerGroup(file.Type()) {
 			// Construct the full file path
 			filePath := pluginDir + "/" + file.Name()
 			// Remove the file

@@ -23,6 +23,7 @@ import (
 var BridgerSymbols = []string{NTNUSDC, ATNUSDC, USDCUSD}
 var DefaultSampledSymbols = []string{"AUD-USD", "CAD-USD", "EUR-USD", "GBP-USD", "JPY-USD", "SEK-USD", "ATN-USD", "NTN-USD", "NTN-ATN", "ATN-USDC", "NTN-USDC", "USDC-USD"}
 var ChainIDPiccadilly = big.NewInt(65_100_004)
+var testKeyFile = "../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"
 
 func TestOracleDecimals(t *testing.T) {
 	decimals := uint8(18)
@@ -42,7 +43,7 @@ func TestOracleServer(t *testing.T) {
 	var subReportedEvent event.Subscription
 	var subNoRevealEvent event.Subscription
 
-	keyFile := "../test_data/keystore/UTC--2023-02-27T09-10-19.592765887Z--b749d3d83376276ab4ddef2d9300fb5ce70ebafe"
+	keyFile := testKeyFile
 	passWord := config.DefaultConfig.KeyPassword
 	key, err := config.LoadKey(keyFile, passWord)
 	require.NoError(t, err)
