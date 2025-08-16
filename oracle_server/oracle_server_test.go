@@ -115,7 +115,7 @@ func TestOracleServer(t *testing.T) {
 
 		ts := time.Now().Unix()
 		srv.curSampleTS = ts
-		srv.curSampleHeight = uint64(30)
+		srv.curRoundHeight = uint64(30)
 
 		for sec := ts; sec < ts+15; sec++ {
 			err := srv.handlePreSampling(sec)
@@ -178,6 +178,7 @@ func TestOracleServer(t *testing.T) {
 		l1Mock.EXPECT().SuggestGasTipCap(gomock.Any()).Return(new(big.Int).SetUint64(1000), nil)
 		l1Mock.EXPECT().HeaderByNumber(gomock.Any(), nil).Return(header, nil)
 		l1Mock.EXPECT().BalanceAt(gomock.Any(), gomock.Any(), gomock.Any()).Return(alertBalance, nil)
+		l1Mock.EXPECT().FilterLogs(gomock.Any(), gomock.Any()).Return(nil, nil)
 		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
 
 		// prepare last round data.
@@ -197,7 +198,7 @@ func TestOracleServer(t *testing.T) {
 		// pre-sampling with data.
 		ts := time.Now().Unix()
 		srv.curSampleTS = ts
-		srv.curSampleHeight = uint64(30)
+		srv.curRoundHeight = uint64(30)
 		for sec := ts; sec < ts+15; sec++ {
 			err = srv.handlePreSampling(time.Now().Unix())
 			require.NoError(t, err)
@@ -206,7 +207,7 @@ func TestOracleServer(t *testing.T) {
 
 		// handle vote event that change to next round with
 		srv.curRound = srv.curRound + 1
-		srv.curSampleHeight = 60
+		srv.curRoundHeight = 60
 		srv.curSampleTS = time.Now().Unix()
 
 		err = srv.vote()

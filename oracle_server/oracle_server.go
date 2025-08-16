@@ -11,13 +11,17 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	o "os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	tp "github.com/ethereum/go-ethereum/core/types"
@@ -55,6 +59,7 @@ const (
 	OracleDecimals      = uint8(18)
 	MaxBufferedRounds   = 10
 	SourceScalingFactor = uint64(10)
+	penalizeEventName   = "Penalized"
 )
 
 // OracleServer coordinates the plugin discovery, the data sampling, and do the health checking with L1 connectivity.
@@ -75,11 +80,12 @@ type OracleServer struct {
 	dialer         types.Dialer
 	oracleContract contract.ContractAPI
 	client         types.Blockchain
+	abi            abi.ABI
 
-	curRound        uint64 //round ID.
-	votePeriod      uint64 //vote period.
-	curSampleTS     int64  //the data sample TS of the current round.
-	curSampleHeight uint64 //The block height on which the last round rotation happens.
+	curRound       uint64 //round ID.
+	votePeriod     uint64 //vote period.
+	curSampleTS    int64  //the data sample TS of the current round.
+	curRoundHeight uint64 //The block height on which the last round rotation happens.
 
 	protocolSymbols []string //symbols required for the voting on the oracle contract protocol.
 	pricePrecision  decimal.Decimal
@@ -139,6 +145,13 @@ func NewOracleServer(conf *config.Config, dialer types.Dialer, client types.Bloc
 		Output: o.Stdout,
 		Level:  conf.LoggingLevel,
 	})
+
+	abi, err := abi.JSON(strings.NewReader(contract.OracleMetaData.ABI))
+	if err != nil {
+		os.logger.Error("failed to load ABI", "error", err)
+		o.Exit(1)
+	}
+	os.abi = abi
 
 	chainID, err := client.ChainID(context.Background())
 	if err != nil {
@@ -355,7 +368,7 @@ func (os *OracleServer) Start() {
 			// next presampling and the target for sample selection.
 			os.curRound = roundEvent.Round.Uint64()
 			os.votePeriod = roundEvent.VotePeriod.Uint64()
-			os.curSampleHeight = roundEvent.Raw.BlockNumber
+			os.curRoundHeight = roundEvent.Raw.BlockNumber
 			os.curSampleTS = roundEvent.Timestamp.Int64()
 
 			// vote for latest protocol symbols.
@@ -712,12 +725,12 @@ func (os *OracleServer) handlePreSampling(preSampleTS int64) error {
 	// todo: assess if this condition is still required, as we have the persistence layer.
 	// taking the round after a node recover from a disaster as a special case, to skip the
 	// pre-sampling. In this special case, the regular 10s samples will be used for data reporting.
-	if os.curSampleTS == 0 || os.curSampleHeight == 0 {
+	if os.curSampleTS == 0 || os.curRoundHeight == 0 {
 		return nil
 	}
 
 	// if it is not a good timing to start sampling then return.
-	nextRoundHeight := os.curSampleHeight + os.votePeriod
+	nextRoundHeight := os.curRoundHeight + os.votePeriod
 	curHeight, err := os.client.BlockNumber(context.Background())
 	if err != nil {
 		os.logger.Error("handle pre-sampling", "error", err.Error())
@@ -761,6 +774,79 @@ func (os *OracleServer) syncProtocolSymbols() error {
 	return nil
 }
 
+func (os *OracleServer) penalityTopic(name string, query ...[]interface{}) ([][]common.Hash, error) {
+	// Append the event selector to the query parameters and construct the topic set
+	query = append([][]interface{}{{os.abi.Events[name].ID}}, query...)
+	topics, err := abi.MakeTopics(query...)
+	if err != nil {
+		return nil, err
+	}
+	return topics, nil
+}
+
+// UnpackLog unpacks a retrieved log into the provided output structure.
+func (os *OracleServer) unpackLog(out interface{}, event string, log tp.Log) error {
+	if log.Topics[0] != os.abi.Events[event].ID {
+		return fmt.Errorf("event signature mismatch")
+	}
+	if len(log.Data) > 0 {
+		if err := os.abi.UnpackIntoInterface(out, event, log.Data); err != nil {
+			return err
+		}
+	}
+	var indexed abi.Arguments
+	for _, arg := range os.abi.Events[event].Inputs {
+		if arg.Indexed {
+			indexed = append(indexed, arg)
+		}
+	}
+	return abi.ParseTopics(out, indexed, log.Topics[1:])
+}
+
+func (os *OracleServer) onOutlierSlashing() bool {
+	// filer log with the topic of penalized event with self address.
+	var participants []interface{}
+	participants = append(participants, os.conf.Key.Address)
+	topic, err := os.penalityTopic(penalizeEventName, participants)
+	if err != nil {
+		os.logger.Error("fail to assemble penality topic", "error", err.Error(), "height", os.curRoundHeight)
+		return false
+	}
+
+	// filter log over the round block.
+	logs, err := os.client.FilterLogs(context.Background(), ethereum.FilterQuery{
+		FromBlock: new(big.Int).SetUint64(os.curRoundHeight),
+		ToBlock:   new(big.Int).SetUint64(os.curRoundHeight),
+		Addresses: []common.Address{types.OracleContractAddress},
+		Topics:    topic,
+	})
+	if err != nil {
+		os.logger.Info("fail to filter logs", "height", os.curRoundHeight, "err", err.Error())
+		return false
+	}
+
+	// No penalized event at all.
+	if len(logs) == 0 {
+		return false
+	}
+
+	// unpack log, and check if the slashing amount is over zero.
+	for _, log := range logs {
+		ev := new(contract.OraclePenalized)
+		if err = os.unpackLog(ev, penalizeEventName, log); err != nil {
+			return false
+		}
+		ev.Raw = log
+		if ev.SlashingAmount.Cmp(common.Big0) > 0 {
+			os.logger.Info("on going slashing", "height", os.curRoundHeight, "round", os.curRound,
+				"symbol", ev.Symbol, "median", ev.Median.String(), "reported", ev.Reported.String(), "slashing amount",
+				ev.SlashingAmount.String())
+			return true
+		}
+	}
+	return false
+}
+
 func (os *OracleServer) vote() error {
 	if !os.isBlockchainSynced() {
 		return types.ErrPeerOnSync
@@ -771,7 +857,12 @@ func (os *OracleServer) vote() error {
 		return err
 	}
 
-	// todo: before voting, double check if a penalty event against self was emitted at the round block.
+	// as outlier slashing event can come right after round event in the same block.
+	// if node is on outlier slashing, skip round vote to avoid the outlier slashing again.
+	if os.onOutlierSlashing() {
+		return types.ErrOnOutlierSlashing
+	}
+
 	os.printLatestRoundData(os.curRound)
 
 	// if client is not a voter, just skip reporting.
@@ -803,8 +894,8 @@ func (os *OracleServer) vote() error {
 	}
 
 	// check with the vote buffer from the last penalty event.
-	if os.memories.outlierRecord != nil && os.curSampleHeight-os.memories.outlierRecord.LastPenalizedAtBlock <= os.conf.VoteBuffer {
-		left := os.conf.VoteBuffer - (os.curSampleHeight - os.memories.outlierRecord.LastPenalizedAtBlock)
+	if os.memories.outlierRecord != nil && os.curRoundHeight-os.memories.outlierRecord.LastPenalizedAtBlock <= os.conf.VoteBuffer {
+		left := os.conf.VoteBuffer - (os.curRoundHeight - os.memories.outlierRecord.LastPenalizedAtBlock)
 		os.logger.Warn("due to the outlier penalty, we postpone your next vote from slashing", "next vote block", left)
 		os.logger.Warn("your last outlier report was", "report", os.memories.outlierRecord)
 		os.logger.Warn("during this period, you can: 1. check your data source infra; 2. restart your oracle-client; 3. contact Autonity team for help;")

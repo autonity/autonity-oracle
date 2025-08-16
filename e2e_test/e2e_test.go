@@ -570,7 +570,7 @@ func TestOutlierVoter(t *testing.T) {
 	select {
 	case penalizedCounter := <-resultCh:
 		t.Log("Number of penalized events received:", penalizedCounter)
-		require.LessOrEqual(t, penalizedCounter, uint64(2))
+		require.Equal(t, penalizedCounter, uint64(1))
 		defer os.Remove("./server_state_dump.json") //nolint
 	case <-timeout:
 		t.Fatal("Test timed out waiting for penalized events")

@@ -19,6 +19,7 @@ var (
 	AutonityContractAddress = crypto.CreateAddress(Deployer, 0)
 	OracleContractAddress   = crypto.CreateAddress(Deployer, 2)
 
+	ErrOnOutlierSlashing = errors.New("client is on outlier Slashing")
 	ErrPeerOnSync        = errors.New("l1 node is on peer sync")
 	ErrNoAvailablePrice  = errors.New("no available prices collected yet")
 	ErrNoDataRound       = errors.New("no data collected at current round")
