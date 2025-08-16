@@ -10,9 +10,18 @@ import (
 	"autonity-oracle/types"
 	"context"
 	"crypto/rand"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"math/big"
+	o "os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"time"
+
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	tp "github.com/ethereum/go-ethereum/core/types"
@@ -22,13 +31,6 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/modern-go/reflect2"
 	"github.com/shopspring/decimal"
-	"io/fs"
-	"math"
-	"math/big"
-	o "os"
-	"path/filepath"
-	"slices"
-	"time"
 )
 
 var BridgedSymbols = map[string]string{
@@ -57,66 +59,8 @@ const (
 	OracleDecimals      = uint8(18)
 	MaxBufferedRounds   = 10
 	SourceScalingFactor = uint64(10)
-	serverStateDumpFile = "server_state_dump.json"
+	penalizeEventName   = "Penalized"
 )
-
-// ServerMemories is the state that to be flushed into the profiling report directory.
-// For the time being, it just contains the last outlier record of the server. It is loaded on start up.
-type ServerMemories struct {
-	OutlierRecord
-	LoggedAt string `json:"logged_at"`
-}
-
-type OutlierRecord struct {
-	LastPenalizedAtBlock uint64         `json:"last_penalized_at_block"`
-	Participant          common.Address `json:"participant"`
-	Symbol               string         `json:"symbol"`
-	Median               uint64         `json:"median"`
-	Reported             uint64         `json:"reported"`
-	SlashingAmount       uint64         `json:"slashingAmount"`
-}
-
-// flush dumps the ServerMemories into a JSON file in the specified profile directory.
-func (s *ServerMemories) flush(profileDir string) error {
-	if _, err := o.Stat(profileDir); o.IsNotExist(err) {
-		return fmt.Errorf("profile directory does not exist: %s", profileDir)
-	}
-
-	fileName := filepath.Join(profileDir, serverStateDumpFile)
-
-	// Create or open the file for writing
-	file, err := o.Create(fileName)
-	if err != nil {
-		return fmt.Errorf("failed to create file: %v", err)
-	}
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "  ")
-	if err = encoder.Encode(s); err != nil {
-		return fmt.Errorf("failed to encode ServerMemories to JSON: %v", err)
-	}
-
-	return nil
-}
-
-// loadState loads the ServerMemories from a JSON file in the specified profile directory.
-func (s *ServerMemories) loadState(profileDir string) error {
-	fileName := filepath.Join(profileDir, serverStateDumpFile)
-
-	file, err := o.Open(fileName)
-	if err != nil {
-		return fmt.Errorf("failed to open file: %v", err)
-	}
-	defer file.Close()
-
-	decoder := json.NewDecoder(file)
-	if err := decoder.Decode(s); err != nil {
-		return fmt.Errorf("failed to decode JSON into ServerMemories: %v", err)
-	}
-
-	return nil
-}
 
 // OracleServer coordinates the plugin discovery, the data sampling, and do the health checking with L1 connectivity.
 type OracleServer struct {
@@ -136,15 +80,16 @@ type OracleServer struct {
 	dialer         types.Dialer
 	oracleContract contract.ContractAPI
 	client         types.Blockchain
+	abi            abi.ABI
 
-	curRound        uint64 //round ID.
-	votePeriod      uint64 //vote period.
-	curSampleTS     int64  //the data sample TS of the current round.
-	curSampleHeight uint64 //The block height on which the last round rotation happens.
+	curRound       uint64 //round ID.
+	votePeriod     uint64 //vote period.
+	curSampleTS    int64  //the data sample TS of the current round.
+	curRoundHeight uint64 //The block height on which the last round rotation happens.
 
 	protocolSymbols []string //symbols required for the voting on the oracle contract protocol.
 	pricePrecision  decimal.Decimal
-	roundData       map[uint64]*types.RoundData
+	voteRecords     map[uint64]*types.VoteRecord
 
 	chInvalidVote  chan *contract.OracleInvalidVote
 	subInvalidVote event.Subscription
@@ -154,6 +99,9 @@ type OracleServer struct {
 
 	chRewardEvent  chan *contract.OracleTotalOracleRewards
 	subRewardEvent event.Subscription
+
+	chNoRevealEvent  chan *contract.OracleNoRevealPenalty
+	subNoRevealEvent event.Subscription
 
 	chPenalizedEvent  chan *contract.OraclePenalized
 	subPenalizedEvent event.Subscription
@@ -169,7 +117,7 @@ type OracleServer struct {
 	lostSync               bool // set to true if the connectivity with L1 Autonity network is dropped during runtime.
 	commitmentHashComputer *CommitmentHashComputer
 
-	serverMemories *ServerMemories // server memories to be flushed.
+	memories Memories
 
 	configWatcher  *fsnotify.Watcher // config file watcher which watches the config changes.
 	pluginsWatcher *fsnotify.Watcher // plugins watcher which watches the changes of plugins and the plugins' configs.
@@ -183,7 +131,7 @@ func NewOracleServer(conf *config.Config, dialer types.Dialer, client types.Bloc
 		dialer:             dialer,
 		client:             client,
 		oracleContract:     oc,
-		roundData:          make(map[uint64]*types.RoundData),
+		voteRecords:        make(map[uint64]*types.VoteRecord),
 		runningPlugins:     make(map[string]*pWrapper.PluginWrapper),
 		keyRequiredPlugins: make(map[string]struct{}),
 		doneCh:             make(chan struct{}),
@@ -197,6 +145,13 @@ func NewOracleServer(conf *config.Config, dialer types.Dialer, client types.Bloc
 		Output: o.Stdout,
 		Level:  conf.LoggingLevel,
 	})
+
+	abi, err := abi.JSON(strings.NewReader(contract.OracleMetaData.ABI))
+	if err != nil {
+		os.logger.Error("failed to load ABI", "error", err)
+		o.Exit(1)
+	}
+	os.abi = abi
 
 	chainID, err := client.ChainID(context.Background())
 	if err != nil {
@@ -214,12 +169,8 @@ func NewOracleServer(conf *config.Config, dialer types.Dialer, client types.Bloc
 	os.commitmentHashComputer = commitmentHashComputer
 
 	// load historic state, otherwise default initial state will be used.
-	state := &ServerMemories{}
-	err = state.loadState(os.conf.ProfileDir)
-	if err == nil {
-		os.logger.Info("run oracle server with historical flushed state", "state", state)
-		os.serverMemories = state
-	}
+	os.memories = Memories{dataDir: conf.ProfileDir}
+	os.memories.init(os.logger)
 
 	// discover plugins from plugin dir at startup.
 	binaries, err := helpers.ListPlugins(conf.PluginDIR)
@@ -240,7 +191,7 @@ func NewOracleServer(conf *config.Config, dialer types.Dialer, client types.Bloc
 	}
 
 	os.logger.Info("running oracle contract listener at", "WS", conf.AutonityWSUrl, "ID", conf.Key.Address.String())
-	err = os.syncStates()
+	err = os.sync()
 	if err != nil {
 		// stop the client on start up once the remote endpoint of autonity L1 network is not ready.
 		os.logger.Error("Cannot synchronize oracle contract state from Autonity L1 Network", "error", err.Error(), "WS", conf.AutonityWSUrl)
@@ -280,22 +231,283 @@ func NewOracleServer(conf *config.Config, dialer types.Dialer, client types.Bloc
 	return os
 }
 
-// syncStates is executed on client startup or after the L1 connection recovery to sync the on-chain oracle contract
+func (os *OracleServer) WatchSampleEvent(sink chan<- *types.SampleEvent) event.Subscription {
+	return os.sampleEventFeed.Subscribe(sink)
+}
+
+func (os *OracleServer) Start() {
+	for {
+		select {
+		case <-os.doneCh:
+			os.regularTicker.Stop()
+			os.psTicker.Stop()
+			if os.pluginsWatcher != nil {
+				os.pluginsWatcher.Close() //nolint
+			}
+
+			if os.configWatcher != nil {
+				os.configWatcher.Close() //nolint
+			}
+			os.logger.Info("oracle service is stopped")
+			return
+		case err := <-os.configWatcher.Errors:
+			if err != nil {
+				os.logger.Error("oracle config file watcher err", "err", err.Error())
+			}
+		case err := <-os.pluginsWatcher.Errors:
+			if err != nil {
+				os.logger.Error("plugin watcher errors", "err", err.Error())
+			}
+		case err := <-os.subSymbolsEvent.Err():
+			if err != nil {
+				os.logger.Info("subscription error of new symbols event", err)
+				os.handleConnectivityError()
+				os.subSymbolsEvent.Unsubscribe()
+			}
+		case err := <-os.subRoundEvent.Err():
+			if err != nil {
+				os.logger.Info("subscription error of new round event", err)
+				os.handleConnectivityError()
+				os.subRoundEvent.Unsubscribe()
+			}
+		case err := <-os.subRewardEvent.Err():
+			if err != nil {
+				os.logger.Info("subscription error of reward event", err)
+				os.handleConnectivityError()
+				os.subRewardEvent.Unsubscribe()
+			}
+		case err := <-os.subInvalidVote.Err():
+			if err != nil {
+				os.logger.Info("subscription error of invalid vote", err)
+				os.handleConnectivityError()
+				os.subInvalidVote.Unsubscribe()
+			}
+		case err := <-os.subVotedEvent.Err():
+			if err != nil {
+				os.logger.Info("subscription error of voted event", err)
+				os.handleConnectivityError()
+				os.subVotedEvent.Unsubscribe()
+			}
+		case err := <-os.subNoRevealEvent.Err():
+			if err != nil {
+				os.logger.Info("subscription error of no reveal event", err)
+				os.handleConnectivityError()
+				os.subNoRevealEvent.Unsubscribe()
+			}
+		case err := <-os.subPenalizedEvent.Err():
+			if err != nil {
+				os.logger.Info("subscription error of penalty event", err)
+				os.handleConnectivityError()
+				os.subPenalizedEvent.Unsubscribe()
+			}
+		case <-os.psTicker.C:
+			// shorten the health checker, if we have L1 connectivity issue, try to repair it before pre sampling starts.
+			os.checkHealth()
+			preSampleTS := time.Now().Unix()
+			err := os.handlePreSampling(preSampleTS)
+			if err != nil {
+				os.logger.Error("handle pre-sampling", "error", err.Error())
+			}
+			os.lastSampledTS = preSampleTS
+
+		case invalidVote := <-os.chInvalidVote:
+			os.logger.Info("received invalid vote", "cause", invalidVote.Cause, "expected",
+				invalidVote.ExpValue.String(), "actual", invalidVote.ActualValue.String(), "txn", invalidVote.Raw.TxHash)
+			if metrics.Enabled {
+				metrics.GetOrRegisterCounter(monitor.InvalidVoteMetric, nil).Inc(1)
+			}
+
+		case votedEvent := <-os.chVotedEvent:
+			os.logger.Info("received voted event", "height", votedEvent.Raw.BlockNumber, "txn", votedEvent.Raw.TxHash)
+			if metrics.Enabled {
+				metrics.GetOrRegisterCounter(monitor.SuccessfulVoteMetric, nil).Inc(1)
+			}
+
+		case rewardEvent := <-os.chRewardEvent:
+			os.logger.Info("received reward distribution event", "height", rewardEvent.Raw.BlockNumber,
+				"total distributed ATN", rewardEvent.AtnReward.Uint64(), "total distributed NTN", rewardEvent.NtnReward.Uint64())
+
+		case noRevealEvent := <-os.chNoRevealEvent:
+			os.logger.Info("received no reveal event", "height", noRevealEvent.Raw.BlockNumber, "round", noRevealEvent.Round,
+				"missed", noRevealEvent.MissedReveal.Uint64())
+			if metrics.Enabled {
+				metrics.GetOrRegisterGauge(monitor.NoRevealVoteMetric, nil).Update(noRevealEvent.MissedReveal.Int64())
+			}
+
+		case penalizeEvent := <-os.chPenalizedEvent:
+			if err := os.handlePenaltyEvent(penalizeEvent); err != nil {
+				os.logger.Error("handle penalty event", "error", err.Error())
+			}
+
+		case fsEvent, ok := <-os.configWatcher.Events:
+			if !ok {
+				os.logger.Error("config watcher channel has been closed")
+				return
+			}
+			os.handleConfigEvent(fsEvent)
+
+		case fsEvent, ok := <-os.pluginsWatcher.Events:
+			if !ok {
+				os.logger.Error("plugin watcher channel has been closed")
+				return
+			}
+
+			os.logger.Info("watched plugins fs event", "file", fsEvent.Name, "event", fsEvent.Op.String())
+			// updates on the watched plugin directory will trigger plugin management.
+			os.PluginRuntimeManagement()
+
+		case roundEvent := <-os.chRoundEvent:
+			os.logger.Info("handle new round", "round", roundEvent.Round.Uint64(), "required sampling TS",
+				roundEvent.Timestamp.Uint64(), "height", roundEvent.Raw.BlockNumber, "round period", roundEvent.VotePeriod.Uint64())
+
+			if metrics.Enabled {
+				metrics.GetOrRegisterGauge(monitor.RoundMetric, nil).Update(roundEvent.Round.Int64())
+			}
+
+			// IMPORTANT! sync the round and vote period carries by the round event, and store the reference points for
+			// next presampling and the target for sample selection.
+			os.curRound = roundEvent.Round.Uint64()
+			os.votePeriod = roundEvent.VotePeriod.Uint64()
+			os.curRoundHeight = roundEvent.Raw.BlockNumber
+			os.curSampleTS = roundEvent.Timestamp.Int64()
+
+			// vote for latest protocol symbols.
+			err := os.vote()
+			if err != nil {
+				os.logger.Error("round voting failed", "error", err.Error())
+			}
+			os.gcStaleSamples()
+			// after vote, reset sampling symbols with the latest protocol symbols.
+			os.resetSamplingSymbols(os.protocolSymbols)
+		case newSymbolEvent := <-os.chSymbolsEvent:
+			// New symbols are added, add them into the sampling set to prepare data in advance for the coming round's vote.
+			os.logger.Info("handle new symbols", "new symbols", newSymbolEvent.Symbols, "activate at round", newSymbolEvent.Round)
+			os.handleNewSymbolsEvent(newSymbolEvent.Symbols)
+		case <-os.regularTicker.C:
+			os.gcVoteRecords()
+			if metrics.Enabled {
+				metrics.GetOrRegisterGauge(monitor.PluginMetric, nil).Update(int64(len(os.runningPlugins)))
+			}
+			os.logger.Debug("current round ID", "round", os.curRound)
+		}
+	}
+}
+
+func (os *OracleServer) Stop() {
+	os.client.Close()
+	os.subRoundEvent.Unsubscribe()
+	os.subSymbolsEvent.Unsubscribe()
+	os.subPenalizedEvent.Unsubscribe()
+	os.subNoRevealEvent.Unsubscribe()
+	os.subVotedEvent.Unsubscribe()
+	os.subInvalidVote.Unsubscribe()
+	os.subRewardEvent.Unsubscribe()
+
+	os.doneCh <- struct{}{}
+	for _, c := range os.runningPlugins {
+		p := c
+		p.Close()
+	}
+}
+
+func (os *OracleServer) handleConfigEvent(ev fsnotify.Event) {
+	// filter unwatched files in the dir.
+	if ev.Name != os.conf.ConfigFile {
+		return
+	}
+
+	switch {
+	// tools like sed issues write event for the updates.
+	case ev.Op&fsnotify.Write > 0:
+		// apply plugin config changes.
+		os.logger.Info("config file content changed", "file", ev.Name)
+		os.PluginRuntimeManagement()
+
+	// tools like vim or vscode issues rename, chmod and remove events for the update for an atomic change mode.
+	case ev.Op&fsnotify.Rename > 0:
+		os.logger.Info("config file changed", "file", ev.Name)
+		os.PluginRuntimeManagement()
+	}
+}
+
+func (os *OracleServer) handlePenaltyEvent(penalizeEvent *contract.OraclePenalized) error {
+	// As the OutlierDetectionThreshold is set to low level, e.g. 3% against the median, and the OutlierSlashingThreshold
+	// is configured at (10%, 15%) which is much higher, a penalization event may occur with zero slashing amount.
+	// This indicates that the current client has been identified as an outlier but is not penalized, as its data
+	// point falls below the OutlierSlashingThreshold when compared to the median price. To ensure a broader participation
+	// of nodes within the oracle network and maintain its operational liveness, we continue to allow these
+	// non-slashed outliers to contribute data samples to the network.
+	if metrics.Enabled {
+		gap := new(big.Int).Abs(new(big.Int).Sub(penalizeEvent.Reported, penalizeEvent.Median))
+		gapPercent := new(big.Int).Div(new(big.Int).Mul(gap, big.NewInt(100)), penalizeEvent.Median)
+		metrics.GetOrRegisterGauge(monitor.OutlierDistancePercentMetric, nil).Update(gapPercent.Int64())
+	}
+
+	if penalizeEvent.SlashingAmount.Cmp(common.Big0) == 0 {
+		os.logger.Warn("Client addressed as an outlier, the last vote won't be counted for reward distribution, "+
+			"please use high quality data source.", "symbol", penalizeEvent.Symbol, "median value",
+			penalizeEvent.Median.String(), "reported value", penalizeEvent.Reported.String())
+		os.logger.Warn("IMPORTANT: please double check your data source setup before getting penalized")
+		if metrics.Enabled {
+			metrics.GetOrRegisterCounter(monitor.OutlierNoSlashTimesMetric, nil).Inc(1)
+		}
+		return nil
+	}
+
+	os.logger.Warn("Client get penalized as an outlier", "node", penalizeEvent.Participant,
+		"currency symbol", penalizeEvent.Symbol, "median value", penalizeEvent.Median.String(),
+		"reported value", penalizeEvent.Reported.String(), "block", penalizeEvent.Raw.BlockNumber, "slashed amount", penalizeEvent.SlashingAmount.Uint64())
+	os.logger.Warn("your next vote will be postponed", "in blocks", os.conf.VoteBuffer)
+	os.logger.Warn("IMPORTANT: please repair your data setups for data precision before getting penalized again")
+
+	if metrics.Enabled {
+		metrics.GetOrRegisterCounter(monitor.OutlierSlashTimesMetric, nil).Inc(1)
+		baseUnitsPerNTN := new(big.Float).SetInt(big.NewInt(1e18))
+		amount := new(big.Float).SetUint64(penalizeEvent.SlashingAmount.Uint64())
+		ntnFloat, _ := new(big.Float).Quo(amount, baseUnitsPerNTN).Float64()
+		metrics.GetOrRegisterGaugeFloat64(monitor.OutlierPenaltyMetric, nil).Update(ntnFloat)
+	}
+
+	record := &OutlierRecord{
+		LastPenalizedAtBlock: penalizeEvent.Raw.BlockNumber,
+		Participant:          penalizeEvent.Participant,
+		Symbol:               penalizeEvent.Symbol,
+		Median:               penalizeEvent.Median.Uint64(),
+		Reported:             penalizeEvent.Reported.Uint64(),
+		SlashingAmount:       penalizeEvent.SlashingAmount.Uint64(),
+		LoggedAt:             time.Now().Format(time.RFC3339),
+	}
+	os.memories.outlierRecord = record
+	if err := os.memories.flushRecord(record); err != nil {
+		return err
+	}
+	return nil
+}
+
+// sync is executed on client startup or after the L1 connection recovery to sync the on-chain oracle contract
 // states, symbols, round id, precision, vote period, etc... to the oracle server. It also subscribes the on-chain
 // events of oracle protocol: round event, symbol update event, etc...
-func (os *OracleServer) syncStates() error {
+func (os *OracleServer) sync() error {
 	var err error
-	// get initial states from on-chain oracle contract.
-	os.curRound, os.protocolSymbols, os.votePeriod, err = os.initStates()
+	// get initial states from oracle contract.
+	os.curRound, os.protocolSymbols, os.votePeriod, err = os.syncRoundState()
 	if err != nil {
 		os.logger.Error("synchronize oracle contract state", "error", err.Error())
 		return err
 	}
 
 	// reset sampling symbols with the latest protocol symbols, it adds bridger symbols by according to the protocol symbols.
-	os.ResetSamplingSymbols(os.protocolSymbols)
-	os.logger.Info("syncStates", "CurrentRound", os.curRound, "protocol symbols", os.protocolSymbols, "sampling symbols", os.samplingSymbols)
+	os.resetSamplingSymbols(os.protocolSymbols)
 
+	// subscribe protocol events
+	if err = os.subscribeEvents(); err != nil {
+		return err
+	}
+	os.logger.Info("synced", "CurrentRound", os.curRound, "protocol symbols", os.protocolSymbols, "sampling symbols", os.samplingSymbols)
+	return nil
+}
+
+func (os *OracleServer) subscribeEvents() error {
 	// subscribe on-chain round rotation event
 	chRoundEvent := make(chan *contract.OracleNewRound)
 	subRoundEvent, err := os.oracleContract.WatchNewRound(new(bind.WatchOpts), chRoundEvent)
@@ -316,6 +528,16 @@ func (os *OracleServer) syncStates() error {
 	os.chSymbolsEvent = chSymbolsEvent
 	os.subSymbolsEvent = subSymbolsEvent
 
+	// subscribe on-chain no-reveal event
+	chNoRevealEvent := make(chan *contract.OracleNoRevealPenalty)
+	subNoRevealEvent, err := os.oracleContract.WatchNoRevealPenalty(new(bind.WatchOpts), chNoRevealEvent, []common.Address{os.conf.Key.Address})
+	if err != nil {
+		os.logger.Error("failed to subscribe no reveal event", "error", err.Error())
+		return err
+	}
+	os.chNoRevealEvent = chNoRevealEvent
+	os.subNoRevealEvent = subNoRevealEvent
+
 	// subscribe on-chain penalize event
 	chPenalizedEvent := make(chan *contract.OraclePenalized)
 	subPenalizedEvent, err := os.oracleContract.WatchPenalized(new(bind.WatchOpts), chPenalizedEvent, []common.Address{os.conf.Key.Address})
@@ -323,7 +545,6 @@ func (os *OracleServer) syncStates() error {
 		os.logger.Error("failed to subscribe penalized event", "error", err.Error())
 		return err
 	}
-
 	os.chPenalizedEvent = chPenalizedEvent
 	os.subPenalizedEvent = subPenalizedEvent
 
@@ -334,7 +555,6 @@ func (os *OracleServer) syncStates() error {
 		os.logger.Error("failed to subscribe voted event", "error", err.Error())
 		return err
 	}
-
 	os.chVotedEvent = chVotedEvent
 	os.subVotedEvent = subVotedEvent
 
@@ -355,15 +575,16 @@ func (os *OracleServer) syncStates() error {
 		os.logger.Error("failed to subscribe reward event", "error", err.Error())
 		return err
 	}
-
 	os.chRewardEvent = chRewardEvent
 	os.subRewardEvent = subRewardEvent
-
 	return nil
 }
 
-// initStates returns round id, symbols and committees on current chain, it is called on the startup of client.
-func (os *OracleServer) initStates() (uint64, []string, uint64, error) {
+// syncRoundState returns round id, symbols and vote period on oracle contract, it is called on the startup of client.
+// Since below steps are not atomic get operation from blockchain, thus they are just being used at the initial phase
+// for data presampling, the correctness of voting is promised by the synchronization triggered by the round event before
+// the voting.
+func (os *OracleServer) syncRoundState() (uint64, []string, uint64, error) {
 	// on the startup, we need to sync the round id, symbols and committees from contract.
 	currentRound, err := os.oracleContract.GetRound(nil)
 	if err != nil {
@@ -391,18 +612,18 @@ func (os *OracleServer) initStates() (uint64, []string, uint64, error) {
 	return currentRound.Uint64(), symbols, votePeriod.Uint64(), nil
 }
 
-func (os *OracleServer) gcExpiredSamples() {
+func (os *OracleServer) gcStaleSamples() {
 	for _, plugin := range os.runningPlugins {
 		plugin.GCExpiredSamples()
 	}
 }
 
-func (os *OracleServer) gcRoundData() {
-	if len(os.roundData) >= MaxBufferedRounds {
+func (os *OracleServer) gcVoteRecords() {
+	if len(os.voteRecords) >= MaxBufferedRounds {
 		offset := os.curRound - MaxBufferedRounds
-		for k := range os.roundData {
+		for k := range os.voteRecords {
 			if k <= offset {
-				delete(os.roundData, k)
+				delete(os.voteRecords, k)
 			}
 		}
 	}
@@ -414,7 +635,7 @@ func (os *OracleServer) handleConnectivityError() {
 
 func (os *OracleServer) checkHealth() {
 	if os.lostSync {
-		err := os.syncStates()
+		err := os.sync()
 		if err != nil && !errors.Is(err, types.ErrNoSymbolsObserved) {
 			os.logger.Info("rebuilding WS connectivity with Autonity L1 node", "error", err)
 			if metrics.Enabled {
@@ -471,41 +692,45 @@ func (os *OracleServer) printLatestRoundData(newRound uint64) {
 	}
 }
 
+func (os *OracleServer) samplingFirstRound(ts int64) error {
+	nextRoundHeight := os.votePeriod
+	curHeight, err := os.client.BlockNumber(context.Background())
+	if err != nil {
+		os.logger.Error("handle pre-sampling", "error", err.Error())
+		return err
+	}
+
+	if curHeight > nextRoundHeight {
+		return nil
+	}
+
+	if nextRoundHeight-curHeight > uint64(config.PreSamplingRange) { //nolint
+		return nil
+	}
+
+	// do the data pre-sampling.
+	os.logger.Debug("data pre-sampling", "round", os.curRound, "on height", curHeight, "TS", ts)
+	os.samplePrice(os.samplingSymbols, ts)
+	return nil
+}
+
 func (os *OracleServer) handlePreSampling(preSampleTS int64) error {
 
 	// start to sample data point for the 1st round as the round period could be longer than 30s, we don't want to
 	// wait for another round to get the data be available on-chain.
 	if os.curRound == FirstRound {
-		nextRoundHeight := os.votePeriod
-		curHeight, err := os.client.BlockNumber(context.Background())
-		if err != nil {
-			os.logger.Error("handle pre-sampling", "error", err.Error())
-			return err
-		}
-
-		if curHeight > nextRoundHeight {
-			return nil
-		}
-
-		if nextRoundHeight-curHeight > uint64(config.PreSamplingRange) { //nolint
-			return nil
-		}
-
-		// do the data pre-sampling.
-		os.logger.Debug("data pre-sampling", "round", os.curRound, "on height", curHeight, "TS", preSampleTS)
-		os.samplePrice(os.samplingSymbols, preSampleTS)
-
-		return nil
+		return os.samplingFirstRound(preSampleTS)
 	}
 
-	// taking the 1st round and the round after a node recover from a disaster as a special case, to skip the
+	// todo: assess if this condition is still required, as we have the persistence layer.
+	// taking the round after a node recover from a disaster as a special case, to skip the
 	// pre-sampling. In this special case, the regular 10s samples will be used for data reporting.
-	if os.curSampleTS == 0 || os.curSampleHeight == 0 {
+	if os.curSampleTS == 0 || os.curRoundHeight == 0 {
 		return nil
 	}
 
 	// if it is not a good timing to start sampling then return.
-	nextRoundHeight := os.curSampleHeight + os.votePeriod
+	nextRoundHeight := os.curRoundHeight + os.votePeriod
 	curHeight, err := os.client.BlockNumber(context.Background())
 	if err != nil {
 		os.logger.Error("handle pre-sampling", "error", err.Error())
@@ -518,28 +743,124 @@ func (os *OracleServer) handlePreSampling(preSampleTS int64) error {
 	// do the data pre-sampling.
 	os.logger.Debug("data pre-sampling", "round", os.curRound, "on height", curHeight, "TS", preSampleTS)
 	os.samplePrice(os.samplingSymbols, preSampleTS)
-
 	return nil
 }
 
-func (os *OracleServer) handleRoundVote() error {
+func (os *OracleServer) isBlockchainSynced() bool {
 	// if the autonity node is on peer synchronization state, just skip the reporting.
 	syncing, err := os.client.SyncProgress(context.Background())
 	if err != nil {
-		os.logger.Error("handleRoundVote get SyncProgress", "error", err.Error())
-		return err
+		os.logger.Error("vote get SyncProgress", "error", err.Error())
+		return false
 	}
 
 	if syncing != nil {
 		os.logger.Warn("skip round event since the Autonity L1 node is doing block synchronization")
+		return false
+	}
+
+	return true
+}
+
+func (os *OracleServer) syncProtocolSymbols() error {
+	// get latest symbols from oracle.
+	var err error
+	os.protocolSymbols, err = os.oracleContract.GetSymbols(nil)
+	if err != nil {
+		os.logger.Error("vote get symbols", "error", err.Error())
+		return err
+	}
+
+	return nil
+}
+
+func (os *OracleServer) penalityTopic(name string, query ...[]interface{}) ([][]common.Hash, error) {
+	// Append the event selector to the query parameters and construct the topic set
+	query = append([][]interface{}{{os.abi.Events[name].ID}}, query...)
+	topics, err := abi.MakeTopics(query...)
+	if err != nil {
+		return nil, err
+	}
+	return topics, nil
+}
+
+// UnpackLog unpacks a retrieved log into the provided output structure.
+func (os *OracleServer) unpackLog(out interface{}, event string, log tp.Log) error {
+	if log.Topics[0] != os.abi.Events[event].ID {
+		return fmt.Errorf("event signature mismatch")
+	}
+	if len(log.Data) > 0 {
+		if err := os.abi.UnpackIntoInterface(out, event, log.Data); err != nil {
+			return err
+		}
+	}
+	var indexed abi.Arguments
+	for _, arg := range os.abi.Events[event].Inputs {
+		if arg.Indexed {
+			indexed = append(indexed, arg)
+		}
+	}
+	return abi.ParseTopics(out, indexed, log.Topics[1:])
+}
+
+func (os *OracleServer) onOutlierSlashing() bool {
+	// filer log with the topic of penalized event with self address.
+	var participants []interface{}
+	participants = append(participants, os.conf.Key.Address)
+	topic, err := os.penalityTopic(penalizeEventName, participants)
+	if err != nil {
+		os.logger.Error("fail to assemble penality topic", "error", err.Error(), "height", os.curRoundHeight)
+		return false
+	}
+
+	// filter log over the round block.
+	logs, err := os.client.FilterLogs(context.Background(), ethereum.FilterQuery{
+		FromBlock: new(big.Int).SetUint64(os.curRoundHeight),
+		ToBlock:   new(big.Int).SetUint64(os.curRoundHeight),
+		Addresses: []common.Address{types.OracleContractAddress},
+		Topics:    topic,
+	})
+	if err != nil {
+		os.logger.Info("fail to filter logs", "height", os.curRoundHeight, "err", err.Error())
+		return false
+	}
+
+	// No penalized event at all.
+	if len(logs) == 0 {
+		return false
+	}
+
+	// unpack log, and check if the slashing amount is over zero.
+	for _, log := range logs {
+		ev := new(contract.OraclePenalized)
+		if err = os.unpackLog(ev, penalizeEventName, log); err != nil {
+			return false
+		}
+		ev.Raw = log
+		if ev.SlashingAmount.Cmp(common.Big0) > 0 {
+			os.logger.Info("on going slashing", "height", os.curRoundHeight, "round", os.curRound,
+				"symbol", ev.Symbol, "median", ev.Median.String(), "reported", ev.Reported.String(), "slashing amount",
+				ev.SlashingAmount.String())
+			return true
+		}
+	}
+	return false
+}
+
+func (os *OracleServer) vote() error {
+	if !os.isBlockchainSynced() {
 		return types.ErrPeerOnSync
 	}
 
-	// get latest symbols from oracle.
-	os.protocolSymbols, err = os.oracleContract.GetSymbols(nil)
-	if err != nil {
-		os.logger.Error("handleRoundVote get symbols", "error", err.Error())
+	// sync protocol symbols before vote.
+	if err := os.syncProtocolSymbols(); err != nil {
 		return err
+	}
+
+	// as outlier slashing event can come right after round event in the same block.
+	// if node is on outlier slashing, skip round vote to avoid the outlier slashing again.
+	if os.onOutlierSlashing() {
+		return types.ErrOnOutlierSlashing
 	}
 
 	os.printLatestRoundData(os.curRound)
@@ -547,14 +868,20 @@ func (os *OracleServer) handleRoundVote() error {
 	// if client is not a voter, just skip reporting.
 	isVoter, err := os.isVoter()
 	if err != nil {
-		os.logger.Error("handleRoundVote isVoter", "error", err.Error())
+		os.logger.Error("vote isVoter", "error", err.Error())
 		return err
 	}
 
 	// query last round's prices, its random salt which will reveal last round's report.
-	lastRoundData, ok := os.roundData[os.curRound-1]
+	lastVoteRecord, ok := os.voteRecords[os.curRound-1]
 	if !ok {
-		os.logger.Debug("no last round data, client is no longer a voter or it reports just current round commitment")
+		// no last round data from the buffer, try to find it from the persistence memory.
+		if os.memories.voteRecord != nil && os.memories.voteRecord.RoundID == os.curRound-1 {
+			os.logger.Info("load last round data from server persistence")
+			lastVoteRecord = os.memories.voteRecord
+		} else {
+			os.logger.Debug("no last round data, client is no longer a voter or it reports just current round commitment")
+		}
 	}
 
 	// if node is no longer a validator, and it doesn't have last round data, skip reporting.
@@ -567,48 +894,52 @@ func (os *OracleServer) handleRoundVote() error {
 	}
 
 	// check with the vote buffer from the last penalty event.
-	if os.serverMemories != nil && os.curSampleHeight-os.serverMemories.LastPenalizedAtBlock <= os.conf.VoteBuffer {
-		left := os.conf.VoteBuffer - (os.curSampleHeight - os.serverMemories.LastPenalizedAtBlock)
+	if os.memories.outlierRecord != nil && os.curRoundHeight-os.memories.outlierRecord.LastPenalizedAtBlock <= os.conf.VoteBuffer {
+		left := os.conf.VoteBuffer - (os.curRoundHeight - os.memories.outlierRecord.LastPenalizedAtBlock)
 		os.logger.Warn("due to the outlier penalty, we postpone your next vote from slashing", "next vote block", left)
-		os.logger.Warn("your last outlier report was", "report", os.serverMemories.OutlierRecord)
+		os.logger.Warn("your last outlier report was", "report", os.memories.outlierRecord)
 		os.logger.Warn("during this period, you can: 1. check your data source infra; 2. restart your oracle-client; 3. contact Autonity team for help;")
 		return nil
 	}
 
 	if isVoter {
 		// a voter need to assemble current round data to report it.
-		curRoundData, err := os.buildRoundData(os.curRound)
-
+		curVoteRecord, err := os.buildVoteRecord(os.curRound)
 		// if the voter failed to assemble current round data, but it has last round data available, then reveal it.
 		if err != nil {
-			if lastRoundData != nil {
-				return os.reportWithoutCommitment(lastRoundData)
+			if lastVoteRecord != nil {
+				return os.reportWithoutCommitment(lastVoteRecord)
 			}
 			return err
 		}
 
 		// round data was successfully assembled, save current round data.
-		os.roundData[os.curRound] = curRoundData
+		if err = os.memories.flushRecord(curVoteRecord); err != nil {
+			os.logger.Warn("failed to vote record to persistence", "error", err.Error())
+			os.logger.Warn("IMPORTANT: please check your profile data dir, the server need to flush vote record into it.")
+		}
+
+		os.voteRecords[os.curRound] = curVoteRecord
 		if metrics.Enabled {
 			metrics.GetOrRegisterGauge(monitor.IsVoterMetric, nil).Update(1)
 		}
 		// report with last round data and with current round commitment hash.
-		return os.reportWithCommitment(curRoundData, lastRoundData)
+		return os.reportWithCommitment(curVoteRecord, lastVoteRecord)
 	}
 
 	// edge case, voter is no longer a committee member, it has to reveal the last round data that it committed to.
-	if lastRoundData != nil {
-		return os.reportWithoutCommitment(lastRoundData)
+	if lastVoteRecord != nil {
+		return os.reportWithoutCommitment(lastVoteRecord)
 	}
 	return nil
 }
 
 // reportWithCommitment reports the commitment of current round, and with last round data if the last round data is available.
 // if the input last round data is nil, we just need to report the commitment of current round without last round data.
-func (os *OracleServer) reportWithCommitment(curRoundData, lastRoundData *types.RoundData) error {
+func (os *OracleServer) reportWithCommitment(curRoundData, lastVote *types.VoteRecord) error {
 	var err error
 	// prepare the transaction which carry current round's commitment, and last round's data.
-	curRoundData.Tx, err = os.doReport(curRoundData.CommitmentHash, lastRoundData)
+	curRoundData.Tx, err = os.doReport(curRoundData.CommitmentHash, lastVote)
 	if err != nil {
 		os.logger.Error("do report", "error", err.Error())
 		return err
@@ -636,10 +967,10 @@ func (os *OracleServer) reportWithCommitment(curRoundData, lastRoundData *types.
 }
 
 // report with last round data but without current round commitment, voter is leaving from the committee.
-func (os *OracleServer) reportWithoutCommitment(lastRoundData *types.RoundData) error {
+func (os *OracleServer) reportWithoutCommitment(lastVoteRecord *types.VoteRecord) error {
 
 	// report with no commitment of current round as voter is leaving from the committee.
-	tx, err := os.doReport(common.Hash{}, lastRoundData)
+	tx, err := os.doReport(common.Hash{}, lastVoteRecord)
 	if err != nil {
 		os.logger.Error("do report", "error", err.Error())
 		return err
@@ -648,8 +979,8 @@ func (os *OracleServer) reportWithoutCommitment(lastRoundData *types.RoundData) 
 	return nil
 }
 
-// ResetSamplingSymbols reset the latest sampling symbol set with the protocol symbol set.
-func (os *OracleServer) ResetSamplingSymbols(protocolSymbols []string) {
+// resetSamplingSymbols reset the latest sampling symbol set with the protocol symbol set.
+func (os *OracleServer) resetSamplingSymbols(protocolSymbols []string) {
 	os.samplingSymbols = protocolSymbols
 
 	// check if we need to add bridger symbols on demand.
@@ -666,8 +997,8 @@ func (os *OracleServer) ResetSamplingSymbols(protocolSymbols []string) {
 	}
 }
 
-// AddNewSymbols adds new symbols to the local symbol set for data fetching, duplicated one is not added.
-func (os *OracleServer) AddNewSymbols(newSymbols []string) {
+// addNewSymbols adds new symbols to the local symbol set for data fetching, duplicated one is not added.
+func (os *OracleServer) addNewSymbols(newSymbols []string) {
 	var symbolsMap = make(map[string]struct{})
 	for _, s := range os.samplingSymbols {
 		symbolsMap[s] = struct{}{}
@@ -708,7 +1039,7 @@ func (os *OracleServer) resolveGasTipCap() *big.Int {
 	return configured
 }
 
-func (os *OracleServer) doReport(curRoundCommitmentHash common.Hash, lastRoundData *types.RoundData) (*tp.Transaction, error) {
+func (os *OracleServer) doReport(curRoundCommitmentHash common.Hash, lastVoteRecord *types.VoteRecord) (*tp.Transaction, error) {
 	chainID, err := os.client.ChainID(context.Background())
 	if err != nil {
 		os.logger.Error("get chain id", "error", err.Error())
@@ -739,16 +1070,16 @@ func (os *OracleServer) doReport(curRoundCommitmentHash common.Hash, lastRoundDa
 	auth.GasLimit = uint64(3000000)
 
 	// if there is no last round data, then we just submit the commitment hash of current round.
-	if lastRoundData == nil {
+	if lastVoteRecord == nil {
 		var reports []contract.IOracleReport
 		return os.oracleContract.Vote(auth, new(big.Int).SetBytes(curRoundCommitmentHash.Bytes()), reports, invalidSalt, config.Version)
 	}
 
 	// there is last round data, report with current round commitment, and the last round reports and salt to be revealed.
-	return os.oracleContract.Vote(auth, new(big.Int).SetBytes(curRoundCommitmentHash.Bytes()), lastRoundData.Reports, lastRoundData.Salt, config.Version)
+	return os.oracleContract.Vote(auth, new(big.Int).SetBytes(curRoundCommitmentHash.Bytes()), lastVoteRecord.Reports, lastVoteRecord.Salt, config.Version)
 }
 
-func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
+func (os *OracleServer) buildVoteRecord(round uint64) (*types.VoteRecord, error) {
 	if len(os.protocolSymbols) == 0 {
 		return nil, types.ErrNoSymbolsObserved
 	}
@@ -759,13 +1090,13 @@ func (os *OracleServer) buildRoundData(round uint64) (*types.RoundData, error) {
 	}
 
 	// assemble round data with reports, salt and commitment hash.
-	roundData, err := os.assembleReportData(round, os.protocolSymbols, prices)
+	voteRecord, err := os.assembleVote(round, os.protocolSymbols, prices)
 	if err != nil {
 		os.logger.Error("failed to assemble round report data", "error", err.Error())
 		return nil, err
 	}
-	os.logger.Info("assembled round report data", "current round", round, "prices", roundData)
-	return roundData, nil
+	os.logger.Info("assembled round report data", "current round", round, "prices", voteRecord)
+	return voteRecord, nil
 }
 
 func (os *OracleServer) aggregateProtocolSymbolPrices() (types.PriceBySymbol, error) {
@@ -789,7 +1120,7 @@ func (os *OracleServer) aggregateProtocolSymbolPrices() (types.PriceBySymbol, er
 				continue
 			}
 
-			p, e := os.aggregateBridgedPrice(s, os.curSampleTS, usdcPrice)
+			p, e := os.aggBridgedPrice(s, os.curSampleTS, usdcPrice)
 			if e != nil {
 				os.logger.Error("aggregate bridged price", "error", e.Error(), "symbol", s)
 				continue
@@ -836,8 +1167,8 @@ func (os *OracleServer) aggregateProtocolSymbolPrices() (types.PriceBySymbol, er
 }
 
 // assemble the final reports, salt and commitment hash.
-func (os *OracleServer) assembleReportData(round uint64, symbols []string, prices types.PriceBySymbol) (*types.RoundData, error) {
-	var roundData = &types.RoundData{
+func (os *OracleServer) assembleVote(round uint64, symbols []string, prices types.PriceBySymbol) (*types.VoteRecord, error) {
+	var voteRecord = &types.VoteRecord{
 		RoundID: round,
 		Symbols: symbols,
 		Prices:  prices,
@@ -881,20 +1212,20 @@ func (os *OracleServer) assembleReportData(round uint64, symbols []string, price
 		return nil, err
 	}
 
-	roundData.Reports = reports
-	roundData.Salt = salt
-	roundData.CommitmentHash = commitmentHash
-	return roundData, nil
+	voteRecord.Reports = reports
+	voteRecord.Salt = salt
+	voteRecord.CommitmentHash = commitmentHash
+	return voteRecord, nil
 }
 
 func (os *OracleServer) handleNewSymbolsEvent(symbols []string) {
 	// just add symbols to oracle service's symbol pool, thus the oracle service can start to prepare the data.
-	os.AddNewSymbols(symbols)
+	os.addNewSymbols(symbols)
 }
 
-// aggregateBridgedPrice ATN-USD or NTN-USD from bridged ATN-USDC or NTN-USDC with USDC-USD price,
+// aggBridgedPrice aggregates ATN-USD or NTN-USD from bridged ATN-USDC or NTN-USDC with USDC-USD price,
 // it assumes the input usdcPrice is not nil.
-func (os *OracleServer) aggregateBridgedPrice(srcSymbol string, target int64, usdcPrice *types.Price) (*types.Price, error) {
+func (os *OracleServer) aggBridgedPrice(srcSymbol string, target int64, usdcPrice *types.Price) (*types.Price, error) {
 	var bridgedSymbol string
 	if srcSymbol == ATNUSD {
 		bridgedSymbol = ATNUSDC
@@ -942,7 +1273,7 @@ func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, er
 	}
 
 	// compute confidence of the symbol from the num of plugins' samples of it.
-	confidence := ComputeConfidence(s, len(prices), os.conf.ConfidenceStrategy)
+	confidence := computeConfidence(s, len(prices), os.conf.ConfidenceStrategy)
 	price := &types.Price{
 		Timestamp:  target,
 		Price:      prices[0],
@@ -980,26 +1311,26 @@ func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, er
 // queryHistoricRoundPrice queries the last available price for a given symbol from the historic rounds.
 func (os *OracleServer) queryHistoricRoundPrice(symbol string) (types.Price, error) {
 
-	if len(os.roundData) == 0 {
+	if len(os.voteRecords) == 0 {
 		return types.Price{}, types.ErrNoDataRound
 	}
 
-	numOfRounds := len(os.roundData)
+	numOfRounds := len(os.voteRecords)
 	// Iterate from the current round backward
 	for i := 0; i < numOfRounds; i++ {
 		roundID := os.curRound - uint64(i) - 1 //nolint
 		// Get the round data for the current round ID
-		roundData, exists := os.roundData[roundID]
+		voteRecord, exists := os.voteRecords[roundID]
 		if !exists {
 			continue
 		}
 
-		if roundData == nil {
+		if voteRecord == nil {
 			continue
 		}
 
 		// Check if the symbol exists in the Prices map
-		if price, found := roundData.Prices[symbol]; found {
+		if price, found := voteRecord.Prices[symbol]; found {
 			return price, nil
 		}
 	}
@@ -1020,412 +1351,4 @@ func (os *OracleServer) samplePrice(symbols []string, ts int64) {
 	}
 	nListener := os.sampleEventFeed.Send(e)
 	os.logger.Debug("sample event is sent to", "num of plugins", nListener)
-}
-
-func (os *OracleServer) Start() {
-	for {
-		select {
-		case <-os.doneCh:
-			os.regularTicker.Stop()
-			os.psTicker.Stop()
-			if os.pluginsWatcher != nil {
-				os.pluginsWatcher.Close() //nolint
-			}
-
-			if os.configWatcher != nil {
-				os.configWatcher.Close() //nolint
-			}
-			os.logger.Info("oracle service is stopped")
-			return
-		case err := <-os.configWatcher.Errors:
-			if err != nil {
-				os.logger.Error("oracle config file watcher err", "err", err.Error())
-			}
-		case err := <-os.pluginsWatcher.Errors:
-			if err != nil {
-				os.logger.Error("plugin watcher errors", "err", err.Error())
-			}
-		case err := <-os.subSymbolsEvent.Err():
-			if err != nil {
-				os.logger.Info("subscription error of new symbols event", err)
-				os.handleConnectivityError()
-				os.subSymbolsEvent.Unsubscribe()
-			}
-		case err := <-os.subRoundEvent.Err():
-			if err != nil {
-				os.logger.Info("subscription error of new round event", err)
-				os.handleConnectivityError()
-				os.subRoundEvent.Unsubscribe()
-			}
-		case err := <-os.subRewardEvent.Err():
-			if err != nil {
-				os.logger.Info("subscription error of reward event", err)
-				os.handleConnectivityError()
-				os.subRewardEvent.Unsubscribe()
-			}
-		case err := <-os.subInvalidVote.Err():
-			if err != nil {
-				os.logger.Info("subscription error of invalid vote", err)
-				os.handleConnectivityError()
-				os.subInvalidVote.Unsubscribe()
-			}
-		case err := <-os.subVotedEvent.Err():
-			if err != nil {
-				os.logger.Info("subscription error of voted event", err)
-				os.handleConnectivityError()
-				os.subVotedEvent.Unsubscribe()
-			}
-		case err := <-os.subPenalizedEvent.Err():
-			if err != nil {
-				os.logger.Info("subscription error of penalty event", err)
-				os.handleConnectivityError()
-				os.subPenalizedEvent.Unsubscribe()
-			}
-		case <-os.psTicker.C:
-			// shorten the health checker, if we have L1 connectivity issue, try to repair it before pre sampling starts.
-			os.checkHealth()
-
-			preSampleTS := time.Now().Unix()
-			err := os.handlePreSampling(preSampleTS)
-			if err != nil {
-				os.logger.Error("handle pre-sampling", "error", err.Error())
-			}
-			os.lastSampledTS = preSampleTS
-
-		case invalidVote := <-os.chInvalidVote:
-			os.logger.Info("received invalid vote", "cause", invalidVote.Cause, "expected",
-				invalidVote.ExpValue.String(), "actual", invalidVote.ActualValue.String(), "txn", invalidVote.Raw.TxHash)
-			if metrics.Enabled {
-				metrics.GetOrRegisterCounter(monitor.InvalidVoteMetric, nil).Inc(1)
-			}
-
-		case votedEvent := <-os.chVotedEvent:
-			os.logger.Info("received voted event", "height", votedEvent.Raw.BlockNumber, "txn", votedEvent.Raw.TxHash)
-			if metrics.Enabled {
-				metrics.GetOrRegisterCounter(monitor.SuccessfulVoteMetric, nil).Inc(1)
-			}
-
-		case rewardEvent := <-os.chRewardEvent:
-			os.logger.Info("received reward distribution event", "height", rewardEvent.Raw.BlockNumber,
-				"total distributed ATN", rewardEvent.AtnReward.Uint64(), "total distributed NTN", rewardEvent.NtnReward.Uint64())
-
-		case penalizeEvent := <-os.chPenalizedEvent:
-
-			// As the OutlierDetectionThreshold is set to low level, e.g. 3% against the median, and the OutlierSlashingThreshold
-			// is configured at (10%, 15%) which is much higher, a penalization event may occur with zero slashing amount.
-			// This indicates that the current client has been identified as an outlier but is not penalized, as its data
-			// point falls below the OutlierSlashingThreshold when compared to the median price. To ensure a broader participation
-			// of nodes within the oracle network and maintain its operational liveness, we continue to allow these
-			// non-slashed outliers to contribute data samples to the network.
-
-			if metrics.Enabled {
-				gap := new(big.Int).Abs(new(big.Int).Sub(penalizeEvent.Reported, penalizeEvent.Median))
-				gapPercent := new(big.Int).Div(new(big.Int).Mul(gap, big.NewInt(100)), penalizeEvent.Median)
-				metrics.GetOrRegisterGauge(monitor.OutlierDistancePercentMetric, nil).Update(gapPercent.Int64())
-			}
-
-			if penalizeEvent.SlashingAmount.Cmp(common.Big0) == 0 {
-				os.logger.Warn("Client addressed as an outlier, the last vote won't be counted for reward distribution, "+
-					"please use high quality data source.", "symbol", penalizeEvent.Symbol, "median value",
-					penalizeEvent.Median.String(), "reported value", penalizeEvent.Reported.String())
-				os.logger.Warn("IMPORTANT: please double check your data source setup before getting penalized")
-				if metrics.Enabled {
-					metrics.GetOrRegisterCounter(monitor.OutlierNoSlashTimesMetric, nil).Inc(1)
-				}
-				continue
-			}
-
-			os.logger.Warn("Client get penalized as an outlier", "node", penalizeEvent.Participant,
-				"currency symbol", penalizeEvent.Symbol, "median value", penalizeEvent.Median.String(),
-				"reported value", penalizeEvent.Reported.String(), "block", penalizeEvent.Raw.BlockNumber, "slashed amount", penalizeEvent.SlashingAmount.Uint64())
-			os.logger.Warn("your next vote will be postponed", "in blocks", os.conf.VoteBuffer)
-			os.logger.Warn("IMPORTANT: please repair your data setups for data precision before getting penalized again")
-
-			if metrics.Enabled {
-				metrics.GetOrRegisterCounter(monitor.OutlierSlashTimesMetric, nil).Inc(1)
-				baseUnitsPerNTN := new(big.Float).SetInt(big.NewInt(1e18))
-				amount := new(big.Float).SetUint64(penalizeEvent.SlashingAmount.Uint64())
-				ntnFloat, _ := new(big.Float).Quo(amount, baseUnitsPerNTN).Float64()
-				metrics.GetOrRegisterGaugeFloat64(monitor.OutlierPenaltyMetric, nil).Update(ntnFloat)
-			}
-
-			newState := &ServerMemories{
-				OutlierRecord: OutlierRecord{
-					LastPenalizedAtBlock: penalizeEvent.Raw.BlockNumber,
-					Participant:          penalizeEvent.Participant,
-					Symbol:               penalizeEvent.Symbol,
-					Median:               penalizeEvent.Median.Uint64(),
-					Reported:             penalizeEvent.Reported.Uint64(),
-					SlashingAmount:       penalizeEvent.SlashingAmount.Uint64(),
-				},
-				LoggedAt: time.Now().Format(time.RFC3339),
-			}
-
-			os.serverMemories = newState
-			if err := os.serverMemories.flush(os.conf.ProfileDir); err != nil {
-				os.logger.Error("failed to flush oracle state", "error", err.Error())
-			}
-		case fsEvent, ok := <-os.configWatcher.Events:
-			if !ok {
-				os.logger.Error("config watcher channel has been closed")
-				return
-			}
-			// filter unwatched files in the dir.
-			if fsEvent.Name != os.conf.ConfigFile {
-				continue
-			}
-
-			switch {
-			// tools like sed issues write event for the updates.
-			case fsEvent.Op&fsnotify.Write > 0:
-				// apply plugin config changes.
-				os.logger.Info("config file content changed", "file", fsEvent.Name)
-				os.PluginRuntimeManagement()
-
-			// tools like vim or vscode issues rename, chmod and remove events for the update for an atomic change mode.
-			case fsEvent.Op&fsnotify.Rename > 0:
-				os.logger.Info("config file changed", "file", fsEvent.Name)
-				os.PluginRuntimeManagement()
-			}
-
-		case fsEvent, ok := <-os.pluginsWatcher.Events:
-			if !ok {
-				os.logger.Error("plugin watcher channel has been closed")
-				return
-			}
-
-			os.logger.Info("watched plugins fs event", "file", fsEvent.Name, "event", fsEvent.Op.String())
-			// updates on the watched plugin directory will trigger plugin management.
-			os.PluginRuntimeManagement()
-
-		case roundEvent := <-os.chRoundEvent:
-			os.logger.Info("handle new round", "round", roundEvent.Round.Uint64(), "required sampling TS",
-				roundEvent.Timestamp.Uint64(), "height", roundEvent.Raw.BlockNumber, "round period", roundEvent.VotePeriod.Uint64())
-
-			if metrics.Enabled {
-				metrics.GetOrRegisterGauge(monitor.RoundMetric, nil).Update(roundEvent.Round.Int64())
-			}
-
-			// save the round rotation info to coordinate the pre-sampling.
-			os.curRound = roundEvent.Round.Uint64()
-			os.votePeriod = roundEvent.VotePeriod.Uint64()
-			os.curSampleHeight = roundEvent.Raw.BlockNumber
-			os.curSampleTS = roundEvent.Timestamp.Int64()
-
-			// sync protocol symbols, and submit round vote by according to node's membership.
-			err := os.handleRoundVote()
-			if err != nil {
-				os.logger.Error("round voting failed", "error", err.Error())
-			}
-			// at the end of each round, gc expired samples of per plugin.
-			os.gcExpiredSamples()
-			// after vote finished, reset sampling symbols by the latest synced protocol symbols.
-			os.ResetSamplingSymbols(os.protocolSymbols)
-		case newSymbolEvent := <-os.chSymbolsEvent:
-			// New symbols are added, add them into the sampling set to prepare data in advance for the coming round's vote.
-			os.logger.Info("handle new symbols", "new symbols", newSymbolEvent.Symbols, "activate at round", newSymbolEvent.Round)
-			os.handleNewSymbolsEvent(newSymbolEvent.Symbols)
-		case <-os.regularTicker.C:
-			os.gcRoundData()
-			if metrics.Enabled {
-				metrics.GetOrRegisterGauge(monitor.PluginMetric, nil).Update(int64(len(os.runningPlugins)))
-			}
-			os.logger.Debug("current round ID", "round", os.curRound)
-		}
-	}
-}
-
-func (os *OracleServer) Stop() {
-	os.client.Close()
-	os.subRoundEvent.Unsubscribe()
-	os.subSymbolsEvent.Unsubscribe()
-	os.subPenalizedEvent.Unsubscribe()
-	os.subVotedEvent.Unsubscribe()
-	os.subInvalidVote.Unsubscribe()
-	os.subRewardEvent.Unsubscribe()
-
-	os.doneCh <- struct{}{}
-	for _, c := range os.runningPlugins {
-		p := c
-		p.Close()
-	}
-}
-
-func (os *OracleServer) PluginRuntimeManagement() {
-	// load plugin configs before start them.
-	newConfs, err := config.LoadPluginsConfig(os.conf.ConfigFile)
-	if err != nil {
-		os.logger.Error("cannot load plugin configuration", "error", err.Error())
-		return
-	}
-
-	// load plugin binaries
-	binaries, err := helpers.ListPlugins(os.conf.PluginDIR)
-	if err != nil {
-		os.logger.Error("list plugin", "error", err.Error())
-		return
-	}
-
-	// shutdown the plugins which are removed, disabled or with config update.
-	for name, plugin := range os.runningPlugins {
-		// shutdown the plugins that were removed.
-		if _, ok := binaries[name]; !ok {
-			os.logger.Info("removing plugin", "name", name)
-			plugin.Close()
-			delete(os.runningPlugins, name)
-			continue
-		}
-
-		// shutdown the plugins that are runtime disabled.
-		newConf := newConfs[name]
-		if newConf.Disabled {
-			os.logger.Info("disabling plugin", "name", name)
-			plugin.Close()
-			delete(os.runningPlugins, name)
-			continue
-		}
-
-		// shutdown the plugins that with config updates, they will be reloaded after the shutdown.
-		if plugin.Config().Diff(&newConf) {
-			os.logger.Info("updating plugin", "name", name)
-			plugin.Close()
-			delete(os.runningPlugins, name)
-		}
-	}
-
-	// try to load new plugins.
-	for _, file := range binaries {
-		f := file
-		pConf := newConfs[f.Name()]
-
-		if pConf.Disabled {
-			continue
-		}
-
-		// skip to set up plugins until there is a service key is presented at plugin-confs.yml
-		if _, ok := os.keyRequiredPlugins[f.Name()]; ok && pConf.Key == "" {
-			continue
-		}
-
-		os.tryToLaunchPlugin(f, pConf)
-	}
-
-	if metrics.Enabled {
-		metrics.GetOrRegisterGauge("oracle/plugins", nil).Update(int64(len(os.runningPlugins)))
-	}
-}
-
-func (os *OracleServer) tryToLaunchPlugin(f fs.FileInfo, plugConf config.PluginConfig) {
-	plugin, ok := os.runningPlugins[f.Name()]
-	if !ok {
-		os.logger.Info("new plugin discovered, going to setup it: ", f.Name(), f.Mode().String())
-		pluginWrapper, err := os.setupNewPlugin(f.Name(), &plugConf)
-		if err != nil {
-			return
-		}
-		os.runningPlugins[f.Name()] = pluginWrapper
-		return
-	}
-
-	if f.ModTime().After(plugin.StartTime()) || plugin.Exited() {
-		os.logger.Info("replacing legacy plugin with new one: ", f.Name(), f.Mode().String())
-		// stop the legacy plugin
-		plugin.Close()
-		delete(os.runningPlugins, f.Name())
-
-		pluginWrapper, err := os.setupNewPlugin(f.Name(), &plugConf)
-		if err != nil {
-			return
-		}
-		os.runningPlugins[f.Name()] = pluginWrapper
-	}
-}
-
-func (os *OracleServer) setupNewPlugin(name string, conf *config.PluginConfig) (*pWrapper.PluginWrapper, error) {
-	if err := os.ApplyPluginConf(name, conf); err != nil {
-		os.logger.Error("apply plugin config", "error", err.Error())
-		return nil, err
-	}
-
-	pluginWrapper := pWrapper.NewPluginWrapper(os.conf.LoggingLevel, name, os.conf.PluginDIR, os, conf)
-	if err := pluginWrapper.Initialize(os.chainID); err != nil {
-		// if the plugin states that a service key is missing, then we mark it down, thus the runtime discovery can
-		// skip those plugins without a key configured.
-		if errors.Is(err, types.ErrMissingServiceKey) {
-			os.keyRequiredPlugins[name] = struct{}{}
-		}
-		os.logger.Error("cannot run plugin", "name", name, "error", err.Error())
-		pluginWrapper.CleanPluginProcess()
-		return nil, err
-	}
-
-	return pluginWrapper, nil
-}
-
-func (os *OracleServer) WatchSampleEvent(sink chan<- *types.SampleEvent) event.Subscription {
-	return os.sampleEventFeed.Subscribe(sink)
-}
-
-func (os *OracleServer) ApplyPluginConf(name string, plugConf *config.PluginConfig) error {
-	// set the plugin configuration via system env, thus the plugin can load it on startup.
-	conf, err := json.Marshal(plugConf)
-	if err != nil {
-		os.logger.Error("cannot marshal plugin's configuration", "error", err.Error())
-		return err
-	}
-	if err = o.Setenv(name, string(conf)); err != nil {
-		os.logger.Error("cannot set plugin configuration via system ENV")
-		return err
-	}
-	return nil
-}
-
-// ComputeConfidence calculates the confidence weight based on the number of data samples. Note! Cryptos take
-// fixed strategy as we have very limited number of data sources at the genesis phase. Thus, the confidence
-// computing is just for forex currencies for the time being.
-func ComputeConfidence(symbol string, numOfSamples, strategy int) uint8 {
-
-	// Todo: once the community have more extensive AMM and DEX markets, we will remove this to enable linear
-	//  strategy as well for cryptos.
-	if _, is := common2.ForexCurrencies[symbol]; !is {
-		return MaxConfidence
-	}
-
-	// Forex currencies with fixed strategy.
-	if strategy == config.ConfidenceStrategyFixed {
-		return MaxConfidence
-	}
-
-	// Forex currencies with "linear" strategy. Labeled "linear" but uses exponential scaling (1.75^n) since we
-	// are at the network bootstrapping phase with very limited number of data sources.
-	weight := BaseConfidence + SourceScalingFactor*uint64(math.Pow(1.75, float64(numOfSamples)))
-
-	if weight > MaxConfidence {
-		weight = MaxConfidence
-	}
-
-	return uint8(weight) //nolint
-}
-
-// by according to the spreading of price timestamp from the target timestamp,
-// we reduce the confidence of the price, set the lowest confidence as 1.
-func confidenceAdjustedPrice(historicRoundPrice *types.Price, target int64) (*types.Price, error) {
-	// Calculate the time difference between the target timestamp and the historic price timestamp
-	timeDifference := target - historicRoundPrice.Timestamp
-
-	var reducedConfidence uint8
-	if timeDifference < 60 { // Less than 1 minute
-		reducedConfidence = historicRoundPrice.Confidence // Keep original confidence
-	} else if timeDifference < 3600 { // Less than 1 hour
-		reducedConfidence = historicRoundPrice.Confidence / 2 // Reduce confidence by half
-	} else {
-		reducedConfidence = 1 // Set the lowest confidence to 1 if more than 1 hour old
-	}
-
-	if reducedConfidence == 0 {
-		return nil, types.ErrNoAvailablePrice
-	}
-
-	historicRoundPrice.Confidence = reducedConfidence
-	return historicRoundPrice, nil
 }

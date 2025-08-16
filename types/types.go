@@ -19,6 +19,7 @@ var (
 	AutonityContractAddress = crypto.CreateAddress(Deployer, 0)
 	OracleContractAddress   = crypto.CreateAddress(Deployer, 2)
 
+	ErrOnOutlierSlashing = errors.New("client is on outlier Slashing")
 	ErrPeerOnSync        = errors.New("l1 node is on peer sync")
 	ErrNoAvailablePrice  = errors.New("no available prices collected yet")
 	ErrNoDataRound       = errors.New("no data collected at current round")
@@ -41,16 +42,16 @@ type Price struct {
 // PriceBySymbol group the price by symbols.
 type PriceBySymbol map[string]Price
 
-// RoundData contains the aggregated price by symbols for a round with those ordered symbols and a corresponding salt to
+// VoteRecord contains the aggregated price by symbols for a round with those ordered symbols and a corresponding salt to
 // compute the round commitment hash.
-type RoundData struct {
-	RoundID        uint64
+type VoteRecord struct {
+	RoundID        uint64 `json:"round_id"`
 	Tx             *types.Transaction
-	Salt           *big.Int
-	CommitmentHash common.Hash
+	Salt           *big.Int    `json:"salt"`
+	CommitmentHash common.Hash `json:"commitment_hash"`
 	Prices         PriceBySymbol
-	Symbols        []string
-	Reports        []contract.IOracleReport
+	Symbols        []string                 `json:"symbols"`
+	Reports        []contract.IOracleReport `json:"reports"`
 }
 
 // JSONRPCMessage is the JSON spec to carry those data response from the binance data simulator.

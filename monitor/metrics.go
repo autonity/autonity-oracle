@@ -9,6 +9,7 @@ var (
 	IsVoterMetric        = "oracle/isVoter"
 	L1ConnectivityMetric = "oracle/l1/errs"
 	InvalidVoteMetric    = "oracle/vote/invalid"
+	NoRevealVoteMetric   = "oracle/vote/noreveal"
 	SuccessfulVoteMetric = "oracle/vote/successful"
 
 	OutlierDistancePercentMetric = "oracle/outlier/distance/percentage"
@@ -23,6 +24,8 @@ func InitOracleMetrics() {
 		metrics.GetOrRegisterGauge(RoundMetric, nil)
 		metrics.GetOrRegisterGauge(BalanceMetric, nil)
 		metrics.GetOrRegisterGauge(IsVoterMetric, nil)
+		metrics.GetOrRegisterGauge(NoRevealVoteMetric, nil)
+
 		metrics.GetOrRegisterCounter(L1ConnectivityMetric, nil)
 		metrics.GetOrRegisterCounter(InvalidVoteMetric, nil)
 		metrics.GetOrRegisterCounter(SuccessfulVoteMetric, nil)
