@@ -168,9 +168,12 @@ func NewOracleServer(conf *config.Config, dialer types.Dialer, client types.Bloc
 	}
 	os.commitmentHashComputer = commitmentHashComputer
 
-	// load historic state, otherwise default initial state will be used.
+	// load memories from persistence.
 	os.memories = Memories{dataDir: conf.ProfileDir}
 	os.memories.init(os.logger)
+	if os.memories.voteRecord != nil {
+		os.voteRecords[os.memories.voteRecord.RoundID] = os.memories.voteRecord
+	}
 
 	// discover plugins from plugin dir at startup.
 	binaries, err := helpers.ListPlugins(conf.PluginDIR)
@@ -313,12 +316,14 @@ func (os *OracleServer) Start() {
 		case invalidVote := <-os.chInvalidVote:
 			os.logger.Info("received invalid vote", "cause", invalidVote.Cause, "expected",
 				invalidVote.ExpValue.String(), "actual", invalidVote.ActualValue.String(), "txn", invalidVote.Raw.TxHash)
+			os.setVoteMined(invalidVote.Raw.TxHash)
 			if metrics.Enabled {
 				metrics.GetOrRegisterCounter(monitor.InvalidVoteMetric, nil).Inc(1)
 			}
 
 		case votedEvent := <-os.chVotedEvent:
 			os.logger.Info("received voted event", "height", votedEvent.Raw.BlockNumber, "txn", votedEvent.Raw.TxHash)
+			os.setVoteMined(votedEvent.Raw.TxHash)
 			if metrics.Enabled {
 				metrics.GetOrRegisterCounter(monitor.SuccessfulVoteMetric, nil).Inc(1)
 			}
@@ -384,6 +389,7 @@ func (os *OracleServer) Start() {
 			os.logger.Info("handle new symbols", "new symbols", newSymbolEvent.Symbols, "activate at round", newSymbolEvent.Round)
 			os.handleNewSymbolsEvent(newSymbolEvent.Symbols)
 		case <-os.regularTicker.C:
+			os.trackVoteState()
 			os.gcVoteRecords()
 			if metrics.Enabled {
 				metrics.GetOrRegisterGauge(monitor.PluginMetric, nil).Update(int64(len(os.runningPlugins)))
@@ -408,6 +414,50 @@ func (os *OracleServer) Stop() {
 		p := c
 		p.Close()
 	}
+}
+
+// trackVoteState tracks the recent vote is mined by the L1 network and update its state in vote cache and persistence.
+func (os *OracleServer) trackVoteState() {
+	vote, ok := os.voteRecords[os.curRound]
+	if !ok {
+		return
+	}
+
+	if vote.Mined {
+		return
+	}
+
+	receipt, err := os.client.TransactionReceipt(context.Background(), vote.TxHash)
+	if err != nil {
+		os.logger.Info("cannot get vote receipt yet", "txn", vote.TxHash, "error", err.Error())
+		return
+	}
+
+	vote.Mined = true
+	if err = os.memories.flushRecord(vote); err != nil {
+		os.logger.Warn("failed to flush vote record to persistence", "error", err.Error())
+		os.logger.Warn("IMPORTANT: please check your profile data dir, the server need to flush vote record into it.")
+	}
+	os.logger.Info("last vote get mined", "txn", vote.TxHash, "receipt", receipt)
+}
+
+func (os *OracleServer) setVoteMined(hash common.Hash) {
+	for r := os.curRound; r > os.curRound-MaxBufferedRounds; r-- {
+		if vote, ok := os.voteRecords[r]; ok {
+			if vote.TxHash == hash {
+				if !vote.Mined {
+					vote.Mined = true
+					if err := os.memories.flushRecord(vote); err != nil {
+						os.logger.Warn("failed to flush vote record to persistence", "error", err.Error())
+						os.logger.Warn("IMPORTANT: please check your profile data dir, the server need to flush vote record into it.")
+					}
+					os.logger.Info("last vote get mined", "round", os.curRound, "hash", vote.TxHash, "nonce", vote.TxNonce)
+				}
+				return
+			}
+		}
+	}
+	os.logger.Warn("cannot find the round vote", "round", os.curRound, "hash", hash)
 }
 
 func (os *OracleServer) handleConfigEvent(ev fsnotify.Event) {
@@ -479,6 +529,8 @@ func (os *OracleServer) handlePenaltyEvent(penalizeEvent *contract.OraclePenaliz
 	}
 	os.memories.outlierRecord = record
 	if err := os.memories.flushRecord(record); err != nil {
+		os.logger.Warn("failed to flush penality record to persistence", "error", err.Error())
+		os.logger.Warn("IMPORTANT: please check your profile data dir, the server need to flush penality record into it.")
 		return err
 	}
 	return nil
@@ -722,10 +774,10 @@ func (os *OracleServer) handlePreSampling(preSampleTS int64) error {
 		return os.samplingFirstRound(preSampleTS)
 	}
 
-	// todo: assess if this condition is still required, as we have the persistence layer.
-	// taking the round after a node recover from a disaster as a special case, to skip the
-	// pre-sampling. In this special case, the regular 10s samples will be used for data reporting.
-	if os.curSampleTS == 0 || os.curRoundHeight == 0 {
+	// todo: resolve this round height from a restart.
+	// edge case, if current round height cannot be recovered from the persistence, then skip the presampling of next
+	// round, as the pre-samplings are coordinated by the current round height.
+	if os.curRoundHeight == 0 {
 		return nil
 	}
 
@@ -872,16 +924,10 @@ func (os *OracleServer) vote() error {
 		return err
 	}
 
-	// query last round's prices, its random salt which will reveal last round's report.
+	// get last round vote record.
 	lastVoteRecord, ok := os.voteRecords[os.curRound-1]
 	if !ok {
-		// no last round data from the buffer, try to find it from the persistence memory.
-		if os.memories.voteRecord != nil && os.memories.voteRecord.RoundID == os.curRound-1 {
-			os.logger.Info("load last round data from server persistence")
-			lastVoteRecord = os.memories.voteRecord
-		} else {
-			os.logger.Debug("no last round data, client is no longer a voter or it reports just current round commitment")
-		}
+		os.logger.Debug("no last round data, reports just with current round commitment")
 	}
 
 	// if node is no longer a validator, and it doesn't have last round data, skip reporting.
@@ -905,21 +951,11 @@ func (os *OracleServer) vote() error {
 	if isVoter {
 		// a voter need to assemble current round data to report it.
 		curVoteRecord, err := os.buildVoteRecord(os.curRound)
-		// if the voter failed to assemble current round data, but it has last round data available, then reveal it.
 		if err != nil {
-			if lastVoteRecord != nil {
-				return os.reportWithoutCommitment(lastVoteRecord)
-			}
+			// skipping round vote does not introduce reveal failure.
+			os.logger.Info("skip current round vote", "height", os.curRoundHeight, "err", err.Error())
 			return err
 		}
-
-		// round data was successfully assembled, save current round data.
-		if err = os.memories.flushRecord(curVoteRecord); err != nil {
-			os.logger.Warn("failed to vote record to persistence", "error", err.Error())
-			os.logger.Warn("IMPORTANT: please check your profile data dir, the server need to flush vote record into it.")
-		}
-
-		os.voteRecords[os.curRound] = curVoteRecord
 		if metrics.Enabled {
 			metrics.GetOrRegisterGauge(monitor.IsVoterMetric, nil).Update(1)
 		}
@@ -936,16 +972,16 @@ func (os *OracleServer) vote() error {
 
 // reportWithCommitment reports the commitment of current round, and with last round data if the last round data is available.
 // if the input last round data is nil, we just need to report the commitment of current round without last round data.
-func (os *OracleServer) reportWithCommitment(curRoundData, lastVote *types.VoteRecord) error {
-	var err error
+func (os *OracleServer) reportWithCommitment(curVoteRecord, lastVote *types.VoteRecord) error {
 	// prepare the transaction which carry current round's commitment, and last round's data.
-	curRoundData.Tx, err = os.doReport(curRoundData.CommitmentHash, lastVote)
+	tx, err := os.doReport(curVoteRecord.CommitmentHash, lastVote)
 	if err != nil {
 		os.logger.Error("do report", "error", err.Error())
 		return err
 	}
 
-	os.logger.Info("reported last round data and with current round commitment", "TX hash", curRoundData.Tx.Hash(), "Nonce", curRoundData.Tx.Nonce(), "Cost", curRoundData.Tx.Cost())
+	os.logger.Info("reported last round data and with current round commitment", "TX hash", tx.Hash(),
+		"Nonce", tx.Nonce(), "Cost", tx.Cost())
 
 	// alert in case of balance reach the warning value.
 	balance, err := os.client.BalanceAt(context.Background(), os.conf.Key.Address, nil)
@@ -963,6 +999,15 @@ func (os *OracleServer) reportWithCommitment(curRoundData, lastVote *types.VoteR
 		os.logger.Warn("oracle account has too less balance left for data reporting", "balance", balance.String())
 	}
 
+	// round data was successfully assembled, save current round data.
+	curVoteRecord.TxHash = tx.Hash()
+	curVoteRecord.TxNonce = tx.Nonce()
+	curVoteRecord.TxCost = tx.Cost()
+	os.voteRecords[os.curRound] = curVoteRecord
+	if err = os.memories.flushRecord(curVoteRecord); err != nil {
+		os.logger.Warn("failed to flush vote record to persistence", "error", err.Error())
+		os.logger.Warn("IMPORTANT: please check your profile data dir, the server need to flush vote record into it.")
+	}
 	return nil
 }
 
@@ -976,6 +1021,21 @@ func (os *OracleServer) reportWithoutCommitment(lastVoteRecord *types.VoteRecord
 		return err
 	}
 	os.logger.Info("reported last round data and without current round commitment", "TX hash", tx.Hash(), "Nonce", tx.Nonce())
+
+	// save current vote record even though there is no commitment as the voter is leaving the committee.
+	curVoteRecord := &types.VoteRecord{
+		RoundHeight: os.curRoundHeight,
+		RoundID:     os.curRound,
+		VotePeriod:  os.votePeriod,
+		TxCost:      tx.Cost(),
+		TxNonce:     tx.Nonce(),
+		TxHash:      tx.Hash(),
+	}
+	os.voteRecords[os.curRound] = curVoteRecord
+	if err = os.memories.flushRecord(curVoteRecord); err != nil {
+		os.logger.Warn("failed to flush vote record to persistence", "error", err.Error())
+		os.logger.Warn("IMPORTANT: please check your profile data dir, the server need to flush vote record into it.")
+	}
 	return nil
 }
 
@@ -1069,7 +1129,9 @@ func (os *OracleServer) doReport(curRoundCommitmentHash common.Hash, lastVoteRec
 	auth.GasFeeCap = maxFeePerGas
 	auth.GasLimit = uint64(3000000)
 
-	// if there is no last round data, then we just submit the commitment hash of current round.
+	// if there is no last round data, it could be the client was omission faulty at last round, then we just submit the
+	// commitment hash of current round. If we cannot recover the last round vote record from persistence layer, then
+	// below vote without data could lead to reveal failure still.
 	if lastVoteRecord == nil {
 		var reports []contract.IOracleReport
 		return os.oracleContract.Vote(auth, new(big.Int).SetBytes(curRoundCommitmentHash.Bytes()), reports, invalidSalt, config.Version)
@@ -1169,9 +1231,11 @@ func (os *OracleServer) aggregateProtocolSymbolPrices() (types.PriceBySymbol, er
 // assemble the final reports, salt and commitment hash.
 func (os *OracleServer) assembleVote(round uint64, symbols []string, prices types.PriceBySymbol) (*types.VoteRecord, error) {
 	var voteRecord = &types.VoteRecord{
-		RoundID: round,
-		Symbols: symbols,
-		Prices:  prices,
+		RoundHeight: os.curRoundHeight,
+		RoundID:     round,
+		VotePeriod:  os.votePeriod,
+		Symbols:     symbols,
+		Prices:      prices,
 	}
 
 	var missingData bool

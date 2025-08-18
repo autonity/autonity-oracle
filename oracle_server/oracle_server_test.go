@@ -216,7 +216,7 @@ func TestOracleServer(t *testing.T) {
 
 		require.Equal(t, 2, len(srv.voteRecords))
 		require.Equal(t, srv.curRound, srv.voteRecords[srv.curRound].RoundID)
-		require.Equal(t, tx.Hash(), srv.voteRecords[srv.curRound].Tx.Hash())
+		require.Equal(t, tx.Hash(), srv.voteRecords[srv.curRound].TxHash)
 		require.Equal(t, helpers.DefaultSymbols, srv.voteRecords[srv.curRound].Symbols)
 		hash, err := srv.commitmentHashComputer.CommitmentHash(srv.voteRecords[srv.curRound].Reports, srv.voteRecords[srv.curRound].Salt, srv.conf.Key.Address)
 		require.NoError(t, err)
