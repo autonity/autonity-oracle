@@ -110,6 +110,16 @@ func (o *Oracle) Stop() {
 	}
 }
 
+func (o *Oracle) Restart() {
+	err := o.Command.Process.Kill()
+	if err != nil {
+		log.Error("restart oracle client failed", "error", err.Error())
+	}
+	// sleep for a while.
+	time.Sleep(time.Second * 5)
+	o.Start()
+}
+
 func (o *Oracle) ConfigOracleServer(wsEndpoint string) {
 	// write config to config file:
 	f, err := os.Create(o.OracleConf)
@@ -320,11 +330,20 @@ func (net *Network) Start() {
 	}
 }
 
+func (net *Network) RestartL2Node(index int) {
+	for i, n := range net.L2Nodes {
+		if i == index {
+			n.Restart()
+			return
+		}
+	}
+}
+
 func (net *Network) StopL2Node(index int) {
 	for i, n := range net.L2Nodes {
 		if i == index {
 			n.Stop()
-			break
+			return
 		}
 	}
 }
@@ -334,7 +353,7 @@ func (net *Network) StartL2Node(index int) {
 		if i == index {
 			n.ConfigOracleServer(fmt.Sprintf("ws://%s:%d", net.L1Nodes[i].Host, net.L1Nodes[i].WSPort))
 			go n.Start()
-			break
+			return
 		}
 	}
 }

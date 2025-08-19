@@ -11,6 +11,7 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"math/big"
+	"math/rand"
 	"os"
 	"testing"
 	"time"
@@ -630,7 +631,74 @@ func TestAddAndRemovePlugin(t *testing.T) {
 }
 
 func TestResetOracleServer(t *testing.T) {
-	// todo: test oracle server resetting with vote persistence recovery.
+	var netConf = &NetworkConfig{
+		EnableL1Logs: false,
+		Symbols:      helpers.DefaultSymbols,
+		VotePeriod:   30,  // 20s to shorten this test.
+		EpochPeriod:  120, // 2 minutes to shorten this test.
+		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir, defaultPlugDir, defaultPlugDir},
+	}
+	network, err := createNetwork(netConf, numberOfValidators)
+	require.NoError(t, err)
+	defer network.Stop()
+
+	client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d", network.L1Nodes[0].Host, network.L1Nodes[0].WSPort))
+	require.NoError(t, err)
+	defer client.Close()
+
+	// Bind client with oracle contract address
+	o, err := contract.NewOracle(types.OracleContractAddress, client)
+	require.NoError(t, err)
+
+	// todo: finish this test.
+
+	maliciousNode := network.L2Nodes[0].Key.Key.Address
+	doneCh := make(chan struct{})
+	resultCh := make(chan uint64) // Channel to receive the result
+	endRound := uint64(15)
+
+	// Start watching the event and count the number of events received.
+	go func() {
+		resultCh <- penalizeEventListener(t, maliciousNode, doneCh, o, endRound)
+	}()
+
+	// Start a timeout to wait for the ending for the test, and verify the number of penalized events received.
+	timeout := time.After(1 * time.Hour) // Adjust the timeout as needed
+	//timeout := time.After(250 * time.Second) // Adjust the timeout as needed
+	select {
+	case penalizedCounter := <-resultCh:
+		t.Log("Number of penalized events received:", penalizedCounter)
+		require.Equal(t, penalizedCounter, uint64(1))
+		defer os.Remove("./server_state_dump.json") //nolint
+	case <-timeout:
+		t.Fatal("Test timed out waiting for penalized events")
+	}
+
+	close(doneCh)
+}
+
+func testRestartOracleServer(t *testing.T, net *Network, o *contract.Oracle, resetRound, beforeRound uint64) {
+	for {
+		time.Sleep(20 * time.Second)
+		round, err := o.GetRound(nil)
+		require.NoError(t, err)
+
+		// Random index between 0 and len-1
+		index := rand.Intn(len(net.L2Nodes))
+		if round.Uint64() == resetRound {
+			net.RestartL2Node(index)
+		}
+
+		// continue to wait until end round.
+		if round.Uint64() < beforeRound {
+			continue
+		}
+
+		// verify result.
+		_, err = os.FindProcess(net.L2Nodes[index].Command.Process.Pid)
+		require.NoError(t, err)
+		break
+	}
 }
 
 // todo: not a high priority, refine the tests in this e2e test framework.
