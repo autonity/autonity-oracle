@@ -13,6 +13,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
+	"math"
+	"math/big"
+	o "os"
+	"path/filepath"
+	"slices"
+	"time"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	tp "github.com/ethereum/go-ethereum/core/types"
@@ -22,13 +30,6 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/modern-go/reflect2"
 	"github.com/shopspring/decimal"
-	"io/fs"
-	"math"
-	"math/big"
-	o "os"
-	"path/filepath"
-	"slices"
-	"time"
 )
 
 var BridgedSymbols = map[string]string{
@@ -1171,7 +1172,7 @@ func (os *OracleServer) Start() {
 				return
 			}
 			// filter unwatched files in the dir.
-			if fsEvent.Name != os.conf.ConfigFile {
+			if filepath.Base(fsEvent.Name) != filepath.Base(os.conf.ConfigFile) {
 				continue
 			}
 
