@@ -176,7 +176,7 @@ func TestPluginManagement(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, file := range files {
-			info, err := file.Info()
+			info, err := file.Info() //nolint
 			require.NoError(t, err)
 
 			if !file.IsDir() && helpers.IsExecOwnerGroup(info.Mode()) {
@@ -196,7 +196,7 @@ func TestPluginManagement(t *testing.T) {
 			require.NoError(t, err)
 
 			for _, file := range files {
-				info, err := file.Info()
+				info, err := file.Info() //nolint
 				require.NoError(t, err)
 
 				src := filepath.Join(backupDir, file.Name())
