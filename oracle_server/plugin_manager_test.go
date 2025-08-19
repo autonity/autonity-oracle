@@ -6,7 +6,7 @@ import (
 	"autonity-oracle/helpers"
 	"autonity-oracle/types/mock"
 	"fmt"
-	"io/ioutil" //nolint
+	"io"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -167,18 +167,24 @@ func TestPluginManagement(t *testing.T) {
 		require.Equal(t, 1, len(srv.runningPlugins))
 
 		// Backup the existing plugins
-		backupDir := "/tmp/plugin_backup"   // Temporary directory for backup
+		backupDir := t.TempDir()
 		err := os.MkdirAll(backupDir, 0755) // Create backup directory if it doesn't exist
 		require.NoError(t, err)
 
 		// Copy existing plugins to the backup directory
-		files, err := ioutil.ReadDir(srv.conf.PluginDIR)
+		files, err := os.ReadDir(srv.conf.PluginDIR)
 		require.NoError(t, err)
+
 		for _, file := range files {
-			if !file.IsDir() && helpers.IsExecOwnerGroup(file.Mode()) {
+			info, err := file.Info()
+			require.NoError(t, err)
+
+			if !file.IsDir() && helpers.IsExecOwnerGroup(info.Mode()) {
 				src := filepath.Join(srv.conf.PluginDIR, file.Name())
 				dst := filepath.Join(backupDir, file.Name())
-				err = os.Link(src, dst) // Use os.Link for hard link; use os.Copy for actual copy if needed
+
+				// FIXED: Use file copy instead of hard link
+				err = copyFile(src, dst, info.Mode())
 				require.NoError(t, err)
 			}
 		}
@@ -186,15 +192,20 @@ func TestPluginManagement(t *testing.T) {
 		// Defer the recovery action to restore the removed plugins
 		defer func() {
 			// Restore the plugins from the backup directory
-			files, err = ioutil.ReadDir(backupDir)
+			files, err = os.ReadDir(backupDir)
 			require.NoError(t, err)
+
 			for _, file := range files {
+				info, err := file.Info()
+				require.NoError(t, err)
+
 				src := filepath.Join(backupDir, file.Name())
 				dst := filepath.Join(srv.conf.PluginDIR, file.Name())
-				err = os.Link(src, dst) // Use os.Link for hard link; use os.Copy for actual copy if needed
+
+				// FIXED: Use file copy instead of hard link
+				err = copyFile(src, dst, info.Mode())
 				require.NoError(t, err)
 			}
-			os.RemoveAll(backupDir) // Clean up the backup directory
 		}()
 
 		// Remove the plugins
@@ -204,6 +215,24 @@ func TestPluginManagement(t *testing.T) {
 		srv.PluginRuntimeManagement()
 		require.Equal(t, 0, len(srv.runningPlugins))
 	})
+}
+
+// Helper function to copy files with proper permissions
+func copyFile(src, dst string, mode os.FileMode) error {
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+	dstFile, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE|os.O_TRUNC, mode)
+	if err != nil {
+		return err
+	}
+	defer dstFile.Close()
+
+	_, err = io.Copy(dstFile, srcFile)
+	return err
 }
 
 // clone plugins from a src directory to new directory by adding prefix in the name of each binary, and return the cloned
@@ -275,14 +304,11 @@ func removePlugins(pluginDir string) error {
 			continue
 		}
 
-		// Check if the file is an executable
-		if helpers.IsExecOwnerGroup(file.Type()) {
-			// Construct the full file path
-			filePath := pluginDir + "/" + file.Name()
-			// Remove the file
-			if err := os.Remove(filePath); err != nil {
-				return err // Return error if unable to remove the file
-			}
+		// Construct the full file path
+		filePath := pluginDir + "/" + file.Name()
+		// Remove the file
+		if err := os.Remove(filePath); err != nil {
+			return err // Return error if unable to remove the file
 		}
 	}
 	return nil
