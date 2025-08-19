@@ -54,6 +54,21 @@ func (mr *MockContractAPIMockRecorder) GetDecimals(opts interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDecimals", reflect.TypeOf((*MockContractAPI)(nil).GetDecimals), opts)
 }
 
+// GetLastRoundBlock mocks base method.
+func (m *MockContractAPI) GetLastRoundBlock(opts *bind.CallOpts) (*big.Int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLastRoundBlock", opts)
+	ret0, _ := ret[0].(*big.Int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetLastRoundBlock indicates an expected call of GetLastRoundBlock.
+func (mr *MockContractAPIMockRecorder) GetLastRoundBlock(opts interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLastRoundBlock", reflect.TypeOf((*MockContractAPI)(nil).GetLastRoundBlock), opts)
+}
+
 // GetRound mocks base method.
 func (m *MockContractAPI) GetRound(opts *bind.CallOpts) (*big.Int, error) {
 	m.ctrl.T.Helper()

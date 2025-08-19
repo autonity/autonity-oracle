@@ -16,6 +16,7 @@ type ContractAPI interface {
 	GetVotePeriod(opts *bind.CallOpts) (*big.Int, error)
 	GetVoters(opts *bind.CallOpts) ([]common.Address, error)
 	GetRound(opts *bind.CallOpts) (*big.Int, error)
+	GetLastRoundBlock(opts *bind.CallOpts) (*big.Int, error)
 	WatchNewRound(opts *bind.WatchOpts, sink chan<- *OracleNewRound) (event.Subscription, error)
 	WatchNewSymbols(opts *bind.WatchOpts, sink chan<- *OracleNewSymbols) (event.Subscription, error)
 	WatchPenalized(opts *bind.WatchOpts, sink chan<- *OraclePenalized, _participant []common.Address) (event.Subscription, error)

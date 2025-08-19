@@ -22,6 +22,7 @@ import (
 )
 
 func TestPluginManagement(t *testing.T) {
+	currentRoundHeight := new(big.Int).SetUint64(0)
 	currentRound := new(big.Int).SetUint64(1)
 	precision := OracleDecimals
 	votePeriod := new(big.Int).SetUint64(30)
@@ -59,6 +60,7 @@ func TestPluginManagement(t *testing.T) {
 		dialerMock := mock.NewMockDialer(ctrl)
 		contractMock := cMock.NewMockContractAPI(ctrl)
 		contractMock.EXPECT().GetRound(nil).Return(currentRound, nil)
+		contractMock.EXPECT().GetLastRoundBlock(nil).Return(currentRoundHeight, nil)
 		contractMock.EXPECT().GetSymbols(nil).Return(helpers.DefaultSymbols, nil)
 		contractMock.EXPECT().GetVotePeriod(nil).Return(votePeriod, nil)
 		contractMock.EXPECT().WatchNewRound(gomock.Any(), gomock.Any()).Return(subRoundEvent, nil)
@@ -103,6 +105,7 @@ func TestPluginManagement(t *testing.T) {
 		dialerMock := mock.NewMockDialer(ctrl)
 		contractMock := cMock.NewMockContractAPI(ctrl)
 		contractMock.EXPECT().GetRound(nil).Return(currentRound, nil)
+		contractMock.EXPECT().GetLastRoundBlock(nil).Return(currentRoundHeight, nil)
 		contractMock.EXPECT().GetSymbols(nil).Return(helpers.DefaultSymbols, nil)
 		contractMock.EXPECT().GetVotePeriod(nil).Return(votePeriod, nil)
 		contractMock.EXPECT().WatchNewRound(gomock.Any(), gomock.Any()).Return(subRoundEvent, nil)
@@ -142,6 +145,7 @@ func TestPluginManagement(t *testing.T) {
 		dialerMock := mock.NewMockDialer(ctrl)
 		contractMock := cMock.NewMockContractAPI(ctrl)
 		contractMock.EXPECT().GetRound(nil).Return(currentRound, nil)
+		contractMock.EXPECT().GetLastRoundBlock(nil).Return(currentRoundHeight, nil)
 		contractMock.EXPECT().GetSymbols(nil).Return(helpers.DefaultSymbols, nil)
 		contractMock.EXPECT().GetVotePeriod(nil).Return(votePeriod, nil)
 		contractMock.EXPECT().WatchNewRound(gomock.Any(), gomock.Any()).Return(subRoundEvent, nil)

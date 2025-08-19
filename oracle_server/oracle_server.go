@@ -381,9 +381,10 @@ func (os *OracleServer) Start() {
 			if err != nil {
 				os.logger.Error("round voting failed", "error", err.Error())
 			}
-			os.gcStaleSamples()
 			// after vote, reset sampling symbols with the latest protocol symbols.
 			os.resetSamplingSymbols(os.protocolSymbols)
+			os.printLatestRoundData(os.curRound)
+			os.gcStaleSamples()
 		case newSymbolEvent := <-os.chSymbolsEvent:
 			// New symbols are added, add them into the sampling set to prepare data in advance for the coming round's vote.
 			os.logger.Info("handle new symbols", "new symbols", newSymbolEvent.Symbols, "activate at round", newSymbolEvent.Round)
@@ -542,7 +543,7 @@ func (os *OracleServer) handlePenaltyEvent(penalizeEvent *contract.OraclePenaliz
 func (os *OracleServer) sync() error {
 	var err error
 	// get initial states from oracle contract.
-	os.curRound, os.protocolSymbols, os.votePeriod, err = os.syncRoundState()
+	os.curRoundHeight, os.curRound, os.protocolSymbols, os.votePeriod, err = os.syncRoundState()
 	if err != nil {
 		os.logger.Error("synchronize oracle contract state", "error", err.Error())
 		return err
@@ -555,7 +556,8 @@ func (os *OracleServer) sync() error {
 	if err = os.subscribeEvents(); err != nil {
 		return err
 	}
-	os.logger.Info("synced", "CurrentRound", os.curRound, "protocol symbols", os.protocolSymbols, "sampling symbols", os.samplingSymbols)
+	os.logger.Info("synced", "CurrentRoundHeight", os.curRoundHeight, "CurrentRound", os.curRound,
+		"protocol symbols", os.protocolSymbols, "sampling symbols", os.samplingSymbols)
 	return nil
 }
 
@@ -636,32 +638,38 @@ func (os *OracleServer) subscribeEvents() error {
 // Since below steps are not atomic get operation from blockchain, thus they are just being used at the initial phase
 // for data presampling, the correctness of voting is promised by the synchronization triggered by the round event before
 // the voting.
-func (os *OracleServer) syncRoundState() (uint64, []string, uint64, error) {
-	// on the startup, we need to sync the round id, symbols and committees from contract.
+func (os *OracleServer) syncRoundState() (uint64, uint64, []string, uint64, error) {
+	// on the startup, we need to sync the round block, round id, symbols and committees from contract.
+	currentRoundHeight, err := os.oracleContract.GetLastRoundBlock(nil)
+	if err != nil {
+		os.logger.Error("get round block", "error", err.Error())
+		return 0, 0, nil, 0, err
+	}
+
 	currentRound, err := os.oracleContract.GetRound(nil)
 	if err != nil {
 		os.logger.Error("get round", "error", err.Error())
-		return 0, nil, 0, err
+		return 0, 0, nil, 0, err
 	}
 
 	symbols, err := os.oracleContract.GetSymbols(nil)
 	if err != nil {
 		os.logger.Error("get symbols", "error", err.Error())
-		return 0, nil, 0, err
+		return 0, 0, nil, 0, err
 	}
 
 	votePeriod, err := os.oracleContract.GetVotePeriod(nil)
 	if err != nil {
 		os.logger.Error("get vote period", "error", err.Error())
-		return 0, nil, 0, nil
+		return 0, 0, nil, 0, nil
 	}
 
 	if len(symbols) == 0 {
 		os.logger.Error("there are no symbols in Autonity L1 oracle contract")
-		return currentRound.Uint64(), symbols, votePeriod.Uint64(), types.ErrNoSymbolsObserved
+		return currentRoundHeight.Uint64(), currentRound.Uint64(), symbols, votePeriod.Uint64(), types.ErrNoSymbolsObserved
 	}
 
-	return currentRound.Uint64(), symbols, votePeriod.Uint64(), nil
+	return currentRoundHeight.Uint64(), currentRound.Uint64(), symbols, votePeriod.Uint64(), nil
 }
 
 func (os *OracleServer) gcStaleSamples() {
@@ -772,13 +780,6 @@ func (os *OracleServer) handlePreSampling(preSampleTS int64) error {
 	// wait for another round to get the data be available on-chain.
 	if os.curRound == FirstRound {
 		return os.samplingFirstRound(preSampleTS)
-	}
-
-	// todo: resolve this round height from a restart.
-	// edge case, if current round height cannot be recovered from the persistence, then skip the presampling of next
-	// round, as the pre-samplings are coordinated by the current round height.
-	if os.curRoundHeight == 0 {
-		return nil
 	}
 
 	// if it is not a good timing to start sampling then return.
@@ -914,8 +915,6 @@ func (os *OracleServer) vote() error {
 	if os.onOutlierSlashing() {
 		return types.ErrOnOutlierSlashing
 	}
-
-	os.printLatestRoundData(os.curRound)
 
 	// if client is not a voter, just skip reporting.
 	isVoter, err := os.isVoter()
