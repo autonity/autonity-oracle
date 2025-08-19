@@ -142,6 +142,14 @@ func (o *Oracle) ConfigOracleServer(wsEndpoint string) {
 		{Name: "template_plugin", Endpoint: "127.0.0.1:50991"},
 		{Name: "forex_yahoofinance", Key: "Snp9kNMKrs8TiKvz4aMC96KqoHo6edIj9Y2xbPzR"},
 	}
+	// enable the prometheus metrics exposer for e2e test.
+	defaultConfig.MetricConfigs.EnablePrometheusExp = true
+	port, err := freeport.GetFreePort()
+	if err != nil {
+		panic(err)
+	}
+	defaultConfig.MetricConfigs.Port = port
+
 	// enable the metric collection by default for e2e test.
 	defaultConfig.MetricConfigs.EnableInfluxDBV2 = true
 
