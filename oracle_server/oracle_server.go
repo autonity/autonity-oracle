@@ -463,7 +463,7 @@ func (os *OracleServer) setVoteMined(hash common.Hash) {
 
 func (os *OracleServer) handleConfigEvent(ev fsnotify.Event) {
 	// filter unwatched files in the dir.
-	if ev.Name != os.conf.ConfigFile {
+	if filepath.Base(ev.Name) != filepath.Base(os.conf.ConfigFile) {
 		return
 	}
 
