@@ -2,13 +2,14 @@ package config
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/hashicorp/go-hclog"
-	"gopkg.in/yaml.v2"
 	"log"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/hashicorp/go-hclog"
+	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -53,6 +54,11 @@ var DefaultConfig = ServerConfig{
 
 // DefaultMetricConfig is the default config for metrics used in oracle-server.
 var DefaultMetricConfig = MetricConfig{
+	// Prometheus metrics exposer configs.
+	EnablePrometheusExp: false,
+	HTTP:                "127.0.0.1",
+	Port:                6061,
+
 	// common flags
 	InfluxDBEndpoint: "http://localhost:8086",
 	InfluxDBTags:     "host=localhost",
@@ -72,6 +78,11 @@ var DefaultMetricConfig = MetricConfig{
 
 // MetricConfig contains the configuration for the metric collection of oracle-server.
 type MetricConfig struct {
+	// Prometheus metrics exposer configs
+	EnablePrometheusExp bool   `json:"enablePrometheusExp" yaml:"enablePrometheusExp"`
+	HTTP                string `json:"http" yaml:"http"`
+	Port                int    `json:"port" yaml:"port"`
+
 	// Common configs for influxDB V1 and V2.
 	InfluxDBEndpoint string `json:"influxDBEndpoint" yaml:"influxDBEndpoint"`
 	InfluxDBTags     string `json:"influxDBTags" yaml:"influxDBTags"`
