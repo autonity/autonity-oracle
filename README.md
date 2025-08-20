@@ -225,10 +225,12 @@ Prepare the plugin binaries, and save them into the `plugins` directory.
 $./autoracle ./oracle_config.yml
 ```
 
-#### example of profile data directory, if monitor service triggered a profile dump
+#### example of profile and data directory, if monitor service triggered a profile dump
 
 ```
 ── profiles
+ ├── outlier_record.json // IMPORTANT! Save outlier record to avoid the further offense against outlier rule.
+ ├── vote_record.json    // IMPORTANT! Save current round vote state to avoid reveal failure after a restart.
  └── 2024-11-19
      ├── cpu.profile_1
      ├── goroutines.txt_1
