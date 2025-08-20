@@ -11,7 +11,6 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"math/big"
-	"math/rand"
 	"os"
 	"testing"
 	"time"
@@ -634,8 +633,8 @@ func TestResetOracleServer(t *testing.T) {
 	var netConf = &NetworkConfig{
 		EnableL1Logs: false,
 		Symbols:      helpers.DefaultSymbols,
-		VotePeriod:   30,  // 20s to shorten this test.
-		EpochPeriod:  120, // 2 minutes to shorten this test.
+		VotePeriod:   20,
+		EpochPeriod:  240,
 		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir, defaultPlugDir, defaultPlugDir},
 	}
 	network, err := createNetwork(netConf, numberOfValidators)
@@ -650,54 +649,40 @@ func TestResetOracleServer(t *testing.T) {
 	o, err := contract.NewOracle(types.OracleContractAddress, client)
 	require.NoError(t, err)
 
-	// todo: finish this test.
-
-	maliciousNode := network.L2Nodes[0].Key.Key.Address
+	nodeIndex := 0
 	doneCh := make(chan struct{})
 	resultCh := make(chan uint64) // Channel to receive the result
-	endRound := uint64(15)
+	endRound := uint64(30)
+	resetNode := network.L2Nodes[nodeIndex].Key.Key.Address
 
 	// Start watching the event and count the number of events received.
 	go func() {
-		resultCh <- penalizeEventListener(t, maliciousNode, doneCh, o, endRound)
+		resultCh <- noRevealEventListener(t, resetNode, doneCh, o, endRound)
 	}()
 
-	// Start a timeout to wait for the ending for the test, and verify the number of penalized events received.
-	timeout := time.After(1 * time.Hour) // Adjust the timeout as needed
-	//timeout := time.After(250 * time.Second) // Adjust the timeout as needed
+	go testRestartOracleServer(t, network, nodeIndex, o, endRound)
+
+	// Start a timeout to wait for the ending for the test, and verify the number of no reveal event received.
+	timeout := time.After(20 * time.Minute) // Adjust the timeout as needed
 	select {
-	case penalizedCounter := <-resultCh:
-		t.Log("Number of penalized events received:", penalizedCounter)
-		require.Equal(t, penalizedCounter, uint64(1))
-		defer os.Remove("./server_state_dump.json") //nolint
+	case noRevealCount := <-resultCh:
+		t.Log("Number of no reveal event received:", noRevealCount)
+		require.Equal(t, noRevealCount, uint64(0))
 	case <-timeout:
 		t.Fatal("Test timed out waiting for penalized events")
 	}
-
 	close(doneCh)
 }
 
-func testRestartOracleServer(t *testing.T, net *Network, o *contract.Oracle, resetRound, beforeRound uint64) {
+func testRestartOracleServer(t *testing.T, net *Network, index int, o *contract.Oracle, endRound uint64) {
 	for {
-		time.Sleep(20 * time.Second)
+		time.Sleep(90 * time.Second)
 		round, err := o.GetRound(nil)
 		require.NoError(t, err)
-
-		// Random index between 0 and len-1
-		index := rand.Intn(len(net.L2Nodes))
-		if round.Uint64() == resetRound {
-			net.RestartL2Node(index)
+		if round.Uint64() >= endRound {
+			break
 		}
-
-		// continue to wait until end round.
-		if round.Uint64() < beforeRound {
-			continue
-		}
-
-		// verify result.
-		_, err = os.FindProcess(net.L2Nodes[index].Command.Process.Pid)
-		require.NoError(t, err)
-		break
+		net.L2Nodes[index].Restart(t)
 	}
 }
 
@@ -1117,6 +1102,49 @@ func testNewValidatorJoinToCommittee(t *testing.T, network *Network, client *eth
 
 		// todo: newly added validator shouldn't be slashed if they not omit any report.
 		break
+	}
+}
+
+func noRevealEventListener(t *testing.T, nodeAddress common.Address, done chan struct{}, oracle *contract.Oracle, endRound uint64) uint64 {
+	// Subscribe to the penalize event with client address.
+	chNoRevealEvent := make(chan *contract.OracleInvalidVote)
+	subNoReveal, err := oracle.WatchInvalidVote(new(bind.WatchOpts), chNoRevealEvent, []common.Address{nodeAddress})
+	require.NoError(t, err)
+	defer subNoReveal.Unsubscribe()
+
+	// Subscribe to the round event
+	chRoundEvent := make(chan *contract.OracleNewRound)
+	subRoundEvent, err := oracle.WatchNewRound(new(bind.WatchOpts), chRoundEvent)
+	require.NoError(t, err)
+	defer subRoundEvent.Unsubscribe()
+
+	var noRevealCount uint64
+	for {
+		select {
+		case <-done:
+			return noRevealCount
+		case err := <-subNoReveal.Err():
+			if err != nil {
+				return noRevealCount
+			}
+		case err := <-subRoundEvent.Err():
+			if err != nil {
+				return noRevealCount
+			}
+		case invalidVote := <-chNoRevealEvent:
+			if invalidVote.Cause != "CommitMismatch" {
+				continue
+			}
+
+			t.Log("*****Oracle client get no reveal error", "oracle node", invalidVote.Reporter.String(),
+				"expected", invalidVote.ExpValue.String(), "actual", invalidVote.ExpValue.String())
+			noRevealCount++
+		case roundEvent := <-chRoundEvent:
+			t.Log("round event received", "round", roundEvent.Round)
+			if roundEvent.Round.Uint64() > endRound {
+				return noRevealCount
+			}
+		}
 	}
 }
 

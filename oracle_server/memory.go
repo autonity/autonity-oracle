@@ -44,6 +44,12 @@ func (s *Memories) init(logger hclog.Logger) {
 		logger.Info("loading last vote record file", "error", err)
 	}
 	s.voteRecord = voteRecord
+	if outlierRecord != nil {
+		logger.Info("Loaded outlier record", "outlierRecord", outlierRecord)
+	}
+	if voteRecord != nil {
+		logger.Info("Loaded vote record", "voteRecord", voteRecord)
+	}
 }
 
 func loadRecord[T any](dir, filename string) (*T, error) {

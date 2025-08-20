@@ -15,6 +15,7 @@ import (
 	"math/big"
 	"os"
 	"os/exec"
+	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -83,6 +84,7 @@ func (s *DataSimulator) GenCMD() {
 type Oracle struct {
 	Key        *Key
 	PluginDir  string
+	DataDir    string
 	OracleConf string
 	MetricConf *config.MetricConfig
 	Host       string
@@ -97,6 +99,7 @@ func (o *Oracle) Start() {
 		// the blocking Run() returns an error once the client is killed on purpose.
 		log.Warn("oracle client is off now", "error", err.Error())
 	}
+	log.Info("start oracle client", "cmd", o.Command.String())
 }
 
 func (o *Oracle) Stop() {
@@ -110,14 +113,21 @@ func (o *Oracle) Stop() {
 	}
 }
 
-func (o *Oracle) Restart() {
-	err := o.Command.Process.Kill()
+func (o *Oracle) Restart(t *testing.T) {
+	t.Log("restart oracle client", "node", o.Key.Key.Address)
+	err := o.Command.Process.Signal(os.Interrupt)
 	if err != nil {
-		log.Error("restart oracle client failed", "error", err.Error())
+		log.Error("failed to interrupt oracle client", "error", err.Error())
 	}
-	// sleep for a while.
-	time.Sleep(time.Second * 5)
-	o.Start()
+	time.Sleep(time.Second * 10)
+
+	// re-prepare cli command
+	c := exec.Command("./autoracle", o.OracleConf)
+	c.Stderr = os.Stderr
+	c.Stdout = os.Stdout
+	o.Command = c
+	go o.Start()
+	t.Log("starting oracle client", "cmd", o.Command.String())
 }
 
 func (o *Oracle) ConfigOracleServer(wsEndpoint string) {
@@ -135,6 +145,8 @@ func (o *Oracle) ConfigOracleServer(wsEndpoint string) {
 	defaultConfig.PluginDIR = o.PluginDir
 	defaultConfig.LoggingLevel = int(hclog.Debug)
 	defaultConfig.ProfileDir, err = os.MkdirTemp("", "oracle-data-*")
+	o.DataDir = defaultConfig.ProfileDir
+
 	if err != nil {
 		panic(err)
 	}
@@ -338,15 +350,6 @@ func (net *Network) Start() {
 	}
 }
 
-func (net *Network) RestartL2Node(index int) {
-	for i, n := range net.L2Nodes {
-		if i == index {
-			n.Restart()
-			return
-		}
-	}
-}
-
 func (net *Network) StopL2Node(index int) {
 	for i, n := range net.L2Nodes {
 		if i == index {
@@ -384,6 +387,10 @@ func (net *Network) Stop() {
 
 	for _, n := range net.L2Nodes {
 		n.Stop()
+		err := os.RemoveAll(n.DataDir)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	if net.Simulator != nil {
