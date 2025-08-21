@@ -570,7 +570,7 @@ func TestOutlierVoter(t *testing.T) {
 	select {
 	case penalizedCounter := <-resultCh:
 		t.Log("Number of penalized events received:", penalizedCounter)
-		require.LessOrEqual(t, penalizedCounter, uint64(2))
+		require.Equal(t, penalizedCounter, uint64(1))
 		defer os.Remove("./server_state_dump.json") //nolint
 	case <-timeout:
 		t.Fatal("Test timed out waiting for penalized events")
@@ -627,6 +627,63 @@ func TestAddAndRemovePlugin(t *testing.T) {
 	// first test happy case.
 	endRound := uint64(10)
 	testAddAndRemovePlugin(t, o, endRound)
+}
+
+func TestResetOracleServer(t *testing.T) {
+	var netConf = &NetworkConfig{
+		EnableL1Logs: false,
+		Symbols:      helpers.DefaultSymbols,
+		VotePeriod:   20,
+		EpochPeriod:  240,
+		PluginDIRs:   []string{defaultPlugDir, defaultPlugDir, defaultPlugDir, defaultPlugDir},
+	}
+	network, err := createNetwork(netConf, numberOfValidators)
+	require.NoError(t, err)
+	defer network.Stop()
+
+	client, err := ethclient.Dial(fmt.Sprintf("ws://%s:%d", network.L1Nodes[0].Host, network.L1Nodes[0].WSPort))
+	require.NoError(t, err)
+	defer client.Close()
+
+	// Bind client with oracle contract address
+	o, err := contract.NewOracle(types.OracleContractAddress, client)
+	require.NoError(t, err)
+
+	nodeIndex := 0
+	doneCh := make(chan struct{})
+	resultCh := make(chan uint64) // Channel to receive the result
+	endRound := uint64(30)
+	resetNode := network.L2Nodes[nodeIndex].Key.Key.Address
+
+	// Start watching the event and count the number of events received.
+	go func() {
+		resultCh <- noRevealEventListener(t, resetNode, doneCh, o, endRound)
+	}()
+
+	go testRestartOracleServer(t, network, nodeIndex, o, endRound)
+
+	// Start a timeout to wait for the ending for the test, and verify the number of no reveal event received.
+	timeout := time.After(20 * time.Minute) // Adjust the timeout as needed
+	select {
+	case noRevealCount := <-resultCh:
+		t.Log("Number of no reveal event received:", noRevealCount)
+		require.Equal(t, noRevealCount, uint64(0))
+	case <-timeout:
+		t.Fatal("Test timed out waiting for penalized events")
+	}
+	close(doneCh)
+}
+
+func testRestartOracleServer(t *testing.T, net *Network, index int, o *contract.Oracle, endRound uint64) {
+	for {
+		time.Sleep(90 * time.Second)
+		round, err := o.GetRound(nil)
+		require.NoError(t, err)
+		if round.Uint64() >= endRound {
+			break
+		}
+		net.L2Nodes[index].Restart(t)
+	}
 }
 
 // todo: not a high priority, refine the tests in this e2e test framework.
@@ -1045,6 +1102,49 @@ func testNewValidatorJoinToCommittee(t *testing.T, network *Network, client *eth
 
 		// todo: newly added validator shouldn't be slashed if they not omit any report.
 		break
+	}
+}
+
+func noRevealEventListener(t *testing.T, nodeAddress common.Address, done chan struct{}, oracle *contract.Oracle, endRound uint64) uint64 {
+	// Subscribe to the penalize event with client address.
+	chNoRevealEvent := make(chan *contract.OracleInvalidVote)
+	subNoReveal, err := oracle.WatchInvalidVote(new(bind.WatchOpts), chNoRevealEvent, []common.Address{nodeAddress})
+	require.NoError(t, err)
+	defer subNoReveal.Unsubscribe()
+
+	// Subscribe to the round event
+	chRoundEvent := make(chan *contract.OracleNewRound)
+	subRoundEvent, err := oracle.WatchNewRound(new(bind.WatchOpts), chRoundEvent)
+	require.NoError(t, err)
+	defer subRoundEvent.Unsubscribe()
+
+	var noRevealCount uint64
+	for {
+		select {
+		case <-done:
+			return noRevealCount
+		case err := <-subNoReveal.Err():
+			if err != nil {
+				return noRevealCount
+			}
+		case err := <-subRoundEvent.Err():
+			if err != nil {
+				return noRevealCount
+			}
+		case invalidVote := <-chNoRevealEvent:
+			if invalidVote.Cause != "CommitMismatch" {
+				continue
+			}
+
+			t.Log("*****Oracle client get no reveal error", "oracle node", invalidVote.Reporter.String(),
+				"expected", invalidVote.ExpValue.String(), "actual", invalidVote.ExpValue.String())
+			noRevealCount++
+		case roundEvent := <-chRoundEvent:
+			t.Log("round event received", "round", roundEvent.Round)
+			if roundEvent.Round.Uint64() > endRound {
+				return noRevealCount
+			}
+		}
 	}
 }
 
