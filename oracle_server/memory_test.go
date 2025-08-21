@@ -104,20 +104,20 @@ func TestFlushRecord_TypeHandling(t *testing.T) {
 	t.Run("VoteRecord", func(t *testing.T) {
 		dir := setupTestDir(t)
 		mem := &Memories{dataDir: dir}
-		record := &types.VoteRecord{RoundID: 200}
+		records := VoteRecords{}
 
 		// Execute
-		err := mem.flushRecord(record)
+		err := mem.flushRecord(records)
 
 		// Validate
 		require.NoError(t, err)
 		path := filepath.Join(dir, voteRecordFile)
 		assert.FileExists(t, path)
 
-		var loaded types.VoteRecord
+		var loaded VoteRecords
 		data, _ := os.ReadFile(path)
 		require.NoError(t, json.Unmarshal(data, &loaded))
-		assert.Equal(t, uint64(200), loaded.RoundID)
+		assert.Equal(t, records, loaded)
 	})
 
 	t.Run("OutlierRecord", func(t *testing.T) {
@@ -156,6 +156,6 @@ func TestMemoriesInit(t *testing.T) {
 
 		// Validate
 		assert.NotNil(t, mem.outlierRecord)
-		assert.Nil(t, mem.voteRecord) // Should not error on missing round data
+		assert.Nil(t, mem.voteRecords) // Should not error on missing round data
 	})
 }

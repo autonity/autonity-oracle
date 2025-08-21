@@ -89,7 +89,8 @@ type OracleServer struct {
 
 	protocolSymbols []string //symbols required for the voting on the oracle contract protocol.
 	pricePrecision  decimal.Decimal
-	voteRecords     map[uint64]*types.VoteRecord
+
+	voteRecords VoteRecords
 
 	chInvalidVote  chan *contract.OracleInvalidVote
 	subInvalidVote event.Subscription
@@ -171,8 +172,9 @@ func NewOracleServer(conf *config.Config, dialer types.Dialer, client types.Bloc
 	// load memories from persistence.
 	os.memories = Memories{dataDir: conf.ProfileDir}
 	os.memories.init(os.logger)
-	if os.memories.voteRecord != nil {
-		os.voteRecords[os.memories.voteRecord.RoundID] = os.memories.voteRecord
+	if os.memories.voteRecords != nil {
+		os.voteRecords = *os.memories.voteRecords
+		os.logger.Info("loaded vote records from persistence", "records", len(os.voteRecords))
 	}
 
 	// discover plugins from plugin dir at startup.
@@ -316,14 +318,14 @@ func (os *OracleServer) Start() {
 		case invalidVote := <-os.chInvalidVote:
 			os.logger.Info("received invalid vote", "cause", invalidVote.Cause, "expected",
 				invalidVote.ExpValue.String(), "actual", invalidVote.ActualValue.String(), "txn", invalidVote.Raw.TxHash)
-			os.setVoteMined(invalidVote.Raw.TxHash)
+			os.setVoteMined(invalidVote.Raw.TxHash, invalidVote.Cause)
 			if metrics.Enabled {
 				metrics.GetOrRegisterCounter(monitor.InvalidVoteMetric, nil).Inc(1)
 			}
 
 		case votedEvent := <-os.chVotedEvent:
 			os.logger.Info("received voted event", "height", votedEvent.Raw.BlockNumber, "txn", votedEvent.Raw.TxHash)
-			os.setVoteMined(votedEvent.Raw.TxHash)
+			os.setVoteMined(votedEvent.Raw.TxHash, "")
 			if metrics.Enabled {
 				metrics.GetOrRegisterCounter(monitor.SuccessfulVoteMetric, nil).Inc(1)
 			}
@@ -417,48 +419,71 @@ func (os *OracleServer) Stop() {
 	}
 }
 
-// trackVoteState tracks the recent vote is mined by the L1 network and update its state in vote cache and persistence.
+// trackVoteState works in a pull mode to track if the vote was mined by L1 although there is already a push mode
+// which subscribe the events from oracle contract. We cannot sure that L1 node is already on service, for example,
+// some operation, synchronization, resetting, etc...
 func (os *OracleServer) trackVoteState() {
-	vote, ok := os.voteRecords[os.curRound]
-	if !ok {
-		return
+
+	var update bool
+	for r := os.curRound; r > os.curRound-MaxBufferedRounds; r-- {
+		vote, ok := os.voteRecords[r]
+		if !ok {
+			continue
+		}
+
+		if vote.Mined {
+			continue
+		}
+
+		receipt, err := os.client.TransactionReceipt(context.Background(), vote.TxHash)
+		if err != nil {
+			os.logger.Info("cannot get vote receipt yet", "txn", vote.TxHash, "error", err.Error())
+			continue
+		}
+
+		vote.Mined = true
+		update = true
+		os.logger.Info("last vote get mined", "txn", vote.TxHash, "receipt", receipt)
 	}
 
-	if vote.Mined {
-		return
+	if update {
+		if err := os.memories.flushRecord(os.voteRecords); err != nil {
+			os.logger.Warn("failed to flush vote record to persistence", "error", err.Error())
+			os.logger.Warn("IMPORTANT: please check your profile data dir, the server need to flush vote record into it.")
+		}
 	}
-
-	receipt, err := os.client.TransactionReceipt(context.Background(), vote.TxHash)
-	if err != nil {
-		os.logger.Info("cannot get vote receipt yet", "txn", vote.TxHash, "error", err.Error())
-		return
-	}
-
-	vote.Mined = true
-	if err = os.memories.flushRecord(vote); err != nil {
-		os.logger.Warn("failed to flush vote record to persistence", "error", err.Error())
-		os.logger.Warn("IMPORTANT: please check your profile data dir, the server need to flush vote record into it.")
-	}
-	os.logger.Info("last vote get mined", "txn", vote.TxHash, "receipt", receipt)
 }
 
-func (os *OracleServer) setVoteMined(hash common.Hash) {
+func (os *OracleServer) setVoteMined(hash common.Hash, err string) {
+
+	var update bool
+	// iterate from the most recent round.
 	for r := os.curRound; r > os.curRound-MaxBufferedRounds; r-- {
 		if vote, ok := os.voteRecords[r]; ok {
 			if vote.TxHash == hash {
 				if !vote.Mined {
 					vote.Mined = true
-					if err := os.memories.flushRecord(vote); err != nil {
-						os.logger.Warn("failed to flush vote record to persistence", "error", err.Error())
-						os.logger.Warn("IMPORTANT: please check your profile data dir, the server need to flush vote record into it.")
-					}
-					os.logger.Info("last vote get mined", "round", os.curRound, "hash", vote.TxHash, "nonce", vote.TxNonce)
+					vote.Error = err
+					update = true
+					break
 				}
+				// not state change, just skip the flushing.
 				return
 			}
 		}
 	}
-	os.logger.Warn("cannot find the round vote", "round", os.curRound, "hash", hash)
+
+	// flush the change of state
+	if update {
+		if err := os.memories.flushRecord(os.voteRecords); err != nil {
+			os.logger.Warn("failed to flush vote record to persistence", "error", err.Error())
+			os.logger.Warn("IMPORTANT: please check your profile data dir, the server need to flush vote record into it.")
+		}
+		os.logger.Info("vote get mined", "hash", hash, "current round", os.curRound)
+		return
+	}
+
+	os.logger.Warn("cannot find the round vote with TXN hash", "current round", os.curRound, "hash", hash)
 }
 
 func (os *OracleServer) handleConfigEvent(ev fsnotify.Event) {
@@ -519,7 +544,7 @@ func (os *OracleServer) handlePenaltyEvent(penalizeEvent *contract.OraclePenaliz
 		metrics.GetOrRegisterGaugeFloat64(monitor.OutlierPenaltyMetric, nil).Update(ntnFloat)
 	}
 
-	record := &OutlierRecord{
+	outlierRecord := &OutlierRecord{
 		LastPenalizedAtBlock: penalizeEvent.Raw.BlockNumber,
 		Participant:          penalizeEvent.Participant,
 		Symbol:               penalizeEvent.Symbol,
@@ -528,8 +553,8 @@ func (os *OracleServer) handlePenaltyEvent(penalizeEvent *contract.OraclePenaliz
 		SlashingAmount:       penalizeEvent.SlashingAmount.Uint64(),
 		LoggedAt:             time.Now().Format(time.RFC3339),
 	}
-	os.memories.outlierRecord = record
-	if err := os.memories.flushRecord(record); err != nil {
+	os.memories.outlierRecord = outlierRecord
+	if err := os.memories.flushRecord(outlierRecord); err != nil {
 		os.logger.Warn("failed to flush penality record to persistence", "error", err.Error())
 		os.logger.Warn("IMPORTANT: please check your profile data dir, the server need to flush penality record into it.")
 		return err
@@ -1003,7 +1028,7 @@ func (os *OracleServer) reportWithCommitment(curVoteRecord, lastVote *types.Vote
 	curVoteRecord.TxNonce = tx.Nonce()
 	curVoteRecord.TxCost = tx.Cost()
 	os.voteRecords[os.curRound] = curVoteRecord
-	if err = os.memories.flushRecord(curVoteRecord); err != nil {
+	if err = os.memories.flushRecord(os.voteRecords); err != nil {
 		os.logger.Warn("failed to flush vote record to persistence", "error", err.Error())
 		os.logger.Warn("IMPORTANT: please check your profile data dir, the server need to flush vote record into it.")
 	}
@@ -1031,7 +1056,7 @@ func (os *OracleServer) reportWithoutCommitment(lastVoteRecord *types.VoteRecord
 		TxHash:      tx.Hash(),
 	}
 	os.voteRecords[os.curRound] = curVoteRecord
-	if err = os.memories.flushRecord(curVoteRecord); err != nil {
+	if err = os.memories.flushRecord(os.voteRecords); err != nil {
 		os.logger.Warn("failed to flush vote record to persistence", "error", err.Error())
 		os.logger.Warn("IMPORTANT: please check your profile data dir, the server need to flush vote record into it.")
 	}

@@ -16,10 +16,13 @@ const (
 	voteRecordFile    = "vote_record.json"
 )
 
+// VoteRecords stores the most recent MaxBufferedRounds (10) rounds vote records.
+type VoteRecords map[uint64]*types.VoteRecord
+
 // Memories stores persistent state loaded from data directory
 type Memories struct {
 	outlierRecord *OutlierRecord
-	voteRecord    *types.VoteRecord
+	voteRecords   *VoteRecords
 	dataDir       string
 }
 
@@ -39,16 +42,18 @@ func (s *Memories) init(logger hclog.Logger) {
 		logger.Info("Loading outlier record file", "error", err)
 	}
 	s.outlierRecord = outlierRecord
-	voteRecord, err := s.loadVoteRecord()
+	voteRecords, err := s.loadVoteRecords()
 	if err != nil {
 		logger.Info("loading last vote record file", "error", err)
 	}
-	s.voteRecord = voteRecord
+	s.voteRecords = voteRecords
 	if outlierRecord != nil {
 		logger.Info("Loaded outlier record", "outlierRecord", outlierRecord)
 	}
-	if voteRecord != nil {
-		logger.Info("Loaded vote record", "voteRecord", voteRecord)
+	if voteRecords != nil {
+		for k, v := range *voteRecords {
+			logger.Info("Loaded vote record", "round", k, "vote", v)
+		}
 	}
 }
 
@@ -70,8 +75,8 @@ func loadRecord[T any](dir, filename string) (*T, error) {
 	return &record, nil
 }
 
-func (s *Memories) loadVoteRecord() (*types.VoteRecord, error) {
-	return loadRecord[types.VoteRecord](s.dataDir, voteRecordFile)
+func (s *Memories) loadVoteRecords() (*VoteRecords, error) {
+	return loadRecord[VoteRecords](s.dataDir, voteRecordFile)
 }
 
 func (s *Memories) loadOutlierRecord() (*OutlierRecord, error) {
@@ -84,7 +89,7 @@ func (s *Memories) flushRecord(record interface{}) error {
 	switch record.(type) {
 	case *OutlierRecord:
 		fileName = outlierRecordFile
-	case *types.VoteRecord:
+	case VoteRecords:
 		fileName = voteRecordFile
 	default:
 		panic("unexpected record type")

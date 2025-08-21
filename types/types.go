@@ -61,6 +61,7 @@ type VoteRecord struct {
 	Prices         PriceBySymbol            `json:"prices"`
 	Symbols        []string                 `json:"symbols"`
 	Reports        []contract.IOracleReport `json:"reports"`
+	Error          string                   `json:"error"`
 }
 
 // JSONRPCMessage is the JSON spec to carry those data response from the binance data simulator.
