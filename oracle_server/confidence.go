@@ -36,23 +36,27 @@ func computeConfidence(symbol string, numOfSamples, strategy int) uint8 {
 
 // by according to the spreading of price timestamp from the target timestamp,
 // we reduce the confidence of the price, set the lowest confidence as 1.
-func confidenceAdjustedPrice(historicRoundPrice *types.Price, target int64) (*types.Price, error) {
+func confidenceAdjustedPrice(copyHistoricPrice *types.Price, target int64) (*types.Price, error) {
 	// Calculate the time difference between the target timestamp and the historic price timestamp
-	timeDifference := target - historicRoundPrice.Timestamp
+	timeDifference := target - copyHistoricPrice.Timestamp
 
 	var reducedConfidence uint8
-	if timeDifference < 60 { // Less than 1 minute
-		reducedConfidence = historicRoundPrice.Confidence // Keep original confidence
-	} else if timeDifference < 3600 { // Less than 1 hour
-		reducedConfidence = historicRoundPrice.Confidence / 2 // Reduce confidence by half
+	if timeDifference < 60 {
+		// Less than 1 minute, keep original confidence
+		reducedConfidence = copyHistoricPrice.Confidence
+	} else if timeDifference < 3600 {
+		// Less than 1 hour, reduce by 50%, it could be zero.
+		reducedConfidence = copyHistoricPrice.Confidence / 2
 	} else {
-		reducedConfidence = 1 // Set the lowest confidence to 1 if more than 1 hour old
+		// More than 1 hour, set to zero. For some vote records loaded from the persistence, they could be out of updated.
+		reducedConfidence = 0
 	}
 
+	// If the confidence decades to zero, not to report to avoid potential outlier slashing.
 	if reducedConfidence == 0 {
 		return nil, types.ErrNoAvailablePrice
 	}
 
-	historicRoundPrice.Confidence = reducedConfidence
-	return historicRoundPrice, nil
+	copyHistoricPrice.Confidence = reducedConfidence
+	return copyHistoricPrice, nil
 }

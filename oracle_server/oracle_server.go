@@ -1352,12 +1352,12 @@ func (os *OracleServer) aggregatePrice(s string, target int64) (*types.Price, er
 	}
 
 	if len(prices) == 0 {
-		historicRoundPrice, err := os.queryHistoricRoundPrice(s)
+		copyHistoricPrice, err := os.queryHistoricRoundPrice(s)
 		if err != nil {
 			return nil, err
 		}
 
-		return confidenceAdjustedPrice(&historicRoundPrice, target)
+		return confidenceAdjustedPrice(&copyHistoricPrice, target)
 	}
 
 	// compute confidence of the symbol from the num of plugins' samples of it.
