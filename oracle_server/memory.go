@@ -96,6 +96,7 @@ func (s *Memories) loadOutlierRecord() (*OutlierRecord, error) {
 	return loadRecord[OutlierRecord](s.dataDir, outlierRecordFile)
 }
 
+// Note! This is not a thread safe data flushing function.
 func (s *Memories) flushRecord(record interface{}) error {
 	// Resolve filename using direct type comparison
 	var fileName string

@@ -11,7 +11,6 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
-	"fmt"
 	"math"
 	"math/big"
 	o "os"
@@ -864,9 +863,6 @@ func (os *OracleServer) penalityTopic(name string, query ...[]interface{}) ([][]
 
 // UnpackLog unpacks a retrieved log into the provided output structure.
 func (os *OracleServer) unpackLog(out interface{}, event string, log tp.Log) error {
-	if log.Topics[0] != os.abi.Events[event].ID {
-		return fmt.Errorf("event signature mismatch")
-	}
 	if len(log.Data) > 0 {
 		if err := os.abi.UnpackIntoInterface(out, event, log.Data); err != nil {
 			return err
@@ -908,19 +904,25 @@ func (os *OracleServer) onOutlierSlashing() bool {
 		return false
 	}
 
-	// unpack log, and check if the slashing amount is over zero.
-	for _, log := range logs {
-		ev := new(contract.OraclePenalized)
-		if err = os.unpackLog(ev, penalizeEventName, log); err != nil {
-			return false
-		}
-		ev.Raw = log
-		if ev.SlashingAmount.Cmp(common.Big0) > 0 {
-			os.logger.Info("on going slashing", "height", os.curRoundHeight, "round", os.curRound,
-				"symbol", ev.Symbol, "median", ev.Median.String(), "reported", ev.Reported.String(), "slashing amount",
-				ev.SlashingAmount.String())
-			return true
-		}
+	// As the logs are filtered by topic and indexed by the participant address, thus the logged event should be the
+	// one we watched unless the L1 client was wrong.
+	if len(logs) > 1 {
+		// This is not expected unless there is a L1 protocol bug.
+		os.logger.Warn("L1 network emits multiple outlier penality events against the client at the end of round")
+	}
+
+	log := logs[0]
+	ev := new(contract.OraclePenalized)
+	if err = os.unpackLog(ev, penalizeEventName, log); err != nil {
+		os.logger.Error("failed to unpack outlier penalize event", "error", err, "height", os.curRoundHeight)
+		return false
+	}
+
+	if ev.SlashingAmount.Cmp(common.Big0) > 0 {
+		os.logger.Info("on going slashing", "height", os.curRoundHeight, "round", os.curRound,
+			"symbol", ev.Symbol, "median", ev.Median.String(), "reported", ev.Reported.String(), "slashing amount",
+			ev.SlashingAmount.String())
+		return true
 	}
 	return false
 }
