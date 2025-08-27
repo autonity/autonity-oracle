@@ -3,6 +3,7 @@ package oracleserver
 import (
 	"autonity-oracle/types"
 	"encoding/json"
+	"errors"
 	"fmt"
 	o "os"
 	"path/filepath"
@@ -39,12 +40,24 @@ type OutlierRecord struct {
 func (s *Memories) init(logger hclog.Logger) {
 	outlierRecord, err := s.loadOutlierRecord()
 	if err != nil {
-		logger.Info("Loading outlier record file", "error", err)
+		if errors.Is(err, o.ErrNotExist) {
+			logger.Info("There is no outlier record in the profile data directory.")
+		} else {
+			// as there is no recovery mechanism for the corrupted data engine, thus we don't panic.
+			logger.Warn("Loading outlier record file", "error", err)
+			logger.Warn("Running server without any outlier record from persistence layer")
+		}
 	}
 	s.outlierRecord = outlierRecord
 	voteRecords, err := s.loadVoteRecords()
 	if err != nil {
-		logger.Info("loading last vote record file", "error", err)
+		if errors.Is(err, o.ErrNotExist) {
+			logger.Info("There is no vote record in the profile data directory.")
+		} else {
+			// as there is no recovery mechanism for the corrupted data engine, thus we don't panic.
+			logger.Info("loading last vote record file", "error", err)
+			logger.Warn("Running server without any vote record from persistence layer")
+		}
 	}
 	s.voteRecords = voteRecords
 	if outlierRecord != nil {
@@ -96,7 +109,7 @@ func (s *Memories) flushRecord(record interface{}) error {
 	}
 
 	if _, err := o.Stat(s.dataDir); o.IsNotExist(err) {
-		return fmt.Errorf("data dir does not exist: %s", s.dataDir)
+		return fmt.Errorf("profile data directory does not exist: %s", s.dataDir)
 	}
 	filePath := filepath.Join(s.dataDir, fileName)
 	file, err := o.Create(filePath)
