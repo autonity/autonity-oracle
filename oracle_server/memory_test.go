@@ -28,13 +28,18 @@ func setupTestDir(t *testing.T) string {
 
 func writeTestFile(t *testing.T, dir, filename string, content interface{}) string {
 	path := filepath.Join(dir, filename)
-	file, err := os.Create(path)
-	require.NoError(t, err)
+
+	file, err := os.OpenFile(
+		path,
+		os.O_RDWR|os.O_CREATE|os.O_TRUNC,
+		0600,
+	)
+	require.NoError(t, err, "Failed to create file")
 	defer file.Close()
 
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
-	require.NoError(t, encoder.Encode(content))
+	require.NoError(t, encoder.Encode(content), "Failed to encode JSON")
 	return path
 }
 

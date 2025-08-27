@@ -111,8 +111,10 @@ func (s *Memories) flushRecord(record interface{}) error {
 	if _, err := o.Stat(s.dataDir); o.IsNotExist(err) {
 		return fmt.Errorf("profile data directory does not exist: %s", s.dataDir)
 	}
+
 	filePath := filepath.Join(s.dataDir, fileName)
-	file, err := o.Create(filePath)
+	// limit the file with R&W permission only for its owner.
+	file, err := o.OpenFile(filePath, o.O_RDWR|o.O_CREATE|o.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("failed to create record file: %s, %v", filePath, err)
 	}
@@ -121,7 +123,7 @@ func (s *Memories) flushRecord(record interface{}) error {
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(record); err != nil {
-		return fmt.Errorf("failed to marshual data in json: %v", err)
+		return fmt.Errorf("failed to marshal data to JSON: %v", err)
 	}
 	return nil
 }
