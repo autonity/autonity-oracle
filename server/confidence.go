@@ -1,4 +1,4 @@
-package oracleserver
+package server
 
 import (
 	"autonity-oracle/config"

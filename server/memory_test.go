@@ -1,4 +1,4 @@
-package oracleserver
+package server
 
 import (
 	contract "autonity-oracle/contract_binder/contract"

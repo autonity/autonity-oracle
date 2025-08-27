@@ -1,4 +1,4 @@
-package oracleserver
+package server
 
 import (
 	"autonity-oracle/config"
@@ -13,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 )
 
-func (os *OracleServer) PluginRuntimeManagement() {
+func (os *Server) PluginRuntimeManagement() {
 	// load plugin configs before start them.
 	newConfs, err := config.LoadPluginsConfig(os.conf.ConfigFile)
 	if err != nil {
@@ -77,7 +77,7 @@ func (os *OracleServer) PluginRuntimeManagement() {
 	}
 }
 
-func (os *OracleServer) tryToLaunchPlugin(f fs.FileInfo, plugConf config.PluginConfig) {
+func (os *Server) tryToLaunchPlugin(f fs.FileInfo, plugConf config.PluginConfig) {
 	plugin, ok := os.runningPlugins[f.Name()]
 	if !ok {
 		os.logger.Info("new plugin discovered, going to setup it: ", f.Name(), f.Mode().String())
@@ -103,7 +103,7 @@ func (os *OracleServer) tryToLaunchPlugin(f fs.FileInfo, plugConf config.PluginC
 	}
 }
 
-func (os *OracleServer) setupNewPlugin(name string, conf *config.PluginConfig) (*pWrapper.PluginWrapper, error) {
+func (os *Server) setupNewPlugin(name string, conf *config.PluginConfig) (*pWrapper.PluginWrapper, error) {
 	if err := os.ApplyPluginConf(name, conf); err != nil {
 		os.logger.Error("apply plugin config", "error", err.Error())
 		return nil, err
@@ -124,7 +124,7 @@ func (os *OracleServer) setupNewPlugin(name string, conf *config.PluginConfig) (
 	return pluginWrapper, nil
 }
 
-func (os *OracleServer) ApplyPluginConf(name string, plugConf *config.PluginConfig) error {
+func (os *Server) ApplyPluginConf(name string, plugConf *config.PluginConfig) error {
 	// set the plugin configuration via system env, thus the plugin can load it on startup.
 	conf, err := json.Marshal(plugConf)
 	if err != nil {

@@ -1,4 +1,4 @@
-package oracleserver
+package server
 
 import (
 	"autonity-oracle/config"
@@ -83,7 +83,7 @@ func TestOracleServer(t *testing.T) {
 
 		l1Mock := mock.NewMockBlockchain(ctrl)
 		l1Mock.EXPECT().ChainID(gomock.Any()).Return(ChainIDPiccadilly, nil)
-		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
+		srv := NewServer(conf, dialerMock, l1Mock, contractMock)
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
 		require.Equal(t, DefaultSampledSymbols, srv.samplingSymbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromBigInt(common.Big1, int32(precision))))
@@ -115,7 +115,7 @@ func TestOracleServer(t *testing.T) {
 		l1Mock := mock.NewMockBlockchain(ctrl)
 		l1Mock.EXPECT().BlockNumber(gomock.Any()).AnyTimes().Return(chainHeight, nil)
 		l1Mock.EXPECT().ChainID(gomock.Any()).Return(ChainIDPiccadilly, nil)
-		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
+		srv := NewServer(conf, dialerMock, l1Mock, contractMock)
 
 		ts := time.Now().Unix()
 		srv.curSampleTS = ts
@@ -184,7 +184,7 @@ func TestOracleServer(t *testing.T) {
 		l1Mock.EXPECT().HeaderByNumber(gomock.Any(), nil).Return(header, nil)
 		l1Mock.EXPECT().BalanceAt(gomock.Any(), gomock.Any(), gomock.Any()).Return(alertBalance, nil)
 		l1Mock.EXPECT().FilterLogs(gomock.Any(), gomock.Any()).Return(nil, nil)
-		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
+		srv := NewServer(conf, dialerMock, l1Mock, contractMock)
 
 		// prepare last round data.
 		prices := make(types.PriceBySymbol)
@@ -250,7 +250,7 @@ func TestOracleServer(t *testing.T) {
 		l1Mock := mock.NewMockBlockchain(ctrl)
 		l1Mock.EXPECT().ChainID(gomock.Any()).Return(ChainIDPiccadilly, nil)
 
-		srv := NewOracleServer(conf, dialerMock, l1Mock, contractMock)
+		srv := NewServer(conf, dialerMock, l1Mock, contractMock)
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
 		require.Equal(t, DefaultSampledSymbols, srv.samplingSymbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromBigInt(common.Big1, int32(precision))))
@@ -265,7 +265,7 @@ func TestOracleServer(t *testing.T) {
 	})
 
 	t.Run("gcRounddata", func(t *testing.T) {
-		os := &OracleServer{
+		os := &Server{
 			voteRecords: make(map[uint64]*types.VoteRecord),
 			curRound:    100,
 		}

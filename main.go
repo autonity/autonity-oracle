@@ -4,7 +4,7 @@ import (
 	"autonity-oracle/config"
 	contract "autonity-oracle/contract_binder/contract"
 	"autonity-oracle/monitor"
-	"autonity-oracle/oracle_server"
+	"autonity-oracle/server"
 	"autonity-oracle/types"
 	"fmt"
 	"log"
@@ -79,7 +79,7 @@ func main() { //nolint
 		os.Exit(1)
 	}
 
-	oracle := oracleserver.NewOracleServer(conf, dialer, client, oc)
+	oracle := server.NewServer(conf, dialer, client, oc)
 	go oracle.Start()
 	defer oracle.Stop()
 
