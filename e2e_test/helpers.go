@@ -142,7 +142,7 @@ func (o *Oracle) ConfigOracleServer(wsEndpoint string) {
 	defaultConfig.AutonityWSUrl = wsEndpoint
 	defaultConfig.KeyFile = o.Key.KeyFile
 	defaultConfig.KeyPassword = o.Key.Password
-	defaultConfig.PluginDIR = o.PluginDir
+	defaultConfig.PluginDir = o.PluginDir
 	defaultConfig.LoggingLevel = int(hclog.Debug)
 	defaultConfig.ProfileDir, err = os.MkdirTemp("", "oracle-data-*")
 	o.DataDir = defaultConfig.ProfileDir

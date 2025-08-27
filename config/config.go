@@ -45,7 +45,7 @@ var DefaultConfig = ServerConfig{
 	KeyFile:            defaultKeyFile,
 	KeyPassword:        defaultKeyPassword,
 	AutonityWSUrl:      defaultAutonityWSUrl,
-	PluginDIR:          defaultPluginDir,
+	PluginDir:          defaultPluginDir,
 	ProfileDir:         defaultProfileDir,
 	ConfidenceStrategy: defaultConfidenceStrategy,
 	PluginConfigs:      nil,
@@ -108,7 +108,7 @@ type ServerConfig struct {
 	KeyFile            string         `json:"keyFile" yaml:"keyFile"`
 	KeyPassword        string         `json:"keyPassword" yaml:"keyPassword"`
 	AutonityWSUrl      string         `json:"autonityWSUrl" yaml:"autonityWSUrl"`
-	PluginDIR          string         `json:"pluginDir" yaml:"pluginDir"`
+	PluginDir          string         `json:"pluginDir" yaml:"pluginDir"`
 	ProfileDir         string         `json:"profileDir" yaml:"profileDir"`
 	ConfidenceStrategy int            `json:"confidenceStrategy" yaml:"confidenceStrategy"`
 	PluginConfigs      []PluginConfig `json:"pluginConfigs" yaml:"pluginConfigs"`
@@ -188,6 +188,16 @@ func MakeConfig() *Config {
 		os.Exit(1)
 	}
 
+	if _, err = os.Stat(config.PluginDir); os.IsNotExist(err) {
+		log.Printf("could not find plugin directory from config: %s, err: %s", config.PluginDir, err.Error())
+		os.Exit(1)
+	}
+
+	if _, err = os.Stat(config.ProfileDir); os.IsNotExist(err) {
+		log.Printf("could not find profile data directory from config: %s, err: %s", config.ProfileDir, err.Error())
+		os.Exit(1)
+	}
+
 	if config.MetricConfigs.EnableInfluxDB && config.MetricConfigs.EnableInfluxDBV2 {
 		log.SetFlags(0)
 		log.Println("There are two metrics engine enabled, please select one: influxDB or influxDBV2")
@@ -205,7 +215,7 @@ func MakeConfig() *Config {
 		GasTipCap:          config.GasTipCap,
 		Key:                key,
 		AutonityWSUrl:      config.AutonityWSUrl,
-		PluginDIR:          config.PluginDIR,
+		PluginDIR:          config.PluginDir,
 		ProfileDir:         config.ProfileDir,
 		LoggingLevel:       hclog.Level(config.LoggingLevel), //nolint
 		ConfidenceStrategy: config.ConfidenceStrategy,
