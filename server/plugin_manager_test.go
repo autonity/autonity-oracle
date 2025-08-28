@@ -46,7 +46,7 @@ func TestPluginManagement(t *testing.T) {
 		VoteBuffer:         config.DefaultConfig.VoteBuffer,
 		Key:                key,
 		AutonityWSUrl:      config.DefaultConfig.AutonityWSUrl,
-		PluginDIR:          "../plugins/template_plugin/bin",
+		PluginDir:          "../plugins/template_plugin/bin",
 		ProfileDir:         ".",
 		ConfidenceStrategy: 0,
 		PluginConfigs:      nil,
@@ -81,7 +81,7 @@ func TestPluginManagement(t *testing.T) {
 		require.Equal(t, 1, len(srv.runningPlugins))
 
 		// add a new plugin into the plugin directory.
-		clones, err := clonePlugins(srv.conf.PluginDIR, "cloned", srv.conf.PluginDIR)
+		clones, err := clonePlugins(srv.conf.PluginDir, "cloned", srv.conf.PluginDir)
 		require.NoError(t, err)
 		defer func() {
 			for _, f := range clones {
@@ -127,7 +127,7 @@ func TestPluginManagement(t *testing.T) {
 		firstStart := srv.runningPlugins["template_plugin"].StartTime()
 
 		// cpy and replace the legacy plugins
-		err := replacePlugins(srv.conf.PluginDIR)
+		err := replacePlugins(srv.conf.PluginDir)
 		require.NoError(t, err)
 
 		srv.PluginRuntimeManagement()
@@ -172,7 +172,7 @@ func TestPluginManagement(t *testing.T) {
 		require.NoError(t, err)
 
 		// Copy existing plugins to the backup directory
-		files, err := os.ReadDir(srv.conf.PluginDIR)
+		files, err := os.ReadDir(srv.conf.PluginDir)
 		require.NoError(t, err)
 
 		for _, file := range files {
@@ -180,7 +180,7 @@ func TestPluginManagement(t *testing.T) {
 			require.NoError(t, err)
 
 			if !file.IsDir() && helpers.IsExecOwnerGroup(info.Mode()) {
-				src := filepath.Join(srv.conf.PluginDIR, file.Name())
+				src := filepath.Join(srv.conf.PluginDir, file.Name())
 				dst := filepath.Join(backupDir, file.Name())
 
 				// FIXED: Use file copy instead of hard link
@@ -200,7 +200,7 @@ func TestPluginManagement(t *testing.T) {
 				require.NoError(t, err)
 
 				src := filepath.Join(backupDir, file.Name())
-				dst := filepath.Join(srv.conf.PluginDIR, file.Name())
+				dst := filepath.Join(srv.conf.PluginDir, file.Name())
 
 				// FIXED: Use file copy instead of hard link
 				err = copyFile(src, dst, info.Mode())
@@ -209,7 +209,7 @@ func TestPluginManagement(t *testing.T) {
 		}()
 
 		// Remove the plugins
-		err = removePlugins(srv.conf.PluginDIR)
+		err = removePlugins(srv.conf.PluginDir)
 		require.NoError(t, err)
 
 		srv.PluginRuntimeManagement()

@@ -4,16 +4,17 @@ import (
 	"autonity-oracle/config"
 	"autonity-oracle/types"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/metrics"
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
 	"os"
 	"os/exec"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-plugin"
 )
 
 var (
@@ -106,11 +107,11 @@ func (pw *PluginWrapper) AddSample(prices []types.Price, ts int64) {
 	}
 }
 
-// AggregatedPrice returns the aggregated price computed from a set of pre-samples of a symbol by a specific plugin.
+// SelectSample returns the aggregated price computed from a set of pre-samples of a symbol by a specific plugin.
 // For data points from AMM and AFQ markets, they are aggregated by the samples of the recent pre-samplings period,
 // while for data points from CEX, the last sample of the pre-sampling period will be taken.
 // The target is the timestamp on which the round block is mined, it's used to select datapoint from CEX data source.
-func (pw *PluginWrapper) AggregatedPrice(symbol string, target int64) (types.Price, error) {
+func (pw *PluginWrapper) SelectSample(symbol string, target int64) (types.Price, error) {
 	pw.lockSamples.RLock()
 	defer pw.lockSamples.RUnlock()
 	tsMap, ok := pw.samples[symbol]

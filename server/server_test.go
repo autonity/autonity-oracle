@@ -56,7 +56,7 @@ func TestOracleServer(t *testing.T) {
 		VoteBuffer:         config.DefaultConfig.VoteBuffer,
 		Key:                key,
 		AutonityWSUrl:      config.DefaultConfig.AutonityWSUrl,
-		PluginDIR:          "../plugins/template_plugin/bin",
+		PluginDir:          "../plugins/template_plugin/bin",
 		ProfileDir:         ".",
 		ConfidenceStrategy: 0,
 		PluginConfigs:      nil,

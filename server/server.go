@@ -5,7 +5,6 @@ import (
 	contract "autonity-oracle/contract_binder/contract"
 	"autonity-oracle/helpers"
 	"autonity-oracle/monitor"
-	pWrapper "autonity-oracle/plugin_wrapper"
 	common2 "autonity-oracle/plugins/common"
 	"autonity-oracle/types"
 	"context"
@@ -14,7 +13,6 @@ import (
 	"math"
 	"math/big"
 	o "os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -26,7 +24,6 @@ import (
 	tp "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/metrics"
-	"github.com/fsnotify/fsnotify"
 	"github.com/hashicorp/go-hclog"
 	"github.com/modern-go/reflect2"
 	"github.com/shopspring/decimal"
@@ -70,10 +67,11 @@ type Server struct {
 	regularTicker *time.Ticker // the clock source to trigger the 10s interval job.
 	psTicker      *time.Ticker // the pre-sampling ticker in 1s.
 
-	runningPlugins  map[string]*pWrapper.PluginWrapper // the plugin clients that connect with different adapters.
-	samplingSymbols []string                           // the symbols for data fetching in oracle service, can be different from the required protocol symbols.
+	//runningPlugins  map[string]*pWrapper.PluginWrapper // the plugin clients that connect with different adapters.
 
-	keyRequiredPlugins map[string]struct{} // saving those plugins which require a key granted by data provider
+	samplingSymbols []string // the symbols for data fetching in oracle service, can be different from the required protocol symbols.
+
+	//keyRequiredPlugins map[string]struct{} // saving those plugins which require a key granted by data provider
 
 	// the reporting staffs
 	dialer         types.Dialer
@@ -119,25 +117,26 @@ type Server struct {
 
 	memories Memories
 
-	configWatcher  *fsnotify.Watcher // config file watcher which watches the config changes.
-	pluginsWatcher *fsnotify.Watcher // plugins watcher which watches the changes of plugins and the plugins' configs.
-	chainID        int64             // ChainID saves the L1 chain ID, it is used for plugin compatibility check.
+	pluginManager *PluginManager
+	//configWatcher  *fsnotify.Watcher // config file watcher which watches the config changes.
+	//pluginsWatcher *fsnotify.Watcher // plugins watcher which watches the changes of plugins and the plugins' configs.
+	//chainID        int64             // ChainID saves the L1 chain ID, it is used for plugin compatibility check.
 }
 
 func NewServer(conf *config.Config, dialer types.Dialer, client types.Blockchain,
 	oc contract.ContractAPI) *Server {
 	os := &Server{
-		conf:               conf,
-		dialer:             dialer,
-		client:             client,
-		oracleContract:     oc,
-		voteRecords:        make(map[uint64]*types.VoteRecord),
-		runningPlugins:     make(map[string]*pWrapper.PluginWrapper),
-		keyRequiredPlugins: make(map[string]struct{}),
-		doneCh:             make(chan struct{}),
-		regularTicker:      time.NewTicker(tenSecsInterval),
-		psTicker:           time.NewTicker(oneSecsInterval),
-		pricePrecision:     decimal.NewFromBigInt(common.Big1, int32(OracleDecimals)),
+		conf:           conf,
+		dialer:         dialer,
+		client:         client,
+		oracleContract: oc,
+		voteRecords:    make(map[uint64]*types.VoteRecord),
+		//runningPlugins:     make(map[string]*pWrapper.PluginWrapper),
+		//keyRequiredPlugins: make(map[string]struct{}),
+		doneCh:         make(chan struct{}),
+		regularTicker:  time.NewTicker(tenSecsInterval),
+		psTicker:       time.NewTicker(oneSecsInterval),
+		pricePrecision: decimal.NewFromBigInt(common.Big1, int32(OracleDecimals)),
 	}
 
 	os.logger = hclog.New(&hclog.LoggerOptions{
@@ -159,7 +158,7 @@ func NewServer(conf *config.Config, dialer types.Dialer, client types.Blockchain
 		o.Exit(1)
 	}
 
-	os.chainID = chainID.Int64()
+	//os.chainID = chainID.Int64()
 
 	commitmentHashComputer, err := NewCommitmentHashComputer()
 	if err != nil {
@@ -176,23 +175,24 @@ func NewServer(conf *config.Config, dialer types.Dialer, client types.Blockchain
 		os.logger.Info("loaded vote records from persistence", "records", len(os.voteRecords))
 	}
 
-	// discover plugins from plugin dir at startup.
-	binaries, err := helpers.ListPlugins(conf.PluginDIR)
-	if len(binaries) == 0 || err != nil {
-		// to stop the service on the start once there is no plugin in the db.
-		os.logger.Error("no plugin discovered", "plugin-dir", os.conf.PluginDIR)
-		o.Exit(1)
-	}
-
-	// take the custom plugin configs and start plugins.
-	for _, file := range binaries {
-		f := file
-		pConf := conf.PluginConfigs[f.Name()]
-		if pConf.Disabled {
-			continue
+	/*
+		// discover plugins from plugin dir at startup.
+		binaries, err := helpers.ListPlugins(conf.PluginDir)
+		if len(binaries) == 0 || err != nil {
+			// to stop the service on the start once there is no plugin in the db.
+			os.logger.Error("no plugin discovered", "plugin-dir", os.conf.PluginDir)
+			o.Exit(1)
 		}
-		os.tryToLaunchPlugin(f, pConf)
-	}
+
+		// take the custom plugin configs and start plugins.
+		for _, file := range binaries {
+			f := file
+			pConf := conf.PluginConfigs[f.Name()]
+			if pConf.Disabled {
+				continue
+			}
+			os.tryToLaunchPlugin(f, pConf)
+		}*/
 
 	os.logger.Info("running oracle contract listener at", "WS", conf.AutonityWSUrl, "ID", conf.Key.Address.String())
 	err = os.sync()
@@ -203,35 +203,42 @@ func NewServer(conf *config.Config, dialer types.Dialer, client types.Blockchain
 	}
 	os.lostSync = false
 
-	// subscribe FS notifications of the watched plugins.
-	pluginsWatcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		os.logger.Error("cannot create fsnotify watcher", "error", err)
-		o.Exit(1)
-	}
+	os.pluginManager = NewPluginManager(os.conf.ConfigFile, os.conf.PluginDir, os.conf.LoggingLevel, os, chainID.Int64(),
+		os.conf.Key.Address, os.conf.PluginConfigs)
 
-	err = pluginsWatcher.Add(conf.PluginDIR)
-	if err != nil {
-		os.logger.Error("cannot watch plugin dir", "error", err)
-		o.Exit(1)
-	}
-	os.pluginsWatcher = pluginsWatcher
+	/*
+		// subscribe FS notifications of the watched plugins.
+		pluginsWatcher, err := fsnotify.NewWatcher()
+		if err != nil {
+			os.logger.Error("cannot create fsnotify watcher", "error", err)
+			o.Exit(1)
+		}
 
-	// subscribe FS notification of the watched config file.
-	configWatcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		os.logger.Error("cannot create fsnotify watcher", "error", err)
-		o.Exit(1)
-	}
+		err = pluginsWatcher.Add(conf.PluginDir)
+		if err != nil {
+			os.logger.Error("cannot watch plugin dir", "error", err)
+			o.Exit(1)
+		}
+		os.pluginsWatcher = pluginsWatcher
+	*/
 
-	dir := filepath.Dir(conf.ConfigFile)
-	err = configWatcher.Add(dir) // Watch parent directory
-	if err != nil {
-		os.logger.Error("cannot watch oracle config directory", "error", err)
-		o.Exit(1)
-	}
+	/*
+		// subscribe FS notification of the watched config file.
+		configWatcher, err := fsnotify.NewWatcher()
+		if err != nil {
+			os.logger.Error("cannot create fsnotify watcher", "error", err)
+			o.Exit(1)
+		}
 
-	os.configWatcher = configWatcher
+		dir := filepath.Dir(conf.ConfigFile)
+		err = configWatcher.Add(dir) // Watch parent directory
+		if err != nil {
+			os.logger.Error("cannot watch oracle config directory", "error", err)
+			o.Exit(1)
+		}
+
+		os.configWatcher = configWatcher
+	*/
 	return os
 }
 
@@ -245,23 +252,26 @@ func (os *Server) Start() {
 		case <-os.doneCh:
 			os.regularTicker.Stop()
 			os.psTicker.Stop()
-			if os.pluginsWatcher != nil {
-				os.pluginsWatcher.Close() //nolint
-			}
+			/*
+				if os.pluginsWatcher != nil {
+					os.pluginsWatcher.Close() //nolint
+				}
 
-			if os.configWatcher != nil {
-				os.configWatcher.Close() //nolint
-			}
+				if os.configWatcher != nil {
+					os.configWatcher.Close() //nolint
+				}*/
 			os.logger.Info("oracle service is stopped")
 			return
-		case err := <-os.configWatcher.Errors:
-			if err != nil {
-				os.logger.Error("oracle config file watcher err", "err", err.Error())
-			}
-		case err := <-os.pluginsWatcher.Errors:
-			if err != nil {
-				os.logger.Error("plugin watcher errors", "err", err.Error())
-			}
+		/*
+			case err := <-os.configWatcher.Errors:
+				if err != nil {
+					os.logger.Error("oracle config file watcher err", "err", err.Error())
+				}
+			case err := <-os.pluginsWatcher.Errors:
+				if err != nil {
+					os.logger.Error("plugin watcher errors", "err", err.Error())
+				}
+		*/
 		case err := <-os.subSymbolsEvent.Err():
 			if err != nil {
 				os.logger.Info("subscription error of new symbols event", err)
@@ -345,23 +355,24 @@ func (os *Server) Start() {
 				os.logger.Error("handle penalty event", "error", err.Error())
 			}
 
-		case fsEvent, ok := <-os.configWatcher.Events:
-			if !ok {
-				os.logger.Error("config watcher channel has been closed")
-				return
-			}
-			os.handleConfigEvent(fsEvent)
+		/*
+			case fsEvent, ok := <-os.configWatcher.Events:
+				if !ok {
+					os.logger.Error("config watcher channel has been closed")
+					return
+				}
+				os.handleConfigEvent(fsEvent)
 
-		case fsEvent, ok := <-os.pluginsWatcher.Events:
-			if !ok {
-				os.logger.Error("plugin watcher channel has been closed")
-				return
-			}
+			case fsEvent, ok := <-os.pluginsWatcher.Events:
+				if !ok {
+					os.logger.Error("plugin watcher channel has been closed")
+					return
+				}
 
-			os.logger.Info("watched plugins fs event", "file", fsEvent.Name, "event", fsEvent.Op.String())
-			// updates on the watched plugin directory will trigger plugin management.
-			os.PluginRuntimeManagement()
-
+				os.logger.Info("watched plugins fs event", "file", fsEvent.Name, "event", fsEvent.Op.String())
+				// updates on the watched plugin directory will trigger plugin management.
+				os.PluginRuntimeManagement()
+		*/
 		case roundEvent := <-os.chRoundEvent:
 			os.logger.Info("handle new round", "round", roundEvent.Round.Uint64(), "required sampling TS",
 				roundEvent.Timestamp.Uint64(), "height", roundEvent.Raw.BlockNumber, "round period", roundEvent.VotePeriod.Uint64())
@@ -393,9 +404,10 @@ func (os *Server) Start() {
 		case <-os.regularTicker.C:
 			os.trackVoteState()
 			os.gcVoteRecords()
-			if metrics.Enabled {
-				metrics.GetOrRegisterGauge(monitor.PluginMetric, nil).Update(int64(len(os.runningPlugins)))
-			}
+			/*
+				if metrics.Enabled {
+					metrics.GetOrRegisterGauge(monitor.PluginMetric, nil).Update(int64(len(os.runningPlugins)))
+				}*/
 			os.logger.Debug("current round ID", "round", os.curRound)
 		}
 	}
@@ -412,9 +424,8 @@ func (os *Server) Stop() {
 	os.subRewardEvent.Unsubscribe()
 
 	os.doneCh <- struct{}{}
-	for _, c := range os.runningPlugins {
-		p := c
-		p.Close()
+	if os.pluginManager != nil {
+		os.pluginManager.Stop()
 	}
 }
 
@@ -485,6 +496,7 @@ func (os *Server) setVoteMined(hash common.Hash, err string) {
 	os.logger.Warn("cannot find the round vote with TXN hash", "current round", os.curRound, "hash", hash)
 }
 
+/*
 func (os *Server) handleConfigEvent(ev fsnotify.Event) {
 	// filter unwatched files in the dir.
 	if filepath.Base(ev.Name) != filepath.Base(os.conf.ConfigFile) {
@@ -503,7 +515,7 @@ func (os *Server) handleConfigEvent(ev fsnotify.Event) {
 		os.logger.Info("config file changed", "file", ev.Name)
 		os.PluginRuntimeManagement()
 	}
-}
+}*/
 
 func (os *Server) handlePenaltyEvent(penalizeEvent *contract.OraclePenalized) error {
 	// As the OutlierDetectionThreshold is set to low level, e.g. 3% against the median, and the OutlierSlashingThreshold
@@ -697,9 +709,12 @@ func (os *Server) syncRoundState() (uint64, uint64, []string, uint64, error) {
 }
 
 func (os *Server) gcStaleSamples() {
-	for _, plugin := range os.runningPlugins {
-		plugin.GCExpiredSamples()
-	}
+	os.pluginManager.GCSamples()
+
+	/*
+		for _, plugin := range os.runningPlugins {
+			plugin.GCExpiredSamples()
+		}*/
 }
 
 func (os *Server) gcVoteRecords() {
@@ -1342,17 +1357,7 @@ func (os *Server) aggBridgedPrice(srcSymbol string, target int64, usdcPrice *typ
 // aggregatePrice takes the symbol's aggregated data points from all the supported plugins, if there are multiple
 // markets' datapoint, it will do a final VWAP aggregation to form the final reporting value.
 func (os *Server) aggregatePrice(s string, target int64) (*types.Price, error) {
-	var prices []decimal.Decimal
-	var volumes []*big.Int
-	for _, plugin := range os.runningPlugins {
-		p, err := plugin.AggregatedPrice(s, target)
-		if err != nil {
-			continue
-		}
-		prices = append(prices, p.Price)
-		volumes = append(volumes, p.Volume)
-	}
-
+	prices, volumes := os.pluginManager.SelectSamples(s, target)
 	if len(prices) == 0 {
 		copyHistoricPrice, err := os.queryHistoricRoundPrice(s)
 		if err != nil {
