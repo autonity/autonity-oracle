@@ -424,7 +424,11 @@ func (os *Server) Stop() {
 func (os *Server) trackVoteState() {
 
 	var update bool
-	for r := os.curRound; r > os.curRound-MaxBufferedRounds; r-- {
+	endRound := os.curRound - MaxBufferedRounds
+	if os.curRound <= MaxBufferedRounds {
+		endRound = 0
+	}
+	for r := os.curRound; r > endRound; r-- {
 		vote, ok := os.voteRecords[r]
 		if !ok {
 			continue
@@ -456,8 +460,12 @@ func (os *Server) trackVoteState() {
 func (os *Server) setVoteMined(hash common.Hash, err string) {
 
 	var update bool
+	endRound := os.curRound - MaxBufferedRounds
+	if os.curRound <= MaxBufferedRounds {
+		endRound = 0
+	}
 	// iterate from the most recent round.
-	for r := os.curRound; r > os.curRound-MaxBufferedRounds; r-- {
+	for r := os.curRound; r > endRound; r-- {
 		if vote, ok := os.voteRecords[r]; ok {
 			if vote.TxHash == hash {
 				if !vote.Mined {

@@ -41,7 +41,7 @@ func (s *Memories) init(logger hclog.Logger) {
 	outlierRecord, err := s.loadOutlierRecord()
 	if err != nil {
 		if errors.Is(err, o.ErrNotExist) {
-			logger.Info("There is no outlier record in the profile data directory.")
+			logger.Info("There is no outlier record in the profile data directory.", "dir", s.dataDir)
 		} else {
 			// as there is no recovery mechanism for the corrupted data engine, thus we don't panic.
 			logger.Warn("Loading outlier record file", "error", err)
@@ -52,7 +52,7 @@ func (s *Memories) init(logger hclog.Logger) {
 	voteRecords, err := s.loadVoteRecords()
 	if err != nil {
 		if errors.Is(err, o.ErrNotExist) {
-			logger.Info("There is no vote record in the profile data directory.")
+			logger.Info("There is no vote record in the profile data directory.", "dir", s.dataDir)
 		} else {
 			// as there is no recovery mechanism for the corrupted data engine, thus we don't panic.
 			logger.Info("loading last vote record file", "error", err)
