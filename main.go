@@ -20,7 +20,7 @@ import (
 func main() { //nolint
 	conf := config.MakeConfig()
 	log.Printf("\n\n\n \tRunning autonity oracle server %s\n\twith account: %s\n\twith plugin directory: %s\n "+
-		"\twith profile data direcotry: %s\n "+"\tby connecting to L1 node: %s\n \ton oracle contract address: %s \n\n\n",
+		"\twith profile data directory: %s\n "+"\tby connecting to L1 node: %s\n \ton oracle contract address: %s \n\n\n",
 		config.VersionString(config.Version), conf.Key.Address.String(), conf.PluginDIR, conf.ProfileDir,
 		conf.AutonityWSUrl, types.OracleContractAddress)
 
