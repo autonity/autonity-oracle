@@ -225,34 +225,8 @@ func (m *PluginManager) PluginRuntimeManagement() {
 		return
 	}
 
-	m.rwMutex.Lock()
-	defer m.rwMutex.Unlock()
-	// shutdown the plugins which are removed, disabled or with config update.
-	for name, plugin := range m.runningPlugins {
-		// shutdown the plugins that were removed.
-		if _, ok := binaries[name]; !ok {
-			m.logger.Info("removing plugin", "name", name)
-			plugin.Close()
-			delete(m.runningPlugins, name)
-			continue
-		}
-
-		// shutdown the plugins that are runtime disabled.
-		newConf := newConfs[name]
-		if newConf.Disabled {
-			m.logger.Info("disabling plugin", "name", name)
-			plugin.Close()
-			delete(m.runningPlugins, name)
-			continue
-		}
-
-		// shutdown the plugins that with config updates, they will be reloaded after the shutdown.
-		if plugin.Config().Diff(&newConf) {
-			m.logger.Info("resetting plugin config", "name", name)
-			plugin.Close()
-			delete(m.runningPlugins, name)
-		}
-	}
+	// remove plugins which are disabled, deleted or re-configured.
+	m.removePlugins(m.toBeRemoved(newConfs, binaries))
 
 	// try to load new plugins.
 	for _, file := range binaries {
@@ -276,8 +250,50 @@ func (m *PluginManager) PluginRuntimeManagement() {
 	}
 }
 
-// After the setup, this function assumes the caller already hold the RWMutex.
+func (m *PluginManager) toBeRemoved(newConfs map[string]config.PluginConfig, binaries map[string]fs.FileInfo) []string {
+	var toBeShutdowns []string
+	m.rwMutex.RLock()
+	defer m.rwMutex.RUnlock()
+	// select the plugins which are going to be removed, disabled or with config updated.
+	for name, plugin := range m.runningPlugins {
+		// shutdown the plugins that were removed.
+		if _, ok := binaries[name]; !ok {
+			m.logger.Info("removing plugin", "name", name)
+			toBeShutdowns = append(toBeShutdowns, name)
+			continue
+		}
+
+		// shutdown the plugins that are runtime disabled.
+		newConf := newConfs[name]
+		if newConf.Disabled {
+			m.logger.Info("disabling plugin", "name", name)
+			toBeShutdowns = append(toBeShutdowns, name)
+			continue
+		}
+
+		// shutdown the plugins that with config updates, they will be reloaded after the shutdown.
+		if plugin.Config().Diff(&newConf) {
+			m.logger.Info("resetting plugin config", "name", name)
+			toBeShutdowns = append(toBeShutdowns, name)
+		}
+	}
+	return toBeShutdowns
+}
+
+func (m *PluginManager) removePlugins(names []string) {
+	m.rwMutex.Lock()
+	defer m.rwMutex.Unlock()
+	for _, name := range names {
+		if p, ok := m.runningPlugins[name]; ok {
+			p.Close()
+			delete(m.runningPlugins, name)
+		}
+	}
+}
+
 func (m *PluginManager) tryToLaunchPlugin(f fs.FileInfo, plugConf config.PluginConfig) {
+	m.rwMutex.Lock()
+	defer m.rwMutex.Unlock()
 	plugin, ok := m.runningPlugins[f.Name()]
 	if !ok {
 		m.logger.Info("new plugin discovered, going to setup it: ", f.Name(), f.Mode().String())
