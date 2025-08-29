@@ -247,6 +247,8 @@ func (os *Server) WatchSampleEvent(sink chan<- *types.SampleEvent) event.Subscri
 }
 
 func (os *Server) Start() {
+	go os.pluginManager.Start()
+
 	for {
 		select {
 		case <-os.doneCh:
@@ -260,7 +262,7 @@ func (os *Server) Start() {
 				if os.configWatcher != nil {
 					os.configWatcher.Close() //nolint
 				}*/
-			os.logger.Info("oracle service is stopped")
+			os.logger.Info("server is stopping ...")
 			return
 		/*
 			case err := <-os.configWatcher.Errors:
@@ -424,9 +426,8 @@ func (os *Server) Stop() {
 	os.subRewardEvent.Unsubscribe()
 
 	os.doneCh <- struct{}{}
-	if os.pluginManager != nil {
-		os.pluginManager.Stop()
-	}
+	os.pluginManager.Stop()
+	os.logger.Info("server is stopped")
 }
 
 // trackVoteState works in a pull mode to track if the vote was mined by L1 although there is already a push mode

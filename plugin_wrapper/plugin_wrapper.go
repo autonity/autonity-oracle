@@ -246,7 +246,7 @@ func (pw *PluginWrapper) start() {
 	for {
 		select {
 		case <-pw.doneCh:
-			pw.logger.Info("plugin exist", "name", pw.name)
+			pw.logger.Info("plugin is stopping...", "name", pw.name)
 			return
 		case err := <-pw.subSampleEvent.Err():
 			if err != nil {
@@ -322,4 +322,5 @@ func (pw *PluginWrapper) Close() {
 	pw.plugin.Kill()
 	pw.doneCh <- struct{}{}
 	pw.subSampleEvent.Unsubscribe()
+	pw.logger.Info("plugin is stopped")
 }

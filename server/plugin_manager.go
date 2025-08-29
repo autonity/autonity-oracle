@@ -62,7 +62,7 @@ func (m *PluginManager) Start() {
 			if m.configWatcher != nil {
 				m.configWatcher.Close() //nolint
 			}
-			m.logger.Info("plugin manager is stopped")
+			m.logger.Info("plugin manager is stopping...")
 			return
 		case err := <-m.configWatcher.Errors:
 			if err != nil {
@@ -106,6 +106,7 @@ func (m *PluginManager) Stop() {
 		p := c
 		p.Close()
 	}
+	m.logger.Info("plugin manager is stopped")
 }
 
 func (m *PluginManager) GCSamples() {
