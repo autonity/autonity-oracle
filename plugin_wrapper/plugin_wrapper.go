@@ -18,7 +18,8 @@ import (
 )
 
 var (
-	sampleTTL = 30 // 30s, the TTL of a sample before GC it.
+	sampleTTL       = 30 // 30s, the TTL of a sample before GC it.
+	tenSecsInterval = 1 * time.Minute
 )
 
 // PluginWrapper is the unified wrapper for the interface of a plugin, it contains metadata of a corresponding
@@ -31,6 +32,8 @@ type PluginWrapper struct {
 	lockSamples      sync.RWMutex
 	samples          map[string]map[int64]types.Price
 	latestTimestamps map[string]int64 // to track latest timestamps of samples
+
+	regularTicker *time.Ticker
 
 	plugin  *plugin.Client
 	adapter types.Adapter
@@ -80,6 +83,7 @@ func NewPluginWrapper(logLevel hclog.Level, name string, pluginDir string, sub t
 		chSampleEvent:    make(chan *types.SampleEvent),
 		priceMetrics:     make(map[string]metrics.GaugeFloat64),
 		logger:           logger,
+		regularTicker:    time.NewTicker(tenSecsInterval),
 	}
 
 	return p
@@ -246,6 +250,7 @@ func (pw *PluginWrapper) start() {
 	for {
 		select {
 		case <-pw.doneCh:
+			pw.regularTicker.Stop()
 			pw.logger.Info("plugin is stopping...", "name", pw.name)
 			return
 		case err := <-pw.subSampleEvent.Err():
@@ -262,6 +267,8 @@ func (pw *PluginWrapper) start() {
 					return
 				}
 			}()
+		case <-pw.regularTicker.C:
+			pw.GCExpiredSamples()
 		}
 	}
 }
