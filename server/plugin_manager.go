@@ -246,7 +246,7 @@ func (m *PluginManager) PluginRuntimeManagement() {
 	}
 
 	if metrics.Enabled {
-		metrics.GetOrRegisterGauge("oracle/plugins", nil).Update(int64(len(m.runningPlugins)))
+		metrics.GetOrRegisterGauge("oracle/plugins", nil).Update(int64(m.numOfPlugins()))
 	}
 }
 
