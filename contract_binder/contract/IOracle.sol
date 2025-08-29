@@ -128,6 +128,11 @@ interface IOracle {
     function getNewVoters() external view returns(address[] memory);
 
     /**
+    * @notice Retrieve the current round height.
+    */
+    function getLastRoundBlock() external view returns (uint256);
+
+    /**
      * @notice Retrieve the current round ID.
     */
     function getRound() external view returns (uint256);

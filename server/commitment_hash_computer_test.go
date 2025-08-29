@@ -1,10 +1,11 @@
-package oracleserver
+package server
 
 import (
 	contract "autonity-oracle/contract_binder/contract"
+	"testing"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestCommitmentHash(t *testing.T) {

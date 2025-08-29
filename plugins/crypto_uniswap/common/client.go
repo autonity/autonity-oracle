@@ -7,6 +7,12 @@ import (
 	"autonity-oracle/plugins/crypto_uniswap/contracts/pair"
 	"autonity-oracle/types"
 	"fmt"
+	"math"
+	"math/big"
+	"os"
+	"sync"
+	"time"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ecommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -14,11 +20,6 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/shopspring/decimal"
 	ring "github.com/zfjagann/golang-ring"
-	"math"
-	"math/big"
-	"os"
-	"sync"
-	"time"
 )
 
 var (
@@ -231,7 +232,7 @@ func NewWrappedPair(symbol string, baseTokenAddress ecommon.Address, quoteTokenA
 		baseTokenAddress: baseTokenAddress,
 		client:           client,
 		doneCh:           make(chan struct{}),
-		ticker:           time.NewTicker(time.Second * 30),
+		ticker:           time.NewTicker(time.Second * 1), // 1s ticker used to repair L1 connectivity if it was disconnected.
 
 		pairContract:   pairContract,
 		pairAddress:    pairAddress,
