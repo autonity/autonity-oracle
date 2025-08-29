@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
@@ -72,13 +73,16 @@ func TestPluginManagement(t *testing.T) {
 		contractMock.EXPECT().WatchNoRevealPenalty(gomock.Any(), gomock.Any(), gomock.Any()).Return(subNoRevealEvent, nil)
 		l1Mock := mock.NewMockBlockchain(ctrl)
 		l1Mock.EXPECT().ChainID(gomock.Any()).Return(ChainIDPiccadilly, nil)
+
 		srv := NewServer(conf, dialerMock, l1Mock, contractMock)
+		go srv.pluginManager.Start()
+		defer srv.pluginManager.Stop()
+
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
 		require.Equal(t, DefaultSampledSymbols, srv.samplingSymbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromBigInt(common.Big1, int32(precision))))
-
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
-		require.Equal(t, 1, len(srv.runningPlugins))
+		require.Equal(t, 1, srv.pluginManager.numOfPlugins())
 
 		// add a new plugin into the plugin directory.
 		clones, err := clonePlugins(srv.conf.PluginDir, "cloned", srv.conf.PluginDir)
@@ -90,12 +94,9 @@ func TestPluginManagement(t *testing.T) {
 			}
 		}()
 
-		srv.PluginRuntimeManagement()
-		require.Equal(t, 2, len(srv.runningPlugins))
-		require.Equal(t, "template_plugin", srv.runningPlugins["template_plugin"].Name())
-		require.Equal(t, "clonedtemplate_plugin", srv.runningPlugins["clonedtemplate_plugin"].Name())
-		srv.runningPlugins["template_plugin"].Close()
-		srv.runningPlugins["clonedtemplate_plugin"].Close()
+		// wait for the loading of the new plugin.
+		time.Sleep(time.Second * 5)
+		require.Equal(t, 2, srv.pluginManager.numOfPlugins())
 	})
 
 	t.Run("test plugin runtime management, upgrade plugin", func(t *testing.T) {
@@ -118,24 +119,27 @@ func TestPluginManagement(t *testing.T) {
 		l1Mock := mock.NewMockBlockchain(ctrl)
 		l1Mock.EXPECT().ChainID(gomock.Any()).Return(ChainIDPiccadilly, nil)
 		srv := NewServer(conf, dialerMock, l1Mock, contractMock)
+		go srv.pluginManager.Start()
+		defer srv.pluginManager.Stop()
+
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
 		require.Equal(t, DefaultSampledSymbols, srv.samplingSymbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromBigInt(common.Big1, int32(precision))))
 
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
-		require.Equal(t, 1, len(srv.runningPlugins))
-		firstStart := srv.runningPlugins["template_plugin"].StartTime()
+		require.Equal(t, 1, srv.pluginManager.numOfPlugins())
+		firstStart := srv.pluginManager.runningPlugins["template_plugin"].StartTime()
 
 		// cpy and replace the legacy plugins
 		err := replacePlugins(srv.conf.PluginDir)
 		require.NoError(t, err)
 
-		srv.PluginRuntimeManagement()
+		// wait for the run time plugin replacement happens.
+		time.Sleep(time.Second * 5)
 
-		require.Equal(t, 1, len(srv.runningPlugins))
-		require.Equal(t, "template_plugin", srv.runningPlugins["template_plugin"].Name())
-		require.Greater(t, srv.runningPlugins["template_plugin"].StartTime(), firstStart)
-		srv.runningPlugins["template_plugin"].Close()
+		require.Equal(t, 1, srv.pluginManager.numOfPlugins())
+		require.Equal(t, "template_plugin", srv.pluginManager.runningPlugins["template_plugin"].Name())
+		require.Greater(t, srv.pluginManager.runningPlugins["template_plugin"].StartTime(), firstStart)
 	})
 
 	t.Run("test plugin runtime management, remove plugin", func(t *testing.T) {
@@ -159,12 +163,15 @@ func TestPluginManagement(t *testing.T) {
 		l1Mock := mock.NewMockBlockchain(ctrl)
 		l1Mock.EXPECT().ChainID(gomock.Any()).Return(ChainIDPiccadilly, nil)
 		srv := NewServer(conf, dialerMock, l1Mock, contractMock)
+		go srv.pluginManager.Start()
+		defer srv.pluginManager.Stop()
+
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
 		require.Equal(t, DefaultSampledSymbols, srv.samplingSymbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromBigInt(common.Big1, int32(precision))))
 
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
-		require.Equal(t, 1, len(srv.runningPlugins))
+		require.Equal(t, 1, srv.pluginManager.numOfPlugins())
 
 		// Backup the existing plugins
 		backupDir := t.TempDir()
@@ -212,8 +219,8 @@ func TestPluginManagement(t *testing.T) {
 		err = removePlugins(srv.conf.PluginDir)
 		require.NoError(t, err)
 
-		srv.PluginRuntimeManagement()
-		require.Equal(t, 0, len(srv.runningPlugins))
+		time.Sleep(time.Second * 5)
+		require.Equal(t, 0, srv.pluginManager.numOfPlugins())
 	})
 }
 

@@ -84,14 +84,11 @@ func TestOracleServer(t *testing.T) {
 		l1Mock := mock.NewMockBlockchain(ctrl)
 		l1Mock.EXPECT().ChainID(gomock.Any()).Return(ChainIDPiccadilly, nil)
 		srv := NewServer(conf, dialerMock, l1Mock, contractMock)
+		defer srv.pluginManager.stopAllPlugins()
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
 		require.Equal(t, DefaultSampledSymbols, srv.samplingSymbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromBigInt(common.Big1, int32(precision))))
-
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
-		require.Equal(t, 1, len(srv.runningPlugins))
-		require.Equal(t, "template_plugin", srv.runningPlugins["template_plugin"].Name())
-		srv.runningPlugins["template_plugin"].Close()
 	})
 
 	t.Run("test pre-sampling happy case", func(t *testing.T) {
@@ -116,6 +113,7 @@ func TestOracleServer(t *testing.T) {
 		l1Mock.EXPECT().BlockNumber(gomock.Any()).AnyTimes().Return(chainHeight, nil)
 		l1Mock.EXPECT().ChainID(gomock.Any()).Return(ChainIDPiccadilly, nil)
 		srv := NewServer(conf, dialerMock, l1Mock, contractMock)
+		defer srv.pluginManager.stopAllPlugins()
 
 		ts := time.Now().Unix()
 		srv.curSampleTS = ts
@@ -135,8 +133,6 @@ func TestOracleServer(t *testing.T) {
 		require.Equal(t, true, helpers.ResolveSimulatedPrice(NTNUSD).Equal(voteRecord.Prices[NTNUSD].Price))
 		require.Equal(t, true, helpers.ResolveSimulatedPrice(ATNUSD).Equal(voteRecord.Prices[ATNUSD].Price))
 		t.Log(voteRecord)
-		srv.gcStaleSamples()
-		srv.runningPlugins["template_plugin"].Close()
 	})
 
 	t.Run("test round vote happy case, with commitment and round data", func(t *testing.T) {
@@ -185,7 +181,7 @@ func TestOracleServer(t *testing.T) {
 		l1Mock.EXPECT().BalanceAt(gomock.Any(), gomock.Any(), gomock.Any()).Return(alertBalance, nil)
 		l1Mock.EXPECT().FilterLogs(gomock.Any(), gomock.Any()).Return(nil, nil)
 		srv := NewServer(conf, dialerMock, l1Mock, contractMock)
-
+		defer srv.pluginManager.stopAllPlugins()
 		// prepare last round data.
 		prices := make(types.PriceBySymbol)
 		for _, s := range helpers.DefaultSymbols {
@@ -225,8 +221,6 @@ func TestOracleServer(t *testing.T) {
 		hash, err := srv.commitmentHashComputer.CommitmentHash(srv.voteRecords[srv.curRound].Reports, srv.voteRecords[srv.curRound].Salt, srv.conf.Key.Address)
 		require.NoError(t, err)
 		require.Equal(t, hash, srv.voteRecords[srv.curRound].CommitmentHash)
-
-		srv.runningPlugins["template_plugin"].Close()
 	})
 
 	t.Run("test handle new symbol event", func(t *testing.T) {
@@ -251,17 +245,17 @@ func TestOracleServer(t *testing.T) {
 		l1Mock.EXPECT().ChainID(gomock.Any()).Return(ChainIDPiccadilly, nil)
 
 		srv := NewServer(conf, dialerMock, l1Mock, contractMock)
+		defer srv.pluginManager.stopAllPlugins()
 		require.Equal(t, currentRound.Uint64(), srv.curRound)
 		require.Equal(t, DefaultSampledSymbols, srv.samplingSymbols)
 		require.Equal(t, true, srv.pricePrecision.Equal(decimal.NewFromBigInt(common.Big1, int32(precision))))
 
 		require.Equal(t, votePeriod.Uint64(), srv.votePeriod)
-		require.Equal(t, 1, len(srv.runningPlugins))
+		require.Equal(t, 1, srv.pluginManager.numOfPlugins())
 
 		nSymbols := append(helpers.DefaultSymbols, "NTNETH", "NTNBTC", "NTNCNY")
 		srv.handleNewSymbolsEvent(nSymbols)
 		require.Equal(t, len(nSymbols)+len(BridgerSymbols), len(srv.samplingSymbols))
-		srv.runningPlugins["template_plugin"].Close()
 	})
 
 	t.Run("gcRounddata", func(t *testing.T) {
@@ -278,6 +272,5 @@ func TestOracleServer(t *testing.T) {
 
 		os.gcVoteRecords()
 		require.Equal(t, MaxBufferedRounds, len(os.voteRecords))
-
 	})
 }

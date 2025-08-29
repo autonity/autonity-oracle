@@ -91,9 +91,7 @@ func (m *PluginManager) Start() {
 			m.PluginRuntimeManagement()
 		case <-m.regularTicker.C:
 			if metrics.Enabled {
-				m.rwMutex.RLock()
-				metrics.GetOrRegisterGauge(monitor.PluginMetric, nil).Update(int64(len(m.runningPlugins)))
-				m.rwMutex.RUnlock()
+				metrics.GetOrRegisterGauge(monitor.PluginMetric, nil).Update(int64(m.numOfPlugins()))
 			}
 		}
 	}
@@ -101,13 +99,17 @@ func (m *PluginManager) Start() {
 
 func (m *PluginManager) Stop() {
 	m.doneCh <- struct{}{}
+	m.stopAllPlugins()
+	m.logger.Info("plugin manager is stopped")
+}
+
+func (m *PluginManager) stopAllPlugins() {
 	m.rwMutex.RLock()
 	defer m.rwMutex.RUnlock()
 	for _, c := range m.runningPlugins {
 		p := c
 		p.Close()
 	}
-	m.logger.Info("plugin manager is stopped")
 }
 
 // SelectSamples is called on round event to select the most optimal samples from different sources of a symbol for voting.
@@ -128,6 +130,12 @@ func (m *PluginManager) SelectSamples(symbol string, target int64) ([]decimal.De
 	}
 
 	return prices, volumes
+}
+
+func (m *PluginManager) numOfPlugins() int {
+	m.rwMutex.RLock()
+	defer m.rwMutex.RUnlock()
+	return len(m.runningPlugins)
 }
 
 func NewPluginManager(configFile string, pluginDir string, loggingLvl hclog.Level, sub types.SampleEventSubscriber,
