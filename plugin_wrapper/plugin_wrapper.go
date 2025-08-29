@@ -4,20 +4,22 @@ import (
 	"autonity-oracle/config"
 	"autonity-oracle/types"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/metrics"
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
 	"os"
 	"os/exec"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-plugin"
 )
 
 var (
-	sampleTTL = 30 // 30s, the TTL of a sample before GC it.
+	sampleTTL       = 30 // 30s, the TTL of a sample before GC it.
+	tenSecsInterval = 1 * time.Minute
 )
 
 // PluginWrapper is the unified wrapper for the interface of a plugin, it contains metadata of a corresponding
@@ -30,6 +32,8 @@ type PluginWrapper struct {
 	lockSamples      sync.RWMutex
 	samples          map[string]map[int64]types.Price
 	latestTimestamps map[string]int64 // to track latest timestamps of samples
+
+	regularTicker *time.Ticker
 
 	plugin  *plugin.Client
 	adapter types.Adapter
@@ -79,6 +83,7 @@ func NewPluginWrapper(logLevel hclog.Level, name string, pluginDir string, sub t
 		chSampleEvent:    make(chan *types.SampleEvent),
 		priceMetrics:     make(map[string]metrics.GaugeFloat64),
 		logger:           logger,
+		regularTicker:    time.NewTicker(tenSecsInterval),
 	}
 
 	return p
@@ -106,11 +111,11 @@ func (pw *PluginWrapper) AddSample(prices []types.Price, ts int64) {
 	}
 }
 
-// AggregatedPrice returns the aggregated price computed from a set of pre-samples of a symbol by a specific plugin.
+// SelectSample returns the aggregated price computed from a set of pre-samples of a symbol by a specific plugin.
 // For data points from AMM and AFQ markets, they are aggregated by the samples of the recent pre-samplings period,
 // while for data points from CEX, the last sample of the pre-sampling period will be taken.
 // The target is the timestamp on which the round block is mined, it's used to select datapoint from CEX data source.
-func (pw *PluginWrapper) AggregatedPrice(symbol string, target int64) (types.Price, error) {
+func (pw *PluginWrapper) SelectSample(symbol string, target int64) (types.Price, error) {
 	pw.lockSamples.RLock()
 	defer pw.lockSamples.RUnlock()
 	tsMap, ok := pw.samples[symbol]
@@ -245,7 +250,8 @@ func (pw *PluginWrapper) start() {
 	for {
 		select {
 		case <-pw.doneCh:
-			pw.logger.Info("plugin exist", "name", pw.name)
+			pw.regularTicker.Stop()
+			pw.logger.Info("plugin is stopping...", "name", pw.name)
 			return
 		case err := <-pw.subSampleEvent.Err():
 			if err != nil {
@@ -261,6 +267,8 @@ func (pw *PluginWrapper) start() {
 					return
 				}
 			}()
+		case <-pw.regularTicker.C:
+			pw.GCExpiredSamples()
 		}
 	}
 }
@@ -321,4 +329,5 @@ func (pw *PluginWrapper) Close() {
 	pw.plugin.Kill()
 	pw.doneCh <- struct{}{}
 	pw.subSampleEvent.Unsubscribe()
+	pw.logger.Info("plugin is stopped")
 }
