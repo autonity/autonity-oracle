@@ -153,7 +153,7 @@ type Config struct {
 	VoteBuffer         uint64
 	Key                *keystore.Key
 	AutonityWSUrl      string
-	PluginDIR          string
+	PluginDir          string
 	ProfileDir         string
 	ConfidenceStrategy int
 	PluginConfigs      map[string]PluginConfig
@@ -215,7 +215,7 @@ func MakeConfig() *Config {
 		GasTipCap:          config.GasTipCap,
 		Key:                key,
 		AutonityWSUrl:      config.AutonityWSUrl,
-		PluginDIR:          config.PluginDir,
+		PluginDir:          config.PluginDir,
 		ProfileDir:         config.ProfileDir,
 		LoggingLevel:       hclog.Level(config.LoggingLevel), //nolint
 		ConfidenceStrategy: config.ConfidenceStrategy,
