@@ -67,8 +67,9 @@ autonityWSUrl: "ws://127.0.0.1:8546"
 #Set the directory of the data plugins.
 pluginDir: "./plugins"  # Directory for plugins
 
-#Set the profiling report directory, where some runtime state will be saved at.
-profileDir: "."  # Profile directory
+#IMPORTANT: To avoid the reveal failure slashing, please set the data DIR where it saves the votes and profiling data
+#for the server, thus the server won't be slashed from a resetting or from a disaster recovery.
+profileDir: "."  # Profile and data directory
 
 #Set the confidence strategy, available strategies are: 0: linear, 1: fixed.
 confidenceStrategy: 0  # 0: linear, 1: fixed
@@ -224,10 +225,12 @@ Prepare the plugin binaries, and save them into the `plugins` directory.
 $./autoracle ./oracle_config.yml
 ```
 
-#### example of profile data directory, if monitor service triggered a profile dump
+#### example of profile and data directory, if monitor service triggered a profile dump
 
 ```
 ── profiles
+ ├── outlier_record.json // IMPORTANT! Save outlier record to avoid the further offense against outlier rule.
+ ├── vote_record.json    // IMPORTANT! Save current round vote state to avoid reveal failure after a restart.
  └── 2024-11-19
      ├── cpu.profile_1
      ├── goroutines.txt_1
@@ -276,6 +279,7 @@ oracle-server metrics:
     IsVoterMetric        = "oracle/isVoter" // track if current client is a voter or not.
     L1ConnectivityMetric = "oracle/l1/errs" // track the num of L1 connectivity error encountered.
     InvalidVoteMetric    = "oracle/vote/invalid" // track the num of invalid vote event addressed by the protocol.
+    NoRevealVoteMetric   = "oracle/vote/noreveal" // track the num of reveal failures during the recent time window.
     SuccessfulVoteMetric = "oracle/vote/successful" // track the num of successful votes.
 
     OutlierDistancePercentMetric = "oracle/outlier/distance/percentage" // track the outlier distance in percentage against the median of the round price.

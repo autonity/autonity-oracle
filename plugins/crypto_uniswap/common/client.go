@@ -232,7 +232,7 @@ func NewWrappedPair(symbol string, baseTokenAddress ecommon.Address, quoteTokenA
 		baseTokenAddress: baseTokenAddress,
 		client:           client,
 		doneCh:           make(chan struct{}),
-		ticker:           time.NewTicker(time.Second * 30),
+		ticker:           time.NewTicker(time.Second * 1), // 1s ticker used to repair L1 connectivity if it was disconnected.
 
 		pairContract:   pairContract,
 		pairAddress:    pairAddress,
