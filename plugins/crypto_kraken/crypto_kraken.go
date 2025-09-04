@@ -6,15 +6,16 @@ import (
 	"autonity-oracle/types"
 	"encoding/json"
 	"fmt"
-	"github.com/hashicorp/go-hclog"
 	"io"
 	"net/url"
 	"os"
 	"time"
+
+	"github.com/hashicorp/go-hclog"
 )
 
 const (
-	version         = "v0.2.6"
+	version         = "v0.2.7"
 	path            = "0/public/Ticker"
 	queryParam      = "pair"
 	supportedSymbol = "USDCUSD"

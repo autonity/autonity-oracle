@@ -5,15 +5,16 @@ import (
 	"autonity-oracle/plugins/common"
 	"autonity-oracle/types"
 	"encoding/json"
-	"github.com/hashicorp/go-hclog"
 	"io"
 	"net/url"
 	"os"
 	"time"
+
+	"github.com/hashicorp/go-hclog"
 )
 
 const (
-	version = "v0.2.6"
+	version = "v0.2.7"
 	path    = "v2/prices/USDC-USD/spot"
 )
 

@@ -6,17 +6,18 @@ import (
 	"autonity-oracle/types"
 	"encoding/json"
 	"fmt"
-	"github.com/hashicorp/go-hclog"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/hashicorp/go-hclog"
 )
 
 const (
-	version = "v0.2.6"
+	version = "v0.2.7"
 	path    = "/v6/finance/quote"
 )
 
