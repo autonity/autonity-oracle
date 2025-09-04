@@ -6,16 +6,17 @@ import (
 	"autonity-oracle/plugins/common"
 	"autonity-oracle/types"
 	"fmt"
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
-	"github.com/shopspring/decimal"
 	"math/big"
 	"os"
 	"time"
+
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-plugin"
+	"github.com/shopspring/decimal"
 )
 
 const (
-	version = "v0.2.6"
+	version = "v0.2.7"
 )
 
 var defaultConfig = config.PluginConfig{

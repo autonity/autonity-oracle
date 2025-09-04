@@ -29,7 +29,7 @@ var (
 
 // Version number of the oracle server in uint8. It is required
 // for data reporting interface to collect oracle clients version.
-const Version uint8 = 26
+const Version uint8 = 27
 
 const PreSamplingRange = 6 // pre-sampling starts in 6s in advance
 

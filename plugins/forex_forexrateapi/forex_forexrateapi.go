@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	version = "v0.2.6"
+	version = "v0.2.7"
 	path    = "/v1/latest"
 )
 
