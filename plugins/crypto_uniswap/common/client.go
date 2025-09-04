@@ -7,6 +7,12 @@ import (
 	"autonity-oracle/plugins/crypto_uniswap/contracts/pair"
 	"autonity-oracle/types"
 	"fmt"
+	"math"
+	"math/big"
+	"os"
+	"sync"
+	"time"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ecommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -14,11 +20,6 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/shopspring/decimal"
 	ring "github.com/zfjagann/golang-ring"
-	"math"
-	"math/big"
-	"os"
-	"sync"
-	"time"
 )
 
 var (
@@ -462,22 +463,17 @@ func (e *WrappedPair) aggregatedPrice() (common.Price, error) {
 func ratio(cryptoReserve, usdcReserve *big.Int) (decimal.Decimal, error) {
 	var r decimal.Decimal
 
-	if usdcReserve.Cmp(common.Zero) == 0 {
-		return r, fmt.Errorf("usdcReserve is zero, cannot compute exchange ratio")
+	if cryptoReserve.Cmp(common.Zero) <= 0 || usdcReserve.Cmp(common.Zero) <= 0 {
+		return r, fmt.Errorf("reserve value <= 0, skip price computing")
 	}
 
-	if cryptoReserve.Cmp(common.Zero) < 0 || usdcReserve.Cmp(common.Zero) < 0 {
-		return r, fmt.Errorf("negative reserve value")
-	}
-
-	// ratio == (cryptoReserve/cryptoDecimals) / (usdcReserve/usdcDecimals)
-	//       == (cryptoReserve*usdcDecimals) / (usdcReserve*cryptoDecimals)
+	// ratio == (usdcReserve/usdcDecimals) / (cryptoReserve/cryptoDecimals)
+	//       == (usdcReserve*cryptoDecimals) / (cryptoReserve*usdcDecimals)
 	scaledCryptoReserve := new(big.Int).Mul(cryptoReserve, big.NewInt(int64(math.Pow(10, float64(common.USDCDecimals)))))
 	scaledUsdcReserve := new(big.Int).Mul(usdcReserve, big.NewInt(int64(math.Pow(10, float64(common.AutonityCryptoDecimals)))))
 
 	// Calculate the exchange ratio as a big.Rat
-	price := new(big.Rat).SetFrac(scaledCryptoReserve, scaledUsdcReserve)
-
+	price := new(big.Rat).SetFrac(scaledUsdcReserve, scaledCryptoReserve)
 	r, err := decimal.NewFromString(price.FloatString(common.CryptoToUsdcDecimals))
 	if err != nil {
 		return r, err
